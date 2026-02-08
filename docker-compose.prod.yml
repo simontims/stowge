@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
 
   kete:
-    image: kete/kete:latest  # <-- change to your Docker Hub repo, e.g. tims/kete:latest
+    image: tims/kete:latest
     container_name: kete
     depends_on:
       - db

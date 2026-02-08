@@ -1,8 +1,9 @@
 import os
+import time
 from datetime import datetime, timezone
 from typing import Optional, Literal, List
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from .models import User, Part, PartImage
 from .auth import hash_password, verify_password, create_token, current_user, require_admin
 from .images import process_and_store, resolve_path
 from .openai_id import identify as openai_identify
+from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
 
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
@@ -32,6 +34,24 @@ if CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# ---------------- helpers ----------------
+
+def _signed_image_url(image_id: str, variant: str) -> str:
+    exp = int(time.time()) + ttl_seconds()
+    sig = sign_image(image_id, variant, exp)
+    return f"/api/images/{image_id}?variant={variant}&exp={exp}&sig={sig}"
+
+def _variant_rel(img: PartImage, variant: str) -> str:
+    if variant == "thumb":
+        return img.path_thumb
+    if variant == "display":
+        return img.path_display
+    if variant == "original":
+        if not img.path_original:
+            raise HTTPException(status_code=404, detail="Original not stored")
+        return img.path_original
+    raise HTTPException(status_code=400, detail="Invalid variant")
 
 # ---------------- UI (PWA) ----------------
 @app.get("/", response_class=HTMLResponse)
@@ -125,12 +145,17 @@ def identify(
         raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
 
     stored, b64s = process_and_store(images)
-    ai = openai_identify(b64s, mode=mode)
+    # openai_id supports "many"/"five" - map your API param "five" accordingly
+    ai_mode = "five" if mode == "five" else "one"
+    ai = openai_identify(b64s, mode=ai_mode)
 
     return {
         "mode": mode,
         "ai": ai,
-        "uploaded_images": [{"id": s["id"], "thumb_url": f"/api/images/{s['id']}?variant=thumb"} for s in stored],
+        "uploaded_images": [
+            {"id": s["id"], "thumb_url": _signed_image_url(s["id"], "thumb")}
+            for s in stored
+        ],
         "stored_images": stored,
     }
 
@@ -192,7 +217,7 @@ def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User 
         "category": p.category,
         "status": p.status,
         "created_at": p.created_at.isoformat(),
-        "thumb": (f"/api/images/{p.images[0].id}?variant=thumb" if p.images else None),
+        "thumb": (_signed_image_url(p.images[0].id, "thumb") if p.images else None),
     } for p in parts]
 
 @app.get("/api/parts/{part_id}")
@@ -211,9 +236,9 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
         "updated_at": p.updated_at.isoformat(),
         "images": [{
             "id": img.id,
-            "thumb_url": f"/api/images/{img.id}?variant=thumb",
-            "display_url": f"/api/images/{img.id}?variant=display",
-            "original_url": (f"/api/images/{img.id}?variant=original" if img.path_original else None),
+            "thumb_url": _signed_image_url(img.id, "thumb"),
+            "display_url": _signed_image_url(img.id, "display"),
+            "original_url": (_signed_image_url(img.id, "original") if img.path_original else None),
         } for img in p.images],
         "ai_primary": p.ai_primary,
         "ai_alternatives": p.ai_alternatives,
@@ -235,25 +260,44 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
     return {"ok": True}
 
 # ---------------- Images ----------------
-@app.get("/api/images/{image_id}")
-def get_image(
+
+@app.get("/api/images/{image_id}/signed")
+def get_signed_image_url(
     image_id: str,
     variant: Literal["thumb", "display", "original"] = "display",
     db: Session = Depends(get_db),
     me: User = Depends(current_user),
 ):
+    # Validate image exists and variant exists (esp original)
+    img = db.query(PartImage).filter(PartImage.id == image_id).first()
+    if not img:
+        raise HTTPException(status_code=404, detail="Not found")
+    _ = _variant_rel(img, variant)  # raises if original missing
+    return {"url": _signed_image_url(image_id, variant)}
+
+@app.get("/api/images/{image_id}")
+def get_image(
+    request: Request,
+    image_id: str,
+    variant: Literal["thumb", "display", "original"] = "display",
+    exp: Optional[int] = Query(default=None),
+    sig: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    # If Authorization header is present, enforce bearer auth
+    auth = request.headers.get("authorization")
+    if auth:
+        _ = current_user(Authorization=auth, db=db)
+    else:
+        # No bearer header: require a valid signed URL
+        if exp is None or sig is None or not verify_image(image_id, variant, exp, sig):
+            raise HTTPException(status_code=401, detail="Missing bearer token")
+
     img = db.query(PartImage).filter(PartImage.id == image_id).first()
     if not img:
         raise HTTPException(status_code=404, detail="Not found")
 
-    rel = img.path_display
-    if variant == "thumb":
-        rel = img.path_thumb
-    elif variant == "original":
-        if not img.path_original:
-            raise HTTPException(status_code=404, detail="Original not stored")
-        rel = img.path_original
-
+    rel = _variant_rel(img, variant)
     abs_path = resolve_path(rel)
     headers = {"Cache-Control": "public, max-age=604800, immutable"}
     return FileResponse(abs_path, media_type=img.mime, headers=headers)
