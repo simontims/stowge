@@ -72,8 +72,6 @@
     try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
     if (res.status === 401) {
       setToken(null);
-      location.hash = '#/';
-      route();
       throw new Error((data && data.detail) ? data.detail : 'Unauthorized');
     }
     if (!res.ok) throw new Error((data && data.detail) ? data.detail : ('HTTP ' + res.status));
@@ -81,7 +79,13 @@
   }
 
   async function ensureAuthOrSetup() {
-    const st = await api('/api/status', { method:'GET' });
+    let st;
+    try {
+      st = await api('/api/status', { method:'GET' });
+    } catch (e) {
+      await renderLogin();
+      return true;
+    }
     if (st.needs_setup) { await renderSetup(); return true; }
     if (!state.token) { await renderLogin(); return true; }
     return false;
