@@ -27,7 +27,7 @@
 <body>
 <header>
   <h1>Kete</h1>
-  <nav>
+  <nav id="nav">
     <a href="#/">Home</a>
     <a href="#/add">Add</a>
   </nav>
@@ -57,6 +57,8 @@
     if (t) localStorage.setItem('kete_token', t);
     else localStorage.removeItem('kete_token');
     logoutBtn.style.display = t ? '' : 'none';
+    const nav = document.getElementById('nav');
+    if (nav) nav.style.display = t ? '' : 'none';
   }
   logoutBtn.onclick = () => { setToken(null); location.hash = '#/'; route(); };
   // ensure UI reflects any token already in localStorage on load
