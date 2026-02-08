@@ -1,0 +1,50 @@
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
+from .db import Base
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    username = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="admin")  # admin|user
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+
+class Part(Base):
+    __tablename__ = "parts"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="draft")  # draft|confirmed
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+    ai_primary = Column(JSONB, nullable=True)
+    ai_alternatives = Column(JSONB, nullable=True)
+    ai_chosen_index = Column(Integer, nullable=True)
+
+    images = relationship("PartImage", back_populates="part", cascade="all, delete-orphan")
+
+class PartImage(Base):
+    __tablename__ = "images"
+    id = Column(String, primary_key=True)  # set by /identify
+    part_id = Column(String, ForeignKey("parts.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+    path_thumb = Column(String, nullable=False)
+    path_display = Column(String, nullable=False)
+    path_original = Column(String, nullable=True)
+
+    mime = Column(String, nullable=False, default="image/webp")
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+
+    part = relationship("Part", back_populates="images")

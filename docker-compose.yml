@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kete-db
+    environment:
+      POSTGRES_DB: kete
+      POSTGRES_USER: kete
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - kete_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kete -d kete"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  kete:
+    build: .
+    image: kete-local:latest
+    container_name: kete
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://kete:${POSTGRES_PASSWORD}@db:5432/kete
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: kete
+      JWT_EXPIRES_MINUTES: "1440"
+
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+
+      ASSETS_DIR: /assets
+      STORE_ORIGINAL: ${STORE_ORIGINAL:-false}
+      OUTPUT_FORMAT: ${OUTPUT_FORMAT:-webp}
+      DISPLAY_MAX_EDGE: ${DISPLAY_MAX_EDGE:-2048}
+      DISPLAY_QUALITY: ${DISPLAY_QUALITY:-82}
+      THUMB_MAX_EDGE: ${THUMB_MAX_EDGE:-360}
+      THUMB_QUALITY: ${THUMB_QUALITY:-70}
+
+      CORS_ORIGINS: "${CORS_ORIGINS:-}"
+
+    volumes:
+      - kete_assets:/assets
+    ports:
+      - "18090:8000"
+    restart: unless-stopped
+
+volumes:
+  kete_pgdata:
+  kete_assets:

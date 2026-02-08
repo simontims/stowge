@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <title>Kete</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background:#0b0c10; color:#eaeaea;}
+    header { padding: 12px 16px; display:flex; gap:12px; align-items:center; border-bottom:1px solid #222;}
+    header h1 { font-size: 18px; margin:0; flex:1;}
+    .btn { background:#2a2f3a; color:#fff; border:1px solid #3a4150; padding:10px 12px; border-radius:10px; cursor:pointer; }
+    .btn.primary { background:#3b82f6; border-color:#3b82f6; }
+    .wrap { padding: 16px; max-width: 980px; margin: 0 auto;}
+    .card { background:#111319; border:1px solid #222; border-radius:16px; padding:14px; margin:12px 0; }
+    input, textarea { width:100%; box-sizing:border-box; padding:10px; border-radius:10px; border:1px solid #333; background:#0f1117; color:#fff; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .row > * { flex: 1; min-width: 220px; }
+    .thumbs { display:flex; gap:10px; flex-wrap:wrap; }
+    img.thumb { width:88px; height:88px; object-fit:cover; border-radius:12px; border:1px solid #333; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#1f2530; border:1px solid #333; font-size:12px; }
+    nav a { color:#9bd; text-decoration:none; margin-right:10px; }
+    video { width:100%; border-radius:16px; border:1px solid #333; background:#000; }
+    .muted { color:#a3a3a3; font-size: 13px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Kete</h1>
+  <nav>
+    <a href="#/">Home</a>
+    <a href="#/add">Add</a>
+  </nav>
+  <button class="btn" id="logoutBtn" style="display:none">Logout</button>
+</header>
+
+<div class="wrap" id="app"></div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  }
+
+  const app = document.getElementById('app');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  const state = {
+    token: localStorage.getItem('kete_token') || null,
+    cameraStream: null,
+    capturedBlobs: [],
+    storedImages: [],
+    lastIdentify: null,
+  };
+
+  function setToken(t) {
+    state.token = t;
+    if (t) localStorage.setItem('kete_token', t);
+    else localStorage.removeItem('kete_token');
+    logoutBtn.style.display = t ? '' : 'none';
+  }
+  logoutBtn.onclick = () => { setToken(null); location.hash = '#/'; };
+
+  async function api(path, opts={}) {
+    const headers = opts.headers || {};
+    if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    const res = await fetch(path, { ...opts, headers });
+    const txt = await res.text();
+    let data;
+    try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
+    if (!res.ok) throw new Error((data && data.detail) ? data.detail : ('HTTP ' + res.status));
+    return data;
+  }
+
+  async function ensureAuthOrSetup() {
+    const st = await api('/api/status', { method:'GET' });
+    if (st.needs_setup) { await renderSetup(); return true; }
+    if (!state.token) { await renderLogin(); return true; }
+    return false;
+  }
+
+  function route() {
+    const hash = location.hash || '#/';
+    const parts = hash.slice(1).split('/').filter(Boolean);
+    const path = parts[0] || '';
+    const param = parts[1] || null;
+
+    if (!path) return renderHome();
+    if (path === 'add') return renderAdd();
+    if (path === 'part' && param) return renderPart(param);
+    return renderHome();
+  }
+  window.addEventListener('hashchange', route);
+
+  async function renderSetup() {
+    app.innerHTML = `
+      <div class="card">
+        <h2>Create admin account</h2>
+        <p class="muted">First run detected. Create the initial admin user.</p>
+        <label>Username</label>
+        <input id="su_user" placeholder="admin"/>
+        <label style="margin-top:10px; display:block">Password</label>
+        <input id="su_pw" type="password" placeholder="Minimum 8 characters"/>
+        <div style="margin-top:12px">
+          <button class="btn primary" id="su_btn">Create admin</button>
+        </div>
+        <p class="muted" id="su_err" style="margin-top:10px"></p>
+      </div>
+    `;
+    document.getElementById('su_btn').onclick = async () => {
+      const username = document.getElementById('su_user').value.trim();
+      const password = document.getElementById('su_pw').value;
+      const err = document.getElementById('su_err');
+      err.textContent = '';
+      try {
+        const r = await api('/api/setup/first-admin', { method:'POST', body: JSON.stringify({ username, password }) });
+        setToken(r.access_token);
+        location.hash = '#/add';
+      } catch (e) { err.textContent = e.message; }
+    };
+  }
+
+  async function renderLogin() {
+    app.innerHTML = `
+      <div class="card">
+        <h2>Login</h2>
+        <label>Username</label>
+        <input id="li_user" />
+        <label style="margin-top:10px; display:block">Password</label>
+        <input id="li_pw" type="password" />
+        <div style="margin-top:12px">
+          <button class="btn primary" id="li_btn">Login</button>
+        </div>
+        <p class="muted" id="li_err" style="margin-top:10px"></p>
+      </div>
+    `;
+    document.getElementById('li_btn').onclick = async () => {
+      const username = document.getElementById('li_user').value.trim();
+      const password = document.getElementById('li_pw').value;
+      const err = document.getElementById('li_err');
+      err.textContent = '';
+      try {
+        const r = await api('/api/login', { method:'POST', body: JSON.stringify({ username, password }) });
+        setToken(r.access_token);
+        location.hash = '#/add';
+      } catch (e) { err.textContent = e.message; }
+    };
+  }
+
+  async function renderHome() {
+    if (await ensureAuthOrSetup()) return;
+
+    app.innerHTML = `
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2 style="margin-top:0">Parts</h2>
+            <p class="muted">Basic list/search (MVP).</p>
+          </div>
+          <div>
+            <input id="q" placeholder="Search..." />
+          </div>
+        </div>
+        <div id="list"></div>
+      </div>
+    `;
+
+    const q = document.getElementById('q');
+    const list = document.getElementById('list');
+
+    async function load() {
+      const r = await api('/api/parts' + (q.value.trim()?`?q=${encodeURIComponent(q.value.trim())}`:''), { method:'GET' });
+      list.innerHTML = r.map(p => `
+        <div class="card" style="margin:10px 0">
+          <div class="row" style="align-items:center">
+            <div style="flex:0 0 auto">
+              ${p.thumb ? `<img class="thumb" src="${p.thumb}">` : `<div class="pill">No image</div>`}
+            </div>
+            <div>
+              <div style="font-weight:700">${escapeHtml(p.name)}</div>
+              <div class="muted">${escapeHtml(p.category||'—')} · <span class="pill">${escapeHtml(p.status)}</span></div>
+            </div>
+            <div style="flex:0 0 auto">
+              <button class="btn" onclick="location.hash='#/part/${p.id}'">Open</button>
+            </div>
+          </div>
+        </div>
+      `).join('') || `<p class="muted">No parts yet. Go to <a href="#/add">Add</a>.</p>`;
+    }
+
+    q.addEventListener('input', debounce(load, 250));
+    load();
+  }
+
+  async function renderPart(id) {
+    if (await ensureAuthOrSetup()) return;
+
+    const p = await api('/api/parts/' + id, { method:'GET' });
+    app.innerHTML = `
+      <div class="card">
+        <h2 style="margin-top:0">Edit part</h2>
+        <label>Name</label>
+        <input id="pn" value="${escapeAttr(p.name)}"/>
+        <label style="margin-top:10px; display:block">Description</label>
+        <textarea id="pd" rows="4">${escapeHtml(p.description||'')}</textarea>
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label>Category</label>
+            <input id="pc" value="${escapeAttr(p.category||'')}"/>
+          </div>
+          <div>
+            <label>Status</label>
+            <input id="ps" value="${escapeAttr(p.status)}" placeholder="draft|confirmed"/>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <button class="btn primary" id="save">Save</button>
+          <button class="btn" onclick="history.back()">Back</button>
+        </div>
+
+        <h3 style="margin-top:18px">Images</h3>
+        <div class="thumbs">
+          ${(p.images||[]).map(i => `<a href="${i.display_url}" target="_blank"><img class="thumb" src="${i.thumb_url}"></a>`).join('')}
+        </div>
+      </div>
+    `;
+    document.getElementById('save').onclick = async () => {
+      await api('/api/parts/' + id, {
+        method:'PATCH',
+        body: JSON.stringify({
+          name: document.getElementById('pn').value.trim(),
+          description: document.getElementById('pd').value,
+          category: document.getElementById('pc').value.trim(),
+          status: document.getElementById('ps').value.trim(),
+        })
+      });
+      location.hash = '#/';
+    };
+  }
+
+  async function renderAdd() {
+    if (await ensureAuthOrSetup()) return;
+    stopCamera();
+
+    app.innerHTML = `
+      <div class="card">
+        <h2 style="margin-top:0">Add Item</h2>
+        <p class="muted">Up to 5 photos. Get one close-up of the markings.</p>
+
+        <div id="captureArea"></div>
+        <div class="thumbs" id="preview" style="margin-top:12px"></div>
+
+        <div style="margin-top:12px" class="row">
+          <button class="btn" id="startCam">Use camera</button>
+          <label class="btn" style="display:inline-block">
+            Pick photos
+            <input id="filePick" type="file" accept="image/*" multiple style="display:none">
+          </label>
+          <button class="btn primary" id="submitOne">Submit for ID</button>
+        </div>
+
+        <p class="muted" id="err" style="margin-top:10px"></p>
+      </div>
+
+      <div class="card" id="resultCard" style="display:none"></div>
+    `;
+
+    const captureArea = document.getElementById('captureArea');
+    const preview = document.getElementById('preview');
+    const filePick = document.getElementById('filePick');
+    const err = document.getElementById('err');
+    const resultCard = document.getElementById('resultCard');
+
+    state.capturedBlobs = [];
+    state.storedImages = [];
+    state.lastIdentify = null;
+
+    function renderPreview() {
+      preview.innerHTML = state.capturedBlobs.map((b,i) => {
+        const url = URL.createObjectURL(b);
+        return `<img class="thumb" src="${url}" title="Photo ${i+1}">`;
+      }).join('');
+    }
+
+    filePick.onchange = () => {
+      err.textContent = '';
+      state.capturedBlobs = Array.from(filePick.files || []).slice(0,5);
+      renderPreview();
+    };
+
+    document.getElementById('startCam').onclick = async () => {
+      err.textContent = '';
+      try {
+        await startCamera(captureArea, (blob) => {
+          if (state.capturedBlobs.length >= 5) return;
+          state.capturedBlobs.push(blob);
+          renderPreview();
+        });
+      } catch (e) { err.textContent = e.message; }
+    };
+
+    document.getElementById('submitOne').onclick = async () => {
+      err.textContent = '';
+      resultCard.style.display = 'none';
+
+      if (state.capturedBlobs.length < 1) {
+        err.textContent = 'Add at least one photo.';
+        return;
+      }
+
+      try {
+        const fd = new FormData();
+        state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
+        const r = await fetch('/api/identify?mode=one', {
+          method:'POST',
+          headers: { 'Authorization': 'Bearer ' + state.token },
+          body: fd
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Identify failed');
+
+        state.lastIdentify = data;
+        state.storedImages = data.stored_images;
+
+        showPrimary(data.ai);
+      } catch (e) { err.textContent = e.message; }
+    };
+
+    function showPrimary(ai) {
+      const unknown = ai.unknown ? `<span class="pill">unknown</span>` : `<span class="pill">conf ${(ai.confidence||0).toFixed(2)}</span>`;
+      resultCard.innerHTML = `
+        <h3 style="margin-top:0">Suggested</h3>
+        <div><strong>${escapeHtml(ai.name||'')}</strong> ${unknown}</div>
+        <p class="muted">${escapeHtml(ai.description||'')}</p>
+        <p class="muted"><strong>Evidence:</strong> ${escapeHtml(ai.evidence||'')}</p>
+
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="acceptPrimary">Accept & Add to DB</button>
+          <button class="btn" id="tryAgain">Try again (5 options)</button>
+        </div>
+
+        <div id="alts"></div>
+        <p class="muted" id="saveErr" style="margin-top:10px"></p>
+      `;
+      resultCard.style.display = '';
+
+      document.getElementById('acceptPrimary').onclick = async () => {
+        await savePartFromAI(ai, null, null);
+      };
+      document.getElementById('tryAgain').onclick = async () => {
+        await doFive();
+      };
+    }
+
+    async function doFive() {
+      const fd = new FormData();
+      state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
+      const r = await fetch('/api/identify?mode=five', {
+        method:'POST',
+        headers: { 'Authorization': 'Bearer ' + state.token },
+        body: fd
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Identify failed');
+
+      state.storedImages = data.stored_images;
+
+      const candidates = (data.ai && data.ai.candidates) ? data.ai.candidates : [];
+      const alts = document.getElementById('alts');
+      alts.innerHTML = `
+        <h4 style="margin-top:16px">Pick one</h4>
+        ${candidates.map((c, idx) => `
+          <div class="card" style="margin:10px 0">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:start">
+              <div>
+                <div style="font-weight:700">${escapeHtml(c.name)}</div>
+                <div class="muted">${escapeHtml(c.description)}</div>
+                <div class="muted"><strong>Evidence:</strong> ${escapeHtml(c.evidence||'')}</div>
+              </div>
+              <div style="flex:0 0 auto; text-align:right">
+                <div class="pill">${c.unknown ? 'unknown' : ('conf ' + (c.confidence||0).toFixed(2))}</div>
+                <div style="margin-top:10px">
+                  <button class="btn primary" onclick="window.__pick(${idx})">Choose</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      `;
+
+      window.__pick = async (idx) => {
+        const chosen = candidates[idx];
+        await savePartFromAI(chosen, candidates, idx);
+      };
+    }
+
+    async function savePartFromAI(ai, alternatives, chosenIndex) {
+      const saveErr = document.getElementById('saveErr');
+      saveErr.textContent = '';
+      try {
+        const payload = {
+          name: ai.name || 'Unknown part',
+          description: ai.description || '',
+          category: ai.category || (ai.unknown ? 'unknown' : ''),
+          status: 'draft',
+          ai_primary: state.lastIdentify ? state.lastIdentify.ai : ai,
+          ai_alternatives: alternatives ? { candidates: alternatives } : null,
+          ai_chosen_index: chosenIndex,
+          stored_images: state.storedImages
+        };
+        const r = await api('/api/parts', { method:'POST', body: JSON.stringify(payload) });
+        location.hash = '#/part/' + r.id;
+      } catch (e) { saveErr.textContent = e.message; }
+    }
+  }
+
+  async function startCamera(container, onCapture) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Camera not available in this browser. Use “Pick photos”.');
+    }
+    stopCamera();
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio:false });
+    state.cameraStream = stream;
+
+    container.innerHTML = `
+      <div class="card">
+        <video id="vid" autoplay playsinline></video>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="snap">Take photo</button>
+          <button class="btn" id="stop">Stop camera</button>
+        </div>
+        <p class="muted">Tip: take one close-up of the markings.</p>
+      </div>
+    `;
+    const vid = document.getElementById('vid');
+    vid.srcObject = stream;
+
+    document.getElementById('snap').onclick = async () => {
+      const blob = await snapFrame(vid);
+      onCapture(blob);
+    };
+    document.getElementById('stop').onclick = () => stopCamera(container);
+  }
+
+  function stopCamera(container=null) {
+    if (state.cameraStream) {
+      state.cameraStream.getTracks().forEach(t => t.stop());
+      state.cameraStream = null;
+    }
+    if (container) container.innerHTML = '';
+  }
+
+  async function snapFrame(videoEl) {
+    const canvas = document.createElement('canvas');
+    canvas.width = videoEl.videoWidth || 1280;
+    canvas.height = videoEl.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  }
+
+  function debounce(fn, ms) {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), ms); };
+  }
+  function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+  function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;'); }
+
+  route();
+</script>
+</body>
+</html>
