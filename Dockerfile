@@ -1,23 +1,31 @@
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Prevent Python buffering + speed up installs
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Pillow deps + libpq
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libjpeg62-turbo \
-    zlib1g \
-    libwebp7 \
-    libpq5 \
-  && rm -rf /var/lib/apt/lists/*
+# System deps (Pillow, bcrypt, psycopg)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# Python deps first (layer caching)
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/kete /app/kete
+# App code
+COPY backend /app/kete
 COPY ui /app/ui
 
+# Default paths
+ENV ASSETS_DIR=/assets
+ENV UI_DIR=/app/ui
+
 EXPOSE 8000
+
 CMD ["uvicorn", "kete.main:app", "--host", "0.0.0.0", "--port", "8000"]
