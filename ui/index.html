@@ -58,7 +58,9 @@
     else localStorage.removeItem('kete_token');
     logoutBtn.style.display = t ? '' : 'none';
   }
-  logoutBtn.onclick = () => { setToken(null); location.hash = '#/'; };
+  logoutBtn.onclick = () => { setToken(null); location.hash = '#/'; route(); };
+  // ensure UI reflects any token already in localStorage on load
+  setToken(state.token);
 
   async function api(path, opts={}) {
     const headers = opts.headers || {};
@@ -68,6 +70,12 @@
     const txt = await res.text();
     let data;
     try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
+    if (res.status === 401) {
+      setToken(null);
+      location.hash = '#/';
+      route();
+      throw new Error((data && data.detail) ? data.detail : 'Unauthorized');
+    }
     if (!res.ok) throw new Error((data && data.detail) ? data.detail : ('HTTP ' + res.status));
     return data;
   }
@@ -312,13 +320,7 @@
       try {
         const fd = new FormData();
         state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
-        const r = await fetch('/api/identify?mode=one', {
-          method:'POST',
-          headers: { 'Authorization': 'Bearer ' + state.token },
-          body: fd
-        });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || 'Identify failed');
+        const data = await api('/api/identify?mode=one', { method:'POST', body: fd });
 
         state.lastIdentify = data;
         state.storedImages = data.stored_images;
@@ -356,14 +358,7 @@
     async function doFive() {
       const fd = new FormData();
       state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
-      const r = await fetch('/api/identify?mode=five', {
-        method:'POST',
-        headers: { 'Authorization': 'Bearer ' + state.token },
-        body: fd
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.detail || 'Identify failed');
-
+      const data = await api('/api/identify?mode=five', { method:'POST', body: fd });
       state.storedImages = data.stored_images;
 
       const candidates = (data.ai && data.ai.candidates) ? data.ai.candidates : [];
