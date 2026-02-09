@@ -118,11 +118,11 @@
     app.innerHTML = `
       <div class="card">
         <h2>Create admin account</h2>
-        <p class="muted">First run detected. Create the initial admin user.</p>
+        <p class="muted">First run: create Administrator</p>
         <label>Username</label>
         <input id="su_user" placeholder="admin"/>
         <label style="margin-top:10px; display:block">Password</label>
-        <input id="su_pw" type="password" placeholder="Minimum 8 characters"/>
+        <input id="su_pw" type="password" placeholder="Enter password"/>
         <div style="margin-top:12px">
           <button class="btn primary" id="su_btn">Create admin</button>
         </div>
@@ -137,7 +137,7 @@
       try {
         const r = await api('/api/setup/first-admin', { method:'POST', body: JSON.stringify({ username, password }) });
         setToken(r.access_token);
-        location.hash = '#/add';
+        location.hash = '#/';
       } catch (e) { err.textContent = e.message; }
     };
   }

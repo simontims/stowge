@@ -78,8 +78,8 @@ def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
 
     username = (payload.get("username") or "").strip()
     password = payload.get("password") or ""
-    if len(username) < 3 or len(password) < 8:
-        raise HTTPException(status_code=400, detail="Username >= 3 chars, password >= 8 chars")
+    if len(username) < 3 or not password:
+        raise HTTPException(status_code=400, detail="Username >= 3 chars, password required")
 
     user = User(username=username, password_hash=hash_password(password), role="admin")
     db.add(user)
