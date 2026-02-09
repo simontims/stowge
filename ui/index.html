@@ -22,6 +22,9 @@
     nav a { color:#9bd; text-decoration:none; margin-right:10px; }
     video { width:100%; border-radius:16px; border:1px solid #333; background:#000; }
     .muted { color:#a3a3a3; font-size: 13px; }
+    .btn:disabled { opacity:0.6; cursor:not-allowed; }
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid #999; border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; margin-right:6px; vertical-align:middle; }
+    @keyframes spin { to { transform:rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -326,6 +329,10 @@
         return;
       }
 
+      const submitBtn = document.getElementById('submitOne');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span>Submitting...';
+
       try {
         const fd = new FormData();
         state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
@@ -335,7 +342,12 @@
         state.storedImages = data.stored_images;
 
         showPrimary(data.ai);
-      } catch (e) { err.textContent = e.message; }
+      } catch (e) { 
+        err.textContent = e.message;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit for ID';
+      }
     };
 
     function showPrimary(ai) {
@@ -357,7 +369,14 @@
       resultCard.style.display = '';
 
       document.getElementById('acceptPrimary').onclick = async () => {
-        await savePartFromAI(ai, null, null);
+        const acceptBtn = document.getElementById('acceptPrimary');
+        acceptBtn.disabled = true;
+        acceptBtn.innerHTML = '<span class="spinner"></span>Saving...';
+        try {
+          await savePartFromAI(ai, null, null);
+        } finally {
+          // button will be replaced when results render, so no need to restore
+        }
       };
       document.getElementById('tryAgain').onclick = async () => {
         await doFive();
@@ -365,13 +384,19 @@
     }
 
     async function doFive() {
-      const fd = new FormData();
-      state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
-      const data = await api('/api/identify?mode=five', { method:'POST', body: fd });
-      state.storedImages = data.stored_images;
+      const tryBtn = document.getElementById('tryAgain');
+      const alts = document.getElementById('alts');
+      tryBtn.disabled = true;
+      tryBtn.innerHTML = '<span class="spinner"></span>Loading...';
+      alts.innerHTML = '';
+
+      try {
+        const fd = new FormData();
+        state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
+        const data = await api('/api/identify?mode=five', { method:'POST', body: fd });
+        state.storedImages = data.stored_images;
 
       const candidates = (data.ai && data.ai.candidates) ? data.ai.candidates : [];
-      const alts = document.getElementById('alts');
       alts.innerHTML = `
         <h4 style="margin-top:16px">Pick one</h4>
         ${candidates.map((c, idx) => `
@@ -393,10 +418,21 @@
         `).join('')}
       `;
 
-      window.__pick = async (idx) => {
-        const chosen = candidates[idx];
-        await savePartFromAI(chosen, candidates, idx);
-      };
+        window.__pick = async (idx) => {
+          const btn = event.target;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>Saving...';
+          const chosen = candidates[idx];
+          try {
+            await savePartFromAI(chosen, candidates, idx);
+          } finally {
+            // page will re-render after save
+          }
+        };
+      } finally {
+        tryBtn.disabled = false;
+        tryBtn.textContent = 'Try again (5 options)';
+      }
     }
 
     async function savePartFromAI(ai, alternatives, chosenIndex) {
