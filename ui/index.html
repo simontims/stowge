@@ -53,6 +53,8 @@
     capturedBlobs: [],
     storedImages: [],
     lastIdentify: null,
+    submitAbort: null,
+    fiveAbort: null,
   };
 
   function setToken(t) {
@@ -74,7 +76,7 @@
     const headers = opts.headers || {};
     if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
-    const res = await fetch(path, { ...opts, headers });
+    const res = await fetch(path, { ...opts, headers, signal: opts.signal });
     const txt = await res.text();
     let data;
     try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
@@ -329,23 +331,43 @@
         return;
       }
 
+      // If already submitting, cancel
+      if (state.submitAbort) {
+        state.submitAbort.abort();
+        state.submitAbort = null;
+        return;
+      }
+
       const submitBtn = document.getElementById('submitOne');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span>Submitting...';
+      const camBtn = document.getElementById('startCam');
+      const fileBtn = document.getElementById('filePick').parentElement;
+      
+      // Disable input buttons and add abort controller
+      state.submitAbort = new AbortController();
+      camBtn.disabled = true;
+      fileBtn.style.opacity = '0.6';
+      fileBtn.style.pointerEvents = 'none';
+      // Keep submit button ENABLED so user can click to cancel
+      submitBtn.innerHTML = '<span class="spinner"></span>Cancel';
 
       try {
         const fd = new FormData();
         state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
-        const data = await api('/api/identify?mode=one', { method:'POST', body: fd });
+        const data = await api('/api/identify?mode=one', { method:'POST', body: fd, signal: state.submitAbort.signal });
 
         state.lastIdentify = data;
         state.storedImages = data.stored_images;
 
         showPrimary(data.ai);
       } catch (e) { 
-        err.textContent = e.message;
+        if (e.name !== 'AbortError') {
+          err.textContent = e.message;
+        }
       } finally {
-        submitBtn.disabled = false;
+        state.submitAbort = null;
+        camBtn.disabled = false;
+        fileBtn.style.opacity = '1';
+        fileBtn.style.pointerEvents = 'auto';
         submitBtn.textContent = 'Submit for ID';
       }
     };
@@ -359,8 +381,9 @@
         <p class="muted"><strong>Evidence:</strong> ${escapeHtml(ai.evidence||'')}</p>
 
         <div class="row" style="margin-top:12px">
-          <button class="btn primary" id="acceptPrimary">Accept & Add to DB</button>
+          <button class="btn primary" id="acceptPrimary">Accept</button>
           <button class="btn" id="tryAgain">Try again (5 options)</button>
+          <button class="btn" id="discard">Discard</button>
         </div>
 
         <div id="alts"></div>
@@ -379,21 +402,39 @@
         }
       };
       document.getElementById('tryAgain').onclick = async () => {
+        // If already loading, cancel
+        if (state.fiveAbort) {
+          state.fiveAbort.abort();
+          state.fiveAbort = null;
+          return;
+        }
         await doFive();
+      };
+      document.getElementById('discard').onclick = () => {
+        state.capturedBlobs = [];
+        state.storedImages = [];
+        state.lastIdentify = null;
+        resultCard.style.display = 'none';
+        renderPreview();
+        err.textContent = '';
       };
     }
 
     async function doFive() {
       const tryBtn = document.getElementById('tryAgain');
       const alts = document.getElementById('alts');
+      const acceptBtn = document.getElementById('acceptPrimary');
+      
+      state.fiveAbort = new AbortController();
+      acceptBtn.disabled = true;
       tryBtn.disabled = true;
-      tryBtn.innerHTML = '<span class="spinner"></span>Loading...';
+      tryBtn.innerHTML = '<span class="spinner"></span>Cancel';
       alts.innerHTML = '';
 
       try {
         const fd = new FormData();
         state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
-        const data = await api('/api/identify?mode=five', { method:'POST', body: fd });
+        const data = await api('/api/identify?mode=five', { method:'POST', body: fd, signal: state.fiveAbort.signal });
         state.storedImages = data.stored_images;
 
       const candidates = (data.ai && data.ai.candidates) ? data.ai.candidates : [];
@@ -429,7 +470,13 @@
             // page will re-render after save
           }
         };
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          alts.innerHTML = `<p class="muted" style="color:#f33">${escapeHtml(e.message)}</p>`;
+        }
       } finally {
+        state.fiveAbort = null;
+        acceptBtn.disabled = false;
         tryBtn.disabled = false;
         tryBtn.textContent = 'Try again (5 options)';
       }
