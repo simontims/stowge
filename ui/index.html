@@ -60,7 +60,10 @@
     const nav = document.getElementById('nav');
     if (nav) nav.style.display = t ? '' : 'none';
   }
-  logoutBtn.onclick = () => { setToken(null); location.hash = '#/'; route(); };
+  logoutBtn.onclick = async () => { 
+    setToken(null); 
+    await ensureAuthOrSetup();
+  };
   // ensure UI reflects any token already in localStorage on load
   setToken(state.token);
 
