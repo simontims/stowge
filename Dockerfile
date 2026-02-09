@@ -6,12 +6,11 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System deps (Pillow, bcrypt, psycopg)
+# System deps (Pillow, bcrypt)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
     zlib1g-dev \
-    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps first (layer caching)

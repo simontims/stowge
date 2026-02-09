@@ -1,29 +1,10 @@
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: kete-db
-    environment:
-      POSTGRES_DB: kete
-      POSTGRES_USER: kete
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - kete_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kete -d kete"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    restart: unless-stopped
-
   kete:
     build: .
     image: kete-local:latest
     container_name: kete
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://kete:${POSTGRES_PASSWORD}@db:5432/kete
+      DATABASE_URL: sqlite:////data/kete.db
 
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: kete
@@ -49,5 +30,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  kete_pgdata:
   kete_assets:

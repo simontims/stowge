@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from .db import Base
 
@@ -27,8 +26,8 @@ class Part(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
-    ai_primary = Column(JSONB, nullable=True)
-    ai_alternatives = Column(JSONB, nullable=True)
+    ai_primary = Column(JSON, nullable=True)
+    ai_alternatives = Column(JSON, nullable=True)
     ai_chosen_index = Column(Integer, nullable=True)
 
     images = relationship("PartImage", back_populates="part", cascade="all, delete-orphan")
