@@ -15,11 +15,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps first (layer caching)
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # App code
-COPY backend /app/kete
+COPY backend/kete /app/kete
 COPY ui /app/ui
 
 # Default paths
