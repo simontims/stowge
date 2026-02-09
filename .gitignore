@@ -5,3 +5,4 @@
 # Local dev data
 _dev_data/
 *.pid
+*.db
