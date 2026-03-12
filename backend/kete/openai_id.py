@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import HTTPException
 from openai import OpenAI
 
-Mode = Literal["one", "many", "five"]
+Mode = Literal["one", "many", "five", "three"]
 
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_TIMEOUT = float(os.getenv("OPENAI_TIMEOUT", "45"))
@@ -37,6 +37,20 @@ JSON_SCHEMA_ONE: Dict[str, Any] = {
         "category": {"type": "string"},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "evidence": {"type": "string"},
+    },
+}
+
+JSON_SCHEMA_THREE: Dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["candidates"],
+    "properties": {
+        "candidates": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": JSON_SCHEMA_ONE,
+        }
     },
 }
 
@@ -72,6 +86,15 @@ _JSON_ONLY_INSTRUCTION = (
 
 
 def _schema_instruction(mode: Mode) -> str:
+    if mode == "three":
+        return (
+            f"{_JSON_ONLY_INSTRUCTION}\n"
+            "You must return an object matching this JSON schema:\n"
+            f"{json.dumps(JSON_SCHEMA_THREE)}\n"
+            "Return only candidates you can genuinely identify or clear alternatives.\n"
+            "Do NOT include filler items with unknown confidence. Return 1, 2, or 3 items as appropriate.\n"
+            "If the first item is very confident and you cannot identify genuine alternatives, return just 1.\n"
+        )
     if mode in ("many", "five"):
         return (
             f"{_JSON_ONLY_INSTRUCTION}\n"
@@ -150,6 +173,13 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _sanitize(mode: Mode, parsed: Dict[str, Any]) -> Dict[str, Any]:
+    if mode == "three":
+        cands = parsed.get("candidates", [])
+        if not isinstance(cands, list):
+            cands = []
+        # Allow 1-3 items, no padding
+        cands = cands[:3]
+        return {"candidates": [_coerce_and_sanitize_one(c) if isinstance(c, dict) else _coerce_and_sanitize_one({}) for c in cands]}
     if mode in ("many", "five"):
         cands = parsed.get("candidates", [])
         if not isinstance(cands, list):

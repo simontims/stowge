@@ -137,7 +137,7 @@ def delete_user(user_id: str, db: Session = Depends(get_db), me: User = Depends(
 # ---------------- Identify ----------------
 @app.post("/api/identify")
 def identify(
-    mode: Literal["one", "five"] = "one",
+    mode: Literal["one", "three", "five"] = "one",
     images: List[UploadFile] = File(...),
     me: User = Depends(current_user),
 ):
@@ -145,8 +145,8 @@ def identify(
         raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
 
     stored, b64s = process_and_store(images)
-    # openai_id supports "many"/"five" - map your API param "five" accordingly
-    ai_mode = "five" if mode == "five" else "one"
+    # openai_id supports "one"/"three"/"five"
+    ai_mode = mode if mode in ("one", "three", "five") else "one"
     ai = openai_identify(b64s, mode=ai_mode)
 
     return {

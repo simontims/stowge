@@ -54,7 +54,6 @@
     storedImages: [],
     lastIdentify: null,
     submitAbort: null,
-    fiveAbort: null,
   };
 
   function setToken(t) {
@@ -353,12 +352,16 @@
       try {
         const fd = new FormData();
         state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
-        const data = await api('/api/identify?mode=one', { method:'POST', body: fd, signal: state.submitAbort.signal });
+        const data = await api('/api/identify?mode=three', { method:'POST', body: fd, signal: state.submitAbort.signal });
 
         state.lastIdentify = data;
         state.storedImages = data.stored_images;
 
-        showPrimary(data.ai);
+        // Backend now returns exactly 3 candidates
+        const candidates = (data.ai && data.ai.candidates) ? data.ai.candidates : [];
+        if (candidates.length > 0) {
+          showPrimary(candidates[0], candidates.slice(1));
+        }
       } catch (e) { 
         if (e.name !== 'AbortError') {
           err.textContent = e.message;
@@ -372,8 +375,33 @@
       }
     };
 
-    function showPrimary(ai) {
+    function showPrimary(ai, furtherOptions = []) {
       const unknown = ai.unknown ? `<span class="pill">unknown</span>` : `<span class="pill">conf ${(ai.confidence||0).toFixed(2)}</span>`;
+      
+      let altHtml = '';
+      if (furtherOptions && furtherOptions.length > 0) {
+        altHtml = `
+          <h4 style="margin-top:18px">Further options</h4>
+          ${furtherOptions.map((c, idx) => `
+            <div class="card" style="margin:10px 0">
+              <div style="display:flex; justify-content:space-between; gap:12px; align-items:start">
+                <div>
+                  <div style="font-weight:700">${escapeHtml(c.name)}</div>
+                  <div class="muted">${escapeHtml(c.description)}</div>
+                  <div class="muted"><strong>Evidence:</strong> ${escapeHtml(c.evidence||'')}</div>
+                </div>
+                <div style="flex:0 0 auto; text-align:right">
+                  <div class="pill">${c.unknown ? 'unknown' : ('conf ' + (c.confidence||0).toFixed(2))}</div>
+                  <div style="margin-top:10px">
+                    <button class="btn primary" onclick="window.__pick(${idx})">Choose</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        `;
+      }
+      
       resultCard.innerHTML = `
         <h3 style="margin-top:0">Suggested</h3>
         <div><strong>${escapeHtml(ai.name||'')}</strong> ${unknown}</div>
@@ -382,11 +410,24 @@
 
         <div class="row" style="margin-top:12px">
           <button class="btn primary" id="acceptPrimary">Accept</button>
-          <button class="btn" id="tryAgain">Try again (5 options)</button>
-          <button class="btn" id="discard">Discard</button>
+          <button class="btn" id="discardButton">Discard</button>
         </div>
-
-        <div id="alts"></div>
+        
+        <h4 style="margin-top:18px">Add more photos</h4>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="resultCam">Use camera</button>
+          <label class="btn" style="display:inline-block">
+            Pick photos
+            <input id="resultFilePick" type="file" accept="image/*" multiple style="display:none">
+          </label>
+        </div>
+        
+        <h4 style="margin-top:18px">Try again</h4>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="tryAgainThree">Try again</button>
+        </div>
+        
+        ${altHtml}
         <p class="muted" id="saveErr" style="margin-top:10px"></p>
       `;
       resultCard.style.display = '';
@@ -396,21 +437,95 @@
         acceptBtn.disabled = true;
         acceptBtn.innerHTML = '<span class="spinner"></span>Saving...';
         try {
-          await savePartFromAI(ai, null, null);
+          await savePartFromAI(ai, furtherOptions, null);
         } finally {
           // button will be replaced when results render, so no need to restore
         }
       };
-      document.getElementById('tryAgain').onclick = async () => {
-        // If already loading, cancel
-        if (state.fiveAbort) {
-          state.fiveAbort.abort();
-          state.fiveAbort = null;
+      document.getElementById('resultCam').onclick = async () => {
+        err.textContent = '';
+        try {
+          await startCamera(captureArea, (blob) => {
+            if (state.capturedBlobs.length >= 5) return;
+            state.capturedBlobs.push(blob);
+            renderPreview();
+          });
+        } catch (e) { err.textContent = e.message; }
+      };
+      document.getElementById('resultFilePick').onchange = () => {
+        err.textContent = '';
+        state.capturedBlobs = state.capturedBlobs.concat(Array.from(document.getElementById('resultFilePick').files || []).slice(0, 5 - state.capturedBlobs.length));
+        renderPreview();
+      };
+      document.getElementById('tryAgainThree').onclick = async () => {
+        err.textContent = '';
+        resultCard.style.display = 'none';
+
+        if (state.capturedBlobs.length < 1) {
+          err.textContent = 'Add at least one photo.';
+          resultCard.style.display = '';
           return;
         }
-        await doFive();
+
+        // If already submitting, cancel
+        if (state.submitAbort) {
+          state.submitAbort.abort();
+          state.submitAbort = null;
+          return;
+        }
+
+        const submitBtn = document.getElementById('tryAgainThree');
+        const camBtn = document.getElementById('resultCam');
+        const fileBtn = document.getElementById('resultFilePick').parentElement;
+        
+        // Disable input buttons and add abort controller
+        state.submitAbort = new AbortController();
+        camBtn.disabled = true;
+        fileBtn.style.opacity = '0.6';
+        fileBtn.style.pointerEvents = 'none';
+        submitBtn.innerHTML = '<span class="spinner"></span>Cancel';
+
+        try {
+          const fd = new FormData();
+          state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
+          const data = await api('/api/identify?mode=three', { method:'POST', body: fd, signal: state.submitAbort.signal });
+
+          state.lastIdentify = data;
+          state.storedImages = data.stored_images;
+
+          // Backend now returns exactly 3 candidates
+          const candidates = (data.ai && data.ai.candidates) ? data.ai.candidates : [];
+          if (candidates.length > 0) {
+            showPrimary(candidates[0], candidates.slice(1));
+          }
+        } catch (e) { 
+          if (e.name !== 'AbortError') {
+            err.textContent = e.message;
+          }
+          resultCard.style.display = '';
+        } finally {
+          state.submitAbort = null;
+          camBtn.disabled = false;
+          fileBtn.style.opacity = '1';
+          fileBtn.style.pointerEvents = 'auto';
+          submitBtn.textContent = 'Try again';
+        }
       };
-      document.getElementById('discard').onclick = () => {
+      
+      // Store furtherOptions globally for window.__pick to use
+      window.__furtherOptions = furtherOptions;
+      window.__pick = async (idx) => {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Saving...';
+        const chosen = window.__furtherOptions[idx];
+        try {
+          await savePartFromAI(chosen, window.__furtherOptions, idx);
+        } finally {
+          // page will re-render after save
+        }
+      };
+      document.getElementById('discardButton').onclick = () => {
         state.capturedBlobs = [];
         state.storedImages = [];
         state.lastIdentify = null;
@@ -418,68 +533,6 @@
         renderPreview();
         err.textContent = '';
       };
-    }
-
-    async function doFive() {
-      const tryBtn = document.getElementById('tryAgain');
-      const alts = document.getElementById('alts');
-      const acceptBtn = document.getElementById('acceptPrimary');
-      
-      state.fiveAbort = new AbortController();
-      acceptBtn.disabled = true;
-      tryBtn.disabled = true;
-      tryBtn.innerHTML = '<span class="spinner"></span>Cancel';
-      alts.innerHTML = '';
-
-      try {
-        const fd = new FormData();
-        state.capturedBlobs.slice(0,5).forEach((b, idx) => fd.append('images', b, `photo${idx+1}.jpg`));
-        const data = await api('/api/identify?mode=five', { method:'POST', body: fd, signal: state.fiveAbort.signal });
-        state.storedImages = data.stored_images;
-
-      const candidates = (data.ai && data.ai.candidates) ? data.ai.candidates : [];
-      alts.innerHTML = `
-        <h4 style="margin-top:16px">Pick one</h4>
-        ${candidates.map((c, idx) => `
-          <div class="card" style="margin:10px 0">
-            <div style="display:flex; justify-content:space-between; gap:12px; align-items:start">
-              <div>
-                <div style="font-weight:700">${escapeHtml(c.name)}</div>
-                <div class="muted">${escapeHtml(c.description)}</div>
-                <div class="muted"><strong>Evidence:</strong> ${escapeHtml(c.evidence||'')}</div>
-              </div>
-              <div style="flex:0 0 auto; text-align:right">
-                <div class="pill">${c.unknown ? 'unknown' : ('conf ' + (c.confidence||0).toFixed(2))}</div>
-                <div style="margin-top:10px">
-                  <button class="btn primary" onclick="window.__pick(${idx})">Choose</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        `).join('')}
-      `;
-
-        window.__pick = async (idx) => {
-          const btn = event.target;
-          btn.disabled = true;
-          btn.innerHTML = '<span class="spinner"></span>Saving...';
-          const chosen = candidates[idx];
-          try {
-            await savePartFromAI(chosen, candidates, idx);
-          } finally {
-            // page will re-render after save
-          }
-        };
-      } catch (e) {
-        if (e.name !== 'AbortError') {
-          alts.innerHTML = `<p class="muted" style="color:#f33">${escapeHtml(e.message)}</p>`;
-        }
-      } finally {
-        state.fiveAbort = null;
-        acceptBtn.disabled = false;
-        tryBtn.disabled = false;
-        tryBtn.textContent = 'Try again (5 options)';
-      }
     }
 
     async function savePartFromAI(ai, alternatives, chosenIndex) {
