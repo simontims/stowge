@@ -1,6 +1,6 @@
 services:
   kete:
-    image: tims/kete:latest
+    image: simontims/kete:latest
     container_name: kete
     environment:
       DATABASE_URL: sqlite:////data/kete.db
