@@ -9,7 +9,7 @@
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background:#0b0c10; color:#eaeaea;}
     header { padding: 12px 16px; display:flex; gap:12px; align-items:center; border-bottom:1px solid #222;}
     header h1 { font-size: 18px; margin:0; flex:1;}
-    .btn { background:#2a2f3a; color:#fff; border:1px solid #3a4150; padding:10px 12px; border-radius:10px; cursor:pointer; }
+    .btn { background:#2a2f3a; color:#fff; border:1px solid #3a4150; padding:10px 12px; border-radius:10px; cursor:pointer; text-align:center; font-family:inherit; font-size:inherit; }
     .btn.primary { background:#3b82f6; border-color:#3b82f6; }
     .wrap { padding: 16px; max-width: 980px; margin: 0 auto;}
     .card { background:#111319; border:1px solid #222; border-radius:16px; padding:14px; margin:12px 0; }
@@ -274,9 +274,9 @@
 
         <div style="margin-top:12px" class="row">
           <button class="btn" id="startCam">Use camera</button>
-          <label class="btn" style="display:inline-block">
-            Pick photos
+          <label class="btn" style="display:inline-block; margin:0">
             <input id="filePick" type="file" accept="image/*" multiple style="display:none">
+            Pick photos
           </label>
           <button class="btn primary" id="submitOne">Submit for ID</button>
         </div>
@@ -416,9 +416,9 @@
         <h4 style="margin-top:18px">Add more photos</h4>
         <div class="row" style="margin-top:10px">
           <button class="btn" id="resultCam">Use camera</button>
-          <label class="btn" style="display:inline-block">
-            Pick photos
+          <label class="btn" style="display:inline-block; margin:0">
             <input id="resultFilePick" type="file" accept="image/*" multiple style="display:none">
+            Pick photos
           </label>
         </div>
         

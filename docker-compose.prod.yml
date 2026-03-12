@@ -25,6 +25,7 @@ services:
 
     volumes:
       - /mnt/data/docker/kete/assets:/assets
+      - /mnt/data/docker/kete/data:/data
     ports:
       - "18090:8000"
     restart: unless-stopped

@@ -25,9 +25,11 @@ services:
 
     volumes:
       - kete_assets:/assets
+      - kete_data:/data
     ports:
       - "18090:8000"
     restart: unless-stopped
 
 volumes:
   kete_assets:
+  kete_data:
