@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <link rel="manifest" href="/manifest.webmanifest">
-  <title>Kete</title>
+  <title>Stowge</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background:#0b0c10; color:#eaeaea;}
     header { padding: 12px 16px; display:flex; gap:12px; align-items:center; border-bottom:1px solid #222;}
@@ -21,6 +21,10 @@
     .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#1f2530; border:1px solid #333; font-size:12px; }
     nav a { color:#9bd; text-decoration:none; margin-right:10px; }
     video { width:100%; border-radius:16px; border:1px solid #333; background:#000; }
+    .camera-overlay { position:fixed; inset:0; z-index:9999; background:#000; display:flex; flex-direction:column; }
+    .camera-overlay video { flex:1; width:100%; height:100%; object-fit:cover; border:0; border-radius:0; }
+    .camera-controls { display:flex; gap:12px; padding:14px; background:rgba(0,0,0,0.7); }
+    .camera-controls .btn { flex:1; }
     .muted { color:#a3a3a3; font-size: 13px; }
     .btn:disabled { opacity:0.6; cursor:not-allowed; }
     .spinner { display:inline-block; width:14px; height:14px; border:2px solid #999; border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; margin-right:6px; vertical-align:middle; }
@@ -29,7 +33,7 @@
 </head>
 <body>
 <header>
-  <h1>Kete</h1>
+  <h1>Stowge</h1>
   <nav id="nav">
     <a href="#/">Home</a>
     <a href="#/add">Add</a>
@@ -48,8 +52,10 @@
   const logoutBtn = document.getElementById('logoutBtn');
 
   const state = {
-    token: localStorage.getItem('kete_token') || null,
+    token: localStorage.getItem('stowge_token') || null,
     cameraStream: null,
+    cameraOverlay: null,
+    cameraKeyHandler: null,
     capturedBlobs: [],
     storedImages: [],
     lastIdentify: null,
@@ -58,8 +64,8 @@
 
   function setToken(t) {
     state.token = t;
-    if (t) localStorage.setItem('kete_token', t);
-    else localStorage.removeItem('kete_token');
+    if (t) localStorage.setItem('stowge_token', t);
+    else localStorage.removeItem('stowge_token');
     logoutBtn.style.display = t ? '' : 'none';
     const nav = document.getElementById('nav');
     if (nav) nav.style.display = t ? '' : 'none';
@@ -273,7 +279,7 @@
         <div class="thumbs" id="preview" style="margin-top:12px"></div>
 
         <div style="margin-top:12px" class="row">
-          <button class="btn" id="startCam">Use camera</button>
+          <button class="btn" id="startCam">Take picture</button>
           <label class="btn" style="display:inline-block; margin:0">
             <input id="filePick" type="file" accept="image/*" multiple style="display:none">
             Pick photos
@@ -287,7 +293,6 @@
       <div class="card" id="resultCard" style="display:none"></div>
     `;
 
-    const captureArea = document.getElementById('captureArea');
     const preview = document.getElementById('preview');
     const filePick = document.getElementById('filePick');
     const err = document.getElementById('err');
@@ -313,7 +318,7 @@
     document.getElementById('startCam').onclick = async () => {
       err.textContent = '';
       try {
-        await startCamera(captureArea, (blob) => {
+        await startCamera((blob) => {
           if (state.capturedBlobs.length >= 5) return;
           state.capturedBlobs.push(blob);
           renderPreview();
@@ -415,7 +420,7 @@
         
         <h4 style="margin-top:18px">Add more photos</h4>
         <div class="row" style="margin-top:10px">
-          <button class="btn" id="resultCam">Use camera</button>
+          <button class="btn" id="resultCam">Take picture</button>
           <label class="btn" style="display:inline-block; margin:0">
             <input id="resultFilePick" type="file" accept="image/*" multiple style="display:none">
             Pick photos
@@ -445,7 +450,7 @@
       document.getElementById('resultCam').onclick = async () => {
         err.textContent = '';
         try {
-          await startCamera(captureArea, (blob) => {
+          await startCamera((blob) => {
             if (state.capturedBlobs.length >= 5) return;
             state.capturedBlobs.push(blob);
             renderPreview();
@@ -555,7 +560,7 @@
     }
   }
 
-  async function startCamera(container, onCapture) {
+  async function startCamera(onCapture) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Camera not available in this browser. Use “Pick photos”.');
     }
@@ -564,32 +569,47 @@
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio:false });
     state.cameraStream = stream;
 
-    container.innerHTML = `
-      <div class="card">
-        <video id="vid" autoplay playsinline></video>
-        <div class="row" style="margin-top:10px">
-          <button class="btn primary" id="snap">Take photo</button>
-          <button class="btn" id="stop">Stop camera</button>
-        </div>
-        <p class="muted">Tip: take one close-up of the markings.</p>
+    const overlay = document.createElement('div');
+    overlay.className = 'camera-overlay';
+    overlay.innerHTML = `
+      <video id="vid" autoplay playsinline></video>
+      <div class="camera-controls">
+        <button class="btn primary" id="snap">Take picture</button>
+        <button class="btn" id="stop">Cancel</button>
       </div>
     `;
-    const vid = document.getElementById('vid');
+    document.body.appendChild(overlay);
+    state.cameraOverlay = overlay;
+
+    const vid = overlay.querySelector('#vid');
     vid.srcObject = stream;
 
-    document.getElementById('snap').onclick = async () => {
+    overlay.querySelector('#snap').onclick = async () => {
       const blob = await snapFrame(vid);
-      onCapture(blob);
+      if (blob) onCapture(blob);
+      stopCamera();
     };
-    document.getElementById('stop').onclick = () => stopCamera(container);
+    overlay.querySelector('#stop').onclick = () => stopCamera();
+
+    state.cameraKeyHandler = (ev) => {
+      if (ev.key === 'Escape') stopCamera();
+    };
+    window.addEventListener('keydown', state.cameraKeyHandler);
   }
 
-  function stopCamera(container=null) {
+  function stopCamera() {
     if (state.cameraStream) {
       state.cameraStream.getTracks().forEach(t => t.stop());
       state.cameraStream = null;
     }
-    if (container) container.innerHTML = '';
+    if (state.cameraOverlay) {
+      state.cameraOverlay.remove();
+      state.cameraOverlay = null;
+    }
+    if (state.cameraKeyHandler) {
+      window.removeEventListener('keydown', state.cameraKeyHandler);
+      state.cameraKeyHandler = null;
+    }
   }
 
   async function snapFrame(videoEl) {

@@ -1,5 +1,5 @@
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('kete-v1').then(c => c.addAll([
+  e.waitUntil(caches.open('stowge-v1').then(c => c.addAll([
     '/', '/manifest.webmanifest'
   ])));
 });

@@ -1,12 +1,12 @@
 services:
-  kete:
-    image: simontims/kete:latest
-    container_name: kete
+  stowge:
+    image: simontims/stowge:latest
+    container_name: stowge
     environment:
-      DATABASE_URL: sqlite:////data/kete.db
+      DATABASE_URL: sqlite:////data/stowge.db
 
       JWT_SECRET: ${JWT_SECRET}
-      JWT_ISSUER: kete
+      JWT_ISSUER: stowge
       JWT_EXPIRES_MINUTES: "1440"  # 24h
 
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -24,8 +24,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
 
     volumes:
-      - /mnt/data/docker/kete/assets:/assets
-      - /mnt/data/docker/kete/data:/data
+      - /mnt/data/docker/stowge/assets:/assets
+      - /mnt/data/docker/stowge/data:/data
     ports:
       - "18090:8000"
     restart: unless-stopped

@@ -1,4 +1,4 @@
-# Kete
+# Stowge
 Self-hosted electronic parts inventory with an AI-assisted mobile-first "Add Item" flow.
 
 - UI (PWA) served at `/`
@@ -23,7 +23,7 @@ Self-hosted electronic parts inventory with an AI-assisted mobile-first "Add Ite
 ## Deploy (Docker host)
 ### 1) Create persistent folders
 ```bash
-mkdir -p /mnt/data/docker/kete/{config/postgres,assets}
+mkdir -p /mnt/data/docker/stowge/{config/postgres,assets}
 ```
 
 ### 2) Create `.env`
@@ -35,7 +35,7 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
 Then configure Nginx Proxy Manager:
-- `kete.my.domain` → `http://192.168.1.45:18090`
+- `stowge.my.domain` → `http://192.168.1.45:18090`
 - Enable HTTPS (camera access on Android requires HTTPS)
 
 ## Local dev (optional)
@@ -46,4 +46,4 @@ Then open: http://localhost:18090/
 
 ## Notes
 - Postgres is internal-only (no host port).
-- Images are stored under the host-mounted `/mnt/data/docker/kete/assets` volume.
+- Images are stored under the host-mounted `/mnt/data/docker/stowge/assets` volume.

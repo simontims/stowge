@@ -18,7 +18,7 @@ COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # App code
-COPY backend/kete /app/kete
+COPY backend/stowge /app/stowge
 COPY ui /app/ui
 
 # Default paths
@@ -27,4 +27,4 @@ ENV UI_DIR=/app/ui
 
 EXPOSE 8000
 
-CMD ["uvicorn", "kete.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "stowge.main:app", "--host", "0.0.0.0", "--port", "8000"]
