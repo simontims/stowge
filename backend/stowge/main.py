@@ -56,15 +56,18 @@ def _variant_rel(img: PartImage, variant: str) -> str:
 # ---------------- UI (PWA) ----------------
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return FileResponse(os.path.join(UI_DIR, "index.html"), media_type="text/html")
+    headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+    return FileResponse(os.path.join(UI_DIR, "index.html"), media_type="text/html", headers=headers)
 
 @app.get("/manifest.webmanifest")
 def manifest():
-    return FileResponse(os.path.join(UI_DIR, "manifest.webmanifest"), media_type="application/manifest+json")
+    headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+    return FileResponse(os.path.join(UI_DIR, "manifest.webmanifest"), media_type="application/manifest+json", headers=headers)
 
 @app.get("/sw.js")
 def sw():
-    return FileResponse(os.path.join(UI_DIR, "sw.js"), media_type="application/javascript")
+    headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+    return FileResponse(os.path.join(UI_DIR, "sw.js"), media_type="application/javascript", headers=headers)
 
 # ---------------- Status / Setup ----------------
 @app.get("/api/status")
