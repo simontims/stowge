@@ -17,13 +17,14 @@ from .image_signing import sign as sign_image, verify as verify_image, ttl_secon
 
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
+APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
 
 def init_db():
     Base.metadata.create_all(bind=engine)
 
 init_db()
 
-app = FastAPI(title="Stowge", version="0.1.0")
+app = FastAPI(title="Stowge", version=APP_VERSION)
 
 if CORS_ORIGINS:
     origins = [o.strip() for o in CORS_ORIGINS.split(",") if o.strip()]
@@ -70,6 +71,10 @@ def sw():
     return FileResponse(os.path.join(UI_DIR, "sw.js"), media_type="application/javascript", headers=headers)
 
 # ---------------- Status / Setup ----------------
+@app.get("/api/version")
+def version():
+    return {"version": APP_VERSION}
+
 @app.get("/api/status")
 def status(db: Session = Depends(get_db)):
     return {"needs_setup": db.query(User).count() == 0}
