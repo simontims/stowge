@@ -325,24 +325,6 @@ export function ScanAddPage() {
         <section className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/40 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-neutral-200">Review and Edit</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setMode("input");
-                  setSubmitError("");
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <RefreshCw size={14} />
-                Back to ID Inputs
-              </button>
-              <button
-                onClick={resetToStart}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-              >
-                Discard
-              </button>
-            </div>
           </div>
 
           <div className="space-y-3">
@@ -417,14 +399,32 @@ export function ScanAddPage() {
               </div>
 
               <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur md:static md:mx-0 md:px-0 md:py-0 md:border-0 md:bg-transparent md:backdrop-blur-none">
-                <button
-                  onClick={savePart}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                >
-                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  Save Part
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setMode("input");
+                      setSubmitError("");
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw size={14} />
+                    Back to ID Inputs
+                  </button>
+                  <button
+                    onClick={resetToStart}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    onClick={savePart}
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                  >
+                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Save
+                  </button>
+                </div>
               </div>
 
               {saveError && <p className="text-sm text-red-400">{saveError}</p>}
