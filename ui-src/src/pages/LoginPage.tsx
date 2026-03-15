@@ -156,15 +156,17 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             )}
 
             <label className="block">
-              <span className="block text-xs text-neutral-500 mb-1">Email</span>
+              <span className="block text-xs text-neutral-500 mb-1">
+                {mode === "setup" ? "Email" : "Email / Username"}
+              </span>
               <input
                 ref={mode === "login" ? firstInputRef : undefined}
-                type="email"
+                type={mode === "setup" ? "email" : "text"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="username email"
                 required
-                placeholder="you@example.com"
+                placeholder={mode === "setup" ? "you@example.com" : "admin or you@example.com"}
                 className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors"
               />
             </label>
