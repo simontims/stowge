@@ -49,3 +49,17 @@ class PartImage(Base):
     height = Column(Integer, nullable=True)
 
     part = relationship("Part", back_populates="images")
+
+
+class LLMConfig(Base):
+    __tablename__ = "llm_configs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    provider = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+    api_key = Column(String, nullable=False)
+    api_base = Column(String, nullable=True)
+    is_default = Column(Integer, nullable=False, default=0)  # 0|1 for sqlite compatibility
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)

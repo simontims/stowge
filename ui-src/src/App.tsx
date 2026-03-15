@@ -7,6 +7,7 @@ import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ScanAddPage } from "./pages/ScanAddPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SettingsUsersPage } from "./pages/SettingsUsersPage";
+import { SettingsAiPage } from "./pages/SettingsAiPage";
 import { LoginPage } from "./pages/LoginPage";
 import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT } from "./lib/api";
 
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/imports"    element={<PlaceholderPage title="Imports"    description="Bulk-import parts from a CSV file." />} />
           <Route path="/reports"    element={<PlaceholderPage title="Reports"    description="Inventory reports and export tools." />} />
           <Route path="/settings"   element={<SettingsPage />} />
+          <Route path="/settings/ai" element={<SettingsAiPage />} />
           <Route path="/settings/users" element={<SettingsUsersPage />} />
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist." />} />
         </Routes>

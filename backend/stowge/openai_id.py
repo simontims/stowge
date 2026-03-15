@@ -1,17 +1,13 @@
-import os
 import json
 import re
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import HTTPException
-from openai import OpenAI
+from litellm import completion
 
 Mode = Literal["one", "many", "five", "three"]
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-OPENAI_TIMEOUT = float(os.getenv("OPENAI_TIMEOUT", "45"))
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+LITELLM_TIMEOUT = 45.0
 
 SYSTEM_PROMPT = (
     "You are an assistant helping inventory electronic components and modules from photos.\n"
@@ -203,7 +199,12 @@ def _sanitize(mode: Mode, parsed: Dict[str, Any]) -> Dict[str, Any]:
     return _coerce_and_sanitize_one(parsed if isinstance(parsed, dict) else {})
 
 
-def identify(images_b64: List[str], mode: Mode = "one", model: Optional[str] = None) -> Dict[str, Any]:
+def identify(
+    images_b64: List[str],
+    llm_config: Dict[str, Any],
+    mode: Mode = "one",
+    model: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     images_b64: list of base64 strings (no data: prefix)
     mode:
@@ -213,7 +214,16 @@ def identify(images_b64: List[str], mode: Mode = "one", model: Optional[str] = N
     if not images_b64:
         raise HTTPException(status_code=400, detail="No images provided")
 
-    use_model = model or OPENAI_MODEL
+    use_model = (model or llm_config.get("model") or "").strip()
+    if not use_model:
+        raise HTTPException(status_code=400, detail="No model configured")
+
+    api_key = str(llm_config.get("api_key") or "").strip()
+    if not api_key:
+        raise HTTPException(status_code=400, detail="No API key configured for selected model")
+
+    api_base_raw = llm_config.get("api_base")
+    api_base = str(api_base_raw).strip() if api_base_raw else None
 
     # Build multi-modal message content: instruction + images
     user_content: List[Dict[str, Any]] = [{"type": "text", "text": _schema_instruction(mode)}]
@@ -226,18 +236,20 @@ def identify(images_b64: List[str], mode: Mode = "one", model: Optional[str] = N
         )
 
     try:
-        resp = client.chat.completions.create(
+        resp = completion(
             model=use_model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
             ],
             temperature=0.2,
-            timeout=OPENAI_TIMEOUT,
+            timeout=LITELLM_TIMEOUT,
+            api_key=api_key,
+            api_base=api_base,
         )
     except Exception as e:
         # Ensure JSON error response upstream
-        raise HTTPException(status_code=502, detail=f"OpenAI request failed: {e}")
+        raise HTTPException(status_code=502, detail=f"LLM request failed: {e}")
 
     text = (resp.choices[0].message.content or "").strip()
     json_text = _extract_json(text)

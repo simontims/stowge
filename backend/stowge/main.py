@@ -17,7 +17,7 @@ import jwt
 from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
-from .models import User, Part, PartImage
+from .models import User, Part, PartImage, LLMConfig
 from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
 from .images import process_and_store, resolve_path
 from .openai_id import identify as openai_identify
@@ -56,6 +56,52 @@ def _serialize_user(user: User) -> dict:
     }
 
 
+def _mask_key(value: str | None) -> str | None:
+    if not value:
+        return None
+    if len(value) <= 8:
+        return "*" * len(value)
+    return f"{value[:4]}...{value[-4:]}"
+
+
+def _serialize_llm_public(cfg: LLMConfig) -> dict:
+    return {
+        "id": cfg.id,
+        "name": cfg.name,
+        "provider": cfg.provider,
+        "model": cfg.model,
+        "api_base": cfg.api_base,
+        "is_default": bool(cfg.is_default),
+    }
+
+
+def _serialize_llm_admin(cfg: LLMConfig) -> dict:
+    data = _serialize_llm_public(cfg)
+    data["api_key_masked"] = _mask_key(cfg.api_key)
+    data["created_at"] = _utc_iso(cfg.created_at)
+    data["updated_at"] = _utc_iso(cfg.updated_at)
+    return data
+
+
+def _normalize_provider(value: str) -> str:
+    return value.strip().lower().replace(" ", "_")
+
+
+def _normalize_model(value: str) -> str:
+    return value.strip()
+
+
+def _resolve_llm_config(db: Session, selected_id: str | None = None) -> LLMConfig | None:
+    if selected_id:
+        return db.query(LLMConfig).filter(LLMConfig.id == selected_id).first()
+
+    default_cfg = db.query(LLMConfig).filter(LLMConfig.is_default == 1).first()
+    if default_cfg:
+        return default_cfg
+
+    return db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).first()
+
+
 def _run_startup_migrations():
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
@@ -68,6 +114,35 @@ def _run_startup_migrations():
             conn.execute(text("ALTER TABLE users ADD COLUMN first_name VARCHAR NOT NULL DEFAULT ''"))
         if "last_name" not in columns:
             conn.execute(text("ALTER TABLE users ADD COLUMN last_name VARCHAR NOT NULL DEFAULT ''"))
+
+    if "llm_configs" in tables:
+        llm_columns = {c["name"] for c in inspector.get_columns("llm_configs")}
+        with engine.begin() as conn:
+            if "api_base" not in llm_columns:
+                conn.execute(text("ALTER TABLE llm_configs ADD COLUMN api_base VARCHAR NULL"))
+            if "is_default" not in llm_columns:
+                conn.execute(text("ALTER TABLE llm_configs ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0"))
+
+    # Backward compatibility: if legacy OPENAI env vars are present and no model
+    # is configured yet, create a default LiteLLM model entry automatically.
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    openai_model = os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini").strip()
+    if openai_key and "llm_configs" in tables:
+        with Session(bind=engine) as db:
+            existing = db.query(LLMConfig).count()
+            if existing == 0:
+                if "/" not in openai_model:
+                    openai_model = f"openai/{openai_model}"
+                cfg = LLMConfig(
+                    name="OpenAI (legacy env)",
+                    provider="openai",
+                    model=openai_model,
+                    api_key=openai_key,
+                    api_base=None,
+                    is_default=1,
+                )
+                db.add(cfg)
+                db.commit()
 
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -311,23 +386,176 @@ def delete_user(user_id: str, db: Session = Depends(get_db), me: User = Depends(
     db.commit()
     return {"ok": True}
 
+
+# ---------------- AI Settings (LLM configs) ----------------
+@app.get("/api/settings/ai")
+def list_ai_settings(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    configs = db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).all()
+    active = _resolve_llm_config(db)
+    return {
+        "default_llm_id": active.id if active else None,
+        "configs": [_serialize_llm_public(c) for c in configs],
+    }
+
+
+@app.get("/api/admin/settings/ai")
+def list_ai_settings_admin(db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    configs = db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).all()
+    active = _resolve_llm_config(db)
+    return {
+        "default_llm_id": active.id if active else None,
+        "configs": [_serialize_llm_admin(c) for c in configs],
+    }
+
+
+@app.post("/api/admin/settings/ai")
+def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    name = str(payload.get("name") or "").strip()
+    provider = _normalize_provider(str(payload.get("provider") or ""))
+    model = _normalize_model(str(payload.get("model") or ""))
+    api_key = str(payload.get("api_key") or "").strip()
+    api_base = str(payload.get("api_base") or "").strip() or None
+    is_default = bool(payload.get("is_default", False))
+
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    if not provider:
+        raise HTTPException(status_code=400, detail="provider is required")
+    if not model:
+        raise HTTPException(status_code=400, detail="model is required")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="api_key is required")
+
+    cfg = LLMConfig(
+        name=name,
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        api_base=api_base,
+        is_default=1 if is_default else 0,
+        updated_at=datetime.now(timezone.utc),
+    )
+    db.add(cfg)
+    db.flush()
+
+    total = db.query(LLMConfig).count()
+    if total == 1:
+        cfg.is_default = 1
+    elif cfg.is_default:
+        db.query(LLMConfig).filter(LLMConfig.id != cfg.id).update({"is_default": 0})
+
+    db.commit()
+    db.refresh(cfg)
+    return _serialize_llm_admin(cfg)
+
+
+@app.patch("/api/admin/settings/ai/{config_id}")
+def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    cfg = db.query(LLMConfig).filter(LLMConfig.id == config_id).first()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="AI config not found")
+
+    if "name" in payload:
+        next_name = str(payload.get("name") or "").strip()
+        if not next_name:
+            raise HTTPException(status_code=400, detail="name is required")
+        cfg.name = next_name
+
+    if "provider" in payload:
+        next_provider = _normalize_provider(str(payload.get("provider") or ""))
+        if not next_provider:
+            raise HTTPException(status_code=400, detail="provider is required")
+        cfg.provider = next_provider
+
+    if "model" in payload:
+        next_model = _normalize_model(str(payload.get("model") or ""))
+        if not next_model:
+            raise HTTPException(status_code=400, detail="model is required")
+        cfg.model = next_model
+
+    if "api_key" in payload:
+        next_key = str(payload.get("api_key") or "").strip()
+        if next_key:
+            cfg.api_key = next_key
+
+    if "api_base" in payload:
+        cfg.api_base = str(payload.get("api_base") or "").strip() or None
+
+    if bool(payload.get("is_default", False)):
+        db.query(LLMConfig).filter(LLMConfig.id != cfg.id).update({"is_default": 0})
+        cfg.is_default = 1
+
+    cfg.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(cfg)
+    return _serialize_llm_admin(cfg)
+
+
+@app.post("/api/admin/settings/ai/{config_id}/default")
+def set_default_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    cfg = db.query(LLMConfig).filter(LLMConfig.id == config_id).first()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="AI config not found")
+
+    db.query(LLMConfig).filter(LLMConfig.id != cfg.id).update({"is_default": 0})
+    cfg.is_default = 1
+    cfg.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(cfg)
+    return _serialize_llm_admin(cfg)
+
+
+@app.delete("/api/admin/settings/ai/{config_id}")
+def delete_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    cfg = db.query(LLMConfig).filter(LLMConfig.id == config_id).first()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="AI config not found")
+
+    was_default = bool(cfg.is_default)
+    db.delete(cfg)
+    db.flush()
+
+    if was_default:
+        replacement = db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).first()
+        if replacement:
+            replacement.is_default = 1
+            replacement.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    return {"ok": True}
+
 # ---------------- Identify ----------------
 @app.post("/api/identify")
 def identify(
     mode: Literal["one", "three", "five"] = "one",
+    llm_id: Optional[str] = Query(default=None),
     images: List[UploadFile] = File(...),
     me: User = Depends(current_user),
+    db: Session = Depends(get_db),
 ):
     if len(images) < 1 or len(images) > 5:
         raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
 
     stored, b64s = process_and_store(images)
+    cfg = _resolve_llm_config(db, llm_id)
+    if not cfg:
+        raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
+
     # openai_id supports "one"/"three"/"five"
     ai_mode = mode if mode in ("one", "three", "five") else "one"
-    ai = openai_identify(b64s, mode=ai_mode)
+    ai = openai_identify(
+        b64s,
+        llm_config={
+            "model": cfg.model,
+            "api_key": cfg.api_key,
+            "api_base": cfg.api_base,
+        },
+        mode=ai_mode,
+    )
 
     return {
         "mode": mode,
+        "llm": _serialize_llm_public(cfg),
         "ai": ai,
         "uploaded_images": [
             {"id": s["id"], "thumb_url": _signed_image_url(s["id"], "thumb")}

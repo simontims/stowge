@@ -21,10 +21,29 @@ interface IdentifyCandidate {
 }
 
 interface IdentifyResponse {
+  llm?: {
+    id?: string;
+    name?: string;
+    provider?: string;
+    model?: string;
+  };
   ai?: {
     candidates?: IdentifyCandidate[];
   };
   stored_images?: Array<Record<string, unknown>>;
+}
+
+interface LlmOption {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  is_default: boolean;
+}
+
+interface AiSettingsResponse {
+  default_llm_id: string | null;
+  configs: LlmOption[];
 }
 
 interface PartDraft {
@@ -60,6 +79,9 @@ export function ScanAddPage() {
   const [notice, setNotice] = useState<string>("");
   const [mode, setMode] = useState<ScanFlowMode>("input");
 
+  const [llmOptions, setLlmOptions] = useState<LlmOption[]>([]);
+  const [selectedLlmId, setSelectedLlmId] = useState<string>("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const candidates = useMemo(
@@ -68,6 +90,10 @@ export function ScanAddPage() {
   );
 
   const selectedCandidate = candidates[selectedIndex];
+
+  useEffect(() => {
+    void loadAiSettings();
+  }, []);
 
   useEffect(() => {
     const urls = photos.map((f) => URL.createObjectURL(f));
@@ -91,6 +117,20 @@ export function ScanAddPage() {
     setDraft({ name: "", description: "", category: "", status: "draft" });
     setSaveError("");
     setSubmitError("");
+  }
+
+  async function loadAiSettings() {
+    try {
+      const data = await apiRequest<AiSettingsResponse>("/api/settings/ai");
+      const options = data.configs || [];
+      setLlmOptions(options);
+
+      const defaultId = data.default_llm_id || options.find((o) => o.is_default)?.id || options[0]?.id || "";
+      setSelectedLlmId(defaultId);
+    } catch {
+      setLlmOptions([]);
+      setSelectedLlmId("");
+    }
   }
 
   function resetToStart() {
@@ -147,8 +187,13 @@ export function ScanAddPage() {
         fd.append("images", file, `photo${idx + 1}.jpg`);
       });
 
+      const query = new URLSearchParams({ mode: "three" });
+      if (selectedLlmId) {
+        query.set("llm_id", selectedLlmId);
+      }
+
       const data = await apiRequest<IdentifyResponse>(
-        "/api/identify?mode=three",
+        `/api/identify?${query.toString()}`,
         {
           method: "POST",
           body: fd,
@@ -306,6 +351,31 @@ export function ScanAddPage() {
           )}
 
           <div>
+            {llmOptions.length > 1 && (
+              <div className="mb-3">
+                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
+                  AI Model
+                </label>
+                <select
+                  value={selectedLlmId}
+                  onChange={(e) => setSelectedLlmId(e.target.value)}
+                  className="w-full sm:w-[28rem] bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                >
+                  {llmOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name} ({opt.model})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {llmOptions.length === 1 && (
+              <p className="mb-3 text-xs text-neutral-500">
+                Using AI model: {llmOptions[0].name} ({llmOptions[0].model})
+              </p>
+            )}
+
             <button
               onClick={submitIdentify}
               disabled={isSubmitting || photos.length === 0}
