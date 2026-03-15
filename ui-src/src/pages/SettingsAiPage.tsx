@@ -130,6 +130,7 @@ export function SettingsAiPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
+  const [validationStateById, setValidationStateById] = useState<Record<string, "success" | "error" | undefined>>({});
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -258,20 +259,18 @@ export function SettingsAiPage() {
   }
 
   async function validateConfig(config: AiConfig) {
-    setError("");
-    setNotice("");
     setValidatingId(config.id);
+    setValidationStateById((v) => ({ ...v, [config.id]: undefined }));
     try {
-      const data = await apiRequest<{ ok: boolean; response_preview?: string }>(
+      await apiRequest<{ ok: boolean; response_preview?: string }>(
         `/api/admin/settings/ai/${config.id}/validate`,
         {
           method: "POST",
         }
       );
-      const preview = (data.response_preview || "").trim();
-      setNotice(preview ? `Validation passed for ${config.name}: ${preview}` : `Validation passed for ${config.name}.`);
+      setValidationStateById((v) => ({ ...v, [config.id]: "success" }));
     } catch (err) {
-      setError((err as Error).message || "Validation failed.");
+      setValidationStateById((v) => ({ ...v, [config.id]: "error" }));
     } finally {
       setValidatingId(null);
     }
@@ -506,6 +505,7 @@ export function SettingsAiPage() {
                   const isDeleting = deletingId === cfg.id;
                   const isSettingDefault = settingDefaultId === cfg.id;
                   const isValidating = validatingId === cfg.id;
+                  const validationState = validationStateById[cfg.id];
                   return (
                     <tr key={cfg.id} className="hover:bg-neutral-900/60 transition-colors">
                       <td className="px-4 py-2.5 text-neutral-200">
@@ -533,10 +533,17 @@ export function SettingsAiPage() {
                           <button
                             onClick={() => void validateConfig(cfg)}
                             disabled={isValidating}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-emerald-300 hover:border-emerald-500/70 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className={[
+                              "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border disabled:opacity-60 disabled:cursor-not-allowed",
+                              validationState === "success"
+                                ? "border-emerald-500/70 text-emerald-300 bg-emerald-950/30"
+                                : validationState === "error"
+                                  ? "border-red-500/70 text-red-300 bg-red-950/30"
+                                  : "border-neutral-700 text-neutral-300 hover:text-emerald-300 hover:border-emerald-500/70",
+                            ].join(" ")}
                           >
                             <CheckCircle2 size={13} />
-                            {isValidating ? "Validating..." : "Validate"}
+                            {isValidating ? "Validating..." : validationState === "success" ? "Passed" : validationState === "error" ? "Failed" : "Validate"}
                           </button>
                           <button
                             onClick={() => void setDefault(cfg)}

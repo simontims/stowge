@@ -92,6 +92,14 @@ export function ScanAddPage() {
   const selectedCandidate = candidates[selectedIndex];
 
   useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => {
+      setNotice("");
+    }, 5000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
+  useEffect(() => {
     void loadAiSettings();
   }, []);
 
