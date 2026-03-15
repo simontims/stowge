@@ -10,3 +10,4 @@ _dev_data/
 # Dependencies
 node_modules/
 ui-src/node_modules/
+ARCHITECTURE.md
