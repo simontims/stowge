@@ -40,7 +40,7 @@ interface ProviderOption {
   value: string;
   label: string;
   apiBase: string;
-  modelHint: string;
+  modelHints: string[];
 }
 
 const POPULAR_PROVIDERS: ProviderOption[] = [
@@ -48,49 +48,81 @@ const POPULAR_PROVIDERS: ProviderOption[] = [
     value: "openai",
     label: "OpenAI",
     apiBase: "https://api.openai.com/v1",
-    modelHint: "openai/gpt-4o-mini",
+    modelHints: [
+      "openai/gpt-4o-mini",
+      "openai/gpt-4.1-mini",
+      "openai/gpt-4.1",
+    ],
   },
   {
     value: "anthropic",
     label: "Anthropic",
     apiBase: "https://api.anthropic.com",
-    modelHint: "anthropic/claude-3-5-sonnet-latest",
+    modelHints: [
+      "anthropic/claude-3-5-sonnet-latest",
+      "anthropic/claude-3-5-haiku-latest",
+      "anthropic/claude-3-opus-latest",
+    ],
   },
   {
     value: "gemini",
     label: "Google Gemini",
     apiBase: "https://generativelanguage.googleapis.com",
-    modelHint: "gemini/gemini-1.5-pro",
+    modelHints: [
+      "gemini/gemini-1.5-pro",
+      "gemini/gemini-1.5-flash",
+      "gemini/gemini-2.0-flash",
+    ],
   },
   {
     value: "azure",
     label: "Azure OpenAI",
     apiBase: "https://YOUR_RESOURCE_NAME.openai.azure.com",
-    modelHint: "azure/YOUR_DEPLOYMENT_NAME",
+    modelHints: [
+      "azure/YOUR_DEPLOYMENT_NAME",
+      "azure/gpt-4o-mini",
+      "azure/gpt-4.1-mini",
+    ],
   },
   {
     value: "groq",
     label: "Groq",
     apiBase: "https://api.groq.com/openai/v1",
-    modelHint: "groq/llama-3.1-70b-versatile",
+    modelHints: [
+      "groq/llama-3.1-70b-versatile",
+      "groq/llama-3.1-8b-instant",
+      "groq/mixtral-8x7b-32768",
+    ],
   },
   {
     value: "mistral",
     label: "Mistral",
     apiBase: "https://api.mistral.ai/v1",
-    modelHint: "mistral/mistral-large-latest",
+    modelHints: [
+      "mistral/mistral-large-latest",
+      "mistral/mistral-small-latest",
+      "mistral/open-mixtral-8x22b",
+    ],
   },
   {
     value: "xai",
     label: "xAI",
     apiBase: "https://api.x.ai/v1",
-    modelHint: "xai/grok-2-latest",
+    modelHints: [
+      "xai/grok-2-latest",
+      "xai/grok-beta",
+      "xai/grok-2-mini",
+    ],
   },
   {
     value: "openrouter",
     label: "OpenRouter",
     apiBase: "https://openrouter.ai/api/v1",
-    modelHint: "openrouter/openai/gpt-4o-mini",
+    modelHints: [
+      "openrouter/openai/gpt-4o-mini",
+      "openrouter/anthropic/claude-3.5-sonnet",
+      "openrouter/google/gemini-1.5-pro",
+    ],
   },
 ];
 
@@ -98,10 +130,14 @@ function providerOption(provider: string): ProviderOption | undefined {
   return POPULAR_PROVIDERS.find((p) => p.value === provider);
 }
 
+function providerModels(provider: string): string[] {
+  return providerOption(provider)?.modelHints ?? [];
+}
+
 const EMPTY_FORM: NewConfigForm = {
   name: "",
   provider: POPULAR_PROVIDERS[0].value,
-  model: "openai/gpt-4o-mini",
+  model: POPULAR_PROVIDERS[0].modelHints[0],
   api_key: "",
   api_base: POPULAR_PROVIDERS[0].apiBase,
   is_default: false,
@@ -125,7 +161,7 @@ export function SettingsAiPage() {
   const [editForm, setEditForm] = useState<EditConfigForm>({
     name: "",
     provider: POPULAR_PROVIDERS[0].value,
-    model: POPULAR_PROVIDERS[0].modelHint,
+    model: POPULAR_PROVIDERS[0].modelHints[0],
     api_key: "",
     api_base: POPULAR_PROVIDERS[0].apiBase,
     is_default: false,
@@ -338,12 +374,14 @@ export function SettingsAiPage() {
                   const nextProvider = e.target.value;
                   const nextOption = providerOption(nextProvider);
                   setForm((v) => {
-                    const modelWasUntouched = v.model === providerOption(v.provider)?.modelHint;
+                    const previousModels = providerModels(v.provider);
+                    const nextModels = providerModels(nextProvider);
+                    const modelWasAuto = previousModels.includes(v.model) || !v.model.trim();
                     return {
                       ...v,
                       provider: nextProvider,
                       api_base: nextOption?.apiBase || v.api_base,
-                      model: modelWasUntouched ? (nextOption?.modelHint || v.model) : v.model,
+                      model: modelWasAuto ? (nextModels[0] || v.model) : v.model,
                     };
                   });
                 }}
@@ -360,11 +398,17 @@ export function SettingsAiPage() {
             <label className="block sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
               <input
+                list="add-ai-model-options"
                 value={form.model}
                 onChange={(e) => setForm((v) => ({ ...v, model: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                 placeholder="openai/gpt-4o-mini"
               />
+              <datalist id="add-ai-model-options">
+                {providerModels(form.provider).map((model) => (
+                  <option key={model} value={model} />
+                ))}
+              </datalist>
             </label>
 
             <label className="block sm:col-span-2">
@@ -445,7 +489,7 @@ export function SettingsAiPage() {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Name</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Provider</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Model</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
               </tr>
             </thead>
             <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
@@ -544,10 +588,12 @@ export function SettingsAiPage() {
                 onChange={(e) => {
                   const nextProvider = e.target.value;
                   const nextOption = providerOption(nextProvider);
+                  const nextModels = providerModels(nextProvider);
                   setEditForm((v) => ({
                     ...v,
                     provider: nextProvider,
                     api_base: nextOption?.apiBase || v.api_base,
+                    model: providerModels(v.provider).includes(v.model) ? (nextModels[0] || v.model) : v.model,
                   }));
                 }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
@@ -563,10 +609,16 @@ export function SettingsAiPage() {
             <label className="block sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
               <input
+                list="edit-ai-model-options"
                 value={editForm.model}
                 onChange={(e) => setEditForm((v) => ({ ...v, model: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
+              <datalist id="edit-ai-model-options">
+                {providerModels(editForm.provider).map((model) => (
+                  <option key={model} value={model} />
+                ))}
+              </datalist>
             </label>
 
             <label className="block sm:col-span-2">
