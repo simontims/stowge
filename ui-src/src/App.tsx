@@ -7,9 +7,19 @@ import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ScanAddPage } from "./pages/ScanAddPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SettingsUsersPage } from "./pages/SettingsUsersPage";
+import { LoginPage } from "./pages/LoginPage";
+import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT } from "./lib/api";
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false);
+  const [token, setToken] = useState<string | null>(() => getToken());
+
+  // 401 from any apiRequest() call fires this event → show LoginPage
+  useEffect(() => {
+    const handler = () => setToken(null);
+    window.addEventListener(UNAUTHORIZED_EVENT, handler);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
+  }, []);
 
   // Global Ctrl+K opens the command palette from anywhere
   useEffect(() => {
@@ -23,9 +33,22 @@ export default function App() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  function handleLogin(newToken: string) {
+    saveToken(newToken);
+    setToken(newToken);
+  }
+
+  function handleLogout() {
+    removeToken(); // removes from localStorage + fires UNAUTHORIZED_EVENT → setToken(null)
+  }
+
+  if (!token) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
   return (
     <BrowserRouter>
-      <AppShell onCommandOpen={() => setCommandOpen(true)}>
+      <AppShell onCommandOpen={() => setCommandOpen(true)} onLogout={handleLogout}>
         <Routes>
           <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance." />} />
           <Route path="/parts"      element={<PartsPage />} />

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchInput } from "../components/ui/SearchInput";
 import { DataTable, type Column } from "../components/ui/DataTable";
+import { apiRequest } from "../lib/api";
 
 interface Part {
   id: string;
@@ -90,20 +91,8 @@ export function PartsPage() {
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem("stowge_token");
-      const res = await fetch("/api/parts", {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      const text = await res.text();
-      const data = text ? (JSON.parse(text) as unknown) : [];
-      if (!res.ok) {
-        const detail =
-          typeof data === "object" && data && "detail" in data
-            ? String((data as { detail: unknown }).detail)
-            : `HTTP ${res.status}`;
-        throw new Error(detail);
-      }
-      setParts(Array.isArray(data) ? (data as Part[]) : []);
+      const data = await apiRequest<Part[]>("/api/parts");
+      setParts(data);
     } catch (err) {
       setError((err as Error).message || "Failed to load parts.");
       setParts([]);
@@ -115,24 +104,8 @@ export function PartsPage() {
   async function deletePart(partId: string) {
     setDeleteError("");
     setDeletingId(partId);
-
     try {
-      const token = localStorage.getItem("stowge_token");
-      const res = await fetch(`/api/parts/${partId}`, {
-        method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      const text = await res.text();
-      const data = text ? (JSON.parse(text) as unknown) : null;
-
-      if (!res.ok) {
-        const detail =
-          typeof data === "object" && data && "detail" in data
-            ? String((data as { detail: unknown }).detail)
-            : `HTTP ${res.status}`;
-        throw new Error(detail);
-      }
-
+      await apiRequest(`/api/parts/${partId}`, { method: "DELETE" });
       setParts((current) => current.filter((part) => part.id !== partId));
       setArmedDeleteId((current) => (current === partId ? null : current));
     } catch (err) {

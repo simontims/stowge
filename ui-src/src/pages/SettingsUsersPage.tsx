@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Edit3, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { apiRequest, getCurrentUserId } from "../lib/api";
 
 interface UserRecord {
   id: string;
@@ -28,47 +29,6 @@ const EMPTY_NEW_USER: UserForm = {
   role: "user",
 };
 
-function authHeaders(): HeadersInit {
-  const token = localStorage.getItem("stowge_token");
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-      }
-    : {};
-}
-
-function currentUserIdFromToken(): string | null {
-  const token = localStorage.getItem("stowge_token");
-  if (!token) return null;
-
-  try {
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) return null;
-    const b64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-    const payload = JSON.parse(atob(padded)) as { sub?: unknown };
-    return typeof payload.sub === "string" && payload.sub.trim() ? payload.sub : null;
-  } catch {
-    return null;
-  }
-}
-
-async function parseErrorMessage(res: Response): Promise<string> {
-  const text = await res.text();
-  if (!text) return `HTTP ${res.status}`;
-
-  try {
-    const parsed = JSON.parse(text) as { detail?: unknown };
-    if (parsed && typeof parsed.detail === "string") {
-      return parsed.detail;
-    }
-  } catch {
-    // fall through
-  }
-
-  return text;
-}
-
 export function SettingsUsersPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -85,7 +45,7 @@ export function SettingsUsersPage() {
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const currentUserId = useMemo(() => currentUserIdFromToken(), []);
+  const currentUserId = useMemo(() => getCurrentUserId(), []);
   const editingUser = users.find((u) => u.id === editingId) || null;
 
   useEffect(() => {
@@ -104,17 +64,9 @@ export function SettingsUsersPage() {
     setLoading(true);
     setError("");
     setNotice("");
-
     try {
-      const res = await fetch("/api/users", {
-        headers: authHeaders(),
-      });
-      if (!res.ok) {
-        throw new Error(await parseErrorMessage(res));
-      }
-
-      const data = (await res.json()) as unknown;
-      setUsers(Array.isArray(data) ? (data as UserRecord[]) : []);
+      const data = await apiRequest<UserRecord[]>("/api/users");
+      setUsers(data);
     } catch (err) {
       setUsers([]);
       setError((err as Error).message || "Failed to load users.");
@@ -138,12 +90,8 @@ export function SettingsUsersPage() {
 
     setIsCreating(true);
     try {
-      const res = await fetch("/api/users", {
+      await apiRequest("/api/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders(),
-        },
         body: JSON.stringify({
           email: newUser.email.trim(),
           firstname: newUser.firstname.trim(),
@@ -152,11 +100,6 @@ export function SettingsUsersPage() {
           role: newUser.role,
         }),
       });
-
-      if (!res.ok) {
-        throw new Error(await parseErrorMessage(res));
-      }
-
       setNewUser(EMPTY_NEW_USER);
       setNotice("User created.");
       await loadUsers();
@@ -197,12 +140,8 @@ export function SettingsUsersPage() {
 
     setIsSavingEdit(true);
     try {
-      const res = await fetch(`/api/users/${editingId}`, {
+      await apiRequest(`/api/users/${editingId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders(),
-        },
         body: JSON.stringify({
           email: editForm.email.trim(),
           firstname: editForm.firstname.trim(),
@@ -211,11 +150,6 @@ export function SettingsUsersPage() {
           password: editForm.password || undefined,
         }),
       });
-
-      if (!res.ok) {
-        throw new Error(await parseErrorMessage(res));
-      }
-
       setEditingId(null);
       setEditForm(EMPTY_NEW_USER);
       setNotice("User updated.");
@@ -238,15 +172,7 @@ export function SettingsUsersPage() {
 
     setDeletingId(user.id);
     try {
-      const res = await fetch(`/api/users/${user.id}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-
-      if (!res.ok) {
-        throw new Error(await parseErrorMessage(res));
-      }
-
+      await apiRequest(`/api/users/${user.id}`, { method: "DELETE" });
       setArmedDeleteId(null);
       setNotice("User deleted.");
       await loadUsers();

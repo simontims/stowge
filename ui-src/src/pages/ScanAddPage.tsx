@@ -9,6 +9,7 @@ import {
   Upload,
 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { apiRequest } from "../lib/api";
 
 interface IdentifyCandidate {
   name?: string;
@@ -435,41 +436,7 @@ export function ScanAddPage() {
   );
 }
 
-async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers ?? {});
-  const token = localStorage.getItem("stowge_token");
-
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  if (!(init.body instanceof FormData) && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  const res = await fetch(path, { ...init, headers });
-  const text = await res.text();
-
-  let payload: unknown = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = text;
-    }
-  }
-
-  if (!res.ok) {
-    const detail =
-      typeof payload === "object" && payload && "detail" in payload
-        ? String((payload as { detail: unknown }).detail)
-        : `HTTP ${res.status}`;
-    throw new Error(detail);
-  }
-
-  return payload as T;
-}
-
-function isWindowsChrome(): boolean {
+async function isWindowsChrome(): Promise<boolean> {
   const ua = navigator.userAgent || "";
   const isWindows = /Windows/i.test(ua);
   const isChrome = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua) && !/OPR\//i.test(ua);
@@ -514,7 +481,7 @@ function pickSingleImage(preferCamera: boolean): Promise<File | null> {
 }
 
 async function takePicture(): Promise<File | null> {
-  if (isWindowsChrome()) {
+  if (await isWindowsChrome()) {
     return pickSingleImage(true);
   }
 

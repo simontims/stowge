@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Menu, Search, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 interface TopbarProps {
   onMenuClick: () => void;
   onCommandOpen: () => void;
+  onLogout: () => void;
 }
 
-export function Topbar({ onMenuClick, onCommandOpen }: TopbarProps) {
-  const navigate = useNavigate();
+export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [version, setVersion] = useState<string>("");
@@ -84,9 +83,8 @@ export function Topbar({ onMenuClick, onCommandOpen }: TopbarProps) {
   }
 
   function logout() {
-    localStorage.removeItem("stowge_token");
     setMenuOpen(false);
-    navigate("/", { replace: true });
+    onLogout();
   }
 
   return (
