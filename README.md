@@ -34,6 +34,10 @@ Copy `.env.example` to `.env` and fill in values.
 docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
+### 4) Configure AI models in app
+After first login, go to `Settings / AI` and add one or more LLM providers/models,
+set API keys, and choose a default model for `Scan / Add`.
+
 Then configure Nginx Proxy Manager:
 - `stowge.my.domain` → `http://192.168.1.45:18090`
 - Enable HTTPS (camera access on Android requires HTTPS)
