@@ -13,7 +13,7 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
   const [version, setVersion] = useState<string>("");
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const username = useMemo(() => {
+  const displayName = useMemo(() => {
     const token = localStorage.getItem("stowge_token");
     if (!token) return "Guest";
 
@@ -23,7 +23,15 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
       const b64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
       const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
       const decoded = atob(padded);
-      const payload = JSON.parse(decoded) as { username?: unknown };
+      const payload = JSON.parse(decoded) as {
+        username?: unknown;
+        first_name?: unknown;
+        last_name?: unknown;
+      };
+      const first = typeof payload.first_name === "string" ? payload.first_name.trim() : "";
+      const last = typeof payload.last_name === "string" ? payload.last_name.trim() : "";
+      const fullName = [first, last].filter(Boolean).join(" ");
+      if (fullName) return fullName;
       return typeof payload.username === "string" && payload.username.trim()
         ? payload.username
         : "Guest";
@@ -125,7 +133,7 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
           >
             <User size={14} />
             <span className="hidden sm:inline max-w-[10rem] truncate text-xs font-medium">
-              {username}
+              {displayName}
             </span>
           </button>
 
@@ -165,7 +173,7 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
             </div>
             <div className="px-4 py-4 space-y-3">
               <div className="text-sm text-neutral-300">
-                Signed in as <span className="font-medium text-neutral-100">{username}</span>
+                Signed in as <span className="font-medium text-neutral-100">{displayName}</span>
               </div>
               <p className="text-sm text-neutral-500">
                 User-level preferences will appear here.

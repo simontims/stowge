@@ -34,6 +34,8 @@ def create_token(user: User) -> str:
         "iss": JWT_ISSUER,
         "sub": user.id,
         "username": user.username,
+        "first_name": user.first_name or "",
+        "last_name": user.last_name or "",
         "role": user.role,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=JWT_EXPIRES_MINUTES)).timestamp()),
