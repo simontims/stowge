@@ -80,7 +80,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
                   <NavLink
                     key={item.route}
                     to={item.route}
-                    end={item.route === "/"}
+                    end={item.route === "/" || item.route === "/settings"}
                     className={({ isActive }) =>
                       clsx(
                         "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",

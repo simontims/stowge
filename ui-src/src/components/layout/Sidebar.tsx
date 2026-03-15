@@ -51,7 +51,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                 <NavLink
                   key={item.route}
                   to={item.route}
-                  end={item.route === "/"}
+                  end={item.route === "/" || item.route === "/settings"}
                   title={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
                     clsx(
