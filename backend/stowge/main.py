@@ -275,6 +275,50 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
     db.commit()
     return {"ok": True}
 
+@app.delete("/api/parts/{part_id}")
+def delete_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    p = db.query(Part).filter(Part.id == part_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Capture image paths before ORM delete so we can remove on-disk assets.
+    image_paths = []
+    image_dirs = set()
+    for img in p.images:
+        if img.path_thumb:
+            image_paths.append(img.path_thumb)
+            image_dirs.add(os.path.dirname(img.path_thumb))
+        if img.path_display:
+            image_paths.append(img.path_display)
+            image_dirs.add(os.path.dirname(img.path_display))
+        if img.path_original:
+            image_paths.append(img.path_original)
+            image_dirs.add(os.path.dirname(img.path_original))
+
+    db.delete(p)
+    db.commit()
+
+    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    for rel in image_paths:
+        abs_path = os.path.join(assets_dir, rel)
+        try:
+            if os.path.exists(abs_path):
+                os.remove(abs_path)
+        except Exception:
+            # Best-effort cleanup: DB delete has already completed.
+            pass
+
+    # Remove now-empty per-image directories if possible.
+    for rel_dir in image_dirs:
+        abs_dir = os.path.join(assets_dir, rel_dir)
+        try:
+            if os.path.isdir(abs_dir) and not os.listdir(abs_dir):
+                os.rmdir(abs_dir)
+        except Exception:
+            pass
+
+    return {"ok": True}
+
 # ---------------- Images ----------------
 
 @app.get("/api/images/{image_id}/signed")

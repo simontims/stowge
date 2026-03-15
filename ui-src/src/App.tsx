@@ -27,7 +27,7 @@ export default function App() {
         <Routes>
           <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance." />} />
           <Route path="/parts"      element={<PartsPage />} />
-          <Route path="/parts/new"  element={<PlaceholderPage title="Add Part"   description="Create a new part record." />} />
+          <Route path="/parts/new"  element={<ScanAddPage />} />
           <Route path="/locations"  element={<PlaceholderPage title="Locations"  description="Manage storage locations and bins." />} />
           <Route path="/categories" element={<PlaceholderPage title="Categories" description="Organise parts into categories." />} />
           <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers." />} />

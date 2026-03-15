@@ -236,20 +236,11 @@ export function ScanAddPage() {
       <PageHeader
         title="Scan / Add"
         description="Capture up to 5 photos, identify part suggestions, then edit before saving."
-        action={mode === "input" ? (
-          <button
-            onClick={submitIdentify}
-            disabled={isSubmitting || photos.length === 0}
-            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-          >
-            {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Filter size={14} />}
-            {submitAbort ? "Cancel" : "Submit for ID"}
-          </button>
-        ) : null}
+        action={null}
       />
 
       {mode === "input" && (
-        <section className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/40 space-y-3">
+        <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-neutral-200">Photos</h2>
             <span className="text-xs text-neutral-500">{photos.length} / {MAX_PHOTOS}</span>
@@ -317,6 +308,17 @@ export function ScanAddPage() {
               ))}
             </div>
           )}
+
+          <div>
+            <button
+              onClick={submitIdentify}
+              disabled={isSubmitting || photos.length === 0}
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            >
+              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Filter size={14} />}
+              {submitAbort ? "Cancel" : "Submit for ID"}
+            </button>
+          </div>
 
           {submitError && <p className="text-sm text-red-400">{submitError}</p>}
         </section>
