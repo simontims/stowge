@@ -33,6 +33,17 @@ def _is_valid_email(value: str) -> bool:
     return bool(EMAIL_RE.match(value))
 
 
+def _utc_iso(dt: datetime | None) -> str | None:
+    """Return an ISO-8601 string always suffixed with 'Z' (UTC).
+    SQLite drops timezone info on round-trip, so naive datetimes that
+    originated from datetime.now(timezone.utc) are explicitly re-marked."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.isoformat() + "Z"
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 def _serialize_user(user: User) -> dict:
     return {
         "id": user.id,
@@ -40,8 +51,8 @@ def _serialize_user(user: User) -> dict:
         "firstname": user.first_name or "",
         "surname": user.last_name or "",
         "role": user.role,
-        "created_at": user.created_at.isoformat() if user.created_at else None,
-        "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
+        "created_at": _utc_iso(user.created_at),
+        "last_login_at": _utc_iso(user.last_login_at),
     }
 
 

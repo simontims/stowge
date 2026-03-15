@@ -299,7 +299,15 @@ export function SettingsUsersPage() {
                       <td className="px-4 py-2.5 text-neutral-300">{user.surname || "-"}</td>
                       <td className="px-4 py-2.5 text-neutral-300">{user.role}</td>
                       <td className="px-4 py-2.5 text-neutral-500">
-                        {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "never"}
+                        {user.last_login_at
+                          ? new Date(user.last_login_at).toLocaleString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "never"}
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
