@@ -56,6 +56,29 @@ export function PartsPage() {
   }, []);
 
   useEffect(() => {
+    const token = localStorage.getItem("stowge_token");
+    if (!token) return;
+
+    const source = new EventSource(
+      `/api/events/parts?token=${encodeURIComponent(token)}`
+    );
+
+    const onPartsChanged = () => {
+      void loadParts();
+    };
+
+    source.addEventListener("parts_changed", onPartsChanged);
+    source.onerror = () => {
+      // Keep page usable if stream is unavailable; manual refresh still works.
+    };
+
+    return () => {
+      source.removeEventListener("parts_changed", onPartsChanged);
+      source.close();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!armedDeleteId) return;
     const timeout = setTimeout(() => {
       setArmedDeleteId((current) => (current === armedDeleteId ? null : current));

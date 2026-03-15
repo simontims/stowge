@@ -1,17 +1,22 @@
 import os
 import time
+import json
+import asyncio
+from threading import Lock
 from datetime import datetime, timezone
 from typing import Optional, Literal, List
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+import jwt
+from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
 from .models import User, Part, PartImage
-from .auth import hash_password, verify_password, create_token, current_user, require_admin
+from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
 from .images import process_and_store, resolve_path
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
@@ -26,6 +31,11 @@ def init_db():
 init_db()
 
 app = FastAPI(title="Stowge", version=APP_VERSION)
+
+_PARTS_EVENTS_LOCK = Lock()
+_PARTS_EVENTS_SEQ = 0
+_PARTS_EVENTS_LOG: list[dict] = []
+_PARTS_EVENTS_MAX = 256
 
 # Serve Vite-built hashed bundles from /app/ui/assets.
 app.mount(
@@ -61,6 +71,36 @@ def _variant_rel(img: PartImage, variant: str) -> str:
             raise HTTPException(status_code=404, detail="Original not stored")
         return img.path_original
     raise HTTPException(status_code=400, detail="Invalid variant")
+
+def _publish_parts_event(event_type: str, payload: dict):
+    global _PARTS_EVENTS_SEQ
+    with _PARTS_EVENTS_LOCK:
+        _PARTS_EVENTS_SEQ += 1
+        event = {
+            "seq": _PARTS_EVENTS_SEQ,
+            "type": event_type,
+            "ts": datetime.now(timezone.utc).isoformat(),
+            **payload,
+        }
+        _PARTS_EVENTS_LOG.append(event)
+        if len(_PARTS_EVENTS_LOG) > _PARTS_EVENTS_MAX:
+            del _PARTS_EVENTS_LOG[0 : len(_PARTS_EVENTS_LOG) - _PARTS_EVENTS_MAX]
+
+def _parts_events_since(last_seq: int) -> list[dict]:
+    with _PARTS_EVENTS_LOCK:
+        return [e for e in _PARTS_EVENTS_LOG if int(e.get("seq", 0)) > last_seq]
+
+def _user_from_query_token(token: str, db: Session) -> User:
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"], issuer=JWT_ISSUER)
+    except InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 # ---------------- UI (PWA) ----------------
 @app.get("/", response_class=HTMLResponse)
@@ -219,6 +259,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
     p.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(p)
+    _publish_parts_event("parts_changed", {"action": "created", "part_id": p.id})
     return {"id": p.id}
 
 @app.get("/api/parts")
@@ -317,7 +358,55 @@ def delete_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(
         except Exception:
             pass
 
+    _publish_parts_event("parts_changed", {"action": "deleted", "part_id": part_id})
     return {"ok": True}
+
+@app.get("/api/events/parts")
+async def parts_events(
+    request: Request,
+    token: str,
+    since: int = 0,
+    db: Session = Depends(get_db),
+):
+    # SSE does not support custom Authorization headers in EventSource,
+    # so this endpoint accepts bearer token via query string.
+    _ = _user_from_query_token(token, db)
+
+    async def event_stream():
+        last_seq = max(0, int(since))
+        heartbeat = 0
+        while True:
+            if await request.is_disconnected():
+                break
+
+            events = _parts_events_since(last_seq)
+            if events:
+                for ev in events:
+                    last_seq = int(ev.get("seq", last_seq))
+                    yield (
+                        f"id: {ev['seq']}\n"
+                        f"event: {ev['type']}\n"
+                        f"data: {json.dumps(ev)}\n\n"
+                    )
+                heartbeat = 0
+            else:
+                # Keep connection alive behind reverse proxies.
+                heartbeat += 1
+                if heartbeat >= 10:
+                    yield ": keepalive\n\n"
+                    heartbeat = 0
+
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 # ---------------- Images ----------------
 
