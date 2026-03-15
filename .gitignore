@@ -6,3 +6,7 @@
 _dev_data/
 *.pid
 *.db
+
+# Dependencies
+node_modules/
+ui-src/node_modules/

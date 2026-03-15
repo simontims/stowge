@@ -6,7 +6,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Header, HTTPException, Depends
-from jose import jwt, JWTError
+import jwt
+from jwt import InvalidTokenError
 from sqlalchemy.orm import Session
 
 from .models import User
@@ -48,7 +49,7 @@ def current_user(
     token = Authorization.split(" ", 1)[1].strip()
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"], issuer=JWT_ISSUER)
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     user_id = payload.get("sub")

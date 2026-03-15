@@ -33,6 +33,8 @@ interface PartDraft {
   status: "draft" | "confirmed";
 }
 
+type ScanFlowMode = "input" | "review";
+
 const MAX_PHOTOS = 5;
 
 export function ScanAddPage() {
@@ -55,6 +57,7 @@ export function ScanAddPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [notice, setNotice] = useState<string>("");
+  const [mode, setMode] = useState<ScanFlowMode>("input");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +89,13 @@ export function ScanAddPage() {
     setSelectedIndex(0);
     setDraft({ name: "", description: "", category: "", status: "draft" });
     setSaveError("");
+    setSubmitError("");
+  }
+
+  function resetToStart() {
+    setPhotos([]);
+    clearSession();
+    setMode("input");
   }
 
   function loadDraftFromCandidate(candidate: IdentifyCandidate | undefined) {
@@ -146,9 +156,17 @@ export function ScanAddPage() {
       );
 
       const found = data.ai?.candidates ?? [];
+      if (found.length === 0) {
+        setSubmitError("No candidate suggestions returned. Adjust photos and try again.");
+        setIdentifyData(null);
+        setMode("input");
+        return;
+      }
+
       setIdentifyData(data);
       setSelectedIndex(0);
       loadDraftFromCandidate(found[0]);
+      setMode("review");
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         setSubmitError((err as Error).message || "Identify failed.");
@@ -199,6 +217,7 @@ export function ScanAddPage() {
 
       setPhotos([]);
       clearSession();
+      setMode("input");
       setNotice(`Part saved (${result.id}). Ready to add the next part.`);
 
       const main = document.querySelector("main");
@@ -217,7 +236,7 @@ export function ScanAddPage() {
       <PageHeader
         title="Scan / Add"
         description="Capture up to 5 photos, identify part suggestions, then edit before saving."
-        action={
+        action={mode === "input" ? (
           <button
             onClick={submitIdentify}
             disabled={isSubmitting || photos.length === 0}
@@ -226,101 +245,102 @@ export function ScanAddPage() {
             {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Filter size={14} />}
             {submitAbort ? "Cancel" : "Submit for ID"}
           </button>
-        }
+        ) : null}
       />
 
-      <section className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/40 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-neutral-200">Photos</h2>
-          <span className="text-xs text-neutral-500">{photos.length} / {MAX_PHOTOS}</span>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={onTakePicture}
-            disabled={photos.length >= MAX_PHOTOS || isSubmitting}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <Camera size={14} />
-            Take picture
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={photos.length >= MAX_PHOTOS || isSubmitting}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <Upload size={14} />
-            Pick photos
-          </button>
-
-          <button
-            onClick={() => {
-              setPhotos([]);
-              clearSession();
-            }}
-            disabled={photos.length === 0 || isSubmitting}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <Trash2 size={14} />
-            Clear
-          </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              onPickPhotos(e.target.files);
-              e.currentTarget.value = "";
-            }}
-          />
-        </div>
-
-        {previewUrls.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            {previewUrls.map((url, idx) => (
-              <div key={url} className="relative border border-neutral-800 rounded-md overflow-hidden bg-neutral-950">
-                <img
-                  src={url}
-                  alt={`Photo ${idx + 1}`}
-                  className="w-full aspect-square object-cover"
-                />
-                <button
-                  onClick={() => removePhoto(idx)}
-                  disabled={isSubmitting}
-                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-neutral-200 hover:bg-black/80 disabled:opacity-60"
-                  aria-label={`Remove photo ${idx + 1}`}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+      {mode === "input" && (
+        <section className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/40 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-neutral-200">Photos</h2>
+            <span className="text-xs text-neutral-500">{photos.length} / {MAX_PHOTOS}</span>
           </div>
-        )}
 
-        {submitError && <p className="text-sm text-red-400">{submitError}</p>}
-      </section>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onTakePicture}
+              disabled={photos.length >= MAX_PHOTOS || isSubmitting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Camera size={14} />
+              Take picture
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photos.length >= MAX_PHOTOS || isSubmitting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Upload size={14} />
+              Pick photos
+            </button>
+
+            <button
+              onClick={resetToStart}
+              disabled={photos.length === 0 || isSubmitting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={14} />
+              Clear
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                onPickPhotos(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+          </div>
+
+          {previewUrls.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {previewUrls.map((url, idx) => (
+                <div key={url} className="relative border border-neutral-800 rounded-md overflow-hidden bg-neutral-950">
+                  <img
+                    src={url}
+                    alt={`Photo ${idx + 1}`}
+                    className="w-full aspect-square object-cover"
+                  />
+                  <button
+                    onClick={() => removePhoto(idx)}
+                    disabled={isSubmitting}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-neutral-200 hover:bg-black/80 disabled:opacity-60"
+                    aria-label={`Remove photo ${idx + 1}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {submitError && <p className="text-sm text-red-400">{submitError}</p>}
+        </section>
+      )}
 
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-      {identifyData && candidates.length > 0 && (
+      {mode === "review" && identifyData && candidates.length > 0 && (
         <section className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/40 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-neutral-200">Suggested matches</h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={submitIdentify}
-                disabled={isSubmitting || photos.length === 0}
+                onClick={() => {
+                  setMode("input");
+                  setSubmitError("");
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                {submitAbort ? "Cancel" : "Try again"}
+                <RefreshCw size={14} />
+                Edit input
               </button>
               <button
-                onClick={clearSession}
+                onClick={resetToStart}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
               >
                 Discard
