@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Menu, Search, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -6,6 +8,86 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick, onCommandOpen }: TopbarProps) {
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [version, setVersion] = useState<string>("");
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const username = useMemo(() => {
+    const token = localStorage.getItem("stowge_token");
+    if (!token) return "Guest";
+
+    try {
+      const payloadPart = token.split(".")[1];
+      if (!payloadPart) return "Guest";
+      const b64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+      const decoded = atob(padded);
+      const payload = JSON.parse(decoded) as { username?: unknown };
+      return typeof payload.username === "string" && payload.username.trim()
+        ? payload.username
+        : "Guest";
+    } catch {
+      return "Guest";
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function onPointerDown(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onEscape);
+    return () => {
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onEscape);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadVersion() {
+      try {
+        const res = await fetch("/api/version");
+        if (!res.ok) return;
+        const data = (await res.json()) as { version?: unknown };
+        if (active && typeof data.version === "string") {
+          setVersion(data.version);
+        }
+      } catch {
+        // Best-effort display only.
+      }
+    }
+
+    void loadVersion();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function goPreferences() {
+    setMenuOpen(false);
+    navigate("/settings");
+  }
+
+  function logout() {
+    localStorage.removeItem("stowge_token");
+    setMenuOpen(false);
+    navigate("/", { replace: true });
+  }
+
   return (
     <header className="h-14 border-b border-neutral-800 bg-neutral-900 flex items-center gap-3 px-4 shrink-0">
       {/* Mobile menu button — visible only on small screens */}
@@ -34,13 +116,39 @@ export function Topbar({ onMenuClick, onCommandOpen }: TopbarProps) {
 
       <div className="flex-1 hidden md:block" />
 
-      {/* User avatar placeholder */}
-      <button
-        className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-700 text-neutral-300 hover:bg-neutral-600 hover:text-neutral-100 transition-colors shrink-0"
-        aria-label="User menu"
-      >
-        <User size={14} />
-      </button>
+      <div className="relative shrink-0" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((open) => !open)}
+          className="inline-flex items-center gap-2 h-8 px-2.5 rounded-full bg-neutral-700 text-neutral-300 hover:bg-neutral-600 hover:text-neutral-100 transition-colors"
+          aria-label="User menu"
+          aria-expanded={menuOpen}
+        >
+          <User size={14} />
+          <span className="hidden sm:inline max-w-[10rem] truncate text-xs font-medium">
+            {username}
+          </span>
+        </button>
+
+        {menuOpen && (
+          <div className="absolute right-0 top-full mt-2 w-44 rounded-md border border-neutral-700 bg-neutral-900 shadow-lg z-20 overflow-hidden">
+            <button
+              onClick={goPreferences}
+              className="w-full text-left px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-800 transition-colors"
+            >
+              Preferences
+            </button>
+            <button
+              onClick={logout}
+              className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-neutral-800 transition-colors"
+            >
+              Logout
+            </button>
+            <div className="border-t border-neutral-800 px-3 py-2 text-xs text-neutral-500">
+              Version {version || "-"}
+            </div>
+          </div>
+        )}
+      </div>
     </header>
   );
 }
