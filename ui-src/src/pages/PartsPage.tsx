@@ -17,7 +17,7 @@ interface Part {
 
 function TrashCanIcon({ lidOpen }: { lidOpen: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
       <g
         className={[
           "transition-transform duration-200",
@@ -179,9 +179,9 @@ export function PartsPage() {
       },
       {
         key: "actions",
-        header: "Delete",
-        className: "w-16 text-center",
-        headerClassName: "w-16 text-center",
+        header: "ACTIONS",
+        className: "w-20 text-center",
+        headerClassName: "w-20 text-center",
         render: (row) => {
           const isArmed = armedDeleteId === row.id;
           const isDeleting = deletingId === row.id;
@@ -196,7 +196,7 @@ export function PartsPage() {
                 void deletePart(row.id);
               }}
               className={[
-                "inline-flex items-center justify-center w-8 h-8 rounded-md border transition-colors",
+                "inline-flex items-center justify-center w-10 h-10 rounded-md border transition-colors",
                 isArmed
                   ? "border-red-500/70 text-red-300 bg-red-950/30"
                   : "border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70",
