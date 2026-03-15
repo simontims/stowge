@@ -5,6 +5,8 @@ import { CommandPalette } from "./components/command/CommandPalette";
 import { PartsPage } from "./pages/PartsPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ScanAddPage } from "./pages/ScanAddPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { SettingsUsersPage } from "./pages/SettingsUsersPage";
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false);
@@ -35,7 +37,8 @@ export default function App() {
           <Route path="/scan"       element={<ScanAddPage />} />
           <Route path="/imports"    element={<PlaceholderPage title="Imports"    description="Bulk-import parts from a CSV file." />} />
           <Route path="/reports"    element={<PlaceholderPage title="Reports"    description="Inventory reports and export tools." />} />
-          <Route path="/settings"   element={<PlaceholderPage title="Settings"   description="Configure your Stowge instance." />} />
+          <Route path="/settings"   element={<SettingsPage />} />
+          <Route path="/settings/users" element={<SettingsUsersPage />} />
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist." />} />
         </Routes>
       </AppShell>

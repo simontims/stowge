@@ -11,6 +11,8 @@ class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     username = Column(String, unique=True, nullable=False, index=True)
+    first_name = Column(String, nullable=False, default="")
+    last_name = Column(String, nullable=False, default="")
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="admin")  # admin|user
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)

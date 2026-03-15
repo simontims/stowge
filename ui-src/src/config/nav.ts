@@ -9,6 +9,7 @@ import {
   Upload,
   BarChart3,
   Settings,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -39,6 +40,7 @@ export const navItems: NavItem[] = [
   { label: "Imports",    route: "/imports",     icon: Upload,    group: "TOOLS"         },
   { label: "Reports",    route: "/reports",     icon: BarChart3, group: "TOOLS"         },
   { label: "Settings",   route: "/settings",    icon: Settings,  group: "SYSTEM"        },
+  { label: "Users",      route: "/settings/users", icon: Users,  group: "SYSTEM"        },
 ];
 
 export const groupedNav = NAV_GROUPS.map((group) => ({

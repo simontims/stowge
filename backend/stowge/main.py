@@ -2,6 +2,7 @@ import os
 import time
 import json
 import asyncio
+import re
 from threading import Lock
 from datetime import datetime, timezone
 from typing import Optional, Literal, List
@@ -11,6 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 import jwt
 from jwt import InvalidTokenError
 
@@ -24,9 +26,41 @@ from .image_signing import sign as sign_image, verify as verify_image, ttl_secon
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _is_valid_email(value: str) -> bool:
+    return bool(EMAIL_RE.match(value))
+
+
+def _serialize_user(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.username,
+        "firstname": user.first_name or "",
+        "surname": user.last_name or "",
+        "role": user.role,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
+    }
+
+
+def _run_startup_migrations():
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "users" not in tables:
+        return
+
+    columns = {c["name"] for c in inspector.get_columns("users")}
+    with engine.begin() as conn:
+        if "first_name" not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN first_name VARCHAR NOT NULL DEFAULT ''"))
+        if "last_name" not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN last_name VARCHAR NOT NULL DEFAULT ''"))
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _run_startup_migrations()
 
 init_db()
 
@@ -132,12 +166,22 @@ def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
     if db.query(User).count() != 0:
         raise HTTPException(status_code=404, detail="Setup disabled")
 
-    username = (payload.get("username") or "").strip()
+    username = (payload.get("username") or payload.get("email") or "").strip().lower()
+    first_name = (payload.get("firstname") or payload.get("first_name") or "").strip()
+    last_name = (payload.get("surname") or payload.get("last_name") or "").strip()
     password = payload.get("password") or ""
-    if len(username) < 3 or not password:
-        raise HTTPException(status_code=400, detail="Username >= 3 chars, password required")
+    if not (_is_valid_email(username) or len(username) >= 3):
+        raise HTTPException(status_code=400, detail="Email or username >= 3 chars required")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password required")
 
-    user = User(username=username, password_hash=hash_password(password), role="admin")
+    user = User(
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
+        password_hash=hash_password(password),
+        role="admin",
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -145,7 +189,7 @@ def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
 
 @app.post("/api/login")
 def login(payload: dict, db: Session = Depends(get_db)):
-    username = (payload.get("username") or "").strip()
+    username = (payload.get("username") or payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
 
     user = db.query(User).filter(User.username == username).first()
@@ -159,27 +203,93 @@ def login(payload: dict, db: Session = Depends(get_db)):
 # ---------------- Users (admin) ----------------
 @app.post("/api/users")
 def create_user(payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
-    username = (payload.get("username") or "").strip()
+    username = (payload.get("email") or payload.get("username") or "").strip().lower()
+    first_name = (payload.get("firstname") or payload.get("first_name") or "").strip()
+    last_name = (payload.get("surname") or payload.get("last_name") or "").strip()
     password = payload.get("password") or ""
     role = (payload.get("role") or "user").strip()
 
     if role not in ("admin", "user"):
         raise HTTPException(status_code=400, detail="role must be admin|user")
-    if len(username) < 3 or len(password) < 8:
-        raise HTTPException(status_code=400, detail="Username >= 3 chars, password >= 8 chars")
+    if not _is_valid_email(username):
+        raise HTTPException(status_code=400, detail="Valid email required")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password >= 8 chars")
     if db.query(User).filter(User.username == username).first():
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="Email already exists")
 
-    u = User(username=username, password_hash=hash_password(password), role=role)
+    u = User(
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
+        password_hash=hash_password(password),
+        role=role,
+    )
     db.add(u)
     db.commit()
-    return {"ok": True}
+    db.refresh(u)
+    return _serialize_user(u)
+
+
+@app.get("/api/users")
+def list_users(db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    users = db.query(User).order_by(User.created_at.asc()).all()
+    return [_serialize_user(u) for u in users]
+
+
+@app.patch("/api/users/{user_id}")
+def update_user(user_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    email = payload.get("email")
+    if email is not None:
+        next_email = str(email).strip().lower()
+        if not _is_valid_email(next_email):
+            raise HTTPException(status_code=400, detail="Valid email required")
+        exists = db.query(User).filter(User.username == next_email, User.id != user_id).first()
+        if exists:
+            raise HTTPException(status_code=400, detail="Email already exists")
+        u.username = next_email
+
+    if "firstname" in payload or "first_name" in payload:
+        u.first_name = str(payload.get("firstname") or payload.get("first_name") or "").strip()
+
+    if "surname" in payload or "last_name" in payload:
+        u.last_name = str(payload.get("surname") or payload.get("last_name") or "").strip()
+
+    if "role" in payload:
+        role = str(payload.get("role") or "").strip()
+        if role not in ("admin", "user"):
+            raise HTTPException(status_code=400, detail="role must be admin|user")
+        if u.id == me.id and role != "admin":
+            raise HTTPException(status_code=400, detail="Cannot remove your own admin role")
+        if u.role == "admin" and role != "admin":
+            admins = db.query(User).filter(User.role == "admin").count()
+            if admins <= 1:
+                raise HTTPException(status_code=400, detail="Cannot demote the last admin")
+        u.role = role
+
+    if "password" in payload:
+        password = str(payload.get("password") or "")
+        if password and len(password) < 8:
+            raise HTTPException(status_code=400, detail="Password >= 8 chars")
+        if password:
+            u.password_hash = hash_password(password)
+
+    db.commit()
+    db.refresh(u)
+    return _serialize_user(u)
 
 @app.delete("/api/users/{user_id}")
 def delete_user(user_id: str, db: Session = Depends(get_db), me: User = Depends(require_admin)):
     u = db.query(User).filter(User.id == user_id).first()
     if not u:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if u.id == me.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
 
     if u.role == "admin":
         admins = db.query(User).filter(User.role == "admin").count()
