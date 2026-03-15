@@ -177,11 +177,6 @@ export function ScanAddPage() {
     }
   }
 
-  function chooseCandidate(index: number) {
-    setSelectedIndex(index);
-    loadDraftFromCandidate(candidates[index]);
-  }
-
   async function savePart() {
     setSaveError("");
     setNotice("");
@@ -329,7 +324,7 @@ export function ScanAddPage() {
       {mode === "review" && identifyData && candidates.length > 0 && (
         <section className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/40 space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-200">Suggested matches</h2>
+            <h2 className="text-sm font-semibold text-neutral-200">Review and Edit</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
@@ -339,7 +334,7 @@ export function ScanAddPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <RefreshCw size={14} />
-                Edit input
+                Back to ID Inputs
               </button>
               <button
                 onClick={resetToStart}
@@ -350,37 +345,7 @@ export function ScanAddPage() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              {candidates.map((candidate, idx) => (
-                <button
-                  key={`${candidate.name || "unknown"}-${idx}`}
-                  onClick={() => chooseCandidate(idx)}
-                  className={[
-                    "w-full text-left border rounded-md p-3 transition-colors",
-                    idx === selectedIndex
-                      ? "border-blue-500 bg-blue-500/10"
-                      : "border-neutral-800 hover:border-neutral-600 bg-neutral-950",
-                  ].join(" ")}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-neutral-100 truncate">
-                      {candidate.name || "Unknown"}
-                    </p>
-                    <span className="text-xs text-neutral-500 shrink-0">
-                      {candidate.unknown
-                        ? "unknown"
-                        : `conf ${(candidate.confidence || 0).toFixed(2)}`}
-                    </span>
-                  </div>
-                  <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
-                    {candidate.description || "No description"}
-                  </p>
-                </button>
-              ))}
-            </div>
-
-            <div className="lg:col-span-2 space-y-3">
+          <div className="space-y-3">
               <div className="grid gap-3">
                 <div>
                   <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
@@ -463,7 +428,6 @@ export function ScanAddPage() {
               </div>
 
               {saveError && <p className="text-sm text-red-400">{saveError}</p>}
-            </div>
           </div>
         </section>
       )}
