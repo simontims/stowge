@@ -91,6 +91,20 @@ def _normalize_model(value: str) -> str:
     return value.strip()
 
 
+def _default_api_base_for_provider(provider: str) -> str | None:
+    defaults = {
+        "openai": "https://api.openai.com/v1",
+        "anthropic": "https://api.anthropic.com",
+        "gemini": "https://generativelanguage.googleapis.com",
+        "azure": "https://YOUR_RESOURCE_NAME.openai.azure.com",
+        "groq": "https://api.groq.com/openai/v1",
+        "mistral": "https://api.mistral.ai/v1",
+        "xai": "https://api.x.ai/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+    }
+    return defaults.get(provider)
+
+
 def _resolve_llm_config(db: Session, selected_id: str | None = None) -> LLMConfig | None:
     if selected_id:
         return db.query(LLMConfig).filter(LLMConfig.id == selected_id).first()
@@ -123,6 +137,21 @@ def _run_startup_migrations():
             if "is_default" not in llm_columns:
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0"))
 
+        # Backfill legacy configs so API base is always present.
+        with Session(bind=engine) as db:
+            configs = db.query(LLMConfig).all()
+            changed = False
+            for cfg in configs:
+                if (cfg.api_base or "").strip():
+                    continue
+                fallback = _default_api_base_for_provider((cfg.provider or "").strip().lower())
+                if fallback:
+                    cfg.api_base = fallback
+                    cfg.updated_at = datetime.now(timezone.utc)
+                    changed = True
+            if changed:
+                db.commit()
+
     # Backward compatibility: if legacy OPENAI env vars are present and no model
     # is configured yet, create a default LiteLLM model entry automatically.
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -138,7 +167,7 @@ def _run_startup_migrations():
                     provider="openai",
                     model=openai_model,
                     api_key=openai_key,
-                    api_base=None,
+                    api_base="https://api.openai.com/v1",
                     is_default=1,
                 )
                 db.add(cfg)
@@ -414,7 +443,7 @@ def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = D
     provider = _normalize_provider(str(payload.get("provider") or ""))
     model = _normalize_model(str(payload.get("model") or ""))
     api_key = str(payload.get("api_key") or "").strip()
-    api_base = str(payload.get("api_base") or "").strip() or None
+    api_base = str(payload.get("api_base") or "").strip()
     is_default = bool(payload.get("is_default", False))
 
     if not name:
@@ -425,6 +454,10 @@ def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = D
         raise HTTPException(status_code=400, detail="model is required")
     if not api_key:
         raise HTTPException(status_code=400, detail="api_key is required")
+    if not api_base:
+        api_base = _default_api_base_for_provider(provider) or ""
+    if not api_base:
+        raise HTTPException(status_code=400, detail="api_base is required")
 
     cfg = LLMConfig(
         name=name,
@@ -461,11 +494,13 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
             raise HTTPException(status_code=400, detail="name is required")
         cfg.name = next_name
 
+    provider_updated = False
     if "provider" in payload:
         next_provider = _normalize_provider(str(payload.get("provider") or ""))
         if not next_provider:
             raise HTTPException(status_code=400, detail="provider is required")
         cfg.provider = next_provider
+        provider_updated = True
 
     if "model" in payload:
         next_model = _normalize_model(str(payload.get("model") or ""))
@@ -480,6 +515,12 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
 
     if "api_base" in payload:
         cfg.api_base = str(payload.get("api_base") or "").strip() or None
+
+    if provider_updated and not (cfg.api_base or "").strip():
+        cfg.api_base = _default_api_base_for_provider(cfg.provider)
+
+    if not (cfg.api_base or "").strip():
+        raise HTTPException(status_code=400, detail="api_base is required")
 
     if bool(payload.get("is_default", False)):
         db.query(LLMConfig).filter(LLMConfig.id != cfg.id).update({"is_default": 0})
