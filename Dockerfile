@@ -1,3 +1,15 @@
+FROM node:20-alpine AS ui_builder
+
+WORKDIR /ui-src
+
+# Install front-end dependencies first for better layer caching.
+COPY ui-src/package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Build React app to a local dist directory inside this stage.
+COPY ui-src/ ./
+RUN npx tsc && npx vite build --outDir dist
+
 FROM python:3.12-slim
 
 # Prevent Python buffering + speed up installs
@@ -19,7 +31,9 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # App code
 COPY backend/stowge /app/stowge
-COPY ui /app/ui
+
+# Front-end static files from the React build stage.
+COPY --from=ui_builder /ui-src/dist /app/ui
 
 # Default paths
 ENV ASSETS_DIR=/assets

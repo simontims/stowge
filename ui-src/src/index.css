@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth scroll for command-palette list; reduce motion respects user preference */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Remove browser-default search input clear button */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}

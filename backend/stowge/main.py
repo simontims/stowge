@@ -6,6 +6,7 @@ from typing import Optional, Literal, List
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from .db import engine, Base, get_db
@@ -25,6 +26,13 @@ def init_db():
 init_db()
 
 app = FastAPI(title="Stowge", version=APP_VERSION)
+
+# Serve Vite-built hashed bundles from /app/ui/assets.
+app.mount(
+    "/assets",
+    StaticFiles(directory=os.path.join(UI_DIR, "assets"), check_dir=False),
+    name="assets",
+)
 
 if CORS_ORIGINS:
     origins = [o.strip() for o in CORS_ORIGINS.split(",") if o.strip()]
@@ -309,3 +317,14 @@ def get_image(
     abs_path = resolve_path(rel)
     headers = {"Cache-Control": "public, max-age=604800, immutable"}
     return FileResponse(abs_path, media_type=img.mime, headers=headers)
+
+
+# ---------------- SPA fallback ----------------
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+def spa_fallback(full_path: str):
+    # API and docs routes are not part of client-side routing.
+    if full_path.startswith("api/") or full_path in {"docs", "openapi.json", "redoc"}:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+    return FileResponse(os.path.join(UI_DIR, "index.html"), media_type="text/html", headers=headers)

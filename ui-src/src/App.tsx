@@ -1,0 +1,50 @@
+import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AppShell } from "./components/layout/AppShell";
+import { CommandPalette } from "./components/command/CommandPalette";
+import { PartsPage } from "./pages/PartsPage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { ScanAddPage } from "./pages/ScanAddPage";
+
+export default function App() {
+  const [commandOpen, setCommandOpen] = useState(false);
+
+  // Global Ctrl+K opens the command palette from anywhere
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setCommandOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <AppShell onCommandOpen={() => setCommandOpen(true)}>
+        <Routes>
+          <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance." />} />
+          <Route path="/parts"      element={<PartsPage />} />
+          <Route path="/parts/new"  element={<PlaceholderPage title="Add Part"   description="Create a new part record." />} />
+          <Route path="/locations"  element={<PlaceholderPage title="Locations"  description="Manage storage locations and bins." />} />
+          <Route path="/categories" element={<PlaceholderPage title="Categories" description="Organise parts into categories." />} />
+          <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers." />} />
+          <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects." />} />
+          <Route path="/scan"       element={<ScanAddPage />} />
+          <Route path="/imports"    element={<PlaceholderPage title="Imports"    description="Bulk-import parts from a CSV file." />} />
+          <Route path="/reports"    element={<PlaceholderPage title="Reports"    description="Inventory reports and export tools." />} />
+          <Route path="/settings"   element={<PlaceholderPage title="Settings"   description="Configure your Stowge instance." />} />
+          <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist." />} />
+        </Routes>
+      </AppShell>
+
+      {/* Command palette lives outside AppShell so it overlays everything */}
+      <CommandPalette
+        open={commandOpen}
+        onClose={() => setCommandOpen(false)}
+      />
+    </BrowserRouter>
+  );
+}
