@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, Save, Star, Trash2, X } from "lucide-react";
+import { CheckCircle2, Edit3, Plus, Save, Star, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
 
@@ -10,12 +10,22 @@ interface AiConfig {
   model: string;
   api_base: string | null;
   is_default: boolean;
-  api_key_masked?: string | null;
 }
 
 interface AiAdminResponse {
   default_llm_id: string | null;
   configs: AiConfig[];
+}
+
+interface ProviderOption {
+  value: string;
+  label: string;
+  api_base: string;
+  models: string[];
+}
+
+interface ProvidersCatalogResponse {
+  providers: ProviderOption[];
 }
 
 interface NewConfigForm {
@@ -36,29 +46,18 @@ interface EditConfigForm {
   is_default: boolean;
 }
 
-interface ProviderOption {
-  value: string;
-  label: string;
-  apiBase: string;
-  modelHints: string[];
-}
-
-const POPULAR_PROVIDERS: ProviderOption[] = [
+const FALLBACK_PROVIDERS: ProviderOption[] = [
   {
     value: "openai",
     label: "OpenAI",
-    apiBase: "https://api.openai.com/v1",
-    modelHints: [
-      "openai/gpt-4o-mini",
-      "openai/gpt-4.1-mini",
-      "openai/gpt-4.1",
-    ],
+    api_base: "https://api.openai.com/v1",
+    models: ["openai/gpt-4o-mini", "openai/gpt-4.1-mini", "openai/gpt-4.1"],
   },
   {
     value: "anthropic",
     label: "Anthropic",
-    apiBase: "https://api.anthropic.com",
-    modelHints: [
+    api_base: "https://api.anthropic.com",
+    models: [
       "anthropic/claude-3-5-sonnet-latest",
       "anthropic/claude-3-5-haiku-latest",
       "anthropic/claude-3-opus-latest",
@@ -67,58 +66,38 @@ const POPULAR_PROVIDERS: ProviderOption[] = [
   {
     value: "gemini",
     label: "Google Gemini",
-    apiBase: "https://generativelanguage.googleapis.com",
-    modelHints: [
-      "gemini/gemini-1.5-pro",
-      "gemini/gemini-1.5-flash",
-      "gemini/gemini-2.0-flash",
-    ],
+    api_base: "https://generativelanguage.googleapis.com",
+    models: ["gemini/gemini-1.5-pro", "gemini/gemini-1.5-flash", "gemini/gemini-2.0-flash"],
   },
   {
     value: "azure",
     label: "Azure OpenAI",
-    apiBase: "https://YOUR_RESOURCE_NAME.openai.azure.com",
-    modelHints: [
-      "azure/YOUR_DEPLOYMENT_NAME",
-      "azure/gpt-4o-mini",
-      "azure/gpt-4.1-mini",
-    ],
+    api_base: "https://YOUR_RESOURCE_NAME.openai.azure.com",
+    models: ["azure/YOUR_DEPLOYMENT_NAME", "azure/gpt-4o-mini", "azure/gpt-4.1-mini"],
   },
   {
     value: "groq",
     label: "Groq",
-    apiBase: "https://api.groq.com/openai/v1",
-    modelHints: [
-      "groq/llama-3.1-70b-versatile",
-      "groq/llama-3.1-8b-instant",
-      "groq/mixtral-8x7b-32768",
-    ],
+    api_base: "https://api.groq.com/openai/v1",
+    models: ["groq/llama-3.1-70b-versatile", "groq/llama-3.1-8b-instant", "groq/mixtral-8x7b-32768"],
   },
   {
     value: "mistral",
     label: "Mistral",
-    apiBase: "https://api.mistral.ai/v1",
-    modelHints: [
-      "mistral/mistral-large-latest",
-      "mistral/mistral-small-latest",
-      "mistral/open-mixtral-8x22b",
-    ],
+    api_base: "https://api.mistral.ai/v1",
+    models: ["mistral/mistral-large-latest", "mistral/mistral-small-latest", "mistral/open-mixtral-8x22b"],
   },
   {
     value: "xai",
     label: "xAI",
-    apiBase: "https://api.x.ai/v1",
-    modelHints: [
-      "xai/grok-2-latest",
-      "xai/grok-beta",
-      "xai/grok-2-mini",
-    ],
+    api_base: "https://api.x.ai/v1",
+    models: ["xai/grok-2-latest", "xai/grok-beta", "xai/grok-2-mini"],
   },
   {
     value: "openrouter",
     label: "OpenRouter",
-    apiBase: "https://openrouter.ai/api/v1",
-    modelHints: [
+    api_base: "https://openrouter.ai/api/v1",
+    models: [
       "openrouter/openai/gpt-4o-mini",
       "openrouter/anthropic/claude-3.5-sonnet",
       "openrouter/google/gemini-1.5-pro",
@@ -126,20 +105,12 @@ const POPULAR_PROVIDERS: ProviderOption[] = [
   },
 ];
 
-function providerOption(provider: string): ProviderOption | undefined {
-  return POPULAR_PROVIDERS.find((p) => p.value === provider);
-}
-
-function providerModels(provider: string): string[] {
-  return providerOption(provider)?.modelHints ?? [];
-}
-
 const EMPTY_FORM: NewConfigForm = {
   name: "",
-  provider: POPULAR_PROVIDERS[0].value,
-  model: POPULAR_PROVIDERS[0].modelHints[0],
+  provider: FALLBACK_PROVIDERS[0].value,
+  model: FALLBACK_PROVIDERS[0].models[0],
   api_key: "",
-  api_base: POPULAR_PROVIDERS[0].apiBase,
+  api_base: FALLBACK_PROVIDERS[0].api_base,
   is_default: false,
 };
 
@@ -147,6 +118,8 @@ export function SettingsAiPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  const [providerOptions, setProviderOptions] = useState<ProviderOption[]>(FALLBACK_PROVIDERS);
   const [configs, setConfigs] = useState<AiConfig[]>([]);
   const [defaultId, setDefaultId] = useState<string | null>(null);
 
@@ -156,14 +129,16 @@ export function SettingsAiPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
+  const [validatingId, setValidatingId] = useState<string | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState<EditConfigForm>({
     name: "",
-    provider: POPULAR_PROVIDERS[0].value,
-    model: POPULAR_PROVIDERS[0].modelHints[0],
+    provider: FALLBACK_PROVIDERS[0].value,
+    model: FALLBACK_PROVIDERS[0].models[0],
     api_key: "",
-    api_base: POPULAR_PROVIDERS[0].apiBase,
+    api_base: FALLBACK_PROVIDERS[0].api_base,
     is_default: false,
   });
 
@@ -174,8 +149,33 @@ export function SettingsAiPage() {
   );
 
   useEffect(() => {
+    void loadProviderCatalog();
     void loadConfigs();
   }, []);
+
+  function getProviderOption(provider: string): ProviderOption {
+    return (
+      providerOptions.find((p) => p.value === provider) ||
+      FALLBACK_PROVIDERS.find((p) => p.value === provider) ||
+      FALLBACK_PROVIDERS[0]
+    );
+  }
+
+  function getProviderModels(provider: string): string[] {
+    const models = getProviderOption(provider).models || [];
+    return models.length > 0 ? models : ["openai/gpt-4o-mini"];
+  }
+
+  async function loadProviderCatalog() {
+    try {
+      const data = await apiRequest<ProvidersCatalogResponse>("/api/admin/settings/ai/providers");
+      if (data.providers?.length) {
+        setProviderOptions(data.providers);
+      }
+    } catch {
+      // Keep fallback list.
+    }
+  }
 
   async function loadConfigs() {
     setLoading(true);
@@ -202,10 +202,6 @@ export function SettingsAiPage() {
       setError("Name is required.");
       return;
     }
-    if (!form.provider.trim()) {
-      setError("Provider is required.");
-      return;
-    }
     if (!form.model.trim()) {
       setError("Model is required.");
       return;
@@ -228,7 +224,7 @@ export function SettingsAiPage() {
           provider: form.provider.trim(),
           model: form.model.trim(),
           api_key: form.api_key.trim(),
-          api_base: form.api_base.trim() || null,
+          api_base: form.api_base.trim(),
           is_default: form.is_default,
         }),
       });
@@ -245,7 +241,6 @@ export function SettingsAiPage() {
 
   async function setDefault(config: AiConfig) {
     if (config.id === defaultId) return;
-
     setError("");
     setNotice("");
     setSettingDefaultId(config.id);
@@ -259,6 +254,26 @@ export function SettingsAiPage() {
       setError((err as Error).message || "Failed to set default AI model.");
     } finally {
       setSettingDefaultId(null);
+    }
+  }
+
+  async function validateConfig(config: AiConfig) {
+    setError("");
+    setNotice("");
+    setValidatingId(config.id);
+    try {
+      const data = await apiRequest<{ ok: boolean; response_preview?: string }>(
+        `/api/admin/settings/ai/${config.id}/validate`,
+        {
+          method: "POST",
+        }
+      );
+      const preview = (data.response_preview || "").trim();
+      setNotice(preview ? `Validation passed for ${config.name}: ${preview}` : `Validation passed for ${config.name}.`);
+    } catch (err) {
+      setError((err as Error).message || "Validation failed.");
+    } finally {
+      setValidatingId(null);
     }
   }
 
@@ -280,19 +295,17 @@ export function SettingsAiPage() {
   }
 
   function startEdit(config: AiConfig) {
-    const fallbackProvider = providerOption(config.provider)?.value || POPULAR_PROVIDERS[0].value;
-    const fallbackApiBase =
-      (config.api_base || "").trim() ||
-      providerOption(config.provider)?.apiBase ||
-      POPULAR_PROVIDERS[0].apiBase;
+    const provider = getProviderOption(config.provider);
+    const models = getProviderModels(provider.value);
+    const model = models.includes(config.model) ? config.model : models[0];
 
     setEditingId(config.id);
     setEditForm({
       name: config.name,
-      provider: fallbackProvider,
-      model: config.model,
+      provider: provider.value,
+      model,
       api_key: "",
-      api_base: fallbackApiBase,
+      api_base: (config.api_base || "").trim() || provider.api_base,
       is_default: config.id === defaultId,
     });
   }
@@ -302,13 +315,8 @@ export function SettingsAiPage() {
 
     setError("");
     setNotice("");
-
     if (!editForm.name.trim()) {
       setError("Name is required.");
-      return;
-    }
-    if (!editForm.provider.trim()) {
-      setError("Provider is required.");
       return;
     }
     if (!editForm.model.trim()) {
@@ -362,7 +370,7 @@ export function SettingsAiPage() {
                 value={form.name}
                 onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                placeholder="OpenAI Primary"
+                placeholder="Primary LLM"
               />
             </label>
 
@@ -371,23 +379,18 @@ export function SettingsAiPage() {
               <select
                 value={form.provider}
                 onChange={(e) => {
-                  const nextProvider = e.target.value;
-                  const nextOption = providerOption(nextProvider);
-                  setForm((v) => {
-                    const previousModels = providerModels(v.provider);
-                    const nextModels = providerModels(nextProvider);
-                    const modelWasAuto = previousModels.includes(v.model) || !v.model.trim();
-                    return {
-                      ...v,
-                      provider: nextProvider,
-                      api_base: nextOption?.apiBase || v.api_base,
-                      model: modelWasAuto ? (nextModels[0] || v.model) : v.model,
-                    };
-                  });
+                  const nextProvider = getProviderOption(e.target.value);
+                  const nextModels = getProviderModels(nextProvider.value);
+                  setForm((v) => ({
+                    ...v,
+                    provider: nextProvider.value,
+                    model: nextModels[0] || v.model,
+                    api_base: nextProvider.api_base || v.api_base,
+                  }));
                 }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
-                {POPULAR_PROVIDERS.map((p) => (
+                {providerOptions.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
                   </option>
@@ -397,18 +400,17 @@ export function SettingsAiPage() {
 
             <label className="block sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
-              <input
-                list="add-ai-model-options"
+              <select
                 value={form.model}
                 onChange={(e) => setForm((v) => ({ ...v, model: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                placeholder="openai/gpt-4o-mini"
-              />
-              <datalist id="add-ai-model-options">
-                {providerModels(form.provider).map((model) => (
-                  <option key={model} value={model} />
+              >
+                {getProviderModels(form.provider).map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </label>
 
             <label className="block sm:col-span-2">
@@ -418,7 +420,7 @@ export function SettingsAiPage() {
                 value={form.api_key}
                 onChange={(e) => setForm((v) => ({ ...v, api_key: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                placeholder="sk-..."
+                placeholder="Enter provider API key"
               />
             </label>
 
@@ -428,7 +430,6 @@ export function SettingsAiPage() {
                 value={form.api_base}
                 onChange={(e) => setForm((v) => ({ ...v, api_base: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                placeholder="https://api.openai.com/v1"
               />
             </label>
 
@@ -504,7 +505,7 @@ export function SettingsAiPage() {
                   const isDefault = cfg.id === defaultId;
                   const isDeleting = deletingId === cfg.id;
                   const isSettingDefault = settingDefaultId === cfg.id;
-
+                  const isValidating = validatingId === cfg.id;
                   return (
                     <tr key={cfg.id} className="hover:bg-neutral-900/60 transition-colors">
                       <td className="px-4 py-2.5 text-neutral-200">
@@ -528,6 +529,14 @@ export function SettingsAiPage() {
                           >
                             <Edit3 size={13} />
                             Edit
+                          </button>
+                          <button
+                            onClick={() => void validateConfig(cfg)}
+                            disabled={isValidating}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-emerald-300 hover:border-emerald-500/70 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            <CheckCircle2 size={13} />
+                            {isValidating ? "Validating..." : "Validate"}
                           </button>
                           <button
                             onClick={() => void setDefault(cfg)}
@@ -586,19 +595,18 @@ export function SettingsAiPage() {
               <select
                 value={editForm.provider}
                 onChange={(e) => {
-                  const nextProvider = e.target.value;
-                  const nextOption = providerOption(nextProvider);
-                  const nextModels = providerModels(nextProvider);
+                  const nextProvider = getProviderOption(e.target.value);
+                  const nextModels = getProviderModels(nextProvider.value);
                   setEditForm((v) => ({
                     ...v,
-                    provider: nextProvider,
-                    api_base: nextOption?.apiBase || v.api_base,
-                    model: providerModels(v.provider).includes(v.model) ? (nextModels[0] || v.model) : v.model,
+                    provider: nextProvider.value,
+                    model: nextModels[0] || v.model,
+                    api_base: nextProvider.api_base || v.api_base,
                   }));
                 }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
-                {POPULAR_PROVIDERS.map((p) => (
+                {providerOptions.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
                   </option>
@@ -608,17 +616,17 @@ export function SettingsAiPage() {
 
             <label className="block sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
-              <input
-                list="edit-ai-model-options"
+              <select
                 value={editForm.model}
                 onChange={(e) => setEditForm((v) => ({ ...v, model: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              />
-              <datalist id="edit-ai-model-options">
-                {providerModels(editForm.provider).map((model) => (
-                  <option key={model} value={model} />
+              >
+                {getProviderModels(editForm.provider).map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </label>
 
             <label className="block sm:col-span-2">

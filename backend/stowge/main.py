@@ -5,7 +5,7 @@ import asyncio
 import re
 from threading import Lock
 from datetime import datetime, timezone
-from typing import Optional, Literal, List
+from typing import Any, Optional, Literal, List
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
@@ -27,6 +27,60 @@ UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+AI_PROVIDER_META: dict[str, dict[str, str]] = {
+    "openai": {
+        "label": "OpenAI",
+        "api_base": "https://api.openai.com/v1",
+    },
+    "anthropic": {
+        "label": "Anthropic",
+        "api_base": "https://api.anthropic.com",
+    },
+    "gemini": {
+        "label": "Google Gemini",
+        "api_base": "https://generativelanguage.googleapis.com",
+    },
+    "azure": {
+        "label": "Azure OpenAI",
+        "api_base": "https://YOUR_RESOURCE_NAME.openai.azure.com",
+    },
+    "groq": {
+        "label": "Groq",
+        "api_base": "https://api.groq.com/openai/v1",
+    },
+    "mistral": {
+        "label": "Mistral",
+        "api_base": "https://api.mistral.ai/v1",
+    },
+    "xai": {
+        "label": "xAI",
+        "api_base": "https://api.x.ai/v1",
+    },
+    "openrouter": {
+        "label": "OpenRouter",
+        "api_base": "https://openrouter.ai/api/v1",
+    },
+}
+
+AI_PROVIDER_FALLBACK_MODELS: dict[str, list[str]] = {
+    "openai": ["openai/gpt-4o-mini", "openai/gpt-4.1-mini", "openai/gpt-4.1"],
+    "anthropic": [
+        "anthropic/claude-3-5-sonnet-latest",
+        "anthropic/claude-3-5-haiku-latest",
+        "anthropic/claude-3-opus-latest",
+    ],
+    "gemini": ["gemini/gemini-1.5-pro", "gemini/gemini-1.5-flash", "gemini/gemini-2.0-flash"],
+    "azure": ["azure/YOUR_DEPLOYMENT_NAME", "azure/gpt-4o-mini", "azure/gpt-4.1-mini"],
+    "groq": ["groq/llama-3.1-70b-versatile", "groq/llama-3.1-8b-instant", "groq/mixtral-8x7b-32768"],
+    "mistral": ["mistral/mistral-large-latest", "mistral/mistral-small-latest", "mistral/open-mixtral-8x22b"],
+    "xai": ["xai/grok-2-latest", "xai/grok-beta", "xai/grok-2-mini"],
+    "openrouter": [
+        "openrouter/openai/gpt-4o-mini",
+        "openrouter/anthropic/claude-3.5-sonnet",
+        "openrouter/google/gemini-1.5-pro",
+    ],
+}
 
 
 def _is_valid_email(value: str) -> bool:
@@ -92,17 +146,32 @@ def _normalize_model(value: str) -> str:
 
 
 def _default_api_base_for_provider(provider: str) -> str | None:
-    defaults = {
-        "openai": "https://api.openai.com/v1",
-        "anthropic": "https://api.anthropic.com",
-        "gemini": "https://generativelanguage.googleapis.com",
-        "azure": "https://YOUR_RESOURCE_NAME.openai.azure.com",
-        "groq": "https://api.groq.com/openai/v1",
-        "mistral": "https://api.mistral.ai/v1",
-        "xai": "https://api.x.ai/v1",
-        "openrouter": "https://openrouter.ai/api/v1",
-    }
-    return defaults.get(provider)
+    return AI_PROVIDER_META.get(provider, {}).get("api_base")
+
+
+def _litellm_models_by_provider() -> dict[str, list[str]]:
+    providers = {k: set() for k in AI_PROVIDER_META.keys()}
+    try:
+        import litellm
+
+        model_cost = getattr(litellm, "model_cost", {}) or {}
+        for model_name, metadata in model_cost.items():
+            if not isinstance(model_name, str) or not isinstance(metadata, dict):
+                continue
+
+            provider = str(metadata.get("litellm_provider") or "").strip().lower()
+            if provider in providers:
+                providers[provider].add(model_name)
+    except Exception:
+        pass
+
+    output: dict[str, list[str]] = {}
+    for provider in AI_PROVIDER_META.keys():
+        models = sorted(providers.get(provider) or set())
+        if not models:
+            models = sorted(set(AI_PROVIDER_FALLBACK_MODELS.get(provider, [])))
+        output[provider] = models
+    return output
 
 
 def _resolve_llm_config(db: Session, selected_id: str | None = None) -> LLMConfig | None:
@@ -437,6 +506,22 @@ def list_ai_settings_admin(db: Session = Depends(get_db), me: User = Depends(req
     }
 
 
+@app.get("/api/admin/settings/ai/providers")
+def list_ai_providers_catalog(me: User = Depends(require_admin)):
+    models_by_provider = _litellm_models_by_provider()
+    providers = []
+    for provider, meta in AI_PROVIDER_META.items():
+        providers.append(
+            {
+                "value": provider,
+                "label": meta["label"],
+                "api_base": meta["api_base"],
+                "models": models_by_provider.get(provider, []),
+            }
+        )
+    return {"providers": providers}
+
+
 @app.post("/api/admin/settings/ai")
 def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
     name = str(payload.get("name") or "").strip()
@@ -544,6 +629,45 @@ def set_default_ai_setting(config_id: str, db: Session = Depends(get_db), me: Us
     db.commit()
     db.refresh(cfg)
     return _serialize_llm_admin(cfg)
+
+
+@app.post("/api/admin/settings/ai/{config_id}/validate")
+def validate_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    cfg = db.query(LLMConfig).filter(LLMConfig.id == config_id).first()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="AI config not found")
+
+    try:
+        from litellm import completion
+
+        resp = completion(
+            model=cfg.model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Reply with exactly OK.",
+                }
+            ],
+            max_tokens=8,
+            temperature=0,
+            timeout=20,
+            api_key=cfg.api_key,
+            api_base=cfg.api_base,
+        )
+        preview = ""
+        try:
+            preview = str(resp.choices[0].message.content or "").strip()
+        except Exception:
+            preview = ""
+
+        return {
+            "ok": True,
+            "provider": cfg.provider,
+            "model": cfg.model,
+            "response_preview": preview[:160],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Validation failed: {e}")
 
 
 @app.delete("/api/admin/settings/ai/{config_id}")
