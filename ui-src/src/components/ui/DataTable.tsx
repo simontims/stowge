@@ -13,6 +13,7 @@ interface DataTableProps<T extends object> {
   rows: T[];
   keyField: keyof T & string;
   emptyMessage?: string;
+  onRowClick?: (row: T) => void;
 }
 
 export function DataTable<T extends object>({
@@ -20,6 +21,7 @@ export function DataTable<T extends object>({
   rows,
   keyField,
   emptyMessage = "No items found.",
+  onRowClick,
 }: DataTableProps<T>) {
   return (
     <div className="border border-neutral-800 rounded-lg overflow-hidden">
@@ -54,7 +56,11 @@ export function DataTable<T extends object>({
             rows.map((row) => (
               <tr
                 key={String(row[keyField])}
-                className="hover:bg-neutral-900/60 transition-colors"
+                className={clsx(
+                  "hover:bg-neutral-900/60 transition-colors",
+                  onRowClick ? "cursor-pointer" : ""
+                )}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((col) => (
                   <td

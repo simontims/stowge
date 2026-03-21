@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Save, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchInput } from "../components/ui/SearchInput";
@@ -15,6 +15,54 @@ interface Part {
   created_at: string;
   thumb: string | null;
   actions?: never;
+}
+
+interface PartDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  images: Array<{
+    id: string;
+    thumb_url: string;
+    display_url: string;
+    original_url: string | null;
+  }>;
+}
+
+interface PartEditForm {
+  name: string;
+  description: string;
+  category: string;
+  status: "draft" | "confirmed";
+}
+
+const EMPTY_EDIT_FORM: PartEditForm = {
+  name: "",
+  description: "",
+  category: "",
+  status: "draft",
+};
+
+function toEditForm(part: PartDetail): PartEditForm {
+  return {
+    name: part.name ?? "",
+    description: part.description ?? "",
+    category: part.category ?? "",
+    status: part.status === "confirmed" ? "confirmed" : "draft",
+  };
+}
+
+function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
+  return (
+    a.name.trim() === b.name.trim() &&
+    a.description.trim() === b.description.trim() &&
+    a.category.trim() === b.category.trim() &&
+    a.status === b.status
+  );
 }
 
 function TrashCanIcon({ lidOpen }: { lidOpen: boolean }) {
@@ -53,6 +101,21 @@ export function PartsPage() {
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [selectedPart, setSelectedPart] = useState<PartDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const [editForm, setEditForm] = useState<PartEditForm>(EMPTY_EDIT_FORM);
+  const [initialEditForm, setInitialEditForm] = useState<PartEditForm>(EMPTY_EDIT_FORM);
+  const [savingDetail, setSavingDetail] = useState(false);
+
+  const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
+
+  const hasDirtyChanges = useMemo(
+    () => selectedPartId !== null && !isSameForm(editForm, initialEditForm),
+    [editForm, initialEditForm, selectedPartId]
+  );
+
   useEffect(() => {
     void loadParts();
   }, []);
@@ -88,6 +151,16 @@ export function PartsPage() {
     return () => clearTimeout(timeout);
   }, [armedDeleteId]);
 
+  useEffect(() => {
+    if (selectedPartId === null || !hasDirtyChanges) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasDirtyChanges, selectedPartId]);
+
   async function loadParts() {
     setLoading(true);
     setError("");
@@ -114,6 +187,109 @@ export function PartsPage() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function openPartModal(partId: string) {
+    setSelectedPartId(partId);
+    setSelectedPart(null);
+    setDetailError("");
+    setDetailLoading(true);
+    try {
+      const detail = await apiRequest<PartDetail>(`/api/parts/${partId}`);
+      const mapped = toEditForm(detail);
+      setSelectedPart(detail);
+      setEditForm(mapped);
+      setInitialEditForm(mapped);
+    } catch (err) {
+      setDetailError((err as Error).message || "Failed to load part details.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function closeModalNow() {
+    setSelectedPartId(null);
+    setSelectedPart(null);
+    setDetailError("");
+    setDetailLoading(false);
+    setSavingDetail(false);
+    setEditForm(EMPTY_EDIT_FORM);
+    setInitialEditForm(EMPTY_EDIT_FORM);
+    setUnsavedPromptOpen(false);
+  }
+
+  function requestCloseModal() {
+    if (hasDirtyChanges) {
+      setUnsavedPromptOpen(true);
+      return;
+    }
+    closeModalNow();
+  }
+
+  async function savePartChanges(): Promise<boolean> {
+    if (!selectedPartId || !selectedPart) return false;
+    if (!hasDirtyChanges) return true;
+
+    const trimmedName = editForm.name.trim();
+    if (trimmedName.length < 2) {
+      setDetailError("Name must be at least 2 characters.");
+      return false;
+    }
+
+    setSavingDetail(true);
+    setDetailError("");
+    try {
+      await apiRequest(`/api/parts/${selectedPartId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: trimmedName,
+          description: editForm.description.trim() || null,
+          category: editForm.category.trim() || null,
+          status: editForm.status,
+        }),
+      });
+
+      const refreshed = await apiRequest<PartDetail>(`/api/parts/${selectedPartId}`);
+      const refreshedForm = toEditForm(refreshed);
+      setSelectedPart(refreshed);
+      setEditForm(refreshedForm);
+      setInitialEditForm(refreshedForm);
+      setParts((current) =>
+        current.map((p) =>
+          p.id === refreshed.id
+            ? {
+                ...p,
+                name: refreshed.name,
+                category: refreshed.category,
+                status: refreshed.status,
+              }
+            : p
+        )
+      );
+      return true;
+    } catch (err) {
+      setDetailError((err as Error).message || "Failed to save changes.");
+      return false;
+    } finally {
+      setSavingDetail(false);
+    }
+  }
+
+  async function handleUnsavedSave() {
+    const ok = await savePartChanges();
+    if (!ok) return;
+
+    setUnsavedPromptOpen(false);
+    closeModalNow();
+  }
+
+  function handleUnsavedDiscard() {
+    setUnsavedPromptOpen(false);
+    closeModalNow();
+  }
+
+  function handleUnsavedCancel() {
+    setUnsavedPromptOpen(false);
   }
 
   const filtered = useMemo(() => {
@@ -195,7 +371,8 @@ export function PartsPage() {
           const isDeleting = deletingId === row.id;
           return (
             <button
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 if (isDeleting) return;
                 if (!isArmed) {
                   setArmedDeleteId(row.id);
@@ -269,7 +446,180 @@ export function PartsPage() {
       {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
       {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
 
-      <DataTable columns={columns} rows={filtered} keyField="id" />
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        keyField="id"
+        onRowClick={(row) => {
+          if (deletingId === row.id) return;
+          void openPartModal(row.id);
+        }}
+      />
+
+      {selectedPartId && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-xl rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-4"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-base font-semibold text-neutral-100">Part Details</h3>
+                {selectedPart && (
+                  <p className="text-xs text-neutral-500">ID: {selectedPart.id}</p>
+                )}
+              </div>
+              <button
+                onClick={requestCloseModal}
+                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                title="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {detailLoading && (
+              <p className="text-sm text-neutral-400">Loading part details...</p>
+            )}
+
+            {!detailLoading && detailError && (
+              <p className="text-sm text-red-400">{detailError}</p>
+            )}
+
+            {!detailLoading && selectedPart && (
+              <>
+                {selectedPart.images[0] && (
+                  <img
+                    src={selectedPart.images[0].display_url}
+                    alt={selectedPart.name}
+                    className="w-full max-h-80 object-cover rounded-md border border-neutral-800"
+                  />
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Name</span>
+                    <input
+                      value={editForm.name}
+                      onChange={(event) =>
+                        setEditForm((current) => ({ ...current, name: event.target.value }))
+                      }
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                      placeholder="Part name"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Category</span>
+                    <input
+                      value={editForm.category}
+                      onChange={(event) =>
+                        setEditForm((current) => ({ ...current, category: event.target.value }))
+                      }
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                      placeholder="Optional"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Status</span>
+                    <select
+                      value={editForm.status}
+                      onChange={(event) =>
+                        setEditForm((current) => ({
+                          ...current,
+                          status: event.target.value === "confirmed" ? "confirmed" : "draft",
+                        }))
+                      }
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                    >
+                      <option value="draft">draft</option>
+                      <option value="confirmed">confirmed</option>
+                    </select>
+                  </label>
+
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Description</span>
+                    <textarea
+                      value={editForm.description}
+                      onChange={(event) =>
+                        setEditForm((current) => ({ ...current, description: event.target.value }))
+                      }
+                      rows={4}
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                      placeholder="Optional notes"
+                    />
+                  </label>
+                </div>
+
+                <div className="text-xs text-neutral-500">
+                  Created: {new Date(selectedPart.created_at).toLocaleString()} | Updated: {new Date(selectedPart.updated_at).toLocaleString()}
+                </div>
+
+                <div className="pt-1 flex items-center justify-end gap-2">
+                  <button
+                    onClick={requestCloseModal}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => void savePartChanges()}
+                    disabled={!hasDirtyChanges || savingDetail}
+                    className={[
+                      "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors disabled:opacity-60",
+                      hasDirtyChanges
+                        ? "border-amber-500/60 bg-amber-950/30 text-amber-300"
+                        : "border-neutral-700 text-neutral-500",
+                    ].join(" ")}
+                  >
+                    <Save size={14} />
+                    {savingDetail ? "Saving..." : hasDirtyChanges ? "Save changes" : "Saved"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {unsavedPromptOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
+            <p className="text-sm text-neutral-300">
+              You have unsaved changes. Do you want to save before leaving this item?
+            </p>
+            <div className="pt-1 flex items-center justify-end gap-2">
+              <button
+                onClick={handleUnsavedCancel}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnsavedDiscard}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30"
+              >
+                Discard
+              </button>
+              <button
+                onClick={() => void handleUnsavedSave()}
+                disabled={savingDetail}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-amber-500/60 bg-amber-950/30 text-amber-300 hover:text-amber-200 disabled:opacity-60"
+              >
+                <Save size={14} />
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
