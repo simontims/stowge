@@ -381,10 +381,10 @@ export function PartsPage() {
                 void deletePart(row.id);
               }}
               className={[
-                "inline-flex items-center justify-center w-10 h-10 rounded-md border transition-colors",
+                "part-delete-btn inline-flex items-center justify-center w-10 h-10 rounded-md border transition-colors",
                 isArmed
-                  ? "border-red-500/70 text-red-300 bg-red-950/30"
-                  : "border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70",
+                  ? "part-delete-btn--armed border-red-500/70 text-red-300 bg-red-950/30"
+                  : "part-delete-btn--idle border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70",
                 isDeleting ? "opacity-60 cursor-not-allowed" : "",
               ].join(" ")}
               aria-label={

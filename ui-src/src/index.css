@@ -87,6 +87,18 @@
   --tw-ring-color: rgb(148 163 184) !important;
 }
 
+:root[data-theme="light"] .part-delete-btn--idle:hover {
+  color: rgb(185 28 28) !important;
+  border-color: rgb(185 28 28 / 0.7) !important;
+  background-color: rgb(254 242 242) !important;
+}
+
+:root[data-theme="light"] .part-delete-btn--armed {
+  color: rgb(153 27 27) !important;
+  border-color: rgb(153 27 27 / 0.7) !important;
+  background-color: rgb(254 226 226) !important;
+}
+
 /* Smooth scroll for command-palette list; reduce motion respects user preference */
 @media (prefers-reduced-motion: no-preference) {
   html {
