@@ -8,6 +8,7 @@ import { ScanAddPage } from "./pages/ScanAddPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SettingsUsersPage } from "./pages/SettingsUsersPage";
 import { SettingsAiPage } from "./pages/SettingsAiPage";
+import { LocationsPage } from "./pages/LocationsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT } from "./lib/api";
 
@@ -54,7 +55,7 @@ export default function App() {
           <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance." />} />
           <Route path="/parts"      element={<PartsPage />} />
           <Route path="/parts/new"  element={<ScanAddPage />} />
-          <Route path="/locations"  element={<PlaceholderPage title="Locations"  description="Manage storage locations and bins." />} />
+          <Route path="/locations"  element={<LocationsPage />} />
           <Route path="/categories" element={<PlaceholderPage title="Categories" description="Organise parts into categories." />} />
           <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers." />} />
           <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects." />} />

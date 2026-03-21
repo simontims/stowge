@@ -63,3 +63,15 @@ class LLMConfig(Base):
     is_default = Column(Integer, nullable=False, default=0)  # 0|1 for sqlite compatibility
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+
+class Location(Base):
+    __tablename__ = "locations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    photo_path = Column(String, nullable=True)
+    item_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)

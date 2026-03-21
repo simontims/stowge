@@ -17,7 +17,7 @@ import jwt
 from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
-from .models import User, Part, PartImage, LLMConfig
+from .models import User, Part, PartImage, LLMConfig, Location
 from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
 from .images import process_and_store, resolve_path
 from .openai_id import identify as openai_identify
@@ -108,6 +108,58 @@ def _serialize_user(user: User) -> dict:
         "created_at": _utc_iso(user.created_at),
         "last_login_at": _utc_iso(user.last_login_at),
     }
+
+
+def _normalize_item_count(value: Any) -> int:
+    try:
+        count = int(value)
+    except Exception:
+        raise HTTPException(status_code=400, detail="item_count must be a non-negative integer")
+    if count < 0:
+        raise HTTPException(status_code=400, detail="item_count must be a non-negative integer")
+    return count
+
+
+def _location_photo_url(location_id: str) -> str:
+    return f"/api/locations/{location_id}/photo"
+
+
+def _serialize_location(location: Location) -> dict:
+    return {
+        "id": location.id,
+        "name": location.name,
+        "description": location.description,
+        "item_count": location.item_count,
+        "photo_url": (_location_photo_url(location.id) if location.photo_path else None),
+        "created_at": _utc_iso(location.created_at),
+        "updated_at": _utc_iso(location.updated_at),
+    }
+
+
+def _cleanup_asset_paths(paths: list[str]):
+    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    rel_dirs: set[str] = set()
+    for rel in paths:
+        if not rel:
+            continue
+        abs_path = os.path.join(assets_dir, rel)
+        try:
+            if os.path.exists(abs_path):
+                os.remove(abs_path)
+            rel_dir = os.path.dirname(rel)
+            if rel_dir:
+                rel_dirs.add(rel_dir)
+        except Exception:
+            # Best-effort cleanup only.
+            pass
+
+    for rel_dir in rel_dirs:
+        abs_dir = os.path.join(assets_dir, rel_dir)
+        try:
+            if os.path.isdir(abs_dir) and not os.listdir(abs_dir):
+                os.rmdir(abs_dir)
+        except Exception:
+            pass
 
 
 def _mask_key(value: str | None) -> str | None:
@@ -240,6 +292,18 @@ def _run_startup_migrations():
                     is_default=1,
                 )
                 db.add(cfg)
+                db.commit()
+
+    if "locations" in tables:
+        with Session(bind=engine) as db:
+            has_locations = db.query(Location).count() > 0
+            if not has_locations:
+                default_location = Location(
+                    name="Default Location",
+                    description="Default storage location",
+                    item_count=0,
+                )
+                db.add(default_location)
                 db.commit()
 
 def init_db():
@@ -483,6 +547,130 @@ def delete_user(user_id: str, db: Session = Depends(get_db), me: User = Depends(
     db.delete(u)
     db.commit()
     return {"ok": True}
+
+
+# ---------------- Locations ----------------
+@app.post("/api/locations/photo")
+def upload_location_photo(
+    photo: UploadFile = File(...),
+    me: User = Depends(current_user),
+):
+    stored, _ = process_and_store([photo])
+    if not stored:
+        raise HTTPException(status_code=400, detail="No photo uploaded")
+    payload = stored[0]
+    return {
+        "photo_path": payload["path_display"],
+        "stored": payload,
+    }
+
+
+@app.get("/api/locations")
+def list_locations(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    locations = db.query(Location).order_by(Location.created_at.asc()).all()
+    return [_serialize_location(loc) for loc in locations]
+
+
+@app.post("/api/locations")
+def create_location(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    name = str(payload.get("name") or "").strip()
+    description = str(payload.get("description") or "").strip() or None
+    photo_path = str(payload.get("photo_path") or "").strip() or None
+
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
+
+    existing = db.query(Location).filter(Location.name == name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Location name already exists")
+
+    item_count = _normalize_item_count(payload.get("item_count", 0))
+
+    location = Location(
+        name=name,
+        description=description,
+        photo_path=photo_path,
+        item_count=item_count,
+    )
+    db.add(location)
+    db.commit()
+    db.refresh(location)
+    return _serialize_location(location)
+
+
+@app.patch("/api/locations/{location_id}")
+def update_location(location_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    location = db.query(Location).filter(Location.id == location_id).first()
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    old_photo_path = location.photo_path
+
+    if "name" in payload:
+        name = str(payload.get("name") or "").strip()
+        if len(name) < 2:
+            raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
+        existing = (
+            db.query(Location)
+            .filter(Location.name == name, Location.id != location_id)
+            .first()
+        )
+        if existing:
+            raise HTTPException(status_code=400, detail="Location name already exists")
+        location.name = name
+
+    if "description" in payload:
+        location.description = str(payload.get("description") or "").strip() or None
+
+    if "item_count" in payload:
+        location.item_count = _normalize_item_count(payload.get("item_count"))
+
+    if "photo_path" in payload:
+        next_photo_path = str(payload.get("photo_path") or "").strip() or None
+        location.photo_path = next_photo_path
+
+    location.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(location)
+
+    if "photo_path" in payload and old_photo_path and old_photo_path != location.photo_path:
+        old_thumb = old_photo_path.replace("/display.", "/thumb.")
+        old_original = old_photo_path.replace("/display.", "/original.")
+        _cleanup_asset_paths([old_photo_path, old_thumb, old_original])
+
+    return _serialize_location(location)
+
+
+@app.delete("/api/locations/{location_id}")
+def delete_location(location_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    location = db.query(Location).filter(Location.id == location_id).first()
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    if db.query(Location).count() <= 1:
+        raise HTTPException(status_code=400, detail="At least one location must exist")
+
+    photo_path = location.photo_path
+    db.delete(location)
+    db.commit()
+
+    if photo_path:
+        old_thumb = photo_path.replace("/display.", "/thumb.")
+        old_original = photo_path.replace("/display.", "/original.")
+        _cleanup_asset_paths([photo_path, old_thumb, old_original])
+
+    return {"ok": True}
+
+
+@app.get("/api/locations/{location_id}/photo")
+def get_location_photo(location_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    location = db.query(Location).filter(Location.id == location_id).first()
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+    if not location.photo_path:
+        raise HTTPException(status_code=404, detail="Location photo not found")
+    abs_path = resolve_path(location.photo_path)
+    return FileResponse(abs_path)
 
 
 # ---------------- AI Settings (LLM configs) ----------------
