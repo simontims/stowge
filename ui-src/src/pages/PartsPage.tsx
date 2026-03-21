@@ -152,6 +152,28 @@ export function PartsPage() {
   }, [armedDeleteId]);
 
   useEffect(() => {
+    if (!armedDeleteId) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        setArmedDeleteId(null);
+        return;
+      }
+
+      const armedButton = target.closest(
+        `[data-delete-arm-id="${armedDeleteId}"]`
+      );
+      if (!armedButton) {
+        setArmedDeleteId(null);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [armedDeleteId]);
+
+  useEffect(() => {
     if (selectedPartId === null || !hasDirtyChanges) return;
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -387,6 +409,7 @@ export function PartsPage() {
                   : "part-delete-btn--idle border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70",
                 isDeleting ? "opacity-60 cursor-not-allowed" : "",
               ].join(" ")}
+              data-delete-arm-id={row.id}
               aria-label={
                 isArmed
                   ? `Confirm delete ${row.name}`
