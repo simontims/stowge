@@ -10,6 +10,7 @@ interface Part {
   id: string;
   name: string;
   category: string | null;
+  location: string | null;
   status: string;
   created_at: string;
   thumb: string | null;
@@ -122,10 +123,12 @@ export function PartsPage() {
     return parts.filter((part) => {
       const name = part.name.toLowerCase();
       const category = (part.category || "").toLowerCase();
+      const location = (part.location || "").toLowerCase();
       const status = part.status.toLowerCase();
       return (
         name.includes(term) ||
         category.includes(term) ||
+        location.includes(term) ||
         status.includes(term)
       );
     });
@@ -161,6 +164,15 @@ export function PartsPage() {
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.category || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "location",
+        header: "Location",
+        render: (row) => (
+          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
+            {row.location || "-"}
           </span>
         ),
       },

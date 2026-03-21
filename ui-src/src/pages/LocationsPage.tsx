@@ -43,7 +43,7 @@ export function LocationsPage() {
   const [editForm, setEditForm] = useState<LocationForm>(EMPTY_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [uploadingTarget, setUploadingTarget] = useState<"new" | "edit" | null>(null);
@@ -55,6 +55,11 @@ export function LocationsPage() {
     [locations, editingId]
   );
 
+  const confirmDeleteLocation = useMemo(
+    () => locations.find((location) => location.id === confirmDeleteId) || null,
+    [locations, confirmDeleteId]
+  );
+
   useEffect(() => {
     void loadLocations();
   }, []);
@@ -64,14 +69,6 @@ export function LocationsPage() {
     const timeout = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(timeout);
   }, [notice]);
-
-  useEffect(() => {
-    if (!armedDeleteId) return;
-    const timeout = setTimeout(() => {
-      setArmedDeleteId((current) => (current === armedDeleteId ? null : current));
-    }, 3000);
-    return () => clearTimeout(timeout);
-  }, [armedDeleteId]);
 
   async function loadLocations() {
     setLoading(true);
@@ -212,7 +209,7 @@ export function LocationsPage() {
       await apiRequest(`/api/locations/${locationId}`, {
         method: "DELETE",
       });
-      setArmedDeleteId(null);
+      setConfirmDeleteId(null);
       setNotice("Location deleted.");
       await loadLocations();
     } catch (err) {
@@ -279,53 +276,39 @@ export function LocationsPage() {
         className: "w-44 text-right",
         headerClassName: "w-44 text-right",
         render: (row) => {
-          const isArmed = armedDeleteId === row.id;
           const isDeleting = deletingId === row.id;
           return (
-            <div className="flex flex-col items-end gap-1">
-              <div className="inline-flex items-center gap-2 justify-end">
-                <button
-                  onClick={() => startEdit(row)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-                  title={`Edit ${row.name}`}
-                >
-                  <Edit3 size={13} />
-                  Edit
-                </button>
-                <button
-                  onClick={() => {
-                    if (isDeleting) return;
-                    if (!isArmed) {
-                      setArmedDeleteId(row.id);
-                      return;
-                    }
-                    void deleteLocation(row.id);
-                  }}
-                  disabled={isDeleting}
-                  className={[
-                    "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors",
-                    isArmed
-                      ? "border-red-500/70 text-red-300 bg-red-950/30"
-                      : "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
-                    isDeleting ? "opacity-60 cursor-not-allowed" : "",
-                  ].join(" ")}
-                  title={isArmed ? "Click again to confirm delete" : `Delete ${row.name}`}
-                >
-                  <Trash2 size={13} />
-                  Delete
-                </button>
-              </div>
-              {isArmed && row.item_count > 0 && (
-                <span className="text-xs text-amber-300">
-                  {row.item_count} item{row.item_count !== 1 ? "s" : ""} will have their location cleared.
-                </span>
-              )}
+            <div className="inline-flex items-center gap-2 justify-end w-full">
+              <button
+                onClick={() => startEdit(row)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                title={`Edit ${row.name}`}
+              >
+                <Edit3 size={13} />
+                Edit
+              </button>
+              <button
+                onClick={() => {
+                  if (isDeleting) return;
+                  setConfirmDeleteId(row.id);
+                }}
+                disabled={isDeleting}
+                className={[
+                  "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors",
+                  "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
+                  isDeleting ? "opacity-60 cursor-not-allowed" : "",
+                ].join(" ")}
+                title={`Delete ${row.name}`}
+              >
+                <Trash2 size={13} />
+                Delete
+              </button>
             </div>
           );
         },
       },
     ],
-    [armedDeleteId, deletingId]
+    [deletingId]
   );
 
   return (
@@ -522,6 +505,56 @@ export function LocationsPage() {
         keyField="id"
         emptyMessage="No locations found. Add your first one above."
       />
+
+      {confirmDeleteLocation && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-neutral-100">Delete Location</h3>
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                title="Close"
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            <p className="text-sm text-neutral-300">
+              Delete location <span className="font-medium text-neutral-100">{confirmDeleteLocation.name}</span>?
+            </p>
+
+            {confirmDeleteLocation.item_count > 0 && (
+              <p className="text-xs text-amber-300">
+                {confirmDeleteLocation.item_count} item
+                {confirmDeleteLocation.item_count !== 1 ? "s" : ""} currently in this location will have their location removed.
+              </p>
+            )}
+
+            <div className="pt-1 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                disabled={deletingId === confirmDeleteLocation.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void deleteLocation(confirmDeleteLocation.id)}
+                disabled={deletingId === confirmDeleteLocation.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+              >
+                <Trash2 size={13} />
+                {deletingId === confirmDeleteLocation.id ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
     </div>

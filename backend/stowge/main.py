@@ -953,10 +953,18 @@ def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User 
     if q:
         query = query.filter(Part.name.ilike(f"%{q.strip()}%"))
     parts = query.limit(200).all()
+
+    location_ids = {p.location_id for p in parts if p.location_id}
+    location_names: dict[str, str] = {}
+    if location_ids:
+        location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
+        location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
+
     return [{
         "id": p.id,
         "name": p.name,
         "category": p.category,
+        "location": (location_names.get(p.location_id) if p.location_id else None),
         "status": p.status,
         "created_at": p.created_at.isoformat(),
         "thumb": (_signed_image_url(p.images[0].id, "thumb") if p.images else None),
