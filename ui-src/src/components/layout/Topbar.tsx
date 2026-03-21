@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Menu, Search, User } from "lucide-react";
+import { getStoredTheme, setTheme, type ThemeMode } from "../../lib/theme";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -10,6 +11,7 @@ interface TopbarProps {
 export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => getStoredTheme());
   const [version, setVersion] = useState<string>("");
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +97,11 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
     onLogout();
   }
 
+  function handleThemeChange(nextTheme: ThemeMode) {
+    setThemeMode(nextTheme);
+    setTheme(nextTheme);
+  }
+
   return (
     <>
       <header className="h-14 border-b border-neutral-800 bg-neutral-900 flex items-center gap-3 px-4 shrink-0">
@@ -175,9 +182,37 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
               <div className="text-sm text-neutral-300">
                 Signed in as <span className="font-medium text-neutral-100">{displayName}</span>
               </div>
-              <p className="text-sm text-neutral-500">
-                User-level preferences will appear here.
-              </p>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-neutral-500">Appearance</p>
+                <div className="mt-2 inline-flex rounded-md border border-neutral-700 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => handleThemeChange("light")}
+                    className={[
+                      "px-3 py-1.5 text-sm transition-colors",
+                      themeMode === "light"
+                        ? "bg-neutral-700 text-neutral-100"
+                        : "bg-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60",
+                    ].join(" ")}
+                    aria-pressed={themeMode === "light"}
+                  >
+                    Light
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleThemeChange("dark")}
+                    className={[
+                      "px-3 py-1.5 text-sm border-l border-neutral-700 transition-colors",
+                      themeMode === "dark"
+                        ? "bg-neutral-700 text-neutral-100"
+                        : "bg-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60",
+                    ].join(" ")}
+                    aria-pressed={themeMode === "dark"}
+                  >
+                    Dark
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="px-4 py-3 border-t border-neutral-800 flex justify-end">
               <button
