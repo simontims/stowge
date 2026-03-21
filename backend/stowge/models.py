@@ -25,6 +25,7 @@ class Part(Base):
     description = Column(Text, nullable=True)
     category = Column(String, nullable=True)
     status = Column(String, nullable=False, default="draft")  # draft|confirmed
+    location_id = Column(String, ForeignKey("locations.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Edit3, MapPin, Plus, Save, Trash2, Upload, X } from "lucide-react";
+import { Edit3, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchInput } from "../components/ui/SearchInput";
 import { DataTable, type Column } from "../components/ui/DataTable";
@@ -19,14 +19,12 @@ interface LocationRecord {
 interface LocationForm {
   name: string;
   description: string;
-  item_count: string;
   photo_path: string | null;
 }
 
 const EMPTY_FORM: LocationForm = {
   name: "",
   description: "",
-  item_count: "0",
   photo_path: null,
 };
 
@@ -89,14 +87,6 @@ export function LocationsPage() {
     }
   }
 
-  function parseItemCount(value: string): number {
-    const num = Number(value);
-    if (!Number.isInteger(num) || num < 0) {
-      throw new Error("Item count must be a non-negative integer.");
-    }
-    return num;
-  }
-
   function startEdit(location: LocationRecord) {
     setError("");
     setNotice("");
@@ -104,7 +94,6 @@ export function LocationsPage() {
     setEditForm({
       name: location.name,
       description: location.description || "",
-      item_count: String(location.item_count),
       photo_path: null,
     });
   }
@@ -146,11 +135,9 @@ export function LocationsPage() {
     setNotice("");
 
     try {
-      const itemCount = parseItemCount(newForm.item_count);
       const payload = {
         name: newForm.name.trim(),
         description: newForm.description.trim(),
-        item_count: itemCount,
         photo_path: newForm.photo_path,
       };
 
@@ -183,16 +170,13 @@ export function LocationsPage() {
     setNotice("");
 
     try {
-      const itemCount = parseItemCount(editForm.item_count);
       const payload: {
         name: string;
         description: string;
-        item_count: number;
         photo_path?: string | null;
       } = {
         name: editForm.name.trim(),
         description: editForm.description.trim(),
-        item_count: itemCount,
       };
       if (editForm.photo_path !== null) {
         payload.photo_path = editForm.photo_path;
@@ -298,37 +282,44 @@ export function LocationsPage() {
           const isArmed = armedDeleteId === row.id;
           const isDeleting = deletingId === row.id;
           return (
-            <div className="inline-flex items-center gap-2 justify-end w-full">
-              <button
-                onClick={() => startEdit(row)}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-                title={`Edit ${row.name}`}
-              >
-                <Edit3 size={13} />
-                Edit
-              </button>
-              <button
-                onClick={() => {
-                  if (isDeleting) return;
-                  if (!isArmed) {
-                    setArmedDeleteId(row.id);
-                    return;
-                  }
-                  void deleteLocation(row.id);
-                }}
-                disabled={isDeleting}
-                className={[
-                  "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors",
-                  isArmed
-                    ? "border-red-500/70 text-red-300 bg-red-950/30"
-                    : "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
-                  isDeleting ? "opacity-60 cursor-not-allowed" : "",
-                ].join(" ")}
-                title={isArmed ? "Click again to confirm delete" : `Delete ${row.name}`}
-              >
-                <Trash2 size={13} />
-                Delete
-              </button>
+            <div className="flex flex-col items-end gap-1">
+              <div className="inline-flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => startEdit(row)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                  title={`Edit ${row.name}`}
+                >
+                  <Edit3 size={13} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    if (isDeleting) return;
+                    if (!isArmed) {
+                      setArmedDeleteId(row.id);
+                      return;
+                    }
+                    void deleteLocation(row.id);
+                  }}
+                  disabled={isDeleting}
+                  className={[
+                    "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors",
+                    isArmed
+                      ? "border-red-500/70 text-red-300 bg-red-950/30"
+                      : "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
+                    isDeleting ? "opacity-60 cursor-not-allowed" : "",
+                  ].join(" ")}
+                  title={isArmed ? "Click again to confirm delete" : `Delete ${row.name}`}
+                >
+                  <Trash2 size={13} />
+                  Delete
+                </button>
+              </div>
+              {isArmed && row.item_count > 0 && (
+                <span className="text-xs text-amber-300">
+                  {row.item_count} item{row.item_count !== 1 ? "s" : ""} will have their location cleared.
+                </span>
+              )}
             </div>
           );
         },
@@ -384,17 +375,6 @@ export function LocationsPage() {
                 onChange={(e) => setNewForm((v) => ({ ...v, name: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                 placeholder="Shelf A"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Item Count</span>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={newForm.item_count}
-                onChange={(e) => setNewForm((v) => ({ ...v, item_count: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
             </label>
             <label className="block sm:col-span-2">
@@ -464,17 +444,6 @@ export function LocationsPage() {
               <input
                 value={editForm.name}
                 onChange={(e) => setEditForm((v) => ({ ...v, name: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Item Count</span>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={editForm.item_count}
-                onChange={(e) => setEditForm((v) => ({ ...v, item_count: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
             </label>
@@ -554,12 +523,7 @@ export function LocationsPage() {
         emptyMessage="No locations found. Add your first one above."
       />
 
-      {!loading && locations.length > 0 && (
-        <p className="text-xs text-neutral-600 flex items-center gap-1.5">
-          <MapPin size={12} />
-          At least one location must exist at all times.
-        </p>
-      )}
+
     </div>
   );
 }

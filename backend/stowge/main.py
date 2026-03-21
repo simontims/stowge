@@ -110,26 +110,17 @@ def _serialize_user(user: User) -> dict:
     }
 
 
-def _normalize_item_count(value: Any) -> int:
-    try:
-        count = int(value)
-    except Exception:
-        raise HTTPException(status_code=400, detail="item_count must be a non-negative integer")
-    if count < 0:
-        raise HTTPException(status_code=400, detail="item_count must be a non-negative integer")
-    return count
-
-
 def _location_photo_url(location_id: str) -> str:
     return f"/api/locations/{location_id}/photo"
 
 
-def _serialize_location(location: Location) -> dict:
+def _serialize_location(location: Location, db: Session) -> dict:
+    item_count = db.query(Part).filter(Part.location_id == location.id).count()
     return {
         "id": location.id,
         "name": location.name,
         "description": location.description,
-        "item_count": location.item_count,
+        "item_count": item_count,
         "photo_url": (_location_photo_url(location.id) if location.photo_path else None),
         "created_at": _utc_iso(location.created_at),
         "updated_at": _utc_iso(location.updated_at),
@@ -294,17 +285,11 @@ def _run_startup_migrations():
                 db.add(cfg)
                 db.commit()
 
-    if "locations" in tables:
-        with Session(bind=engine) as db:
-            has_locations = db.query(Location).count() > 0
-            if not has_locations:
-                default_location = Location(
-                    name="Default Location",
-                    description="Default storage location",
-                    item_count=0,
-                )
-                db.add(default_location)
-                db.commit()
+    if "parts" in tables:
+        parts_columns = {c["name"] for c in inspector.get_columns("parts")}
+        with engine.begin() as conn:
+            if "location_id" not in parts_columns:
+                conn.execute(text("ALTER TABLE parts ADD COLUMN location_id VARCHAR NULL"))
 
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -433,6 +418,12 @@ def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Seed a default location on first ever setup.
+    if db.query(Location).count() == 0:
+        db.add(Location(name="Default Location", description="Default storage location"))
+        db.commit()
+
     return {"access_token": create_token(user), "token_type": "bearer"}
 
 @app.post("/api/login")
@@ -568,7 +559,7 @@ def upload_location_photo(
 @app.get("/api/locations")
 def list_locations(db: Session = Depends(get_db), me: User = Depends(current_user)):
     locations = db.query(Location).order_by(Location.created_at.asc()).all()
-    return [_serialize_location(loc) for loc in locations]
+    return [_serialize_location(loc, db) for loc in locations]
 
 
 @app.post("/api/locations")
@@ -584,18 +575,15 @@ def create_location(payload: dict, db: Session = Depends(get_db), me: User = Dep
     if existing:
         raise HTTPException(status_code=400, detail="Location name already exists")
 
-    item_count = _normalize_item_count(payload.get("item_count", 0))
-
     location = Location(
         name=name,
         description=description,
         photo_path=photo_path,
-        item_count=item_count,
     )
     db.add(location)
     db.commit()
     db.refresh(location)
-    return _serialize_location(location)
+    return _serialize_location(location, db)
 
 
 @app.patch("/api/locations/{location_id}")
@@ -622,9 +610,6 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
     if "description" in payload:
         location.description = str(payload.get("description") or "").strip() or None
 
-    if "item_count" in payload:
-        location.item_count = _normalize_item_count(payload.get("item_count"))
-
     if "photo_path" in payload:
         next_photo_path = str(payload.get("photo_path") or "").strip() or None
         location.photo_path = next_photo_path
@@ -638,7 +623,7 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
         old_original = old_photo_path.replace("/display.", "/original.")
         _cleanup_asset_paths([old_photo_path, old_thumb, old_original])
 
-    return _serialize_location(location)
+    return _serialize_location(location, db)
 
 
 @app.delete("/api/locations/{location_id}")
@@ -647,10 +632,8 @@ def delete_location(location_id: str, db: Session = Depends(get_db), me: User = 
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
 
-    if db.query(Location).count() <= 1:
-        raise HTTPException(status_code=400, detail="At least one location must exist")
-
     photo_path = location.photo_path
+    db.query(Part).filter(Part.location_id == location_id).update({"location_id": None})
     db.delete(location)
     db.commit()
 
