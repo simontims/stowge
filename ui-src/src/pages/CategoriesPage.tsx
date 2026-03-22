@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchInput } from "../components/ui/SearchInput";
 import { DataTable, type Column } from "../components/ui/DataTable";
+import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { apiRequest } from "../lib/api";
 
 // ── Icon catalogue ───────────────────────────────────────────────────────────
@@ -561,13 +562,10 @@ export function CategoriesPage() {
             >
               Edit
             </button>
-            <button
+            <DeleteActionButton
               onClick={() => setConfirmDeleteCategory(row)}
-              disabled={deletingId === row.id}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 disabled:opacity-60"
-            >
-              <Trash2 size={13} />
-            </button>
+              isDeleting={deletingId === row.id}
+            />
           </div>
         ),
       },
@@ -710,34 +708,24 @@ export function CategoriesPage() {
         </div>
       )}
 
-      {/* Delete confirm */}
-      {confirmDeleteCategory && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-neutral-100">Delete Category</h3>
-            <p className="text-sm text-neutral-300">
+      <DeleteConfirmDialog
+        open={Boolean(confirmDeleteCategory)}
+        title="Delete Category"
+        message={
+          confirmDeleteCategory ? (
+            <>
               Permanently delete <span className="font-medium text-neutral-100">{confirmDeleteCategory.name}</span>? This cannot be undone.
-            </p>
-            <div className="pt-1 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setConfirmDeleteCategory(null)}
-                disabled={deletingId === confirmDeleteCategory.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void deleteCategory(confirmDeleteCategory)}
-                disabled={deletingId === confirmDeleteCategory.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
-              >
-                <Trash2 size={14} />
-                {deletingId === confirmDeleteCategory.id ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          ) : null
+        }
+        deleting={Boolean(confirmDeleteCategory && deletingId === confirmDeleteCategory.id)}
+        onCancel={() => setConfirmDeleteCategory(null)}
+        onConfirm={() => {
+          if (confirmDeleteCategory) {
+            void deleteCategory(confirmDeleteCategory);
+          }
+        }}
+      />
     </div>
   );
 }

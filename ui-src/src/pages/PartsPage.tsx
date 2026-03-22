@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchInput } from "../components/ui/SearchInput";
 import { DataTable, type Column } from "../components/ui/DataTable";
+import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { apiRequest } from "../lib/api";
 
 interface Part {
@@ -76,32 +77,6 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   );
 }
 
-function TrashCanIcon({ lidOpen }: { lidOpen: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
-      <g
-        className={[
-          "transition-transform duration-200",
-          lidOpen ? "-translate-y-0.5 -rotate-12" : "",
-        ].join(" ")}
-        style={{ transformOrigin: "9px 7px" }}
-      >
-        <path d="M8 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        <path d="M10 4h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </g>
-      <path
-        d="M8 8.5h8l-.6 9a2 2 0 0 1-2 1.9h-2.8a2 2 0 0 1-2-1.9z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M10.8 11v5.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <path d="M13.2 11v5.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export function PartsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -109,8 +84,8 @@ export function PartsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
-  const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeletePart, setConfirmDeletePart] = useState<Part | null>(null);
 
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [selectedPart, setSelectedPart] = useState<PartDetail | null>(null);
@@ -156,36 +131,6 @@ export function PartsPage() {
   }, []);
 
   useEffect(() => {
-    if (!armedDeleteId) return;
-    const timeout = setTimeout(() => {
-      setArmedDeleteId((current) => (current === armedDeleteId ? null : current));
-    }, 3000);
-    return () => clearTimeout(timeout);
-  }, [armedDeleteId]);
-
-  useEffect(() => {
-    if (!armedDeleteId) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) {
-        setArmedDeleteId(null);
-        return;
-      }
-
-      const armedButton = target.closest(
-        `[data-delete-arm-id="${armedDeleteId}"]`
-      );
-      if (!armedButton) {
-        setArmedDeleteId(null);
-      }
-    };
-
-    window.addEventListener("mousedown", handlePointerDown);
-    return () => window.removeEventListener("mousedown", handlePointerDown);
-  }, [armedDeleteId]);
-
-  useEffect(() => {
     if (selectedPartId === null || !hasDirtyChanges) return;
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -224,7 +169,7 @@ export function PartsPage() {
     try {
       await apiRequest(`/api/items/${partId}`, { method: "DELETE" });
       setParts((current) => current.filter((part) => part.id !== partId));
-      setArmedDeleteId((current) => (current === partId ? null : current));
+      setConfirmDeletePart(null);
     } catch (err) {
       setDeleteError((err as Error).message || "Failed to delete part.");
     } finally {
@@ -444,48 +389,25 @@ export function PartsPage() {
       {
         key: "actions",
         header: "ACTIONS",
-        className: "w-20 text-center",
-        headerClassName: "w-20 text-center",
+        className: "w-40 text-right",
+        headerClassName: "w-40 text-right",
         render: (row) => {
-          const isArmed = armedDeleteId === row.id;
           const isDeleting = deletingId === row.id;
           return (
-            <button
-              onClick={(event) => {
-                event.stopPropagation();
-                if (isDeleting) return;
-                if (!isArmed) {
-                  setArmedDeleteId(row.id);
-                  return;
-                }
-                void deletePart(row.id);
-              }}
-              className={[
-                "part-delete-btn inline-flex items-center justify-center w-10 h-10 rounded-md border transition-colors",
-                isArmed
-                  ? "part-delete-btn--armed border-red-500/70 text-red-300 bg-red-950/30"
-                  : "part-delete-btn--idle border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70",
-                isDeleting ? "opacity-60 cursor-not-allowed" : "",
-              ].join(" ")}
-              data-delete-arm-id={row.id}
-              aria-label={
-                isArmed
-                  ? `Confirm delete ${row.name}`
-                  : `Delete ${row.name}`
-              }
-              title={
-                isArmed
-                  ? "Click again to delete permanently"
-                  : "Click to arm delete"
-              }
+            <div
+              className="inline-flex items-center justify-end w-full"
+              onClick={(event) => event.stopPropagation()}
             >
-              <TrashCanIcon lidOpen={isArmed} />
-            </button>
+              <DeleteActionButton
+                onClick={() => setConfirmDeletePart(row)}
+                isDeleting={isDeleting}
+              />
+            </div>
           );
         },
       },
     ],
-    [armedDeleteId, deletingId]
+    [deletingId]
   );
 
   return (
@@ -527,6 +449,25 @@ export function PartsPage() {
         onRowClick={(row) => {
           if (deletingId === row.id) return;
           void openPartModal(row.id);
+        }}
+      />
+
+      <DeleteConfirmDialog
+        open={Boolean(confirmDeletePart)}
+        title="Delete Item"
+        message={
+          confirmDeletePart ? (
+            <>
+              Permanently delete <span className="font-medium text-neutral-100">{confirmDeletePart.name}</span>? This cannot be undone.
+            </>
+          ) : null
+        }
+        deleting={Boolean(confirmDeletePart && deletingId === confirmDeletePart.id)}
+        onCancel={() => setConfirmDeletePart(null)}
+        onConfirm={() => {
+          if (confirmDeletePart) {
+            void deletePart(confirmDeletePart.id);
+          }
         }}
       />
 
