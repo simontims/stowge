@@ -543,7 +543,7 @@ export function SettingsAiPage() {
     <div className="space-y-5">
       <PageHeader
         title="Settings / AI"
-        description="Configure one or more LLMs for Add Item and set the default model."
+        description="Configure one or more LLMs for Add Item and set the default model"
         action={
           showListView ? (
             <button

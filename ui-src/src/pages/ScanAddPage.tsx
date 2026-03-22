@@ -348,7 +348,7 @@ export function ScanAddPage() {
     <div className="space-y-5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <PageHeader
         title="Add"
-        description="Capture up to 5 photos, identify part suggestions, then edit before saving."
+        description="Capture up to 5 photos, identify part suggestions, then edit before saving"
         action={null}
       />
 

@@ -578,7 +578,7 @@ export function CategoriesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Categories"
-        description="Organise items into categories and guide the AI with per-category hints."
+        description="Organise items into categories and guide the AI with per-category hints"
         action={
           showListView ? (
             <button

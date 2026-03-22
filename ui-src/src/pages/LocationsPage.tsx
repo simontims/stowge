@@ -346,7 +346,7 @@ export function LocationsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Locations"
-        description="Add, edit, and delete storage locations for your inventory."
+        description="Add, edit, and delete storage locations for your inventory"
         action={
           showListView ? (
             <button

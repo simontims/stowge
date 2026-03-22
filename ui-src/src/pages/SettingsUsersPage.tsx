@@ -189,7 +189,7 @@ export function SettingsUsersPage() {
     <div className="space-y-5">
       <PageHeader
         title="Settings / Users"
-        description="Manage accounts and access for your Stowge instance."
+        description="Manage accounts and access for your Stowge instance"
         action={null}
       />
 

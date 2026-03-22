@@ -5,7 +5,7 @@ export function SettingsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Settings"
-        description="Configure your Stowge instance and administration features."
+        description="Configure your Stowge instance and administration features"
         action={null}
       />
 

@@ -53,23 +53,23 @@ export default function App() {
     <BrowserRouter>
       <AppShell onCommandOpen={() => setCommandOpen(true)} onLogout={handleLogout}>
         <Routes>
-          <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance." />} />
+          <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance" />} />
           <Route path="/items"      element={<PartsPage />} />
           <Route path="/parts"      element={<PartsPage />} />
           <Route path="/items/new"  element={<ScanAddPage />} />
           <Route path="/parts/new"  element={<ScanAddPage />} />
           <Route path="/locations"  element={<LocationsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
-          <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers." />} />
-          <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects." />} />
+          <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers" />} />
+          <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects" />} />
           <Route path="/add"       element={<ScanAddPage />} />
           <Route path="/scan"      element={<ScanAddPage />} />
-          <Route path="/imports"    element={<PlaceholderPage title="Imports"    description="Bulk-import parts from a CSV file." />} />
-          <Route path="/reports"    element={<PlaceholderPage title="Reports"    description="Inventory reports and export tools." />} />
+          <Route path="/imports"    element={<PlaceholderPage title="Imports"    description="Bulk-import parts from a CSV file" />} />
+          <Route path="/reports"    element={<PlaceholderPage title="Reports"    description="Inventory reports and export tools" />} />
           <Route path="/settings"   element={<SettingsPage />} />
           <Route path="/settings/ai" element={<SettingsAiPage />} />
           <Route path="/settings/users" element={<SettingsUsersPage />} />
-          <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist." />} />
+          <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
       </AppShell>
 
