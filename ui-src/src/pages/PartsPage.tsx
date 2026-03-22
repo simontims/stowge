@@ -121,6 +121,7 @@ export function PartsPage() {
   const [savingDetail, setSavingDetail] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [locationFilter, setLocationFilter] = useState("");
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
@@ -262,6 +263,7 @@ export function PartsPage() {
     setEditForm(EMPTY_EDIT_FORM);
     setInitialEditForm(EMPTY_EDIT_FORM);
     setLocationFilter("");
+    setLocationDropdownOpen(false);
     setUnsavedPromptOpen(false);
   }
 
@@ -309,6 +311,7 @@ export function PartsPage() {
                 ...p,
                 name: refreshed.name,
                 category: refreshed.category,
+                location: refreshed.location,
                 status: refreshed.status,
               }
             : p
@@ -365,6 +368,14 @@ export function PartsPage() {
       location.name.toLowerCase().includes(term)
     );
   }, [locations, locationFilter]);
+
+  const selectedLocationLabel = useMemo(() => {
+    if (!editForm.location_id) return "No location";
+    return (
+      locations.find((location) => location.id === editForm.location_id)?.name ||
+      "No location"
+    );
+  }, [editForm.location_id, locations]);
 
   const columns = useMemo<Column<Part>[]>(
     () => [
@@ -581,27 +592,63 @@ export function PartsPage() {
 
                   <label className="space-y-1">
                     <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
-                    <div className="space-y-2">
-                      <input
-                        value={locationFilter}
-                        onChange={(event) => setLocationFilter(event.target.value)}
-                        className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                        placeholder="Filter locations..."
-                      />
-                      <select
-                        value={editForm.location_id}
-                        onChange={(event) =>
-                          setEditForm((current) => ({ ...current, location_id: event.target.value }))
-                        }
-                        className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocationDropdownOpen((open) => {
+                            const nextOpen = !open;
+                            if (!nextOpen) setLocationFilter("");
+                            return nextOpen;
+                          });
+                        }}
+                        className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-left text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
                       >
-                        <option value="">No location</option>
-                        {filteredLocations.map((location) => (
-                          <option key={location.id} value={location.id}>
-                            {location.name}
-                          </option>
-                        ))}
-                      </select>
+                        {selectedLocationLabel}
+                      </button>
+
+                      {locationDropdownOpen && (
+                        <div className="absolute z-20 mt-1 w-full rounded-md border border-neutral-700 bg-neutral-950 p-2 shadow-lg space-y-2">
+                          <input
+                            value={locationFilter}
+                            onChange={(event) => setLocationFilter(event.target.value)}
+                            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                            placeholder="Filter locations..."
+                            autoFocus
+                          />
+
+                          <div className="max-h-44 overflow-y-auto space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditForm((current) => ({ ...current, location_id: "" }));
+                                setLocationDropdownOpen(false);
+                                setLocationFilter("");
+                              }}
+                              className="w-full rounded px-2 py-1.5 text-left text-sm text-neutral-200 hover:bg-neutral-800"
+                            >
+                              No location
+                            </button>
+                            {filteredLocations.map((location) => (
+                              <button
+                                key={location.id}
+                                type="button"
+                                onClick={() => {
+                                  setEditForm((current) => ({ ...current, location_id: location.id }));
+                                  setLocationDropdownOpen(false);
+                                  setLocationFilter("");
+                                }}
+                                className="w-full rounded px-2 py-1.5 text-left text-sm text-neutral-200 hover:bg-neutral-800"
+                              >
+                                {location.name}
+                              </button>
+                            ))}
+                            {filteredLocations.length === 0 && (
+                              <div className="px-2 py-1.5 text-xs text-neutral-500">No locations match.</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </label>
 
@@ -648,7 +695,12 @@ export function PartsPage() {
                     Close
                   </button>
                   <button
-                    onClick={() => void savePartChanges()}
+                    onClick={async () => {
+                      const ok = await savePartChanges();
+                      if (ok) {
+                        closeModalNow();
+                      }
+                    }}
                     disabled={!hasDirtyChanges || savingDetail}
                     className={[
                       "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors disabled:opacity-60",
