@@ -419,6 +419,14 @@ def sw():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="application/javascript", headers=headers)
 
+@app.get("/favicon.svg")
+def favicon_svg():
+    headers = {"Cache-Control": "public, max-age=604800, immutable"}
+    path = os.path.join(UI_DIR, "favicon.svg")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="image/svg+xml", headers=headers)
+
 # ---------------- Status / Setup ----------------
 @app.get("/api/version")
 def version():
