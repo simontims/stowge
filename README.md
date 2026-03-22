@@ -1,5 +1,7 @@
 # Stowge
-Self-hosted electronic parts inventory with an AI-assisted mobile-first "Add Item" flow.
+Self-hosted inventory system for mobile and desktop, configurable for multiple categories and powered by an AI-assisted "Add Item" flow.
+
+Stowge is designed for people who want full control of their inventory data while still getting modern UX: camera-first capture, AI suggestions, and fast editing/search across collections.
 
 - UI (PWA) served at `/`
 - API served under `/api`
@@ -7,14 +9,17 @@ Self-hosted electronic parts inventory with an AI-assisted mobile-first "Add Ite
 - Swagger UI: `/docs`
 
 ## Features (MVP)
+- Works across multiple inventory domains (electronics, tools, marine, clothing, and more)
+- Category/location structure is configurable in-app
+- PWA UI optimized for mobile capture and desktop management
 - First-run setup: create initial admin user
 - Bearer token auth (login returns JWT)
 - Add Item flow on mobile:
   - take/pick up to 5 photos
-  - submit for AI ID (1 best guess)
+  - submit for AI identification (1 best guess)
   - optionally retry for 5 candidates
-  - accept → create a Draft part in the DB
-- Parts list + basic search + edit/confirm
+  - accept → create a Draft item in the DB
+- Items list + basic search + edit/confirm
 - Image ingest pipeline:
   - generates display + thumbnail variants
   - optional "store original" setting
