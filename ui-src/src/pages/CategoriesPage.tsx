@@ -594,24 +594,24 @@ export function CategoriesPage() {
 
       {addingOpen && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-100">New Category</h2>
+          <h2 className="text-sm font-semibold text-neutral-100">New Category</h2>
+          <CategoryFormFields form={newForm} onChange={setNewForm} />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => void createCategory()}
+              disabled={isCreating}
+              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            >
+              <Save size={14} />
+              {isCreating ? "Saving..." : "Save"}
+            </button>
             <button
               onClick={() => { setAddingOpen(false); setNewForm(EMPTY_FORM); setError(""); }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
             >
-              <X size={13} /> Cancel
+              Cancel
             </button>
           </div>
-          <CategoryFormFields form={newForm} onChange={setNewForm} />
-          <button
-            onClick={() => void createCategory()}
-            disabled={isCreating}
-            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-          >
-            <Save size={14} />
-            {isCreating ? "Saving..." : "Save"}
-          </button>
         </section>
       )}
 
