@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Edit3, Plus, Save, Star, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { ListToolbar } from "../components/ui/ListToolbar";
 import { apiRequest } from "../lib/api";
 
 interface AiConfig {
@@ -194,6 +195,7 @@ export function SettingsAiPage() {
   const [addingOpen, setAddingOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<NewConfigForm>(EMPTY_FORM);
+  const [search, setSearch] = useState("");
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
@@ -223,6 +225,16 @@ export function SettingsAiPage() {
     evidence_enabled: false,
   });
 
+  const filteredConfigs = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return configs;
+    return configs.filter(
+      (c) =>
+        c.name.toLowerCase().includes(term) ||
+        c.provider.toLowerCase().includes(term) ||
+        c.model.toLowerCase().includes(term)
+    );
+  }, [configs, search]);
   const hasConfigs = useMemo(() => configs.length > 0, [configs]);
   const editingConfig = useMemo(
     () => configs.find((c) => c.id === editingId) || null,
@@ -532,7 +544,17 @@ export function SettingsAiPage() {
       <PageHeader
         title="Settings / AI"
         description="Configure one or more LLMs for Add Item and set the default model."
-        action={null}
+        action={
+          showListView ? (
+            <button
+              onClick={() => setAddingOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            >
+              <Plus size={14} />
+              Add Model
+            </button>
+          ) : null
+        }
       />
 
       {addingOpen && (
@@ -674,17 +696,16 @@ export function SettingsAiPage() {
       {error && <p className="text-sm text-red-400">{error}</p>}
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-      <div className="flex justify-end">
-        {showListView && (
-          <button
-            onClick={() => setAddingOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-          >
-            <Plus size={14} />
-            Add Model
-          </button>
-        )}
-      </div>
+      {showListView && (
+        <ListToolbar
+          search={search}
+          onSearchChange={setSearch}
+          placeholder="Search models…"
+          count={filteredConfigs.length}
+          countLabel="models"
+          loading={loading}
+        />
+      )}
 
       {showListView && (
       <section className="rounded-lg border border-neutral-800 overflow-hidden">
@@ -707,7 +728,7 @@ export function SettingsAiPage() {
                   </td>
                 </tr>
               ) : (
-                configs.map((cfg) => {
+                filteredConfigs.map((cfg) => {
                   const isDefault = cfg.id === defaultId;
                   const isDeleting = deletingId === cfg.id;
                   const isSettingDefault = settingDefaultId === cfg.id;

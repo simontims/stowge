@@ -6,11 +6,11 @@ import {
   Music, Package, Paintbrush, Fish, Pill, Plane, Plug, Printer, Radio,
   Ruler, Scissors, Server, Settings, Shield, ShoppingBag, Shirt, Sofa,
   Tag, Thermometer, Truck, Tv, Watch, Wifi, Wrench, Zap,
-  Save, Trash2, X, HelpCircle,
+  Plus, Save, Trash2, X, HelpCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
-import { SearchInput } from "../components/ui/SearchInput";
+import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { apiRequest } from "../lib/api";
@@ -585,6 +585,7 @@ export function CategoriesPage() {
               onClick={() => { setAddingOpen(true); setError(""); }}
               className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
             >
+              <Plus size={14} />
               Add Category
             </button>
           ) : null
@@ -656,17 +657,14 @@ export function CategoriesPage() {
 
       {showListView && (
         <>
-          <div className="flex items-center gap-2">
-            <SearchInput
-              placeholder="Search categories…"
-              value={search}
-              onChange={setSearch}
-              className="flex-1 max-w-sm"
-            />
-            <span className="text-xs text-neutral-600 ml-auto">
-              {loading ? "Loading…" : `${filtered.length} categories`}
-            </span>
-          </div>
+          <ListToolbar
+            search={search}
+            onSearchChange={setSearch}
+            placeholder="Search categories…"
+            count={filtered.length}
+            countLabel="categories"
+            loading={loading}
+          />
           <DataTable
             columns={columns}
             rows={filtered}

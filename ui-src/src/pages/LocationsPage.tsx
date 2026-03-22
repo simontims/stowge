@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Edit3, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
-import { SearchInput } from "../components/ui/SearchInput";
+import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { apiRequest } from "../lib/api";
 
@@ -535,17 +535,14 @@ export function LocationsPage() {
 
       {showListView && (
         <>
-          <div className="flex items-center gap-2">
-            <SearchInput
-              placeholder="Search locations..."
-              value={search}
-              onChange={setSearch}
-              className="flex-1 max-w-sm"
-            />
-            <span className="text-xs text-neutral-600 ml-auto">
-              {loading ? "Loading..." : `${filtered.length} locations`}
-            </span>
-          </div>
+          <ListToolbar
+            search={search}
+            onSearchChange={setSearch}
+            placeholder="Search locations…"
+            count={filtered.length}
+            countLabel="locations"
+            loading={loading}
+          />
 
           <DataTable
             columns={columns}

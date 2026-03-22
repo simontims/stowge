@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
-import { SearchInput } from "../components/ui/SearchInput";
+import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { apiRequest } from "../lib/api";
@@ -411,14 +411,14 @@ export function PartsPage() {
   );
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
         title="Items"
         description="Browse and manage your items"
         action={
           <button
             onClick={() => navigate("/scan")}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
           >
             <Plus size={14} />
             Add Item
@@ -426,18 +426,14 @@ export function PartsPage() {
         }
       />
 
-      {/* Filter row */}
-      <div className="flex items-center gap-2 mb-4">
-        <SearchInput
-          placeholder="Search items, locations, categories…"
-          value={search}
-          onChange={setSearch}
-          className="flex-1 max-w-sm"
-        />
-        <span className="text-xs text-neutral-600 ml-auto">
-          {loading ? "Loading..." : `${filtered.length} items`}
-        </span>
-      </div>
+      <ListToolbar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder="Search items, locations, categories…"
+        count={filtered.length}
+        countLabel="items"
+        loading={loading}
+      />
 
       {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
       {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
