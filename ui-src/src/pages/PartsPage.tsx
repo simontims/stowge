@@ -22,6 +22,7 @@ interface PartDetail {
   name: string;
   description: string | null;
   category: string | null;
+  location_id: string | null;
   location: string | null;
   status: string;
   created_at: string;
@@ -38,15 +39,20 @@ interface PartEditForm {
   name: string;
   description: string;
   category: string;
-  location: string;
+  location_id: string;
   status: "draft" | "confirmed";
+}
+
+interface LocationOption {
+  id: string;
+  name: string;
 }
 
 const EMPTY_EDIT_FORM: PartEditForm = {
   name: "",
   description: "",
   category: "",
-  location: "",
+  location_id: "",
   status: "draft",
 };
 
@@ -55,7 +61,7 @@ function toEditForm(part: PartDetail): PartEditForm {
     name: part.name ?? "",
     description: part.description ?? "",
     category: part.category ?? "",
-    location: part.location ?? "",
+    location_id: part.location_id ?? "",
     status: part.status === "confirmed" ? "confirmed" : "draft",
   };
 }
@@ -65,7 +71,7 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
     a.name.trim() === b.name.trim() &&
     a.description.trim() === b.description.trim() &&
     a.category.trim() === b.category.trim() &&
-    a.location.trim() === b.location.trim() &&
+    a.location_id === b.location_id &&
     a.status === b.status
   );
 }
@@ -113,6 +119,8 @@ export function PartsPage() {
   const [editForm, setEditForm] = useState<PartEditForm>(EMPTY_EDIT_FORM);
   const [initialEditForm, setInitialEditForm] = useState<PartEditForm>(EMPTY_EDIT_FORM);
   const [savingDetail, setSavingDetail] = useState(false);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [locationFilter, setLocationFilter] = useState("");
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
@@ -123,6 +131,7 @@ export function PartsPage() {
 
   useEffect(() => {
     void loadParts();
+    void loadLocations();
   }, []);
 
   useEffect(() => {
@@ -202,6 +211,15 @@ export function PartsPage() {
     }
   }
 
+  async function loadLocations() {
+    try {
+      const data = await apiRequest<LocationOption[]>("/api/locations");
+      setLocations(data || []);
+    } catch {
+      setLocations([]);
+    }
+  }
+
   async function deletePart(partId: string) {
     setDeleteError("");
     setDeletingId(partId);
@@ -227,6 +245,7 @@ export function PartsPage() {
       setSelectedPart(detail);
       setEditForm(mapped);
       setInitialEditForm(mapped);
+      setLocationFilter("");
     } catch (err) {
       setDetailError((err as Error).message || "Failed to load part details.");
     } finally {
@@ -242,6 +261,7 @@ export function PartsPage() {
     setSavingDetail(false);
     setEditForm(EMPTY_EDIT_FORM);
     setInitialEditForm(EMPTY_EDIT_FORM);
+    setLocationFilter("");
     setUnsavedPromptOpen(false);
   }
 
@@ -272,7 +292,7 @@ export function PartsPage() {
           name: trimmedName,
           description: editForm.description.trim() || null,
           category: editForm.category.trim() || null,
-          location: editForm.location.trim() || null,
+          location_id: editForm.location_id || null,
           status: editForm.status,
         }),
       });
@@ -337,6 +357,14 @@ export function PartsPage() {
       );
     });
   }, [parts, search]);
+
+  const filteredLocations = useMemo(() => {
+    const term = locationFilter.trim().toLowerCase();
+    if (!term) return locations;
+    return locations.filter((location) =>
+      location.name.toLowerCase().includes(term)
+    );
+  }, [locations, locationFilter]);
 
   const columns = useMemo<Column<Part>[]>(
     () => [
@@ -553,14 +581,28 @@ export function PartsPage() {
 
                   <label className="space-y-1">
                     <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
-                    <input
-                      value={editForm.location}
-                      onChange={(event) =>
-                        setEditForm((current) => ({ ...current, location: event.target.value }))
-                      }
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                      placeholder="Optional"
-                    />
+                    <div className="space-y-2">
+                      <input
+                        value={locationFilter}
+                        onChange={(event) => setLocationFilter(event.target.value)}
+                        className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                        placeholder="Filter locations..."
+                      />
+                      <select
+                        value={editForm.location_id}
+                        onChange={(event) =>
+                          setEditForm((current) => ({ ...current, location_id: event.target.value }))
+                        }
+                        className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                      >
+                        <option value="">No location</option>
+                        {filteredLocations.map((location) => (
+                          <option key={location.id} value={location.id}>
+                            {location.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </label>
 
                   <label className="space-y-1">

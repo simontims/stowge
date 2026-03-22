@@ -976,11 +976,19 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
+    location_name = None
+    if p.location_id:
+        location = db.query(Location.id, Location.name).filter(Location.id == p.location_id).first()
+        if location:
+            location_name = location.name
+
     return {
         "id": p.id,
         "name": p.name,
         "description": p.description,
         "category": p.category,
+        "location_id": p.location_id,
+        "location": location_name,
         "status": p.status,
         "created_at": p.created_at.isoformat(),
         "updated_at": p.updated_at.isoformat(),
@@ -1004,6 +1012,16 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
     for field in ("name", "description", "category", "status"):
         if field in payload:
             setattr(p, field, payload[field])
+
+    if "location_id" in payload:
+        location_id = payload.get("location_id")
+        if location_id is None or str(location_id).strip() == "":
+            p.location_id = None
+        else:
+            exists = db.query(Location.id).filter(Location.id == str(location_id)).first()
+            if not exists:
+                raise HTTPException(status_code=400, detail="Invalid location.")
+            p.location_id = str(location_id)
 
     p.updated_at = datetime.now(timezone.utc)
     db.commit()
