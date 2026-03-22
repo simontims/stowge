@@ -427,7 +427,11 @@ def favicon_svg():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="image/svg+xml", headers=headers)
 
-# ---------------- Status / Setup ----------------
+# ---------------- Health / Status / Setup ----------------
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    return {"status": "ok"}
+
 @app.get("/api/version")
 def version():
     return {"version": APP_VERSION}
