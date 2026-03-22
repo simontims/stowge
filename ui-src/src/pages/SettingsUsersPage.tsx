@@ -322,14 +322,14 @@ export function SettingsUsersPage() {
             <button
               onClick={() => void createUser()}
               disabled={isCreating}
-              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
               {isCreating ? "Saving..." : "Save"}
             </button>
             <button
               onClick={() => { setAddingOpen(false); setNewUser(EMPTY_NEW_USER); setError(""); }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+              className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm leading-none font-medium"
             >
               Cancel
             </button>
@@ -393,7 +393,7 @@ export function SettingsUsersPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={requestCancelEdit}
-              className="inline-flex h-8 items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
             >
               Cancel
             </button>
@@ -401,7 +401,7 @@ export function SettingsUsersPage() {
               onClick={() => void saveEdit()}
               disabled={!isEditDirty || isSavingEdit}
               className={[
-                "inline-flex h-8 items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
                 isEditDirty
                   ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
                   : "border-neutral-700 text-neutral-500",
