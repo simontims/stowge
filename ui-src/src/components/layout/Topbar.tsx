@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, Search, User } from "lucide-react";
+import { Menu, Moon, Search, Sun, User } from "lucide-react";
 import { getStoredTheme, setTheme, type ThemeMode } from "../../lib/theme";
+import { apiRequest } from "../../lib/api";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -10,7 +11,6 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getStoredTheme());
   const [version, setVersion] = useState<string>("");
   const menuRef = useRef<HTMLDivElement>(null);
@@ -87,10 +87,22 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
     };
   }, []);
 
-  function goPreferences() {
-    setMenuOpen(false);
-    setPreferencesOpen(true);
-  }
+  useEffect(() => {
+    async function syncTheme() {
+      try {
+        const me = await apiRequest<{ theme?: string }>("/api/me");
+        const serverTheme = me.theme === "light" || me.theme === "dark" ? me.theme : null;
+        if (serverTheme) {
+          setThemeMode(serverTheme);
+          setTheme(serverTheme);
+        }
+      } catch {
+        // Not signed in or network error — keep local preference.
+      }
+    }
+    void syncTheme();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function logout() {
     setMenuOpen(false);
@@ -100,6 +112,12 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
   function handleThemeChange(nextTheme: ThemeMode) {
     setThemeMode(nextTheme);
     setTheme(nextTheme);
+    void apiRequest("/api/me", {
+      method: "PATCH",
+      body: JSON.stringify({ theme: nextTheme }),
+    }).catch(() => {
+      // Best-effort.
+    });
   }
 
   return (
@@ -131,6 +149,14 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
 
         <div className="flex-1 hidden md:block" />
 
+        <button
+          onClick={() => handleThemeChange(themeMode === "dark" ? "light" : "dark")}
+          className="shrink-0 p-1.5 rounded-md text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition-colors"
+          aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+
         <div className="relative shrink-0" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((open) => !open)}
@@ -147,12 +173,6 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
           {menuOpen && (
             <div className="absolute right-0 top-full mt-2 w-44 rounded-md border border-neutral-700 bg-neutral-900 shadow-lg z-20 overflow-hidden">
               <button
-                onClick={goPreferences}
-                className="w-full text-left px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-800 transition-colors"
-              >
-                Preferences
-              </button>
-              <button
                 onClick={logout}
                 className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-neutral-800 transition-colors"
               >
@@ -166,65 +186,6 @@ export function Topbar({ onMenuClick, onCommandOpen, onLogout }: TopbarProps) {
         </div>
       </header>
 
-      {preferencesOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            onClick={() => setPreferencesOpen(false)}
-            className="absolute inset-0 bg-black/60"
-            aria-label="Close preferences"
-          />
-          <div className="relative w-full max-w-md rounded-xl border border-neutral-700 bg-neutral-900 shadow-2xl">
-            <div className="px-4 py-3 border-b border-neutral-800">
-              <h3 className="text-sm font-semibold text-neutral-100">User Preferences</h3>
-              <p className="text-xs text-neutral-500 mt-1">Personal settings for your account.</p>
-            </div>
-            <div className="px-4 py-4 space-y-3">
-              <div className="text-sm text-neutral-300">
-                Signed in as <span className="font-medium text-neutral-100">{displayName}</span>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-neutral-500">Appearance</p>
-                <div className="mt-2 inline-flex rounded-md border border-neutral-700 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => handleThemeChange("light")}
-                    className={[
-                      "px-3 py-1.5 text-sm transition-colors",
-                      themeMode === "light"
-                        ? "bg-neutral-700 text-neutral-100"
-                        : "bg-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60",
-                    ].join(" ")}
-                    aria-pressed={themeMode === "light"}
-                  >
-                    Light
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleThemeChange("dark")}
-                    className={[
-                      "px-3 py-1.5 text-sm border-l border-neutral-700 transition-colors",
-                      themeMode === "dark"
-                        ? "bg-neutral-700 text-neutral-100"
-                        : "bg-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60",
-                    ].join(" ")}
-                    aria-pressed={themeMode === "dark"}
-                  >
-                    Dark
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="px-4 py-3 border-t border-neutral-800 flex justify-end">
-              <button
-                onClick={() => setPreferencesOpen(false)}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-sm text-neutral-200 hover:border-neutral-600 hover:text-neutral-100"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

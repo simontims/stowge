@@ -703,7 +703,7 @@ export function PartsPage() {
                     ].join(" ")}
                   >
                     <Save size={14} />
-                    {savingDetail ? "Saving..." : hasDirtyChanges ? "Save changes" : "Saved"}
+                    {savingDetail ? "Saving..." : "Save"}
                   </button>
                 </div>
               </>

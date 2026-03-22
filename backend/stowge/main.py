@@ -105,6 +105,7 @@ def _serialize_user(user: User) -> dict:
         "firstname": user.first_name or "",
         "surname": user.last_name or "",
         "role": user.role,
+        "theme": user.theme or "dark",
         "created_at": _utc_iso(user.created_at),
         "last_login_at": _utc_iso(user.last_login_at),
     }
@@ -240,6 +241,8 @@ def _run_startup_migrations():
             conn.execute(text("ALTER TABLE users ADD COLUMN first_name VARCHAR NOT NULL DEFAULT ''"))
         if "last_name" not in columns:
             conn.execute(text("ALTER TABLE users ADD COLUMN last_name VARCHAR NOT NULL DEFAULT ''"))
+        if "theme" not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN theme VARCHAR NOT NULL DEFAULT 'dark'"))
 
     if "llm_configs" in tables:
         llm_columns = {c["name"] for c in inspector.get_columns("llm_configs")}
@@ -419,11 +422,6 @@ def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # Seed a default location on first ever setup.
-    if db.query(Location).count() == 0:
-        db.add(Location(name="Default Location", description="Default storage location"))
-        db.commit()
-
     return {"access_token": create_token(user), "token_type": "bearer"}
 
 @app.post("/api/login")
@@ -438,6 +436,25 @@ def login(payload: dict, db: Session = Depends(get_db)):
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
     return {"access_token": create_token(user), "token_type": "bearer"}
+
+# ---------------- Current user (self) ----------------
+@app.get("/api/me")
+def get_me(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    return _serialize_user(me)
+
+@app.patch("/api/me")
+def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    u = db.query(User).filter(User.id == me.id).first()
+    if not u:
+        raise HTTPException(status_code=401, detail="User not found")
+    if "theme" in payload:
+        theme = str(payload["theme"]).strip()
+        if theme not in ("dark", "light"):
+            raise HTTPException(status_code=400, detail="theme must be dark|light")
+        u.theme = theme
+    db.commit()
+    db.refresh(u)
+    return _serialize_user(u)
 
 # ---------------- Users (admin) ----------------
 @app.post("/api/users")
