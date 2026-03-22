@@ -28,7 +28,7 @@ Stowge is designed for people who want full control of their inventory data whil
 ## Deploy (Docker host)
 ### 1) Create persistent folders
 ```bash
-mkdir -p /mnt/data/docker/stowge/{data,assets}
+mkdir -p /local/path/to/stowage/{data,assets}
 ```
 
 ### 2) Create `.env`
@@ -41,10 +41,10 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
 
 ### 4) Configure AI models in app
 After first login, go to `Settings / AI` and add one or more LLM providers/models,
-set API keys, and choose a default model for `Scan / Add`.
+set API keys, and choose a default model for `Add`.
 
 Then configure Nginx Proxy Manager:
-- `stowge.my.domain` → `http://192.168.1.45:18090`
+- `stowge.my.domain` → `http://host.ip.address:18090`
 - Enable HTTPS (camera access on Android requires HTTPS)
 
 ## Local Dev Quickstart
