@@ -151,7 +151,6 @@ export function LocationsPage() {
 
       setNewForm(EMPTY_FORM);
       setAddingOpen(false);
-      setNotice("Location created.");
       await loadLocations();
     } catch (err) {
       setError((err as Error).message || "Failed to create location.");
