@@ -17,7 +17,7 @@ import jwt
 from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
-from .models import User, Part, PartImage, LLMConfig, Location
+from .models import User, Part, PartImage, LLMConfig, Location, Category
 from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
 from .images import process_and_store, resolve_path
 from .openai_id import identify as openai_identify
@@ -125,6 +125,19 @@ def _serialize_location(location: Location, db: Session) -> dict:
         "photo_url": (_location_photo_url(location.id) if location.photo_path else None),
         "created_at": _utc_iso(location.created_at),
         "updated_at": _utc_iso(location.updated_at),
+    }
+
+
+def _serialize_category(category: Category) -> dict:
+    return {
+        "id": category.id,
+        "name": category.name,
+        "icon": category.icon,
+        "description": category.description,
+        "ai_hint": category.ai_hint,
+        "item_count": category.item_count,
+        "created_at": _utc_iso(category.created_at),
+        "updated_at": _utc_iso(category.updated_at),
     }
 
 
@@ -293,7 +306,6 @@ def _run_startup_migrations():
         with engine.begin() as conn:
             if "location_id" not in parts_columns:
                 conn.execute(text("ALTER TABLE parts ADD COLUMN location_id VARCHAR NULL"))
-
 def init_db():
     Base.metadata.create_all(bind=engine)
     _run_startup_migrations()
@@ -673,8 +685,75 @@ def get_location_photo(location_id: str, db: Session = Depends(get_db), me: User
     return FileResponse(abs_path)
 
 
-# ---------------- AI Settings (LLM configs) ----------------
-@app.get("/api/settings/ai")
+# ---------------- Categories ----------------
+@app.get("/api/categories")
+def list_categories(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    categories = db.query(Category).order_by(Category.created_at.asc()).all()
+    return [_serialize_category(cat) for cat in categories]
+
+
+@app.post("/api/categories")
+def create_category(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    name = str(payload.get("name") or "").strip()
+    icon = str(payload.get("icon") or "").strip() or None
+    description = str(payload.get("description") or "").strip() or None
+    ai_hint = str(payload.get("ai_hint") or "").strip() or None
+
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
+
+    existing = db.query(Category).filter(Category.name == name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Category name already exists")
+
+    category = Category(name=name, icon=icon, description=description, ai_hint=ai_hint)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return _serialize_category(category)
+
+
+@app.patch("/api/categories/{category_id}")
+def update_category(category_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    if "name" in payload:
+        name = str(payload.get("name") or "").strip()
+        if len(name) < 2:
+            raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
+        existing = db.query(Category).filter(Category.name == name, Category.id != category_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Category name already exists")
+        category.name = name
+
+    if "icon" in payload:
+        category.icon = str(payload.get("icon") or "").strip() or None
+
+    if "description" in payload:
+        category.description = str(payload.get("description") or "").strip() or None
+
+    if "ai_hint" in payload:
+        category.ai_hint = str(payload.get("ai_hint") or "").strip() or None
+
+    category.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(category)
+    return _serialize_category(category)
+
+
+@app.delete("/api/categories/{category_id}")
+def delete_category(category_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    db.delete(category)
+    db.commit()
+    return {"ok": True}
+
+
+# ---------------- AI Settings (LLM configs) ----------------@app.get("/api/settings/ai")
 def list_ai_settings(db: Session = Depends(get_db), me: User = Depends(current_user)):
     configs = db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).all()
     active = _resolve_llm_config(db)

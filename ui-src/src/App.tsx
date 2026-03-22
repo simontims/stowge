@@ -9,6 +9,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { SettingsUsersPage } from "./pages/SettingsUsersPage";
 import { SettingsAiPage } from "./pages/SettingsAiPage";
 import { LocationsPage } from "./pages/LocationsPage";
+import { CategoriesPage } from "./pages/CategoriesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT } from "./lib/api";
 
@@ -58,7 +59,7 @@ export default function App() {
           <Route path="/items/new"  element={<ScanAddPage />} />
           <Route path="/parts/new"  element={<ScanAddPage />} />
           <Route path="/locations"  element={<LocationsPage />} />
-          <Route path="/categories" element={<PlaceholderPage title="Categories" description="Organise parts into categories." />} />
+          <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers." />} />
           <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects." />} />
           <Route path="/add"       element={<ScanAddPage />} />

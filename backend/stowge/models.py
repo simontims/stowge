@@ -77,3 +77,16 @@ class Location(Base):
     item_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False, unique=True, index=True)
+    icon = Column(String, nullable=True)  # lucide icon name, e.g. 'cpu'
+    description = Column(Text, nullable=True)
+    ai_hint = Column(Text, nullable=True)
+    item_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
