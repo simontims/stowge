@@ -5,15 +5,13 @@ import {
   Tag,
   Factory,
   Wrench,
-  Upload,
-  BarChart3,
   Settings,
   Users,
   Brain,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export type NavGroup = "INVENTORY" | "RELATIONSHIPS" | "TOOLS" | "SYSTEM";
+export type NavGroup = "INVENTORY" | "RELATIONSHIPS" | "SYSTEM";
 
 export interface NavItem {
   label: string;
@@ -25,7 +23,6 @@ export interface NavItem {
 export const NAV_GROUPS: NavGroup[] = [
   "INVENTORY",
   "RELATIONSHIPS",
-  "TOOLS",
   "SYSTEM",
 ];
 
@@ -36,8 +33,6 @@ export const navItems: NavItem[] = [
   { label: "Categories", route: "/categories",  icon: Tag,       group: "INVENTORY"     },
   { label: "Suppliers",  route: "/suppliers",   icon: Factory,   group: "RELATIONSHIPS" },
   { label: "Projects",   route: "/projects",    icon: Wrench,    group: "RELATIONSHIPS" },
-  { label: "Imports",    route: "/imports",     icon: Upload,    group: "TOOLS"         },
-  { label: "Reports",    route: "/reports",     icon: BarChart3, group: "TOOLS"         },
   { label: "Settings",   route: "/settings",    icon: Settings,  group: "SYSTEM"        },
   { label: "AI",         route: "/settings/ai", icon: Brain,     group: "SYSTEM"        },
   { label: "Users",      route: "/settings/users", icon: Users,  group: "SYSTEM"        },

@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Plus,
   MoveRight,
-  Upload,
   Wrench,
   Factory,
   MapPin,
@@ -89,13 +88,6 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       description: "Start a new project",
       icon: <Wrench size={14} />,
       action: () => go("/projects"),
-    },
-    {
-      id: "import-csv",
-      label: "Import CSV",
-      description: "Import items from a CSV file",
-      icon: <Upload size={14} />,
-      action: () => go("/imports"),
     },
   ];
 

@@ -64,8 +64,6 @@ export default function App() {
           <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects" />} />
           <Route path="/add"       element={<ScanAddPage />} />
           <Route path="/scan"      element={<ScanAddPage />} />
-          <Route path="/imports"    element={<PlaceholderPage title="Imports"    description="Bulk-import parts from a CSV file" />} />
-          <Route path="/reports"    element={<PlaceholderPage title="Reports"    description="Inventory reports and export tools" />} />
           <Route path="/settings"   element={<SettingsPage />} />
           <Route path="/settings/ai" element={<SettingsAiPage />} />
           <Route path="/settings/users" element={<SettingsUsersPage />} />
