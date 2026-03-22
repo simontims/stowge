@@ -475,7 +475,11 @@ export function LocationsPage() {
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Upload size={13} />
-                {uploadingTarget === "edit" ? "Uploading..." : "Replace Photo"}
+                {uploadingTarget === "edit"
+                  ? "Uploading..."
+                  : editForm.photo_path || editingLocation.photo_url
+                    ? "Replace Photo"
+                    : "Upload Photo"}
               </button>
               <input
                 ref={editPhotoInputRef}
