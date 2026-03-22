@@ -142,11 +142,30 @@ export function SettingsAiPage() {
     api_base: FALLBACK_PROVIDERS[0].api_base,
     is_default: false,
   });
+  const [initialEditForm, setInitialEditForm] = useState<EditConfigForm>({
+    name: "",
+    provider: FALLBACK_PROVIDERS[0].value,
+    model: FALLBACK_PROVIDERS[0].models[0],
+    api_key: "",
+    api_base: FALLBACK_PROVIDERS[0].api_base,
+    is_default: false,
+  });
 
   const hasConfigs = useMemo(() => configs.length > 0, [configs]);
   const editingConfig = useMemo(
     () => configs.find((c) => c.id === editingId) || null,
     [configs, editingId]
+  );
+
+  const isEditDirty = useMemo(
+    () =>
+      editForm.name !== initialEditForm.name ||
+      editForm.provider !== initialEditForm.provider ||
+      editForm.model !== initialEditForm.model ||
+      editForm.api_key !== "" ||
+      editForm.api_base !== initialEditForm.api_base ||
+      editForm.is_default !== initialEditForm.is_default,
+    [editForm, initialEditForm]
   );
 
   useEffect(() => {
@@ -298,15 +317,17 @@ export function SettingsAiPage() {
     const models = getProviderModels(provider.value);
     const model = models.includes(config.model) ? config.model : models[0];
 
-    setEditingId(config.id);
-    setEditForm({
+    const snapshot: EditConfigForm = {
       name: config.name,
       provider: provider.value,
       model,
       api_key: "",
       api_base: (config.api_base || "").trim() || provider.api_base,
       is_default: config.id === defaultId,
-    });
+    };
+    setEditingId(config.id);
+    setInitialEditForm(snapshot);
+    setEditForm(snapshot);
   }
 
   async function saveEdit() {
@@ -668,11 +689,16 @@ export function SettingsAiPage() {
 
           <button
             onClick={() => void saveEdit()}
-            disabled={savingEdit}
-            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            disabled={!isEditDirty || savingEdit}
+            className={[
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+              isEditDirty
+                ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
+                : "border-neutral-700 text-neutral-500",
+            ].join(" ")}
           >
             <Save size={14} />
-            {savingEdit ? "Saving..." : "Save changes"}
+            {savingEdit ? "Saving..." : "Save"}
           </button>
         </section>
       )}

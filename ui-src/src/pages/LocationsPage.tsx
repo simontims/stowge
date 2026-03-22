@@ -41,6 +41,7 @@ export function LocationsPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<LocationForm>(EMPTY_FORM);
+  const [initialEditForm, setInitialEditForm] = useState<LocationForm>(EMPTY_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -58,6 +59,14 @@ export function LocationsPage() {
   const confirmDeleteLocation = useMemo(
     () => locations.find((location) => location.id === confirmDeleteId) || null,
     [locations, confirmDeleteId]
+  );
+
+  const isEditDirty = useMemo(
+    () =>
+      editForm.name !== initialEditForm.name ||
+      editForm.description !== initialEditForm.description ||
+      editForm.photo_path !== null,
+    [editForm, initialEditForm]
   );
 
   useEffect(() => {
@@ -88,11 +97,13 @@ export function LocationsPage() {
     setError("");
     setNotice("");
     setEditingId(location.id);
-    setEditForm({
+    const snapshot: LocationForm = {
       name: location.name,
       description: location.description || "",
       photo_path: null,
-    });
+    };
+    setInitialEditForm(snapshot);
+    setEditForm(snapshot);
   }
 
   function cancelEdit() {
@@ -402,7 +413,7 @@ export function LocationsPage() {
             className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
           >
             <Save size={14} />
-            {isCreating ? "Saving..." : "Save Location"}
+            {isCreating ? "Saving..." : "Save"}
           </button>
         </section>
       )}
@@ -474,11 +485,16 @@ export function LocationsPage() {
 
           <button
             onClick={() => void saveEdit()}
-            disabled={isSavingEdit}
-            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            disabled={!isEditDirty || isSavingEdit}
+            className={[
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+              isEditDirty
+                ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
+                : "border-neutral-700 text-neutral-500",
+            ].join(" ")}
           >
             <Save size={14} />
-            {isSavingEdit ? "Saving..." : "Save Changes"}
+            {isSavingEdit ? "Saving..." : "Save"}
           </button>
         </section>
       )}
