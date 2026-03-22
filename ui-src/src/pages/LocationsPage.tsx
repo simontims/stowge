@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Edit3, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
+import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { apiRequest } from "../lib/api";
 
@@ -80,6 +81,16 @@ export function LocationsPage() {
     const timeout = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(timeout);
   }, [notice]);
+
+  useEffect(() => {
+    if (!editingId || !isEditDirty) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [editingId, isEditDirty]);
 
   async function loadLocations() {
     setLoading(true);
@@ -440,16 +451,7 @@ export function LocationsPage() {
 
       {editingLocation && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-100">Edit Location</h2>
-            <button
-              onClick={requestCancelEdit}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-            >
-              <X size={13} />
-              Close
-            </button>
-          </div>
+          <h2 className="text-sm font-semibold text-neutral-100">Edit Location</h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
@@ -516,19 +518,27 @@ export function LocationsPage() {
               <Trash2 size={14} />
               Delete
             </button>
-            <button
-              onClick={() => void saveEdit()}
-              disabled={!isEditDirty || isSavingEdit}
-              className={[
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
-                isEditDirty
-                  ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                  : "border-neutral-700 text-neutral-500",
-              ].join(" ")}
-            >
-              <Save size={14} />
-              {isSavingEdit ? "Saving..." : "Save"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={requestCancelEdit}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void saveEdit()}
+                disabled={!isEditDirty || isSavingEdit}
+                className={[
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+                  isEditDirty
+                    ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
+                    : "border-neutral-700 text-neutral-500",
+                ].join(" ")}
+              >
+                <Save size={14} />
+                {isSavingEdit ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -556,42 +566,14 @@ export function LocationsPage() {
         </>
       )}
 
-      {unsavedPromptOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
-          >
-            <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
-            <p className="text-sm text-neutral-300">
-              You have unsaved changes. Do you want to save before leaving this location?
-            </p>
-            <div className="pt-1 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setUnsavedPromptOpen(false)}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUnsavedDiscard}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30"
-              >
-                Discard
-              </button>
-              <button
-                onClick={() => void handleUnsavedSave()}
-                disabled={isSavingEdit}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
-              >
-                <Save size={14} />
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <UnsavedChangesDialog
+        open={unsavedPromptOpen}
+        message="You have unsaved changes. Do you want to save before leaving this location?"
+        saving={isSavingEdit}
+        onCancel={() => setUnsavedPromptOpen(false)}
+        onDiscard={handleUnsavedDiscard}
+        onSave={() => void handleUnsavedSave()}
+      />
 
       {confirmDeleteLocation && (        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div

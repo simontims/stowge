@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, Save, Trash2, X } from "lucide-react";
+import { Edit3, Plus, Save, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
+import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { apiRequest, getCurrentUserId } from "../lib/api";
 
 interface UserRecord {
@@ -41,7 +42,9 @@ export function SettingsUsersPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<UserForm>(EMPTY_NEW_USER);
+  const [initialEditForm, setInitialEditForm] = useState<UserForm>(EMPTY_NEW_USER);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -64,6 +67,16 @@ export function SettingsUsersPage() {
     );
   }, [users, search]);
 
+  const isEditDirty = useMemo(
+    () =>
+      editForm.email !== initialEditForm.email ||
+      editForm.firstname !== initialEditForm.firstname ||
+      editForm.surname !== initialEditForm.surname ||
+      editForm.password !== "" ||
+      editForm.role !== initialEditForm.role,
+    [editForm, initialEditForm]
+  );
+
   useEffect(() => {
     void loadUsers();
   }, []);
@@ -75,6 +88,16 @@ export function SettingsUsersPage() {
     }, 3000);
     return () => clearTimeout(timeout);
   }, [armedDeleteId]);
+
+  useEffect(() => {
+    if (!editingId || !isEditDirty) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [editingId, isEditDirty]);
 
   async function loadUsers() {
     setLoading(true);
@@ -131,13 +154,38 @@ export function SettingsUsersPage() {
     setError("");
     setNotice("");
     setEditingId(user.id);
-    setEditForm({
+    const snapshot: UserForm = {
       email: user.email,
       firstname: user.firstname || "",
       surname: user.surname || "",
       password: "",
       role: user.role,
-    });
+    };
+    setInitialEditForm(snapshot);
+    setEditForm(snapshot);
+  }
+
+  function closeEditNow() {
+    setEditingId(null);
+    setEditForm(EMPTY_NEW_USER);
+    setInitialEditForm(EMPTY_NEW_USER);
+    setUnsavedPromptOpen(false);
+  }
+
+  function requestCancelEdit() {
+    if (isEditDirty) {
+      setUnsavedPromptOpen(true);
+      return;
+    }
+    closeEditNow();
+  }
+
+  async function handleUnsavedSave() {
+    await saveEdit();
+  }
+
+  function handleUnsavedDiscard() {
+    closeEditNow();
   }
 
   async function saveEdit() {
@@ -167,8 +215,7 @@ export function SettingsUsersPage() {
           password: editForm.password || undefined,
         }),
       });
-      setEditingId(null);
-      setEditForm(EMPTY_NEW_USER);
+      closeEditNow();
       setNotice("User updated.");
       await loadUsers();
     } catch (err) {
@@ -292,16 +339,7 @@ export function SettingsUsersPage() {
 
       {editingUser && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-100">Edit User</h2>
-            <button
-              onClick={() => { setEditingId(null); setEditForm(EMPTY_NEW_USER); }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-            >
-              <X size={13} />
-              Close
-            </button>
-          </div>
+          <h2 className="text-sm font-semibold text-neutral-100">Edit User</h2>
           <p className="text-sm text-neutral-500">Editing {editingUser.email}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
@@ -352,14 +390,27 @@ export function SettingsUsersPage() {
               />
             </label>
           </div>
-          <button
-            onClick={() => void saveEdit()}
-            disabled={isSavingEdit}
-            className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-          >
-            <Save size={14} />
-            {isSavingEdit ? "Saving..." : "Save Changes"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={requestCancelEdit}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void saveEdit()}
+              disabled={!isEditDirty || isSavingEdit}
+              className={[
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+                isEditDirty
+                  ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
+                  : "border-neutral-700 text-neutral-500",
+              ].join(" ")}
+            >
+              <Save size={14} />
+              {isSavingEdit ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </section>
       )}
 
@@ -475,6 +526,15 @@ export function SettingsUsersPage() {
           </div>
         </section>
       )}
+
+      <UnsavedChangesDialog
+        open={unsavedPromptOpen}
+        message="You have unsaved changes. Do you want to save before leaving this user?"
+        saving={isSavingEdit}
+        onCancel={() => setUnsavedPromptOpen(false)}
+        onDiscard={handleUnsavedDiscard}
+        onSave={() => void handleUnsavedSave()}
+      />
     </div>
   );
 }
