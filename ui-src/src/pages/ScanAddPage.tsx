@@ -262,7 +262,7 @@ export function ScanAddPage() {
         stored_images: storedImages,
       };
 
-      const result = await apiRequest<{ id: string }>("/api/parts", {
+      const result = await apiRequest<{ id: string }>("/api/items", {
         method: "POST",
         body: JSON.stringify(payload),
       });

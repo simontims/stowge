@@ -372,6 +372,12 @@ def _publish_parts_event(event_type: str, payload: dict):
         if len(_PARTS_EVENTS_LOG) > _PARTS_EVENTS_MAX:
             del _PARTS_EVENTS_LOG[0 : len(_PARTS_EVENTS_LOG) - _PARTS_EVENTS_MAX]
 
+
+def _publish_inventory_change(action: str, part_id: str):
+    # Emit both legacy and new event names so old and new clients keep working.
+    _publish_parts_event("parts_changed", {"action": action, "part_id": part_id})
+    _publish_parts_event("items_changed", {"action": action, "item_id": part_id, "part_id": part_id})
+
 def _parts_events_since(last_seq: int) -> list[dict]:
     with _PARTS_EVENTS_LOCK:
         return [e for e in _PARTS_EVENTS_LOG if int(e.get("seq", 0)) > last_seq]
@@ -397,12 +403,18 @@ def index():
 @app.get("/manifest.webmanifest")
 def manifest():
     headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
-    return FileResponse(os.path.join(UI_DIR, "manifest.webmanifest"), media_type="application/manifest+json", headers=headers)
+    path = os.path.join(UI_DIR, "manifest.webmanifest")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="application/manifest+json", headers=headers)
 
 @app.get("/sw.js")
 def sw():
     headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
-    return FileResponse(os.path.join(UI_DIR, "sw.js"), media_type="application/javascript", headers=headers)
+    path = os.path.join(UI_DIR, "sw.js")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="application/javascript", headers=headers)
 
 # ---------------- Status / Setup ----------------
 @app.get("/api/version")
@@ -757,7 +769,8 @@ def delete_category(category_id: str, db: Session = Depends(get_db), me: User = 
     return {"ok": True}
 
 
-# ---------------- AI Settings (LLM configs) ----------------@app.get("/api/settings/ai")
+# ---------------- AI Settings (LLM configs) ----------------
+@app.get("/api/settings/ai")
 def list_ai_settings(db: Session = Depends(get_db), me: User = Depends(current_user)):
     configs = db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).all()
     active = _resolve_llm_config(db)
@@ -1008,6 +1021,7 @@ def identify(
 
 # ---------------- Parts ----------------
 @app.post("/api/parts")
+@app.post("/api/items")
 def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
     name = (payload.get("name") or "").strip()
     description = (payload.get("description") or "").strip()
@@ -1050,10 +1064,11 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
     p.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(p)
-    _publish_parts_event("parts_changed", {"action": "created", "part_id": p.id})
+    _publish_inventory_change("created", p.id)
     return {"id": p.id}
 
 @app.get("/api/parts")
+@app.get("/api/items")
 def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User = Depends(current_user)):
     query = db.query(Part).order_by(Part.created_at.desc())
     if q:
@@ -1077,6 +1092,7 @@ def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User 
     } for p in parts]
 
 @app.get("/api/parts/{part_id}")
+@app.get("/api/items/{part_id}")
 def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
     p = db.query(Part).filter(Part.id == part_id).first()
     if not p:
@@ -1110,6 +1126,7 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
     }
 
 @app.patch("/api/parts/{part_id}")
+@app.patch("/api/items/{part_id}")
 def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
     p = db.query(Part).filter(Part.id == part_id).first()
     if not p:
@@ -1134,6 +1151,7 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
     return {"ok": True}
 
 @app.delete("/api/parts/{part_id}")
+@app.delete("/api/items/{part_id}")
 def delete_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
     p = db.query(Part).filter(Part.id == part_id).first()
     if not p:
@@ -1175,19 +1193,23 @@ def delete_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(
         except Exception:
             pass
 
-    _publish_parts_event("parts_changed", {"action": "deleted", "part_id": part_id})
+    _publish_inventory_change("deleted", part_id)
     return {"ok": True}
 
 @app.get("/api/events/parts")
+@app.get("/api/events/items")
 async def parts_events(
     request: Request,
-    token: str,
+    token: Optional[str] = None,
     since: int = 0,
     db: Session = Depends(get_db),
 ):
-    # SSE does not support custom Authorization headers in EventSource,
-    # so this endpoint accepts bearer token via query string.
-    _ = _user_from_query_token(token, db)
+    # SSE EventSource cannot set Authorization headers.
+    # Prefer auth from a cookie to avoid JWT in URL/logs, but keep query fallback.
+    auth_token = token or request.cookies.get("stowge_sse_token")
+    if not auth_token:
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    _ = _user_from_query_token(auth_token, db)
 
     async def event_stream():
         last_seq = max(0, int(since))

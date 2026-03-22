@@ -44,10 +44,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     setError("");
 
     if (mode === "setup") {
-      if (password.length < 8) {
-        setError("Password must be at least 8 characters.");
-        return;
-      }
       if (password !== confirm) {
         setError("Passwords do not match.");
         return;
@@ -214,11 +210,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </form>
         </div>
 
-        {mode === "setup" && (
-          <p className="text-center text-xs text-neutral-600 mt-4">
-            Password must be at least 8 characters.
-          </p>
-        )}
       </div>
     </div>
   );

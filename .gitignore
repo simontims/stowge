@@ -14,4 +14,10 @@ ui-src/node_modules/
 backend/.venv/
 venv/
 backend/venv/
+
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+*$py.class
+
 ARCHITECTURE.md

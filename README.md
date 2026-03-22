@@ -48,6 +48,33 @@ docker compose --env-file .env up -d --build
 ```
 Then open: http://localhost:18090/
 
+## Windows one-command local run
+From the repository root:
+
+```powershell
+.\run.ps1
+```
+
+Or with CMD:
+
+```bat
+run.cmd
+```
+
+What this script does automatically:
+- creates `.env` from `.env.example` if missing
+- generates `JWT_SECRET` if it is still a placeholder
+- creates `backend/.venv` if missing
+- installs backend dependencies
+- installs/builds UI from `ui-src` to `ui`
+- starts FastAPI on `http://localhost:18090`
+
+Optional flags:
+- `-SkipInstall` to skip `pip install`
+- `-SkipUiBuild` to skip UI build
+- `-Reload` to run uvicorn with auto-reload
+- `-FreshSetup` to reset local `data/stowge.db` so first-run admin setup is shown again
+
 ## Notes
 - Postgres is internal-only (no host port).
 - Images are stored under the host-mounted `/mnt/data/docker/stowge/assets` volume.

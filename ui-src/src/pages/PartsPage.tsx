@@ -138,24 +138,19 @@ export function PartsPage() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("stowge_token");
-    if (!token) return;
+    const source = new EventSource("/api/events/items");
 
-    const source = new EventSource(
-      `/api/events/parts?token=${encodeURIComponent(token)}`
-    );
-
-    const onPartsChanged = () => {
+    const onItemsChanged = () => {
       void loadParts();
     };
 
-    source.addEventListener("parts_changed", onPartsChanged);
+    source.addEventListener("items_changed", onItemsChanged);
     source.onerror = () => {
       // Keep page usable if stream is unavailable; manual refresh still works.
     };
 
     return () => {
-      source.removeEventListener("parts_changed", onPartsChanged);
+      source.removeEventListener("items_changed", onItemsChanged);
       source.close();
     };
   }, []);
@@ -204,7 +199,7 @@ export function PartsPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await apiRequest<Part[]>("/api/parts");
+      const data = await apiRequest<Part[]>("/api/items");
       setParts(data);
     } catch (err) {
       setError((err as Error).message || "Failed to load parts.");
@@ -227,7 +222,7 @@ export function PartsPage() {
     setDeleteError("");
     setDeletingId(partId);
     try {
-      await apiRequest(`/api/parts/${partId}`, { method: "DELETE" });
+      await apiRequest(`/api/items/${partId}`, { method: "DELETE" });
       setParts((current) => current.filter((part) => part.id !== partId));
       setArmedDeleteId((current) => (current === partId ? null : current));
     } catch (err) {
@@ -241,7 +236,7 @@ export function PartsPage() {
     if (!selectedPartId) return;
     setDeletingPartFromModal(true);
     try {
-      await apiRequest(`/api/parts/${selectedPartId}`, { method: "DELETE" });
+      await apiRequest(`/api/items/${selectedPartId}`, { method: "DELETE" });
       setParts((current) => current.filter((part) => part.id !== selectedPartId));
       closeModalNow();
     } catch (err) {
@@ -258,7 +253,7 @@ export function PartsPage() {
     setDetailError("");
     setDetailLoading(true);
     try {
-      const detail = await apiRequest<PartDetail>(`/api/parts/${partId}`);
+      const detail = await apiRequest<PartDetail>(`/api/items/${partId}`);
       const mapped = toEditForm(detail);
       setSelectedPart(detail);
       setEditForm(mapped);
@@ -306,7 +301,7 @@ export function PartsPage() {
     setSavingDetail(true);
     setDetailError("");
     try {
-      await apiRequest(`/api/parts/${selectedPartId}`, {
+      await apiRequest(`/api/items/${selectedPartId}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: trimmedName,
@@ -317,7 +312,7 @@ export function PartsPage() {
         }),
       });
 
-      const refreshed = await apiRequest<PartDetail>(`/api/parts/${selectedPartId}`);
+      const refreshed = await apiRequest<PartDetail>(`/api/items/${selectedPartId}`);
       const refreshedForm = toEditForm(refreshed);
       setSelectedPart(refreshed);
       setEditForm(refreshedForm);

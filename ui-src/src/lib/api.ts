@@ -2,17 +2,32 @@
  *  this to null-out its token state and show the LoginPage. */
 export const UNAUTHORIZED_EVENT = "stowge:unauthorized";
 
+function setSseTokenCookie(token: string): void {
+  const encoded = encodeURIComponent(token);
+  document.cookie = `stowge_sse_token=${encoded}; Path=/api/events; Max-Age=604800; SameSite=Lax`;
+}
+
+function clearSseTokenCookie(): void {
+  document.cookie = "stowge_sse_token=; Path=/api/events; Max-Age=0; SameSite=Lax";
+}
+
 export function getToken(): string | null {
-  return localStorage.getItem("stowge_token");
+  const token = localStorage.getItem("stowge_token");
+  if (token) {
+    setSseTokenCookie(token);
+  }
+  return token;
 }
 
 export function saveToken(token: string): void {
   localStorage.setItem("stowge_token", token);
+  setSseTokenCookie(token);
 }
 
 /** Remove the token and fire UNAUTHORIZED_EVENT so the auth gate re-renders. */
 export function removeToken(): void {
   localStorage.removeItem("stowge_token");
+  clearSseTokenCookie();
   window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
 }
 
