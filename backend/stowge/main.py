@@ -996,6 +996,7 @@ def delete_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = 
 def identify(
     mode: Literal["one", "three", "five"] = "one",
     llm_id: Optional[str] = Query(default=None),
+    category_id: Optional[str] = Query(default=None),
     images: List[UploadFile] = File(...),
     me: User = Depends(current_user),
     db: Session = Depends(get_db),
@@ -1008,6 +1009,17 @@ def identify(
     if not cfg:
         raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
 
+    category_context: Optional[str] = None
+    if category_id:
+        selected_category = db.query(Category).filter(Category.id == category_id).first()
+        if not selected_category:
+            raise HTTPException(status_code=400, detail="Invalid category_id")
+
+        context_parts = [f"Category name: {selected_category.name}"]
+        if (selected_category.ai_hint or "").strip():
+            context_parts.append(f"Category hint: {selected_category.ai_hint.strip()}")
+        category_context = "\n".join(context_parts)
+
     # openai_id supports "one"/"three"/"five"
     ai_mode = mode if mode in ("one", "three", "five") else "one"
     ai = openai_identify(
@@ -1019,6 +1031,7 @@ def identify(
         },
         mode=ai_mode,
         include_evidence=bool(cfg.evidence_enabled),
+        category_context=category_context,
     )
 
     return {

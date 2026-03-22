@@ -221,6 +221,7 @@ def identify(
     mode: Mode = "one",
     model: Optional[str] = None,
     include_evidence: bool = True,
+    category_context: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     images_b64: list of base64 strings (no data: prefix)
@@ -243,7 +244,16 @@ def identify(
     api_base = str(api_base_raw).strip() if api_base_raw else None
 
     # Build multi-modal message content: instruction + images
-    user_content: List[Dict[str, Any]] = [{"type": "text", "text": _schema_instruction(mode, include_evidence)}]
+    prompt_text = _schema_instruction(mode, include_evidence)
+    if category_context:
+        prompt_text = (
+            f"{prompt_text}\n"
+            "User-selected category context (treat as guidance, not certainty):\n"
+            f"{category_context}\n"
+            "Use this context to improve identification quality."
+        )
+
+    user_content: List[Dict[str, Any]] = [{"type": "text", "text": prompt_text}]
     for b64 in images_b64[:5]:
         user_content.append(
             {

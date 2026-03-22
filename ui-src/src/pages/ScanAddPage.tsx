@@ -49,6 +49,7 @@ interface AiSettingsResponse {
 interface CategoryOption {
   id: string;
   name: string;
+  ai_hint?: string | null;
 }
 
 interface MeResponse {
@@ -259,6 +260,9 @@ export function ScanAddPage() {
       if (selectedLlmId) {
         query.set("llm_id", selectedLlmId);
       }
+      if (draft.category_id) {
+        query.set("category_id", draft.category_id);
+      }
 
       const data = await apiRequest<IdentifyResponse>(
         `/api/identify?${query.toString()}`,
@@ -419,6 +423,28 @@ export function ScanAddPage() {
           )}
 
           <div>
+            <div className="mb-3">
+              <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
+                Category
+              </label>
+              <select
+                value={draft.category_id}
+                onChange={(e) => {
+                  const nextCategoryId = e.target.value;
+                  setDraft((d) => ({ ...d, category_id: nextCategoryId }));
+                  void persistPreferredCategory(nextCategoryId);
+                }}
+                className="w-full sm:w-[28rem] bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+              >
+                <option value="">None</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {llmOptions.length > 1 && (
               <div className="mb-3">
                 <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
@@ -494,28 +520,6 @@ export function ScanAddPage() {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                      Category
-                    </label>
-                    <select
-                      value={draft.category_id}
-                      onChange={(e) => {
-                        const nextCategoryId = e.target.value;
-                        setDraft((d) => ({ ...d, category_id: nextCategoryId }));
-                        void persistPreferredCategory(nextCategoryId);
-                      }}
-                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    >
-                      <option value="">None</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
                   <div>
                     <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
                       Status
