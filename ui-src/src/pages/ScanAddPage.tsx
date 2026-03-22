@@ -174,14 +174,17 @@ export function ScanAddPage() {
     setSaveError("");
     setNotice("");
 
-    if (photos.length < 1) {
-      setSubmitError("Add at least one photo.");
+    if (isSubmitting && submitAbort) {
+      submitAbort.abort();
       return;
     }
 
-    if (submitAbort) {
-      submitAbort.abort();
-      setSubmitAbort(null);
+    if (isSubmitting) {
+      return;
+    }
+
+    if (photos.length < 1) {
+      setSubmitError("Add at least one photo.");
       return;
     }
 
@@ -283,7 +286,7 @@ export function ScanAddPage() {
   return (
     <div className="space-y-5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <PageHeader
-        title="Scan / Add"
+        title="Add"
         description="Capture up to 5 photos, identify part suggestions, then edit before saving."
         action={null}
       />
@@ -386,7 +389,7 @@ export function ScanAddPage() {
 
             <button
               onClick={submitIdentify}
-              disabled={isSubmitting || photos.length === 0}
+              disabled={!isSubmitting && photos.length === 0}
               className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
             >
               {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Filter size={14} />}
