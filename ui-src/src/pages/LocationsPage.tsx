@@ -43,6 +43,7 @@ export function LocationsPage() {
   const [editForm, setEditForm] = useState<LocationForm>(EMPTY_FORM);
   const [initialEditForm, setInitialEditForm] = useState<LocationForm>(EMPTY_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -109,6 +110,25 @@ export function LocationsPage() {
   function cancelEdit() {
     setEditingId(null);
     setEditForm(EMPTY_FORM);
+    setInitialEditForm(EMPTY_FORM);
+    setUnsavedPromptOpen(false);
+  }
+
+  function requestCancelEdit() {
+    if (isEditDirty) {
+      setUnsavedPromptOpen(true);
+      return;
+    }
+    cancelEdit();
+  }
+
+  async function handleUnsavedSave() {
+    await saveEdit();
+    // saveEdit calls cancelEdit on success; if it fails the prompt stays open.
+  }
+
+  function handleUnsavedDiscard() {
+    cancelEdit();
   }
 
   async function uploadPhoto(file: File, target: "new" | "edit") {
@@ -423,7 +443,7 @@ export function LocationsPage() {
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-neutral-100">Edit Location</h2>
             <button
-              onClick={cancelEdit}
+              onClick={requestCancelEdit}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
             >
               <X size={13} />
@@ -525,8 +545,44 @@ export function LocationsPage() {
         </>
       )}
 
-      {confirmDeleteLocation && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+      {unsavedPromptOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
+            <p className="text-sm text-neutral-300">
+              You have unsaved changes. Do you want to save before leaving this location?
+            </p>
+            <div className="pt-1 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setUnsavedPromptOpen(false)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnsavedDiscard}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30"
+              >
+                Discard
+              </button>
+              <button
+                onClick={() => void handleUnsavedSave()}
+                disabled={isSavingEdit}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
+              >
+                <Save size={14} />
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteLocation && (        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
