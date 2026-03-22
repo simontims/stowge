@@ -10,13 +10,14 @@ Mode = Literal["one", "many", "five", "three"]
 LITELLM_TIMEOUT = 45.0
 
 SYSTEM_PROMPT = (
-    "You are an assistant helping inventory electronic components and modules from photos.\n"
+    "You are an assistant helping inventory items from photos.\n"
     "Be conservative: if you cannot read markings or cannot confidently identify, set unknown=true.\n"
     "Prefer a practical inventory name over a perfect part number.\n\n"
     "Return concise results:\n"
     "- unknown: true|false\n"
     "- name: short label (e.g., \"ESP32-WROOM-32 Dev Module\", \"AMS1117-3.3 Regulator Module\")\n"
-    "- description: 1-3 sentences with key markings/features and what to verify\n"
+    "- description: 1-3 sentences with key markings/features and what to verify. "
+    "Do NOT start the description with 'This is a', 'This is an', 'This is', or similar phrasing — write directly about the item.\n"
     "- category: module|ic|connector|sensor|passive|devboard|cable|tool|unknown\n"
     "- confidence: 0..1\n"
     "- evidence: the markings you read and visual cues you used\n"
