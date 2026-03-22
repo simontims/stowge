@@ -30,6 +30,11 @@ interface ModelOptionGroups {
   all: string[];
 }
 
+interface RecommendedModelDescriptor {
+  model: string;
+  aliases?: string[];
+}
+
 interface ProvidersCatalogResponse {
   providers: ProviderOption[];
 }
@@ -113,19 +118,45 @@ const FALLBACK_PROVIDERS: ProviderOption[] = [
   },
 ];
 
-const RECOMMENDED_MODELS_BY_PROVIDER: Record<string, string[]> = {
+const RECOMMENDED_MODELS_BY_PROVIDER: Record<string, RecommendedModelDescriptor[]> = {
   // Prioritize models suitable for identifying objects from photos with optional hint text.
-  openai: ["openai/gpt-4.1", "openai/gpt-4.1-mini", "openai/gpt-4o-mini"],
-  anthropic: ["anthropic/claude-3-5-sonnet-latest", "anthropic/claude-3-5-haiku-latest"],
-  gemini: ["gemini/gemini-1.5-pro", "gemini/gemini-2.0-flash", "gemini/gemini-1.5-flash"],
-  azure: ["azure/gpt-4.1-mini", "azure/gpt-4o-mini", "azure/YOUR_DEPLOYMENT_NAME"],
-  groq: ["groq/llama-3.1-70b-versatile"],
-  mistral: ["mistral/mistral-large-latest"],
-  xai: ["xai/grok-2-latest"],
+  openai: [
+    { model: "openai/gpt-4.1" },
+    { model: "openai/gpt-4.1-mini" },
+    { model: "openai/gpt-4o-mini" },
+  ],
+  anthropic: [
+    { model: "anthropic/claude-3-5-sonnet-latest", aliases: ["claude-3-5-sonnet", "claude-3.5-sonnet"] },
+    { model: "anthropic/claude-3-5-haiku-latest", aliases: ["claude-3-5-haiku", "claude-3.5-haiku"] },
+  ],
+  gemini: [
+    { model: "gemini/gemini-1.5-pro" },
+    { model: "gemini/gemini-2.0-flash" },
+    { model: "gemini/gemini-1.5-flash" },
+  ],
+  azure: [
+    { model: "azure/gpt-4.1-mini" },
+    { model: "azure/gpt-4o-mini" },
+    { model: "azure/YOUR_DEPLOYMENT_NAME" },
+  ],
+  groq: [
+    {
+      model: "groq/llama-3.1-70b-versatile",
+      aliases: [
+        "llama-3.3-70b-versatile",
+        "llama3-70b-8192",
+        "llama-3.1-8b-instant",
+        "llama3-8b-8192",
+        "mixtral-8x7b-32768",
+      ],
+    },
+  ],
+  mistral: [{ model: "mistral/mistral-large-latest" }],
+  xai: [{ model: "xai/grok-2-latest" }],
   openrouter: [
-    "openrouter/openai/gpt-4o-mini",
-    "openrouter/anthropic/claude-3.5-sonnet",
-    "openrouter/google/gemini-1.5-pro",
+    { model: "openrouter/openai/gpt-4o-mini" },
+    { model: "openrouter/anthropic/claude-3.5-sonnet" },
+    { model: "openrouter/google/gemini-1.5-pro" },
   ],
 };
 
@@ -233,6 +264,18 @@ export function SettingsAiPage() {
     return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
   }
 
+  function matchesRecommendedModel(
+    provider: string,
+    candidate: string,
+    recommendation: RecommendedModelDescriptor
+  ): boolean {
+    const candidateKey = normalizeModelNameForProvider(candidate, provider);
+    const expected = [recommendation.model, ...(recommendation.aliases || [])].map((value) =>
+      normalizeModelNameForProvider(value, provider)
+    );
+    return expected.some((key) => candidateKey === key || candidateKey.startsWith(`${key}-`));
+  }
+
   function getModelOptionGroups(provider: string): ModelOptionGroups {
     const allModels = getProviderModels(provider);
     const recommendedForProvider = RECOMMENDED_MODELS_BY_PROVIDER[provider] || [];
@@ -240,11 +283,10 @@ export function SettingsAiPage() {
     const recommended: string[] = [];
 
     for (const desiredModel of recommendedForProvider) {
-      const desiredKey = normalizeModelNameForProvider(desiredModel, provider);
       const matched = allModels.find(
         (candidate) =>
           !used.has(candidate) &&
-          normalizeModelNameForProvider(candidate, provider) === desiredKey
+          matchesRecommendedModel(provider, candidate, desiredModel)
       );
       if (matched) {
         used.add(matched);
