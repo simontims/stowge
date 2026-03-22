@@ -22,6 +22,7 @@ interface PartDetail {
   name: string;
   description: string | null;
   category: string | null;
+  location: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -37,6 +38,7 @@ interface PartEditForm {
   name: string;
   description: string;
   category: string;
+  location: string;
   status: "draft" | "confirmed";
 }
 
@@ -44,6 +46,7 @@ const EMPTY_EDIT_FORM: PartEditForm = {
   name: "",
   description: "",
   category: "",
+  location: "",
   status: "draft",
 };
 
@@ -52,6 +55,7 @@ function toEditForm(part: PartDetail): PartEditForm {
     name: part.name ?? "",
     description: part.description ?? "",
     category: part.category ?? "",
+    location: part.location ?? "",
     status: part.status === "confirmed" ? "confirmed" : "draft",
   };
 }
@@ -61,6 +65,7 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
     a.name.trim() === b.name.trim() &&
     a.description.trim() === b.description.trim() &&
     a.category.trim() === b.category.trim() &&
+    a.location.trim() === b.location.trim() &&
     a.status === b.status
   );
 }
@@ -267,6 +272,7 @@ export function PartsPage() {
           name: trimmedName,
           description: editForm.description.trim() || null,
           category: editForm.category.trim() || null,
+          location: editForm.location.trim() || null,
           status: editForm.status,
         }),
       });
@@ -488,7 +494,7 @@ export function PartsPage() {
           >
             <div className="flex items-center justify-between gap-2">
               <div>
-                <h3 className="text-base font-semibold text-neutral-100">Part Details</h3>
+                <h3 className="text-base font-semibold text-neutral-100">Item Details</h3>
                 {selectedPart && (
                   <p className="text-xs text-neutral-500">ID: {selectedPart.id}</p>
                 )}
@@ -539,6 +545,18 @@ export function PartsPage() {
                       value={editForm.category}
                       onChange={(event) =>
                         setEditForm((current) => ({ ...current, category: event.target.value }))
+                      }
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                      placeholder="Optional"
+                    />
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
+                    <input
+                      value={editForm.location}
+                      onChange={(event) =>
+                        setEditForm((current) => ({ ...current, location: event.target.value }))
                       }
                       className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
                       placeholder="Optional"
