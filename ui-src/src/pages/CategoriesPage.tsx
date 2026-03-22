@@ -371,6 +371,7 @@ export function CategoriesPage() {
     () => categories.find((c) => c.id === editingId) || null,
     [categories, editingId]
   );
+  const showListView = !addingOpen && !editingId;
 
   const isEditDirty = useMemo(
     () =>
@@ -579,7 +580,7 @@ export function CategoriesPage() {
         title="Categories"
         description="Organise items into categories and guide the AI with per-category hints."
         action={
-          !addingOpen && !editingId ? (
+          showListView ? (
             <button
               onClick={() => { setAddingOpen(true); setError(""); }}
               className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
@@ -653,7 +654,7 @@ export function CategoriesPage() {
       {error && <p className="text-sm text-red-400">{error}</p>}
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-      {!editingId && (
+      {showListView && (
         <>
           <div className="flex items-center gap-2">
             <SearchInput

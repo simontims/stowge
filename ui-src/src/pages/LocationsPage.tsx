@@ -56,6 +56,7 @@ export function LocationsPage() {
     () => locations.find((location) => location.id === editingId) || null,
     [locations, editingId]
   );
+  const showListView = !addingOpen && !editingLocation;
 
   const confirmDeleteLocation = useMemo(
     () => locations.find((location) => location.id === confirmDeleteId) || null,
@@ -347,7 +348,7 @@ export function LocationsPage() {
         title="Locations"
         description="Add, edit, and delete storage locations for your inventory."
         action={
-          !addingOpen ? (
+          showListView ? (
             <button
               onClick={() => {
                 setAddingOpen(true);
@@ -532,7 +533,7 @@ export function LocationsPage() {
       {error && <p className="text-sm text-red-400">{error}</p>}
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-      {!editingLocation && (
+      {showListView && (
         <>
           <div className="flex items-center gap-2">
             <SearchInput

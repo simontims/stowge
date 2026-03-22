@@ -164,6 +164,7 @@ export function SettingsAiPage() {
     () => configs.find((c) => c.id === editingId) || null,
     [configs, editingId]
   );
+  const showListView = !addingOpen && !editingId;
 
   const isEditDirty = useMemo(
     () =>
@@ -540,7 +541,7 @@ export function SettingsAiPage() {
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
       <div className="flex justify-end">
-        {!addingOpen && !editingId && (
+        {showListView && (
           <button
             onClick={() => setAddingOpen(true)}
             className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
@@ -551,7 +552,7 @@ export function SettingsAiPage() {
         )}
       </div>
 
-      {!editingId && (
+      {showListView && (
       <section className="rounded-lg border border-neutral-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
