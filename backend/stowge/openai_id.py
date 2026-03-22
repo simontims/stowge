@@ -9,7 +9,7 @@ Mode = Literal["one", "many", "five", "three"]
 
 LITELLM_TIMEOUT = 45.0
 
-SYSTEM_PROMPT = (
+SYSTEM_PROMPT_BASE = (
     "You are an assistant helping inventory items from photos.\n"
     "Be conservative: if you cannot read markings or cannot confidently identify, set unknown=true.\n"
     "Prefer a practical inventory name over a perfect part number.\n\n"
@@ -20,50 +20,65 @@ SYSTEM_PROMPT = (
     "Do NOT start the description with 'This is a', 'This is an', 'This is', or similar phrasing — write directly about the item.\n"
     "- category: module|ic|connector|sensor|passive|devboard|cable|tool|unknown\n"
     "- confidence: 0..1\n"
-    "- evidence: the markings you read and visual cues you used\n"
 )
 
-JSON_SCHEMA_ONE: Dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "required": ["unknown", "name", "description", "category", "confidence", "evidence"],
-    "properties": {
+def _system_prompt(include_evidence: bool) -> str:
+    if include_evidence:
+        return SYSTEM_PROMPT_BASE + "- evidence: the markings you read and visual cues you used\n"
+    return SYSTEM_PROMPT_BASE
+
+
+def _json_schema_one(include_evidence: bool) -> Dict[str, Any]:
+    required = ["unknown", "name", "description", "category", "confidence"]
+    properties: Dict[str, Any] = {
         "unknown": {"type": "boolean"},
         "name": {"type": "string"},
         "description": {"type": "string"},
         "category": {"type": "string"},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        "evidence": {"type": "string"},
-    },
-}
+    }
+    if include_evidence:
+        required.append("evidence")
+        properties["evidence"] = {"type": "string"}
 
-JSON_SCHEMA_THREE: Dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "required": ["candidates"],
-    "properties": {
-        "candidates": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 3,
-            "items": JSON_SCHEMA_ONE,
-        }
-    },
-}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": properties,
+    }
 
-JSON_SCHEMA_FIVE: Dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "required": ["candidates"],
-    "properties": {
-        "candidates": {
-            "type": "array",
-            "minItems": 5,
-            "maxItems": 5,
-            "items": JSON_SCHEMA_ONE,
-        }
-    },
-}
+
+def _json_schema_three(include_evidence: bool) -> Dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["candidates"],
+        "properties": {
+            "candidates": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": _json_schema_one(include_evidence),
+            }
+        },
+    }
+
+
+def _json_schema_five(include_evidence: bool) -> Dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["candidates"],
+        "properties": {
+            "candidates": {
+                "type": "array",
+                "minItems": 5,
+                "maxItems": 5,
+                "items": _json_schema_one(include_evidence),
+            }
+        },
+    }
 
 _ALLOWED_CATEGORIES = {
     "module",
@@ -82,12 +97,12 @@ _JSON_ONLY_INSTRUCTION = (
 )
 
 
-def _schema_instruction(mode: Mode) -> str:
+def _schema_instruction(mode: Mode, include_evidence: bool) -> str:
     if mode == "three":
         return (
             f"{_JSON_ONLY_INSTRUCTION}\n"
             "You must return an object matching this JSON schema:\n"
-            f"{json.dumps(JSON_SCHEMA_THREE)}\n"
+            f"{json.dumps(_json_schema_three(include_evidence))}\n"
             "Return only candidates you can genuinely identify or clear alternatives.\n"
             "Do NOT include filler items with unknown confidence. Return 1, 2, or 3 items as appropriate.\n"
             "If the first item is very confident and you cannot identify genuine alternatives, return just 1.\n"
@@ -96,13 +111,13 @@ def _schema_instruction(mode: Mode) -> str:
         return (
             f"{_JSON_ONLY_INSTRUCTION}\n"
             "You must return an object matching this JSON schema:\n"
-            f"{json.dumps(JSON_SCHEMA_FIVE)}\n"
+            f"{json.dumps(_json_schema_five(include_evidence))}\n"
             "Provide exactly 5 candidates, best first.\n"
         )
     return (
         f"{_JSON_ONLY_INSTRUCTION}\n"
         "You must return an object matching this JSON schema:\n"
-        f"{json.dumps(JSON_SCHEMA_ONE)}\n"
+        f"{json.dumps(_json_schema_one(include_evidence))}\n"
         "Pick the single best guess even if uncertain.\n"
     )
 
@@ -133,7 +148,7 @@ def _extract_json(text: str) -> str:
     return ""
 
 
-def _coerce_and_sanitize_one(obj: Dict[str, Any]) -> Dict[str, Any]:
+def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dict[str, Any]:
     # Provide safe defaults / coercions
     unknown = bool(obj.get("unknown", False))
     name = str(obj.get("name", "")).strip()
@@ -156,27 +171,28 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any]) -> Dict[str, Any]:
         name = "Unknown part"
     if not description:
         description = "No description provided."
-    if not evidence:
-        evidence = "No clear markings or distinctive features could be confirmed."
-
-    return {
+    out: Dict[str, Any] = {
         "unknown": unknown,
         "name": name,
         "description": description,
         "category": category,
         "confidence": confidence,
-        "evidence": evidence,
     }
+    if include_evidence:
+        if not evidence:
+            evidence = "No clear markings or distinctive features could be confirmed."
+        out["evidence"] = evidence
+    return out
 
 
-def _sanitize(mode: Mode, parsed: Dict[str, Any]) -> Dict[str, Any]:
+def _sanitize(mode: Mode, parsed: Dict[str, Any], include_evidence: bool) -> Dict[str, Any]:
     if mode == "three":
         cands = parsed.get("candidates", [])
         if not isinstance(cands, list):
             cands = []
         # Allow 1-3 items, no padding
         cands = cands[:3]
-        return {"candidates": [_coerce_and_sanitize_one(c) if isinstance(c, dict) else _coerce_and_sanitize_one({}) for c in cands]}
+        return {"candidates": [_coerce_and_sanitize_one(c, include_evidence) if isinstance(c, dict) else _coerce_and_sanitize_one({}, include_evidence) for c in cands]}
     if mode in ("many", "five"):
         cands = parsed.get("candidates", [])
         if not isinstance(cands, list):
@@ -191,13 +207,12 @@ def _sanitize(mode: Mode, parsed: Dict[str, Any]) -> Dict[str, Any]:
                     "description": "Could not confidently identify from photos.",
                     "category": "unknown",
                     "confidence": 0.0,
-                    "evidence": "Insufficient visual evidence.",
                 }
             )
-        return {"candidates": [_coerce_and_sanitize_one(c) if isinstance(c, dict) else _coerce_and_sanitize_one({}) for c in cands]}
+        return {"candidates": [_coerce_and_sanitize_one(c, include_evidence) if isinstance(c, dict) else _coerce_and_sanitize_one({}, include_evidence) for c in cands]}
 
     # one
-    return _coerce_and_sanitize_one(parsed if isinstance(parsed, dict) else {})
+    return _coerce_and_sanitize_one(parsed if isinstance(parsed, dict) else {}, include_evidence)
 
 
 def identify(
@@ -205,6 +220,7 @@ def identify(
     llm_config: Dict[str, Any],
     mode: Mode = "one",
     model: Optional[str] = None,
+    include_evidence: bool = True,
 ) -> Dict[str, Any]:
     """
     images_b64: list of base64 strings (no data: prefix)
@@ -227,7 +243,7 @@ def identify(
     api_base = str(api_base_raw).strip() if api_base_raw else None
 
     # Build multi-modal message content: instruction + images
-    user_content: List[Dict[str, Any]] = [{"type": "text", "text": _schema_instruction(mode)}]
+    user_content: List[Dict[str, Any]] = [{"type": "text", "text": _schema_instruction(mode, include_evidence)}]
     for b64 in images_b64[:5]:
         user_content.append(
             {
@@ -240,7 +256,7 @@ def identify(
         resp = completion(
             model=use_model,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": _system_prompt(include_evidence)},
                 {"role": "user", "content": user_content},
             ],
             temperature=0.2,
@@ -258,16 +274,16 @@ def identify(
     if not json_text:
         # Return something predictable instead of blowing up
         if mode in ("many", "five"):
-            return _sanitize(mode, {"candidates": []}) | {"raw": text, "error": "model_returned_no_json"}
-        return _sanitize(mode, {}) | {"raw": text, "error": "model_returned_no_json"}
+            return _sanitize(mode, {"candidates": []}, include_evidence) | {"raw": text, "error": "model_returned_no_json"}
+        return _sanitize(mode, {}, include_evidence) | {"raw": text, "error": "model_returned_no_json"}
 
     try:
         parsed = json.loads(json_text)
     except Exception:
         # Still salvageable: return sanitized fallback with raw
         if mode in ("many", "five"):
-            return _sanitize(mode, {"candidates": []}) | {"raw": text, "error": "model_returned_invalid_json"}
-        return _sanitize(mode, {}) | {"raw": text, "error": "model_returned_invalid_json"}
+            return _sanitize(mode, {"candidates": []}, include_evidence) | {"raw": text, "error": "model_returned_invalid_json"}
+        return _sanitize(mode, {}, include_evidence) | {"raw": text, "error": "model_returned_invalid_json"}
 
     # Enforce shape (best-effort) and return
-    return _sanitize(mode, parsed)
+    return _sanitize(mode, parsed, include_evidence)

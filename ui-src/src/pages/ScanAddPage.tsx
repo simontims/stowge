@@ -470,14 +470,14 @@ export function ScanAddPage() {
                   </div>
                 </div>
 
-                <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3">
-                  <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                    Evidence
-                  </p>
-                  <p className="text-sm text-neutral-400">
-                    {selectedCandidate?.evidence || "No evidence returned."}
-                  </p>
-                </div>
+                {selectedCandidate?.evidence ? (
+                  <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3">
+                    <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">
+                      Evidence
+                    </p>
+                    <p className="text-sm text-neutral-400">{selectedCandidate.evidence}</p>
+                  </div>
+                ) : null}
               </div>
 
               <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur md:static md:mx-0 md:px-0 md:py-0 md:border-0 md:bg-transparent md:backdrop-blur-none">

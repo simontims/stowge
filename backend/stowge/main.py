@@ -183,6 +183,7 @@ def _serialize_llm_public(cfg: LLMConfig) -> dict:
         "model": cfg.model,
         "api_base": cfg.api_base,
         "is_default": bool(cfg.is_default),
+        "evidence_enabled": bool(cfg.evidence_enabled),
     }
 
 
@@ -264,6 +265,8 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN api_base VARCHAR NULL"))
             if "is_default" not in llm_columns:
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0"))
+            if "evidence_enabled" not in llm_columns:
+                conn.execute(text("ALTER TABLE llm_configs ADD COLUMN evidence_enabled INTEGER NOT NULL DEFAULT 0"))
 
         # Backfill legacy configs so API base is always present.
         with Session(bind=engine) as db:
@@ -297,6 +300,7 @@ def _run_startup_migrations():
                     api_key=openai_key,
                     api_base="https://api.openai.com/v1",
                     is_default=1,
+                    evidence_enabled=0,
                 )
                 db.add(cfg)
                 db.commit()
@@ -797,6 +801,7 @@ def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = D
     api_key = str(payload.get("api_key") or "").strip()
     api_base = str(payload.get("api_base") or "").strip()
     is_default = bool(payload.get("is_default", False))
+    evidence_enabled = bool(payload.get("evidence_enabled", False))
 
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
@@ -818,6 +823,7 @@ def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = D
         api_key=api_key,
         api_base=api_base,
         is_default=1 if is_default else 0,
+        evidence_enabled=1 if evidence_enabled else 0,
         updated_at=datetime.now(timezone.utc),
     )
     db.add(cfg)
@@ -877,6 +883,9 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
     if bool(payload.get("is_default", False)):
         db.query(LLMConfig).filter(LLMConfig.id != cfg.id).update({"is_default": 0})
         cfg.is_default = 1
+
+    if "evidence_enabled" in payload:
+        cfg.evidence_enabled = 1 if bool(payload.get("evidence_enabled")) else 0
 
     cfg.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -983,6 +992,7 @@ def identify(
             "api_base": cfg.api_base,
         },
         mode=ai_mode,
+        include_evidence=bool(cfg.evidence_enabled),
     )
 
     return {

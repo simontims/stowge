@@ -10,6 +10,7 @@ interface AiConfig {
   model: string;
   api_base: string | null;
   is_default: boolean;
+  evidence_enabled: boolean;
 }
 
 interface AiAdminResponse {
@@ -35,6 +36,7 @@ interface NewConfigForm {
   api_key: string;
   api_base: string;
   is_default: boolean;
+  evidence_enabled: boolean;
 }
 
 interface EditConfigForm {
@@ -44,6 +46,7 @@ interface EditConfigForm {
   api_key: string;
   api_base: string;
   is_default: boolean;
+  evidence_enabled: boolean;
 }
 
 const FALLBACK_PROVIDERS: ProviderOption[] = [
@@ -112,6 +115,7 @@ const EMPTY_FORM: NewConfigForm = {
   api_key: "",
   api_base: FALLBACK_PROVIDERS[0].api_base,
   is_default: false,
+  evidence_enabled: false,
 };
 
 export function SettingsAiPage() {
@@ -143,6 +147,7 @@ export function SettingsAiPage() {
     api_key: "",
     api_base: FALLBACK_PROVIDERS[0].api_base,
     is_default: false,
+    evidence_enabled: false,
   });
   const [initialEditForm, setInitialEditForm] = useState<EditConfigForm>({
     name: "",
@@ -151,6 +156,7 @@ export function SettingsAiPage() {
     api_key: "",
     api_base: FALLBACK_PROVIDERS[0].api_base,
     is_default: false,
+    evidence_enabled: false,
   });
 
   const hasConfigs = useMemo(() => configs.length > 0, [configs]);
@@ -166,7 +172,8 @@ export function SettingsAiPage() {
       editForm.model !== initialEditForm.model ||
       editForm.api_key !== "" ||
       editForm.api_base !== initialEditForm.api_base ||
-      editForm.is_default !== initialEditForm.is_default,
+      editForm.is_default !== initialEditForm.is_default ||
+      editForm.evidence_enabled !== initialEditForm.evidence_enabled,
     [editForm, initialEditForm]
   );
 
@@ -248,6 +255,7 @@ export function SettingsAiPage() {
           api_key: form.api_key.trim(),
           api_base: form.api_base.trim(),
           is_default: form.is_default,
+          evidence_enabled: form.evidence_enabled,
         }),
       });
       setForm(EMPTY_FORM);
@@ -326,6 +334,7 @@ export function SettingsAiPage() {
       api_key: "",
       api_base: (config.api_base || "").trim() || provider.api_base,
       is_default: config.id === defaultId,
+      evidence_enabled: !!config.evidence_enabled,
     };
     setEditingId(config.id);
     setInitialEditForm(snapshot);
@@ -383,6 +392,7 @@ export function SettingsAiPage() {
           api_base: editForm.api_base.trim(),
           api_key: editForm.api_key.trim() || undefined,
           is_default: editForm.is_default,
+          evidence_enabled: editForm.evidence_enabled,
         }),
       });
       cancelEdit();
@@ -486,6 +496,21 @@ export function SettingsAiPage() {
               />
               Set as default model
             </label>
+
+            <label className="block sm:col-span-2 rounded-md border border-neutral-800 bg-neutral-950/60 px-3 py-2">
+              <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
+                <input
+                  type="checkbox"
+                  checked={form.evidence_enabled}
+                  onChange={(e) => setForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
+                  className="rounded border-neutral-700 bg-neutral-950"
+                />
+                Include identiticaton evidence
+              </span>
+              <p className="mt-1 text-xs text-neutral-500">
+                Turning this on will report evidence for AI item identification in the Add Item flow. This increases token usage and AI cost.
+              </p>
+            </label>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -535,13 +560,14 @@ export function SettingsAiPage() {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Name</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Provider</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Model</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Evidence</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
               </tr>
             </thead>
             <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
               {!hasConfigs ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-neutral-600">
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-neutral-600">
                     {loading ? "Loading AI models..." : "No AI models configured yet."}
                   </td>
                 </tr>
@@ -567,6 +593,18 @@ export function SettingsAiPage() {
                       </td>
                       <td className="px-4 py-2.5 text-neutral-300">{cfg.provider}</td>
                       <td className="px-4 py-2.5 text-neutral-300">{cfg.model}</td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={[
+                            "inline-flex items-center px-2 py-0.5 rounded border text-xs",
+                            cfg.evidence_enabled
+                              ? "border-emerald-500/70 text-emerald-300 bg-emerald-950/30"
+                              : "border-neutral-700 text-neutral-400 bg-neutral-900",
+                          ].join(" ")}
+                        >
+                          {cfg.evidence_enabled ? "On" : "Off"}
+                        </span>
+                      </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
@@ -710,6 +748,21 @@ export function SettingsAiPage() {
                 className="rounded border-neutral-700 bg-neutral-950"
               />
               Set as default model
+            </label>
+
+            <label className="block sm:col-span-2 rounded-md border border-neutral-800 bg-neutral-950/60 px-3 py-2">
+              <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
+                <input
+                  type="checkbox"
+                  checked={editForm.evidence_enabled}
+                  onChange={(e) => setEditForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
+                  className="rounded border-neutral-700 bg-neutral-950"
+                />
+                Include identiticaton evidence
+              </span>
+              <p className="mt-1 text-xs text-neutral-500">
+                Turning this on will report evidence for AI item identification in the Add Item flow. This increases token usage and AI cost.
+              </p>
             </label>
           </div>
 

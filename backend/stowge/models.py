@@ -63,6 +63,7 @@ class LLMConfig(Base):
     api_key = Column(String, nullable=False)
     api_base = Column(String, nullable=True)
     is_default = Column(Integer, nullable=False, default=0)  # 0|1 for sqlite compatibility
+    evidence_enabled = Column(Integer, nullable=False, default=0)  # 0|1, off by default
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
