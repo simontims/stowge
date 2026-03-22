@@ -42,18 +42,18 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   // Static quick-action commands
   const staticCommands: Command[] = [
     {
-      id: "add-part",
-      label: "Add Part",
-      description: "Add a new part to inventory",
+      id: "add-item",
+      label: "Add Item",
+      description: "Add a new item to inventory",
       icon: <Plus size={14} />,
       action: () => go("/scan"),
     },
     {
-      id: "search-parts",
-      label: "Search Parts",
-      description: "Browse the parts list",
+      id: "search-items",
+      label: "Search Items",
+      description: "Browse the items list",
       icon: <Search size={14} />,
-      action: () => go("/parts"),
+      action: () => go("/items"),
     },
     {
       id: "move-stock",
@@ -65,9 +65,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     {
       id: "adjust-qty",
       label: "Adjust Quantity",
-      description: "Update stock quantity for a part",
+      description: "Update stock quantity for an item",
       icon: <BarChart3 size={14} />,
-      action: () => go("/parts"),
+      action: () => go("/items"),
     },
     {
       id: "open-suppliers",
@@ -93,7 +93,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     {
       id: "import-csv",
       label: "Import CSV",
-      description: "Import parts from a CSV file",
+      description: "Import items from a CSV file",
       icon: <Upload size={14} />,
       action: () => go("/imports"),
     },

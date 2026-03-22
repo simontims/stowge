@@ -53,7 +53,9 @@ export default function App() {
       <AppShell onCommandOpen={() => setCommandOpen(true)} onLogout={handleLogout}>
         <Routes>
           <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance." />} />
+          <Route path="/items"      element={<PartsPage />} />
           <Route path="/parts"      element={<PartsPage />} />
+          <Route path="/items/new"  element={<ScanAddPage />} />
           <Route path="/parts/new"  element={<ScanAddPage />} />
           <Route path="/locations"  element={<LocationsPage />} />
           <Route path="/categories" element={<PlaceholderPage title="Categories" description="Organise parts into categories." />} />
