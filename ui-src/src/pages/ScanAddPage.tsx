@@ -46,10 +46,19 @@ interface AiSettingsResponse {
   configs: LlmOption[];
 }
 
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
+interface MeResponse {
+  preferred_add_category_id?: string | null;
+}
+
 interface PartDraft {
   name: string;
   description: string;
-  category: string;
+  category_id: string;
   status: "draft" | "confirmed";
 }
 
@@ -70,9 +79,11 @@ export function ScanAddPage() {
   const [draft, setDraft] = useState<PartDraft>({
     name: "",
     description: "",
-    category: "",
+    category_id: "",
     status: "draft",
   });
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [preferredCategoryId, setPreferredCategoryId] = useState<string>("");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -101,6 +112,7 @@ export function ScanAddPage() {
 
   useEffect(() => {
     void loadAiSettings();
+    void loadAddPreferences();
   }, []);
 
   useEffect(() => {
@@ -122,9 +134,40 @@ export function ScanAddPage() {
   function clearSession() {
     setIdentifyData(null);
     setSelectedIndex(0);
-    setDraft({ name: "", description: "", category: "", status: "draft" });
+    setDraft({
+      name: "",
+      description: "",
+      category_id: preferredCategoryId,
+      status: "draft",
+    });
     setSaveError("");
     setSubmitError("");
+  }
+
+  async function loadAddPreferences() {
+    try {
+      const [categoryData, meData] = await Promise.all([
+        apiRequest<CategoryOption[]>("/api/categories"),
+        apiRequest<MeResponse>("/api/me"),
+      ]);
+
+      const options = categoryData || [];
+      setCategories(options);
+
+      const preferred = meData.preferred_add_category_id || "";
+      const validPreferred = options.some((cat) => cat.id === preferred)
+        ? preferred
+        : "";
+
+      setPreferredCategoryId(validPreferred);
+      setDraft((current) => ({
+        ...current,
+        category_id: current.category_id || validPreferred,
+      }));
+    } catch {
+      setCategories([]);
+      setPreferredCategoryId("");
+    }
   }
 
   async function loadAiSettings() {
@@ -151,9 +194,23 @@ export function ScanAddPage() {
     setDraft({
       name: candidate?.name || "Unknown part",
       description: candidate?.description || "",
-      category: candidate?.category || (candidate?.unknown ? "unknown" : ""),
+      category_id: preferredCategoryId,
       status: "draft",
     });
+  }
+
+  async function persistPreferredCategory(categoryId: string) {
+    try {
+      await apiRequest("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({
+          preferred_add_category_id: categoryId || null,
+        }),
+      });
+      setPreferredCategoryId(categoryId);
+    } catch {
+      // Keep Add flow usable even if preference persistence fails.
+    }
   }
 
   async function onTakePicture() {
@@ -254,7 +311,7 @@ export function ScanAddPage() {
       const payload = {
         name: draft.name.trim(),
         description: draft.description,
-        category: draft.category.trim(),
+        category: categories.find((cat) => cat.id === draft.category_id)?.name || null,
         status: draft.status,
         ai_primary: identifyData?.ai || selectedCandidate || null,
         ai_alternatives: candidates.length > 1 ? { candidates: candidates.slice(1) } : null,
@@ -441,13 +498,22 @@ export function ScanAddPage() {
                     <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
                       Category
                     </label>
-                    <input
-                      value={draft.category}
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, category: e.target.value }))
-                      }
+                    <select
+                      value={draft.category_id}
+                      onChange={(e) => {
+                        const nextCategoryId = e.target.value;
+                        setDraft((d) => ({ ...d, category_id: nextCategoryId }));
+                        void persistPreferredCategory(nextCategoryId);
+                      }}
                       className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    />
+                    >
+                      <option value="">None</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>

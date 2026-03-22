@@ -106,6 +106,7 @@ def _serialize_user(user: User) -> dict:
         "surname": user.last_name or "",
         "role": user.role,
         "theme": user.theme or "dark",
+        "preferred_add_category_id": user.preferred_add_category_id,
         "created_at": _utc_iso(user.created_at),
         "last_login_at": _utc_iso(user.last_login_at),
     }
@@ -257,6 +258,8 @@ def _run_startup_migrations():
             conn.execute(text("ALTER TABLE users ADD COLUMN last_name VARCHAR NOT NULL DEFAULT ''"))
         if "theme" not in columns:
             conn.execute(text("ALTER TABLE users ADD COLUMN theme VARCHAR NOT NULL DEFAULT 'dark'"))
+        if "preferred_add_category_id" not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN preferred_add_category_id VARCHAR NULL"))
 
     if "llm_configs" in tables:
         llm_columns = {c["name"] for c in inspector.get_columns("llm_configs")}
@@ -480,6 +483,16 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
         if theme not in ("dark", "light"):
             raise HTTPException(status_code=400, detail="theme must be dark|light")
         u.theme = theme
+    if "preferred_add_category_id" in payload:
+        raw_category_id = payload.get("preferred_add_category_id")
+        category_id = (str(raw_category_id).strip() if raw_category_id is not None else "")
+        if not category_id:
+            u.preferred_add_category_id = None
+        else:
+            exists = db.query(Category.id).filter(Category.id == category_id).first()
+            if not exists:
+                raise HTTPException(status_code=400, detail="Invalid preferred_add_category_id")
+            u.preferred_add_category_id = category_id
     db.commit()
     db.refresh(u)
     return _serialize_user(u)
@@ -1031,6 +1044,10 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
         raise HTTPException(status_code=400, detail="status must be draft|confirmed")
     if len(name) < 2:
         raise HTTPException(status_code=400, detail="name required")
+    if category:
+        exists = db.query(Category.id).filter(Category.name == category).first()
+        if not exists:
+            raise HTTPException(status_code=400, detail="Invalid category")
 
     stored_images = payload.get("stored_images") or []
     if not stored_images:
@@ -1132,9 +1149,20 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
-    for field in ("name", "description", "category", "status"):
+    for field in ("name", "description", "status"):
         if field in payload:
             setattr(p, field, payload[field])
+
+    if "category" in payload:
+        raw_category = payload.get("category")
+        category = (str(raw_category).strip() if raw_category is not None else "")
+        if not category:
+            p.category = None
+        else:
+            exists = db.query(Category.id).filter(Category.name == category).first()
+            if not exists:
+                raise HTTPException(status_code=400, detail="Invalid category")
+            p.category = category
 
     if "location_id" in payload:
         location_id = payload.get("location_id")

@@ -16,6 +16,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="admin")  # admin|user
     theme = Column(String, nullable=False, default="dark")  # dark|light
+    preferred_add_category_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
 
