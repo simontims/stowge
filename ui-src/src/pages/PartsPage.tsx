@@ -698,7 +698,7 @@ export function PartsPage() {
                     className={[
                       "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors disabled:opacity-60",
                       hasDirtyChanges
-                        ? "border-amber-500/60 bg-amber-950/30 text-amber-300"
+                        ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
                         : "border-neutral-700 text-neutral-500",
                     ].join(" ")}
                   >
@@ -739,7 +739,7 @@ export function PartsPage() {
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={savingDetail}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-amber-500/60 bg-amber-950/30 text-amber-300 hover:text-amber-200 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
               >
                 <Save size={14} />
                 Save

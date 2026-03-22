@@ -501,7 +501,7 @@ export function ScanAddPage() {
                   <button
                     onClick={savePart}
                     disabled={isSaving}
-                    className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
                   >
                     {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                     Save
