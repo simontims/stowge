@@ -25,6 +25,11 @@ interface ProviderOption {
   models: string[];
 }
 
+interface ModelOptionGroups {
+  recommended: string[];
+  all: string[];
+}
+
 interface ProvidersCatalogResponse {
   providers: ProviderOption[];
 }
@@ -108,6 +113,22 @@ const FALLBACK_PROVIDERS: ProviderOption[] = [
   },
 ];
 
+const RECOMMENDED_MODELS_BY_PROVIDER: Record<string, string[]> = {
+  // Prioritize models suitable for identifying objects from photos with optional hint text.
+  openai: ["openai/gpt-4.1", "openai/gpt-4.1-mini", "openai/gpt-4o-mini"],
+  anthropic: ["anthropic/claude-3-5-sonnet-latest", "anthropic/claude-3-5-haiku-latest"],
+  gemini: ["gemini/gemini-1.5-pro", "gemini/gemini-2.0-flash", "gemini/gemini-1.5-flash"],
+  azure: ["azure/gpt-4.1-mini", "azure/gpt-4o-mini", "azure/YOUR_DEPLOYMENT_NAME"],
+  groq: ["groq/llama-3.1-70b-versatile"],
+  mistral: ["mistral/mistral-large-latest"],
+  xai: ["xai/grok-2-latest"],
+  openrouter: [
+    "openrouter/openai/gpt-4o-mini",
+    "openrouter/anthropic/claude-3.5-sonnet",
+    "openrouter/google/gemini-1.5-pro",
+  ],
+};
+
 const EMPTY_FORM: NewConfigForm = {
   name: "",
   provider: FALLBACK_PROVIDERS[0].value,
@@ -178,6 +199,16 @@ export function SettingsAiPage() {
     [editForm, initialEditForm]
   );
 
+  const addModelOptions = useMemo(
+    () => getModelOptionGroups(form.provider),
+    [form.provider, providerOptions]
+  );
+
+  const editModelOptions = useMemo(
+    () => getModelOptionGroups(editForm.provider),
+    [editForm.provider, providerOptions]
+  );
+
   useEffect(() => {
     void loadProviderCatalog();
     void loadConfigs();
@@ -194,6 +225,16 @@ export function SettingsAiPage() {
   function getProviderModels(provider: string): string[] {
     const models = getProviderOption(provider).models || [];
     return models.length > 0 ? models : ["openai/gpt-4o-mini"];
+  }
+
+  function getModelOptionGroups(provider: string): ModelOptionGroups {
+    const allModels = getProviderModels(provider);
+    const recommendedForProvider = RECOMMENDED_MODELS_BY_PROVIDER[provider] || [];
+    const recommended = recommendedForProvider.filter((model) => allModels.includes(model));
+    return {
+      recommended,
+      all: allModels.filter((model) => !recommended.includes(model)),
+    };
   }
 
   async function loadProviderCatalog() {
@@ -460,11 +501,24 @@ export function SettingsAiPage() {
                 onChange={(e) => setForm((v) => ({ ...v, model: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
-                {getProviderModels(form.provider).map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
+                {addModelOptions.recommended.length > 0 && (
+                  <optgroup label="Recommended">
+                    {addModelOptions.recommended.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {addModelOptions.all.length > 0 && (
+                  <optgroup label={addModelOptions.recommended.length > 0 ? "All Models" : "Models"}>
+                    {addModelOptions.all.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </label>
 
@@ -714,11 +768,24 @@ export function SettingsAiPage() {
                 onChange={(e) => setEditForm((v) => ({ ...v, model: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
-                {getProviderModels(editForm.provider).map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
+                {editModelOptions.recommended.length > 0 && (
+                  <optgroup label="Recommended">
+                    {editModelOptions.recommended.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {editModelOptions.all.length > 0 && (
+                  <optgroup label={editModelOptions.recommended.length > 0 ? "All Models" : "Models"}>
+                    {editModelOptions.all.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </label>
 
