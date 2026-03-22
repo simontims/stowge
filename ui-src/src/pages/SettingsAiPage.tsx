@@ -126,8 +126,20 @@ const RECOMMENDED_MODELS_BY_PROVIDER: Record<string, RecommendedModelDescriptor[
     { model: "openai/gpt-4o-mini" },
   ],
   anthropic: [
-    { model: "anthropic/claude-3-5-sonnet-latest", aliases: ["claude-3-5-sonnet", "claude-3.5-sonnet"] },
-    { model: "anthropic/claude-3-5-haiku-latest", aliases: ["claude-3-5-haiku", "claude-3.5-haiku"] },
+    {
+      model: "anthropic/claude-3-5-sonnet-latest",
+      aliases: [
+        "claude-3-5-sonnet",
+        "claude-3.5-sonnet",
+        "claude-3-7-sonnet",
+        "claude-sonnet-4",
+        "claude-sonnet",
+      ],
+    },
+    {
+      model: "anthropic/claude-3-5-haiku-latest",
+      aliases: ["claude-3-5-haiku", "claude-3.5-haiku", "claude-haiku"],
+    },
   ],
   gemini: [
     { model: "gemini/gemini-1.5-pro" },
@@ -298,6 +310,11 @@ export function SettingsAiPage() {
       recommended,
       all: allModels.filter((model) => !used.has(model)),
     };
+  }
+
+  function getDefaultModelForProvider(provider: string): string {
+    const grouped = getModelOptionGroups(provider);
+    return grouped.recommended[0] || grouped.all[0] || "";
   }
 
   async function loadProviderCatalog() {
@@ -539,11 +556,11 @@ export function SettingsAiPage() {
                 value={form.provider}
                 onChange={(e) => {
                   const nextProvider = getProviderOption(e.target.value);
-                  const nextModels = getProviderModels(nextProvider.value);
+                  const nextDefaultModel = getDefaultModelForProvider(nextProvider.value);
                   setForm((v) => ({
                     ...v,
                     provider: nextProvider.value,
-                    model: nextModels[0] || v.model,
+                    model: nextDefaultModel || v.model,
                     api_base: nextProvider.api_base || v.api_base,
                   }));
                 }}
@@ -806,11 +823,11 @@ export function SettingsAiPage() {
                 value={editForm.provider}
                 onChange={(e) => {
                   const nextProvider = getProviderOption(e.target.value);
-                  const nextModels = getProviderModels(nextProvider.value);
+                  const nextDefaultModel = getDefaultModelForProvider(nextProvider.value);
                   setEditForm((v) => ({
                     ...v,
                     provider: nextProvider.value,
-                    model: nextModels[0] || v.model,
+                    model: nextDefaultModel || v.model,
                     api_base: nextProvider.api_base || v.api_base,
                   }));
                 }}
