@@ -28,7 +28,7 @@ Stowge is designed for people who want full control of their inventory data whil
 ## Deploy (Docker host)
 ### 1) Create persistent folders
 ```bash
-mkdir -p /mnt/data/docker/stowge/{config/postgres,assets}
+mkdir -p /mnt/data/docker/stowge/{data,assets}
 ```
 
 ### 2) Create `.env`
@@ -97,5 +97,5 @@ The local run scripts automatically:
 - start FastAPI on `http://localhost:18090`
 
 ## Notes
-- Postgres is internal-only (no host port).
+- Uses a local SQL database (SQLite) stored in the mounted `data` path.
 - Images are stored under the host-mounted `/mnt/data/docker/stowge/assets` volume.
