@@ -163,7 +163,12 @@ else {
     $jwtValue = ""
 }
 
-if ([string]::IsNullOrWhiteSpace($jwtValue) -or $jwtValue -eq "change_me" -or $jwtValue -eq "change_me_to_a_long_random_string") {
+if (
+    [string]::IsNullOrWhiteSpace($jwtValue) -or
+    $jwtValue -eq "change_me" -or
+    $jwtValue -eq "change_me_to_a_long_random_string" -or
+    $jwtValue.Length -lt 32
+) {
     Write-Step "Generating JWT secret in .env"
     Upsert-EnvValue -Path $envFile -Key "JWT_SECRET" -Value (New-RandomSecret)
 }

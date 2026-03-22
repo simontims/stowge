@@ -42,13 +42,9 @@ Then configure Nginx Proxy Manager:
 - `stowge.my.domain` → `http://192.168.1.45:18090`
 - Enable HTTPS (camera access on Android requires HTTPS)
 
-## Local dev (optional)
-```bash
-docker compose --env-file .env up -d --build
-```
-Then open: http://localhost:18090/
+## Local Dev Quickstart
 
-## Windows one-command local run
+### Windows one-command run
 From the repository root:
 
 ```powershell
@@ -61,19 +57,39 @@ Or with CMD:
 run.cmd
 ```
 
-What this script does automatically:
-- creates `.env` from `.env.example` if missing
-- generates `JWT_SECRET` if it is still a placeholder
-- creates `backend/.venv` if missing
-- installs backend dependencies
-- installs/builds UI from `ui-src` to `ui`
-- starts FastAPI on `http://localhost:18090`
-
 Optional flags:
 - `-SkipInstall` to skip `pip install`
 - `-SkipUiBuild` to skip UI build
 - `-Reload` to run uvicorn with auto-reload
 - `-FreshSetup` to reset local `data/stowge.db` so first-run admin setup is shown again
+
+### Unix/macOS one-command run
+From the repository root:
+
+```bash
+chmod +x ./run.sh
+./run.sh
+```
+
+Optional flags:
+- `--skip-install` to skip `pip install`
+- `--skip-ui-build` to skip UI build
+- `--reload` to run uvicorn with auto-reload
+- `--fresh-setup` to reset local `data/stowge.db` so first-run admin setup is shown again
+
+### Cross-platform Docker dev
+```bash
+docker compose --env-file .env up -d --build
+```
+Then open: http://localhost:18090/
+
+The local run scripts automatically:
+- create `.env` from `.env.example` if missing
+- generate `JWT_SECRET` if it is missing, placeholder, or too short
+- create `backend/.venv` if missing
+- install backend dependencies
+- install/build UI from `ui-src` to `ui`
+- start FastAPI on `http://localhost:18090`
 
 ## Notes
 - Postgres is internal-only (no host port).
