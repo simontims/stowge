@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { CommandPalette } from "./components/command/CommandPalette";
 import { PartsPage } from "./pages/PartsPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ScanAddPage } from "./pages/ScanAddPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -53,7 +54,7 @@ export default function App() {
     <BrowserRouter>
       <AppShell onCommandOpen={() => setCommandOpen(true)} onLogout={handleLogout}>
         <Routes>
-          <Route path="/"           element={<PlaceholderPage title="Dashboard"  description="Overview of your inventory at a glance" />} />
+          <Route path="/"           element={<DashboardPage />} />
           <Route path="/items"      element={<PartsPage />} />
           <Route path="/parts"      element={<PartsPage />} />
           <Route path="/items/new"  element={<ScanAddPage />} />
