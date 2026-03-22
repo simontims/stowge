@@ -16,8 +16,8 @@ Stowge is designed for people who want full control of their inventory data whil
 - Bearer token auth (login returns JWT)
 - Add Item flow on mobile:
   - take/pick up to 5 photos
-  - submit for AI identification (1 best guess)
-  - optionally retry for 5 candidates
+  - submit for AI identification (single best match)
+  - an item suggestion is returned
   - accept → create a Draft item in the DB
 - Items list + basic search + edit/confirm
 - Image ingest pipeline:
