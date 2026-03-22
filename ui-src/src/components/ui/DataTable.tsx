@@ -25,61 +25,63 @@ export function DataTable<T extends object>({
 }: DataTableProps<T>) {
   return (
     <div className="border border-neutral-800 rounded-lg overflow-hidden">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="bg-neutral-900 border-b border-neutral-800">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                scope="col"
-                className={clsx(
-                  "px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider select-none",
-                  col.headerClassName
-                )}
-              >
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
-          {rows.length === 0 ? (
-            <tr>
-              <td
-                colSpan={columns.length}
-                className="px-4 py-10 text-center text-sm text-neutral-600"
-              >
-                {emptyMessage}
-              </td>
+      <div className="overflow-x-auto">
+        <table className="min-w-max w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-neutral-900 border-b border-neutral-800">
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  scope="col"
+                  className={clsx(
+                    "px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider select-none whitespace-nowrap",
+                    col.headerClassName
+                  )}
+                >
+                  {col.header}
+                </th>
+              ))}
             </tr>
-          ) : (
-            rows.map((row) => (
-              <tr
-                key={String(row[keyField])}
-                className={clsx(
-                  "hover:bg-neutral-900/60 transition-colors",
-                  onRowClick ? "cursor-pointer" : ""
-                )}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-              >
-                {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className={clsx(
-                      "px-4 py-2.5 text-neutral-300",
-                      col.className
-                    )}
-                  >
-                    {col.render
-                      ? col.render(row)
-                      : String((row as Record<string, unknown>)[col.key] ?? "")}
-                  </td>
-                ))}
+          </thead>
+          <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-4 py-10 text-center text-sm text-neutral-600"
+                >
+                  {emptyMessage}
+                </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              rows.map((row) => (
+                <tr
+                  key={String(row[keyField])}
+                  className={clsx(
+                    "hover:bg-neutral-900/60 transition-colors",
+                    onRowClick ? "cursor-pointer" : ""
+                  )}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      className={clsx(
+                        "px-4 py-2.5 text-neutral-300",
+                        col.className
+                      )}
+                    >
+                      {col.render
+                        ? col.render(row)
+                        : String((row as Record<string, unknown>)[col.key] ?? "")}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
