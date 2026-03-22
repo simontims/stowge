@@ -487,24 +487,28 @@ export function LocationsPage() {
       {error && <p className="text-sm text-red-400">{error}</p>}
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-      <div className="flex items-center gap-2">
-        <SearchInput
-          placeholder="Search locations..."
-          value={search}
-          onChange={setSearch}
-          className="flex-1 max-w-sm"
-        />
-        <span className="text-xs text-neutral-600 ml-auto">
-          {loading ? "Loading..." : `${filtered.length} locations`}
-        </span>
-      </div>
+      {!editingLocation && (
+        <>
+          <div className="flex items-center gap-2">
+            <SearchInput
+              placeholder="Search locations..."
+              value={search}
+              onChange={setSearch}
+              className="flex-1 max-w-sm"
+            />
+            <span className="text-xs text-neutral-600 ml-auto">
+              {loading ? "Loading..." : `${filtered.length} locations`}
+            </span>
+          </div>
 
-      <DataTable
-        columns={columns}
-        rows={filtered}
-        keyField="id"
-        emptyMessage="No locations found. Add your first one above."
-      />
+          <DataTable
+            columns={columns}
+            rows={filtered}
+            keyField="id"
+            emptyMessage="No locations found. Add your first one above."
+          />
+        </>
+      )}
 
       {confirmDeleteLocation && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">

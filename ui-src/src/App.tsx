@@ -59,7 +59,8 @@ export default function App() {
           <Route path="/categories" element={<PlaceholderPage title="Categories" description="Organise parts into categories." />} />
           <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers." />} />
           <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects." />} />
-          <Route path="/scan"       element={<ScanAddPage />} />
+          <Route path="/add"       element={<ScanAddPage />} />
+          <Route path="/scan"      element={<ScanAddPage />} />
           <Route path="/imports"    element={<PlaceholderPage title="Imports"    description="Bulk-import parts from a CSV file." />} />
           <Route path="/reports"    element={<PlaceholderPage title="Reports"    description="Inventory reports and export tools." />} />
           <Route path="/settings"   element={<SettingsPage />} />
