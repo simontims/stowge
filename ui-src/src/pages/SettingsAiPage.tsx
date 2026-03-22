@@ -512,7 +512,7 @@ export function SettingsAiPage() {
                         <div className="inline-flex items-center gap-2">
                           <span>{cfg.name}</span>
                           {isDefault && (
-                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-amber-600 text-amber-900 bg-amber-100">
+                            <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-emerald-600 text-emerald-700 bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:bg-emerald-950/40">
                               <Star size={11} />
                               Default
                             </span>
