@@ -10,4 +10,8 @@ _dev_data/
 # Dependencies
 node_modules/
 ui-src/node_modules/
+.venv/
+backend/.venv/
+venv/
+backend/venv/
 ARCHITECTURE.md
