@@ -227,13 +227,34 @@ export function SettingsAiPage() {
     return models.length > 0 ? models : ["openai/gpt-4o-mini"];
   }
 
+  function normalizeModelNameForProvider(model: string, provider: string): string {
+    const trimmed = model.trim().toLowerCase();
+    const prefix = `${provider.toLowerCase()}/`;
+    return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+  }
+
   function getModelOptionGroups(provider: string): ModelOptionGroups {
     const allModels = getProviderModels(provider);
     const recommendedForProvider = RECOMMENDED_MODELS_BY_PROVIDER[provider] || [];
-    const recommended = recommendedForProvider.filter((model) => allModels.includes(model));
+    const used = new Set<string>();
+    const recommended: string[] = [];
+
+    for (const desiredModel of recommendedForProvider) {
+      const desiredKey = normalizeModelNameForProvider(desiredModel, provider);
+      const matched = allModels.find(
+        (candidate) =>
+          !used.has(candidate) &&
+          normalizeModelNameForProvider(candidate, provider) === desiredKey
+      );
+      if (matched) {
+        used.add(matched);
+        recommended.push(matched);
+      }
+    }
+
     return {
       recommended,
-      all: allModels.filter((model) => !recommended.includes(model)),
+      all: allModels.filter((model) => !used.has(model)),
     };
   }
 
