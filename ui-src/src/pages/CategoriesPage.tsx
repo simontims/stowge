@@ -138,53 +138,120 @@ function IconPicker({
   value: string;
   onChange: (name: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? ICON_CATALOGUE.filter((e) => e.name.includes(q)) : ICON_CATALOGUE;
   }, [query]);
 
+  function select(name: string) {
+    onChange(name);
+    setOpen(false);
+    setQuery("");
+  }
+
+  const SelectedIcon = getIconComponent(value);
+
   return (
-    <div className="space-y-2">
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-        placeholder="Filter icons…"
-      />
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-1 max-h-44 overflow-y-auto">
-        {/* None option */}
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          title="No icon"
-          className={[
-            "flex items-center justify-center w-9 h-9 rounded border text-xs transition-colors",
-            value === ""
-              ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
-              : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300",
-          ].join(" ")}
-        >
-          –
-        </button>
-        {filtered.map(({ name, icon: Icon }) => (
+    <>
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-neutral-700 bg-neutral-950 text-neutral-300 hover:border-neutral-500 hover:text-neutral-100 transition-colors text-sm"
+      >
+        {value ? (
+          <>
+            <SelectedIcon size={16} />
+            <span className="text-neutral-400">{value}</span>
+          </>
+        ) : (
+          <span className="text-neutral-500">Choose icon…</span>
+        )}
+      </button>
+
+      {/* Modal */}
+      {open && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          {/* Backdrop */}
           <button
-            key={name}
             type="button"
-            onClick={() => onChange(name)}
-            title={name}
-            className={[
-              "flex items-center justify-center w-9 h-9 rounded border transition-colors",
-              value === name
-                ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
-                : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200",
-            ].join(" ")}
+            className="absolute inset-0 bg-black/70"
+            onClick={() => { setOpen(false); setQuery(""); }}
+            aria-label="Close icon picker"
+          />
+          {/* Sheet / dialog */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose an icon"
+            className="relative z-10 w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col max-h-[80dvh] sm:max-h-[70vh]"
           >
-            <Icon size={16} />
-          </button>
-        ))}
-      </div>
-    </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-neutral-800 shrink-0">
+              <span className="text-sm font-semibold text-neutral-100">Choose icon</span>
+              <button
+                type="button"
+                onClick={() => { setOpen(false); setQuery(""); }}
+                className="text-neutral-500 hover:text-neutral-200 transition-colors"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {/* Search */}
+            <div className="px-4 py-3 border-b border-neutral-800 shrink-0">
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                placeholder="Search icons…"
+              />
+            </div>
+            {/* Grid */}
+            <div className="overflow-y-auto p-3">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5">
+                {/* None */}
+                <button
+                  type="button"
+                  onClick={() => select("")}
+                  title="No icon"
+                  className={[
+                    "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border text-xs transition-colors",
+                    value === ""
+                      ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
+                      : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300",
+                  ].join(" ")}
+                >
+                  <span className="text-base leading-none">–</span>
+                  <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">none</span>
+                </button>
+                {filtered.map(({ name, icon: Icon }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => select(name)}
+                    title={name}
+                    className={[
+                      "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border transition-colors",
+                      value === name
+                        ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
+                        : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200",
+                    ].join(" ")}
+                  >
+                    <Icon size={18} />
+                    <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">{name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -225,6 +292,56 @@ function AiHintHelp() {
         </>
       )}
     </span>
+  );
+}
+
+// ── Category form fields (must be top-level so React doesn't remount on parent re-render) ──
+function CategoryFormFields({
+  form,
+  onChange,
+}: {
+  form: CategoryForm;
+  onChange: (next: CategoryForm) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+          <input
+            value={form.name}
+            onChange={(e) => onChange({ ...form, name: e.target.value })}
+            className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+            placeholder="Electronic parts"
+          />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="text-xs uppercase tracking-wide text-neutral-500">Description</span>
+          <input
+            value={form.description}
+            onChange={(e) => onChange({ ...form, description: e.target.value })}
+            className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+            placeholder="Optional description"
+          />
+        </label>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+        <IconPicker value={form.icon} onChange={(name) => onChange({ ...form, icon: name })} />
+      </div>
+      <label className="block">
+        <span className="inline-flex items-center gap-1 text-xs tracking-wide text-neutral-500">
+          AI Hint
+          <AiHintHelp />
+        </span>
+        <textarea
+          value={form.ai_hint}
+          onChange={(e) => onChange({ ...form, ai_hint: e.target.value })}
+          className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 min-h-[80px]"
+          placeholder="Extra context for the AI when identifying items in this category…"
+        />
+      </label>
+    </div>
   );
 }
 
@@ -457,57 +574,6 @@ export function CategoriesPage() {
     ],
     [deletingId]
   );
-
-  function CategoryFormFields({
-    form,
-    onChange,
-  }: {
-    form: CategoryForm;
-    onChange: (next: CategoryForm) => void;
-  }) {
-    return (
-      <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
-            <input
-              value={form.name}
-              onChange={(e) => onChange({ ...form, name: e.target.value })}
-              className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              placeholder="Electronic parts"
-            />
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="text-xs uppercase tracking-wide text-neutral-500">Description</span>
-            <input
-              value={form.description}
-              onChange={(e) => onChange({ ...form, description: e.target.value })}
-              className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              placeholder="Optional description"
-            />
-          </label>
-        </div>
-        <div>
-          <span className="text-xs uppercase tracking-wide text-neutral-500">Icon</span>
-          <div className="mt-2">
-            <IconPicker value={form.icon} onChange={(name) => onChange({ ...form, icon: name })} />
-          </div>
-        </div>
-        <label className="block">
-          <span className="inline-flex items-center gap-1 text-xs uppercase tracking-wide text-neutral-500">
-            AI Hint
-            <AiHintHelp />
-          </span>
-          <textarea
-            value={form.ai_hint}
-            onChange={(e) => onChange({ ...form, ai_hint: e.target.value })}
-            className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 min-h-[80px]"
-            placeholder="Extra context for the AI when identifying items in this category…"
-          />
-        </label>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-5">
