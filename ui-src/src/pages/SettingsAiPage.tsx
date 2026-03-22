@@ -135,6 +135,7 @@ export function SettingsAiPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
+  const [confirmDeleteAiEditOpen, setConfirmDeleteAiEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<EditConfigForm>({
     name: "",
     provider: FALLBACK_PROVIDERS[0].value,
@@ -712,20 +713,65 @@ export function SettingsAiPage() {
             </label>
           </div>
 
-          <button
-            onClick={() => void saveEdit()}
-            disabled={!isEditDirty || savingEdit}
-            className={[
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
-              isEditDirty
-                ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                : "border-neutral-700 text-neutral-500",
-            ].join(" ")}
-          >
-            <Save size={14} />
-            {savingEdit ? "Saving..." : "Save"}
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={() => setConfirmDeleteAiEditOpen(true)}
+              disabled={savingEdit}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
+            <button
+              onClick={() => void saveEdit()}
+              disabled={!isEditDirty || savingEdit}
+              className={[
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+                isEditDirty
+                  ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
+                  : "border-neutral-700 text-neutral-500",
+              ].join(" ")}
+            >
+              <Save size={14} />
+              {savingEdit ? "Saving..." : "Save"}
+            </button>
+          </div>
         </section>
+      )}
+
+      {confirmDeleteAiEditOpen && editingConfig && (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-neutral-100">Delete AI Model</h3>
+            <p className="text-sm text-neutral-300">
+              Permanently delete <span className="font-medium text-neutral-100">{editingConfig.name}</span>? This cannot be undone.
+            </p>
+            <div className="pt-1 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeleteAiEditOpen(false)}
+                disabled={deletingId === editingConfig.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await removeConfig(editingConfig);
+                  cancelEdit();
+                }}
+                disabled={deletingId === editingConfig.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+              >
+                <Trash2 size={14} />
+                {deletingId === editingConfig.id ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {unsavedPromptOpen && (

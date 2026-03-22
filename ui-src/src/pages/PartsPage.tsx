@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Save, X } from "lucide-react";
+import { Plus, Save, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchInput } from "../components/ui/SearchInput";
@@ -124,6 +124,8 @@ export function PartsPage() {
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
+  const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
+  const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
 
   const hasDirtyChanges = useMemo(
     () => selectedPartId !== null && !isSameForm(editForm, initialEditForm),
@@ -235,6 +237,21 @@ export function PartsPage() {
     }
   }
 
+  async function deletePartFromModal() {
+    if (!selectedPartId) return;
+    setDeletingPartFromModal(true);
+    try {
+      await apiRequest(`/api/parts/${selectedPartId}`, { method: "DELETE" });
+      setParts((current) => current.filter((part) => part.id !== selectedPartId));
+      closeModalNow();
+    } catch (err) {
+      setDetailError((err as Error).message || "Failed to delete item.");
+      setConfirmDeletePartOpen(false);
+    } finally {
+      setDeletingPartFromModal(false);
+    }
+  }
+
   async function openPartModal(partId: string) {
     setSelectedPartId(partId);
     setSelectedPart(null);
@@ -265,6 +282,7 @@ export function PartsPage() {
     setLocationFilter("");
     setLocationDropdownOpen(false);
     setUnsavedPromptOpen(false);
+    setConfirmDeletePartOpen(false);
   }
 
   function requestCloseModal() {
@@ -680,7 +698,16 @@ export function PartsPage() {
                   Created: {new Date(selectedPart.created_at).toLocaleString()} | Updated: {new Date(selectedPart.updated_at).toLocaleString()}
                 </div>
 
-                <div className="pt-1 flex items-center justify-end gap-2">
+                <div className="pt-1 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => setConfirmDeletePartOpen(true)}
+                    disabled={savingDetail || deletingPartFromModal}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                  <div className="flex items-center gap-2">
                   <button
                     onClick={requestCloseModal}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
@@ -705,6 +732,7 @@ export function PartsPage() {
                     <Save size={14} />
                     {savingDetail ? "Saving..." : "Save"}
                   </button>
+                  </div>
                 </div>
               </>
             )}
@@ -743,6 +771,38 @@ export function PartsPage() {
               >
                 <Save size={14} />
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeletePartOpen && selectedPart && (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-neutral-100">Delete Item</h3>
+            <p className="text-sm text-neutral-300">
+              Permanently delete <span className="font-medium text-neutral-100">{selectedPart.name}</span>? This cannot be undone.
+            </p>
+            <div className="pt-1 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeletePartOpen(false)}
+                disabled={deletingPartFromModal}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void deletePartFromModal()}
+                disabled={deletingPartFromModal}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+              >
+                <Trash2 size={14} />
+                {deletingPartFromModal ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
