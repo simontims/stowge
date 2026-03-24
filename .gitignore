@@ -4,6 +4,7 @@
 !.env.example
 # Local dev data
 _dev_data/
+assets/
 *.pid
 *.db
 

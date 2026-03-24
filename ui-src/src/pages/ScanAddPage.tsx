@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Brain,
   Camera,
-  Filter,
   Loader2,
   RefreshCw,
   Save,
-  Trash2,
   Upload,
 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -31,6 +30,16 @@ interface IdentifyResponse {
     candidates?: IdentifyCandidate[];
   };
   stored_images?: Array<Record<string, unknown>>;
+}
+
+interface StoreImagesResponse {
+  stored_images?: Array<Record<string, unknown>>;
+}
+
+interface DiscardImagesResponse {
+  requested: number;
+  deleted: number;
+  skipped_linked: number;
 }
 
 interface LlmOption {
@@ -102,6 +111,7 @@ export function ScanAddPage() {
   );
 
   const selectedCandidate = candidates[selectedIndex];
+  const isManualReview = mode === "review" && !identifyData;
 
   useEffect(() => {
     if (!notice) return;
@@ -133,6 +143,18 @@ export function ScanAddPage() {
   }
 
   function clearSession() {
+    const pendingImageIds = ((identifyData?.stored_images as Array<{ id?: unknown }> | undefined) || [])
+      .map((img) => (typeof img.id === "string" ? img.id : ""))
+      .filter(Boolean);
+    if (pendingImageIds.length > 0) {
+      void apiRequest<DiscardImagesResponse>("/api/images/discard", {
+        method: "POST",
+        body: JSON.stringify({ image_ids: pendingImageIds }),
+      }).catch(() => {
+        // Best effort cleanup; keep UX responsive if cleanup fails.
+      });
+    }
+
     setIdentifyData(null);
     setSelectedIndex(0);
     setDraft({
@@ -198,6 +220,21 @@ export function ScanAddPage() {
       collection_id: preferredCollectionId,
       status: "draft",
     });
+  }
+
+  function startManualReview() {
+    setSubmitError("");
+    setSaveError("");
+    setNotice("");
+    clearSession();
+    setSelectedIndex(0);
+    setDraft((current) => ({
+      ...current,
+      name: "",
+      description: "",
+      status: "draft",
+    }));
+    setMode("review");
   }
 
   async function persistPreferredCollection(collectionId: string) {
@@ -276,9 +313,21 @@ export function ScanAddPage() {
       const found = data.ai?.candidates ?? [];
       if (found.length === 0) {
         setSubmitError("No candidate suggestions returned. Adjust photos and try again.");
-        setIdentifyData(null);
+        clearSession();
         setMode("input");
         return;
+      }
+
+      const previousImageIds = ((identifyData?.stored_images as Array<{ id?: unknown }> | undefined) || [])
+        .map((img) => (typeof img.id === "string" ? img.id : ""))
+        .filter(Boolean);
+      if (previousImageIds.length > 0) {
+        void apiRequest<DiscardImagesResponse>("/api/images/discard", {
+          method: "POST",
+          body: JSON.stringify({ image_ids: previousImageIds }),
+        }).catch(() => {
+          // Best effort cleanup; keep identify flow usable if cleanup fails.
+        });
       }
 
       setIdentifyData(data);
@@ -299,11 +348,8 @@ export function ScanAddPage() {
     setSaveError("");
     setNotice("");
 
-    const storedImages = identifyData?.stored_images ?? [];
-    if (storedImages.length === 0) {
-      setSaveError("No identified image set found. Run Submit for ID first.");
-      return;
-    }
+    let storedImages = identifyData?.stored_images ?? [];
+    let pendingStoredImageIds: string[] = [];
 
     if (!draft.name.trim()) {
       setSaveError("Part name is required.");
@@ -312,14 +358,29 @@ export function ScanAddPage() {
 
     setIsSaving(true);
     try {
+      if (photos.length > 0) {
+        const fd = new FormData();
+        photos.slice(0, MAX_PHOTOS).forEach((file, idx) => {
+          fd.append("images", file, `photo${idx + 1}.jpg`);
+        });
+        const stored = await apiRequest<StoreImagesResponse>("/api/images/store", {
+          method: "POST",
+          body: fd,
+        });
+        storedImages = stored.stored_images ?? [];
+        pendingStoredImageIds = storedImages
+          .map((img) => ((img as { id?: unknown }).id as string | undefined) || "")
+          .filter(Boolean);
+      }
+
       const payload = {
         name: draft.name.trim(),
         description: draft.description,
         collection: collections.find((cat) => cat.id === draft.collection_id)?.name || null,
         status: draft.status,
         ai_primary: identifyData?.ai || selectedCandidate || null,
-        ai_alternatives: candidates.length > 1 ? { candidates: candidates.slice(1) } : null,
-        ai_chosen_index: selectedIndex,
+        ai_alternatives: identifyData && candidates.length > 1 ? { candidates: candidates.slice(1) } : null,
+        ai_chosen_index: identifyData && candidates.length > 0 ? selectedIndex : null,
         stored_images: storedImages,
       };
 
@@ -338,6 +399,14 @@ export function ScanAddPage() {
         main.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (err) {
+      if (pendingStoredImageIds.length > 0) {
+        void apiRequest<DiscardImagesResponse>("/api/images/discard", {
+          method: "POST",
+          body: JSON.stringify({ image_ids: pendingStoredImageIds }),
+        }).catch(() => {
+          // Best effort cleanup after failed save.
+        });
+      }
       setSaveError((err as Error).message || "Save failed.");
     } finally {
       setIsSaving(false);
@@ -348,14 +417,13 @@ export function ScanAddPage() {
     <div className="space-y-5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <PageHeader
         title="Add"
-        description="Capture up to 5 photos, identify part suggestions, then edit before saving"
+        description="Capture up to 5 photos, submit for AI identification or complete maually"
         action={null}
       />
 
       {mode === "input" && (
         <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-200">Photos</h2>
+          <div className="flex items-center justify-end gap-3">
             <span className="text-xs text-neutral-500">{photos.length} / {MAX_PHOTOS}</span>
           </div>
 
@@ -378,26 +446,6 @@ export function ScanAddPage() {
               Pick photos
             </button>
 
-            <button
-              onClick={resetToStart}
-              disabled={photos.length === 0 || isSubmitting}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Trash2 size={14} />
-              Clear
-            </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                onPickPhotos(e.target.files);
-                e.currentTarget.value = "";
-              }}
-            />
           </div>
 
           {previewUrls.length > 0 && (
@@ -470,14 +518,24 @@ export function ScanAddPage() {
               </p>
             )}
 
-            <button
-              onClick={submitIdentify}
-              disabled={!isSubmitting && photos.length === 0}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-            >
-              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Filter size={14} />}
-              {submitAbort ? "Cancel" : "Submit for ID"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={startManualReview}
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Manual
+              </button>
+
+              <button
+                onClick={submitIdentify}
+                disabled={!isSubmitting && photos.length === 0}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
+                {submitAbort ? "Cancel" : "AI Submit"}
+              </button>
+            </div>
           </div>
 
           {submitError && <p className="text-sm text-red-400">{submitError}</p>}
@@ -486,11 +544,60 @@ export function ScanAddPage() {
 
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-      {mode === "review" && identifyData && candidates.length > 0 && (
-        <section className="border border-neutral-800 rounded-lg p-4 bg-neutral-900/40 space-y-4">
+      {mode === "review" && (
+        <section className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-neutral-200">Review and Edit</h2>
           </div>
+
+          {isManualReview && (
+            <div className="relative space-y-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 pb-2 pt-0.5">
+              <span className="absolute right-2 top-1 text-xs text-neutral-500">{photos.length}/{MAX_PHOTOS}</span>
+
+              {previewUrls.length > 0 && (
+                <div className="flex flex-wrap items-start content-start gap-2 pt-0.5">
+                  {previewUrls.map((url, idx) => (
+                    <div key={url} className="relative w-20 h-20 border border-neutral-800 rounded-md overflow-hidden bg-neutral-950">
+                      <img
+                        src={url}
+                        alt={`Photo ${idx + 1}`}
+                        className="w-full aspect-square object-cover"
+                      />
+                      <button
+                        onClick={() => removePhoto(idx)}
+                        disabled={isSaving}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-neutral-200 hover:bg-black/80 disabled:opacity-60"
+                        aria-label={`Remove photo ${idx + 1}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={onTakePicture}
+                    disabled={photos.length >= MAX_PHOTOS || isSaving}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Camera size={14} />
+                    Take picture
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={photos.length >= MAX_PHOTOS || isSaving}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Upload size={14} />
+                    Pick photos
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
               <div className="grid gap-3">
@@ -520,6 +627,28 @@ export function ScanAddPage() {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
+                      Collection
+                    </label>
+                    <select
+                      value={draft.collection_id}
+                      onChange={(e) => {
+                        const nextCollectionId = e.target.value;
+                        setDraft((d) => ({ ...d, collection_id: nextCollectionId }));
+                        void persistPreferredCollection(nextCollectionId);
+                      }}
+                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    >
+                      <option value="">None</option>
+                      {collections.map((collection) => (
+                        <option key={collection.id} value={collection.id}>
+                          {collection.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
                       Status
@@ -555,6 +684,7 @@ export function ScanAddPage() {
                   <button
                     onClick={() => {
                       setMode("input");
+                      clearSession();
                       setSubmitError("");
                     }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -583,6 +713,18 @@ export function ScanAddPage() {
           </div>
         </section>
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          onPickPhotos(e.target.files);
+          e.currentTarget.value = "";
+        }}
+      />
     </div>
   );
 }

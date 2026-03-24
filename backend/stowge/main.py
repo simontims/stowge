@@ -19,7 +19,7 @@ from jwt import InvalidTokenError
 from .db import engine, Base, get_db
 from .models import User, Part, PartImage, LLMConfig, Location, Collection
 from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
-from .images import process_and_store, resolve_path
+from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
 
@@ -1023,6 +1023,47 @@ def delete_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = 
     return {"ok": True}
 
 # ---------------- Identify ----------------
+@app.post("/api/images/store")
+def store_images_only(
+    images: List[UploadFile] = File(...),
+    me: User = Depends(current_user),
+):
+    if len(images) < 1 or len(images) > 5:
+        raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
+
+    stored, _ = process_and_store(images)
+    return {
+        "uploaded_images": [
+            {"id": s["id"], "thumb_url": _signed_image_url(s["id"], "thumb")}
+            for s in stored
+        ],
+        "stored_images": stored,
+    }
+
+
+@app.post("/api/images/discard")
+def discard_images(
+    payload: dict,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    raw_ids = payload.get("image_ids") or []
+    image_ids = [str(i).strip() for i in raw_ids if str(i).strip()]
+    if not image_ids:
+        return {"requested": 0, "deleted": 0, "skipped_linked": 0}
+
+    linked_rows = db.query(PartImage.id).filter(PartImage.id.in_(image_ids)).all()
+    linked_ids = {row[0] for row in linked_rows}
+    deletable_ids = [image_id for image_id in image_ids if image_id not in linked_ids]
+
+    deleted = delete_stored_images(deletable_ids)
+    return {
+        "requested": len(image_ids),
+        "deleted": deleted,
+        "skipped_linked": len(linked_ids),
+    }
+
+
 @app.post("/api/identify")
 def identify(
     mode: Literal["one", "three", "five"] = "one",
@@ -1035,7 +1076,7 @@ def identify(
     if len(images) < 1 or len(images) > 5:
         raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
 
-    stored, b64s = process_and_store(images)
+    b64s = process_for_identify(images)
     cfg = _resolve_llm_config(db, llm_id)
     if not cfg:
         raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
@@ -1069,11 +1110,8 @@ def identify(
         "mode": mode,
         "llm": _serialize_llm_public(cfg),
         "ai": ai,
-        "uploaded_images": [
-            {"id": s["id"], "thumb_url": _signed_image_url(s["id"], "thumb")}
-            for s in stored
-        ],
-        "stored_images": stored,
+        "uploaded_images": [],
+        "stored_images": [],
     }
 
 # ---------------- Parts ----------------
@@ -1094,8 +1132,6 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
             raise HTTPException(status_code=400, detail="Invalid collection")
 
     stored_images = payload.get("stored_images") or []
-    if not stored_images:
-        raise HTTPException(status_code=400, detail="stored_images required (from /identify)")
 
     p = Part(
         name=name,

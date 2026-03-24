@@ -1,6 +1,7 @@
 import base64
 import io
 import os
+import shutil
 import uuid
 from typing import Tuple, List, Dict
 
@@ -93,8 +94,56 @@ def process_and_store(files: List[UploadFile]) -> Tuple[List[Dict], List[str]]:
 
     return stored, b64_images
 
+
+def process_for_identify(files: List[UploadFile]) -> List[str]:
+    b64_images: List[str] = []
+
+    for f in files:
+        raw = f.file.read()
+        if not raw:
+            continue
+
+        try:
+            img = Image.open(io.BytesIO(raw))
+            img.load()
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid image: {f.filename}")
+
+        img2 = img.copy()
+        img2.thumbnail((DISPLAY_MAX_EDGE, DISPLAY_MAX_EDGE))
+
+        out = io.BytesIO()
+        mime, ext = _mime_ext()
+        if ext == "webp":
+            img2.save(out, format="WEBP", quality=DISPLAY_QUALITY, method=6)
+        else:
+            if img2.mode in ("RGBA", "P"):
+                img2 = img2.convert("RGB")
+            img2.save(out, format="JPEG", quality=DISPLAY_QUALITY, optimize=True)
+
+        out.seek(0)
+        b64_images.append(base64.b64encode(out.read()).decode("ascii"))
+
+    if not b64_images:
+        raise HTTPException(status_code=400, detail="No images provided")
+
+    return b64_images
+
 def resolve_path(rel_path: str) -> str:
     abs_path = os.path.join(ASSETS_DIR, rel_path)
     if not os.path.exists(abs_path):
         raise HTTPException(status_code=404, detail="File missing")
     return abs_path
+
+
+def delete_stored_images(image_ids: List[str]) -> int:
+    ensure_assets_dir()
+    deleted = 0
+
+    for image_id in set(image_ids):
+        folder = os.path.join(ASSETS_DIR, image_id)
+        if os.path.isdir(folder):
+            shutil.rmtree(folder, ignore_errors=True)
+            deleted += 1
+
+    return deleted
