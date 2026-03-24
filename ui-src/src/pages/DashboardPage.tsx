@@ -6,7 +6,7 @@ import { apiRequest } from "../lib/api";
 interface DashboardCounts {
   items: number | null;
   locations: number | null;
-  categories: number | null;
+  collections: number | null;
 }
 
 interface StatCardProps {
@@ -31,7 +31,7 @@ export function DashboardPage() {
   const [counts, setCounts] = useState<DashboardCounts>({
     items: null,
     locations: null,
-    categories: null,
+    collections: null,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,16 +68,16 @@ export function DashboardPage() {
 
     void loadMetric("/api/items", "items", "Failed to load item count");
     void loadMetric("/api/locations", "locations", "Failed to load location count");
-    void loadMetric("/api/categories", "categories", "Failed to load category count");
+    void loadMetric("/api/collections", "collections", "Failed to load collection count");
   }
 
   const statCards = useMemo(
     () => [
       { label: "Total items", value: counts.items, icon: <Box size={16} /> },
       { label: "Total locations", value: counts.locations, icon: <MapPin size={16} /> },
-      { label: "Total categories", value: counts.categories, icon: <Tag size={16} /> },
+      { label: "Total collections", value: counts.collections, icon: <Tag size={16} /> },
     ],
-    [counts.categories, counts.items, counts.locations]
+    [counts.collections, counts.items, counts.locations]
   );
 
   return (
@@ -104,3 +104,4 @@ export function DashboardPage() {
     </div>
   );
 }
+

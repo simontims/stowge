@@ -30,7 +30,7 @@ export const navItems: NavItem[] = [
   { label: "Dashboard",  route: "/",           icon: Home,      group: "INVENTORY"     },
   { label: "Items",      route: "/items",       icon: Package,   group: "INVENTORY"     },
   { label: "Locations",  route: "/locations",   icon: MapPin,    group: "INVENTORY"     },
-  { label: "Categories", route: "/categories",  icon: Tag,       group: "INVENTORY"     },
+  { label: "Collections", route: "/collections",  icon: Tag,       group: "INVENTORY"     },
   { label: "Suppliers",  route: "/suppliers",   icon: Factory,   group: "RELATIONSHIPS" },
   { label: "Projects",   route: "/projects",    icon: Wrench,    group: "RELATIONSHIPS" },
   { label: "Settings",   route: "/settings",    icon: Settings,  group: "SYSTEM"        },
@@ -42,3 +42,4 @@ export const groupedNav = NAV_GROUPS.map((group) => ({
   group,
   items: navItems.filter((item) => item.group === group),
 }));
+

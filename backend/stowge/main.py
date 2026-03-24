@@ -17,7 +17,7 @@ import jwt
 from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
-from .models import User, Part, PartImage, LLMConfig, Location, Category
+from .models import User, Part, PartImage, LLMConfig, Location, Collection
 from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
 from .images import process_and_store, resolve_path
 from .openai_id import identify as openai_identify
@@ -106,7 +106,7 @@ def _serialize_user(user: User) -> dict:
         "surname": user.last_name or "",
         "role": user.role,
         "theme": user.theme or "dark",
-        "preferred_add_category_id": user.preferred_add_category_id,
+        "preferred_add_collection_id": user.preferred_add_collection_id,
         "created_at": _utc_iso(user.created_at),
         "last_login_at": _utc_iso(user.last_login_at),
     }
@@ -129,16 +129,16 @@ def _serialize_location(location: Location, db: Session) -> dict:
     }
 
 
-def _serialize_category(category: Category) -> dict:
+def _serialize_collection(collection: Collection) -> dict:
     return {
-        "id": category.id,
-        "name": category.name,
-        "icon": category.icon,
-        "description": category.description,
-        "ai_hint": category.ai_hint,
-        "item_count": category.item_count,
-        "created_at": _utc_iso(category.created_at),
-        "updated_at": _utc_iso(category.updated_at),
+        "id": collection.id,
+        "name": collection.name,
+        "icon": collection.icon,
+        "description": collection.description,
+        "ai_hint": collection.ai_hint,
+        "item_count": collection.item_count,
+        "created_at": _utc_iso(collection.created_at),
+        "updated_at": _utc_iso(collection.updated_at),
     }
 
 
@@ -247,22 +247,45 @@ def _resolve_llm_config(db: Session, selected_id: str | None = None) -> LLMConfi
 def _run_startup_migrations():
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
+
+    with engine.begin() as conn:
+        # Rename legacy categories table in-place.
+        if "categories" in tables and "collections" not in tables:
+            conn.execute(text("ALTER TABLE categories RENAME TO collections"))
+
+        # Rename legacy parts.category column to parts.collection.
+        parts_columns = set()
+        if "parts" in set(inspect(engine).get_table_names()):
+            parts_columns = {c["name"] for c in inspect(engine).get_columns("parts")}
+            if "category" in parts_columns and "collection" not in parts_columns:
+                conn.execute(text("ALTER TABLE parts RENAME COLUMN category TO collection"))
+                parts_columns = {c["name"] for c in inspect(engine).get_columns("parts")}
+            if "location_id" not in parts_columns:
+                conn.execute(text("ALTER TABLE parts ADD COLUMN location_id VARCHAR NULL"))
+
+        if "users" in set(inspect(engine).get_table_names()):
+            user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
+            if "first_name" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN first_name VARCHAR NOT NULL DEFAULT ''"))
+            if "last_name" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_name VARCHAR NOT NULL DEFAULT ''"))
+            if "theme" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN theme VARCHAR NOT NULL DEFAULT 'dark'"))
+
+            if "preferred_add_category_id" in user_columns and "preferred_add_collection_id" not in user_columns:
+                conn.execute(text("ALTER TABLE users RENAME COLUMN preferred_add_category_id TO preferred_add_collection_id"))
+                user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
+
+            if "preferred_add_collection_id" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN preferred_add_collection_id VARCHAR NULL"))
+
+    tables = set(inspect(engine).get_table_names())
+
     if "users" not in tables:
         return
 
-    columns = {c["name"] for c in inspector.get_columns("users")}
-    with engine.begin() as conn:
-        if "first_name" not in columns:
-            conn.execute(text("ALTER TABLE users ADD COLUMN first_name VARCHAR NOT NULL DEFAULT ''"))
-        if "last_name" not in columns:
-            conn.execute(text("ALTER TABLE users ADD COLUMN last_name VARCHAR NOT NULL DEFAULT ''"))
-        if "theme" not in columns:
-            conn.execute(text("ALTER TABLE users ADD COLUMN theme VARCHAR NOT NULL DEFAULT 'dark'"))
-        if "preferred_add_category_id" not in columns:
-            conn.execute(text("ALTER TABLE users ADD COLUMN preferred_add_category_id VARCHAR NULL"))
-
     if "llm_configs" in tables:
-        llm_columns = {c["name"] for c in inspector.get_columns("llm_configs")}
+        llm_columns = {c["name"] for c in inspect(engine).get_columns("llm_configs")}
         with engine.begin() as conn:
             if "api_base" not in llm_columns:
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN api_base VARCHAR NULL"))
@@ -308,11 +331,7 @@ def _run_startup_migrations():
                 db.add(cfg)
                 db.commit()
 
-    if "parts" in tables:
-        parts_columns = {c["name"] for c in inspector.get_columns("parts")}
-        with engine.begin() as conn:
-            if "location_id" not in parts_columns:
-                conn.execute(text("ALTER TABLE parts ADD COLUMN location_id VARCHAR NULL"))
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     _run_startup_migrations()
@@ -495,16 +514,16 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
         if theme not in ("dark", "light"):
             raise HTTPException(status_code=400, detail="theme must be dark|light")
         u.theme = theme
-    if "preferred_add_category_id" in payload:
-        raw_category_id = payload.get("preferred_add_category_id")
-        category_id = (str(raw_category_id).strip() if raw_category_id is not None else "")
-        if not category_id:
-            u.preferred_add_category_id = None
+    if "preferred_add_collection_id" in payload:
+        raw_collection_id = payload.get("preferred_add_collection_id")
+        collection_id = (str(raw_collection_id).strip() if raw_collection_id is not None else "")
+        if not collection_id:
+            u.preferred_add_collection_id = None
         else:
-            exists = db.query(Category.id).filter(Category.id == category_id).first()
+            exists = db.query(Collection.id).filter(Collection.id == collection_id).first()
             if not exists:
-                raise HTTPException(status_code=400, detail="Invalid preferred_add_category_id")
-            u.preferred_add_category_id = category_id
+                raise HTTPException(status_code=400, detail="Invalid preferred_add_collection_id")
+            u.preferred_add_collection_id = collection_id
     db.commit()
     db.refresh(u)
     return _serialize_user(u)
@@ -726,15 +745,15 @@ def get_location_photo(location_id: str, db: Session = Depends(get_db), me: User
     return FileResponse(abs_path)
 
 
-# ---------------- Categories ----------------
-@app.get("/api/categories")
-def list_categories(db: Session = Depends(get_db), me: User = Depends(current_user)):
-    categories = db.query(Category).order_by(Category.created_at.asc()).all()
-    return [_serialize_category(cat) for cat in categories]
+# ---------------- Collections ----------------
+@app.get("/api/collections")
+def list_collections(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    collections = db.query(Collection).order_by(Collection.created_at.asc()).all()
+    return [_serialize_collection(col) for col in collections]
 
 
-@app.post("/api/categories")
-def create_category(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
+@app.post("/api/collections")
+def create_collection(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
     name = str(payload.get("name") or "").strip()
     icon = str(payload.get("icon") or "").strip() or None
     description = str(payload.get("description") or "").strip() or None
@@ -743,53 +762,53 @@ def create_category(payload: dict, db: Session = Depends(get_db), me: User = Dep
     if len(name) < 2:
         raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
 
-    existing = db.query(Category).filter(Category.name == name).first()
+    existing = db.query(Collection).filter(Collection.name == name).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Category name already exists")
+        raise HTTPException(status_code=400, detail="Collection name already exists")
 
-    category = Category(name=name, icon=icon, description=description, ai_hint=ai_hint)
-    db.add(category)
+    collection = Collection(name=name, icon=icon, description=description, ai_hint=ai_hint)
+    db.add(collection)
     db.commit()
-    db.refresh(category)
-    return _serialize_category(category)
+    db.refresh(collection)
+    return _serialize_collection(collection)
 
 
-@app.patch("/api/categories/{category_id}")
-def update_category(category_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+@app.patch("/api/collections/{collection_id}")
+def update_collection(collection_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
 
     if "name" in payload:
         name = str(payload.get("name") or "").strip()
         if len(name) < 2:
             raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
-        existing = db.query(Category).filter(Category.name == name, Category.id != category_id).first()
+        existing = db.query(Collection).filter(Collection.name == name, Collection.id != collection_id).first()
         if existing:
-            raise HTTPException(status_code=400, detail="Category name already exists")
-        category.name = name
+            raise HTTPException(status_code=400, detail="Collection name already exists")
+        collection.name = name
 
     if "icon" in payload:
-        category.icon = str(payload.get("icon") or "").strip() or None
+        collection.icon = str(payload.get("icon") or "").strip() or None
 
     if "description" in payload:
-        category.description = str(payload.get("description") or "").strip() or None
+        collection.description = str(payload.get("description") or "").strip() or None
 
     if "ai_hint" in payload:
-        category.ai_hint = str(payload.get("ai_hint") or "").strip() or None
+        collection.ai_hint = str(payload.get("ai_hint") or "").strip() or None
 
-    category.updated_at = datetime.now(timezone.utc)
+    collection.updated_at = datetime.now(timezone.utc)
     db.commit()
-    db.refresh(category)
-    return _serialize_category(category)
+    db.refresh(collection)
+    return _serialize_collection(collection)
 
 
-@app.delete("/api/categories/{category_id}")
-def delete_category(category_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-    db.delete(category)
+@app.delete("/api/collections/{collection_id}")
+def delete_collection(collection_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    db.delete(collection)
     db.commit()
     return {"ok": True}
 
@@ -1008,7 +1027,7 @@ def delete_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = 
 def identify(
     mode: Literal["one", "three", "five"] = "one",
     llm_id: Optional[str] = Query(default=None),
-    category_id: Optional[str] = Query(default=None),
+    collection_id: Optional[str] = Query(default=None),
     images: List[UploadFile] = File(...),
     me: User = Depends(current_user),
     db: Session = Depends(get_db),
@@ -1021,16 +1040,16 @@ def identify(
     if not cfg:
         raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
 
-    category_context: Optional[str] = None
-    if category_id:
-        selected_category = db.query(Category).filter(Category.id == category_id).first()
-        if not selected_category:
-            raise HTTPException(status_code=400, detail="Invalid category_id")
+    collection_context: Optional[str] = None
+    if collection_id:
+        selected_collection = db.query(Collection).filter(Collection.id == collection_id).first()
+        if not selected_collection:
+            raise HTTPException(status_code=400, detail="Invalid collection_id")
 
-        context_parts = [f"Category name: {selected_category.name}"]
-        if (selected_category.ai_hint or "").strip():
-            context_parts.append(f"Category hint: {selected_category.ai_hint.strip()}")
-        category_context = "\n".join(context_parts)
+        context_parts = [f"Collection name: {selected_collection.name}"]
+        if (selected_collection.ai_hint or "").strip():
+            context_parts.append(f"Collection hint: {selected_collection.ai_hint.strip()}")
+        collection_context = "\n".join(context_parts)
 
     # openai_id supports "one"/"three"/"five"
     ai_mode = mode if mode in ("one", "three", "five") else "one"
@@ -1043,7 +1062,7 @@ def identify(
         },
         mode=ai_mode,
         include_evidence=bool(cfg.evidence_enabled),
-        category_context=category_context,
+        collection_context=collection_context,
     )
 
     return {
@@ -1063,16 +1082,16 @@ def identify(
 def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
     name = (payload.get("name") or "").strip()
     description = (payload.get("description") or "").strip()
-    category = (payload.get("category") or "").strip() or None
+    collection = (payload.get("collection") or "").strip() or None
     status = payload.get("status") or "draft"
     if status not in ("draft", "confirmed"):
         raise HTTPException(status_code=400, detail="status must be draft|confirmed")
     if len(name) < 2:
         raise HTTPException(status_code=400, detail="name required")
-    if category:
-        exists = db.query(Category.id).filter(Category.name == category).first()
+    if collection:
+        exists = db.query(Collection.id).filter(Collection.name == collection).first()
         if not exists:
-            raise HTTPException(status_code=400, detail="Invalid category")
+            raise HTTPException(status_code=400, detail="Invalid collection")
 
     stored_images = payload.get("stored_images") or []
     if not stored_images:
@@ -1081,7 +1100,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
     p = Part(
         name=name,
         description=description or None,
-        category=category,
+        collection=collection,
         status=status,
         ai_primary=payload.get("ai_primary"),
         ai_alternatives=payload.get("ai_alternatives"),
@@ -1126,7 +1145,7 @@ def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User 
     return [{
         "id": p.id,
         "name": p.name,
-        "category": p.category,
+        "collection": p.collection,
         "location": (location_names.get(p.location_id) if p.location_id else None),
         "status": p.status,
         "created_at": p.created_at.isoformat(),
@@ -1150,7 +1169,7 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
         "id": p.id,
         "name": p.name,
         "description": p.description,
-        "category": p.category,
+        "collection": p.collection,
         "location_id": p.location_id,
         "location": location_name,
         "status": p.status,
@@ -1178,16 +1197,16 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
         if field in payload:
             setattr(p, field, payload[field])
 
-    if "category" in payload:
-        raw_category = payload.get("category")
-        category = (str(raw_category).strip() if raw_category is not None else "")
-        if not category:
-            p.category = None
+    if "collection" in payload:
+        raw_collection = payload.get("collection")
+        collection = (str(raw_collection).strip() if raw_collection is not None else "")
+        if not collection:
+            p.collection = None
         else:
-            exists = db.query(Category.id).filter(Category.name == category).first()
+            exists = db.query(Collection.id).filter(Collection.name == collection).first()
             if not exists:
-                raise HTTPException(status_code=400, detail="Invalid category")
-            p.category = category
+                raise HTTPException(status_code=400, detail="Invalid collection")
+            p.collection = collection
 
     if "location_id" in payload:
         location_id = payload.get("location_id")

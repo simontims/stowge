@@ -10,7 +10,7 @@ import { apiRequest } from "../lib/api";
 interface Part {
   id: string;
   name: string;
-  category: string | null;
+  collection: string | null;
   location: string | null;
   status: string;
   created_at: string;
@@ -22,7 +22,7 @@ interface PartDetail {
   id: string;
   name: string;
   description: string | null;
-  category: string | null;
+  collection: string | null;
   location_id: string | null;
   location: string | null;
   status: string;
@@ -39,7 +39,7 @@ interface PartDetail {
 interface PartEditForm {
   name: string;
   description: string;
-  category: string;
+  collection: string;
   location_id: string;
   status: "draft" | "confirmed";
 }
@@ -52,7 +52,7 @@ interface LocationOption {
 const EMPTY_EDIT_FORM: PartEditForm = {
   name: "",
   description: "",
-  category: "",
+  collection: "",
   location_id: "",
   status: "draft",
 };
@@ -61,7 +61,7 @@ function toEditForm(part: PartDetail): PartEditForm {
   return {
     name: part.name ?? "",
     description: part.description ?? "",
-    category: part.category ?? "",
+    collection: part.collection ?? "",
     location_id: part.location_id ?? "",
     status: part.status === "confirmed" ? "confirmed" : "draft",
   };
@@ -71,7 +71,7 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   return (
     a.name.trim() === b.name.trim() &&
     a.description.trim() === b.description.trim() &&
-    a.category.trim() === b.category.trim() &&
+    a.collection.trim() === b.collection.trim() &&
     a.location_id === b.location_id &&
     a.status === b.status
   );
@@ -251,7 +251,7 @@ export function PartsPage() {
         body: JSON.stringify({
           name: trimmedName,
           description: editForm.description.trim() || null,
-          category: editForm.category.trim() || null,
+          collection: editForm.collection.trim() || null,
           location_id: editForm.location_id || null,
           status: editForm.status,
         }),
@@ -268,7 +268,7 @@ export function PartsPage() {
             ? {
                 ...p,
                 name: refreshed.name,
-                category: refreshed.category,
+                collection: refreshed.collection,
                 location: refreshed.location,
                 status: refreshed.status,
               }
@@ -307,12 +307,12 @@ export function PartsPage() {
 
     return parts.filter((part) => {
       const name = part.name.toLowerCase();
-      const category = (part.category || "").toLowerCase();
+      const collection = (part.collection || "").toLowerCase();
       const location = (part.location || "").toLowerCase();
       const status = part.status.toLowerCase();
       return (
         name.includes(term) ||
-        category.includes(term) ||
+        collection.includes(term) ||
         location.includes(term) ||
         status.includes(term)
       );
@@ -360,11 +360,11 @@ export function PartsPage() {
         ),
       },
       {
-        key: "category",
-        header: "Category",
+        key: "collection",
+        header: "Collection",
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
-            {row.category || "-"}
+            {row.collection || "-"}
           </span>
         ),
       },
@@ -429,7 +429,7 @@ export function PartsPage() {
       <ListToolbar
         search={search}
         onSearchChange={setSearch}
-        placeholder="Search items, locations, categories…"
+        placeholder="Search items, locations, collections…"
         count={filtered.length}
         countLabel="items"
         loading={loading}
@@ -522,11 +522,11 @@ export function PartsPage() {
                   </label>
 
                   <label className="space-y-1">
-                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Category</span>
+                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Collection</span>
                     <input
-                      value={editForm.category}
+                      value={editForm.collection}
                       onChange={(event) =>
-                        setEditForm((current) => ({ ...current, category: event.target.value }))
+                        setEditForm((current) => ({ ...current, collection: event.target.value }))
                       }
                       className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
                       placeholder="Optional"
@@ -743,3 +743,4 @@ export function PartsPage() {
     </div>
   );
 }
+

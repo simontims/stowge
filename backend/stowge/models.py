@@ -16,7 +16,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="admin")  # admin|user
     theme = Column(String, nullable=False, default="dark")  # dark|light
-    preferred_add_category_id = Column(String, nullable=True)
+    preferred_add_collection_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -25,7 +25,7 @@ class Part(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    category = Column(String, nullable=True)
+    collection = Column(String, nullable=True)
     status = Column(String, nullable=False, default="draft")  # draft|confirmed
     location_id = Column(String, ForeignKey("locations.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
@@ -81,8 +81,8 @@ class Location(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
 
-class Category(Base):
-    __tablename__ = "categories"
+class Collection(Base):
+    __tablename__ = "collections"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, unique=True, index=True)

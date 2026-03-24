@@ -79,7 +79,7 @@ function getIconComponent(name: string | null | undefined): LucideIcon {
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
-interface CategoryRecord {
+interface CollectionRecord {
   id: string;
   name: string;
   icon: string | null;
@@ -91,14 +91,14 @@ interface CategoryRecord {
   actions?: never;
 }
 
-interface CategoryForm {
+interface CollectionForm {
   name: string;
   icon: string;
   description: string;
   ai_hint: string;
 }
 
-const EMPTY_FORM: CategoryForm = { name: "", icon: "", description: "", ai_hint: "" };
+const EMPTY_FORM: CollectionForm = { name: "", icon: "", description: "", ai_hint: "" };
 
 // ── AI Hint help examples ────────────────────────────────────────────────────
 const AI_HINT_EXAMPLES: { label: string; hint: string }[] = [
@@ -281,7 +281,7 @@ function AiHintHelp() {
           <div className="absolute left-0 top-full mt-2 z-50 w-80 rounded-lg border border-neutral-700 bg-neutral-900 shadow-xl p-4 space-y-3">
             <p className="text-xs font-semibold text-neutral-300">AI Hint examples</p>
             <p className="text-xs text-neutral-500">
-              An AI hint gives the model extra context when identifying items in this category.
+              An AI hint gives the model extra context when identifying items in this collection.
             </p>
             {AI_HINT_EXAMPLES.map(({ label, hint }) => (
               <div key={label} className="space-y-0.5">
@@ -296,13 +296,13 @@ function AiHintHelp() {
   );
 }
 
-// ── Category form fields (must be top-level so React doesn't remount on parent re-render) ──
-function CategoryFormFields({
+// ── Collection form fields (must be top-level so React doesn't remount on parent re-render) ──
+function CollectionFormFields({
   form,
   onChange,
 }: {
-  form: CategoryForm;
-  onChange: (next: CategoryForm) => void;
+  form: CollectionForm;
+  onChange: (next: CollectionForm) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -339,7 +339,7 @@ function CategoryFormFields({
           value={form.ai_hint}
           onChange={(e) => onChange({ ...form, ai_hint: e.target.value })}
           className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 min-h-[80px]"
-          placeholder="Extra context for the AI when identifying items in this category…"
+          placeholder="Extra context for the AI when identifying items in this collection…"
         />
       </label>
     </div>
@@ -347,8 +347,8 @@ function CategoryFormFields({
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export function CategoriesPage() {
-  const [categories, setCategories] = useState<CategoryRecord[]>([]);
+export function CollectionsPage() {
+  const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -356,20 +356,20 @@ export function CategoriesPage() {
 
   const [addingOpen, setAddingOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [newForm, setNewForm] = useState<CategoryForm>(EMPTY_FORM);
+  const [newForm, setNewForm] = useState<CollectionForm>(EMPTY_FORM);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<CategoryForm>(EMPTY_FORM);
-  const [initialEditForm, setInitialEditForm] = useState<CategoryForm>(EMPTY_FORM);
+  const [editForm, setEditForm] = useState<CollectionForm>(EMPTY_FORM);
+  const [initialEditForm, setInitialEditForm] = useState<CollectionForm>(EMPTY_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
-  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryRecord | null>(null);
+  const [confirmDeleteCollection, setConfirmDeleteCollection] = useState<CollectionRecord | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const editingCategory = useMemo(
-    () => categories.find((c) => c.id === editingId) || null,
-    [categories, editingId]
+  const editingCollection = useMemo(
+    () => collections.find((c) => c.id === editingId) || null,
+    [collections, editingId]
   );
   const showListView = !addingOpen && !editingId;
 
@@ -382,7 +382,7 @@ export function CategoriesPage() {
     [editForm, initialEditForm]
   );
 
-  useEffect(() => { void loadCategories(); }, []);
+  useEffect(() => { void loadCollections(); }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -390,24 +390,24 @@ export function CategoriesPage() {
     return () => clearTimeout(t);
   }, [notice]);
 
-  async function loadCategories() {
+  async function loadCollections() {
     setLoading(true);
     setError("");
     try {
-      const data = await apiRequest<CategoryRecord[]>("/api/categories");
-      setCategories(data);
+      const data = await apiRequest<CollectionRecord[]>("/api/collections");
+      setCollections(data);
     } catch (err) {
-      setCategories([]);
-      setError((err as Error).message || "Failed to load categories.");
+      setCollections([]);
+      setError((err as Error).message || "Failed to load collections.");
     } finally {
       setLoading(false);
     }
   }
 
-  function startEdit(cat: CategoryRecord) {
+  function startEdit(cat: CollectionRecord) {
     setError("");
     setNotice("");
-    const snapshot: CategoryForm = {
+    const snapshot: CollectionForm = {
       name: cat.name,
       icon: cat.icon || "",
       description: cat.description || "",
@@ -433,15 +433,15 @@ export function CategoriesPage() {
   async function handleUnsavedSave() { await saveEdit(); }
   function handleUnsavedDiscard() { cancelEdit(); }
 
-  async function createCategory() {
+  async function createCollection() {
     setError("");
     if (newForm.name.trim().length < 2) {
-      setError("Category name must be at least 2 characters.");
+      setError("Collection name must be at least 2 characters.");
       return;
     }
     setIsCreating(true);
     try {
-      await apiRequest<CategoryRecord>("/api/categories", {
+      await apiRequest<CollectionRecord>("/api/collections", {
         method: "POST",
         body: JSON.stringify({
           name: newForm.name.trim(),
@@ -452,9 +452,9 @@ export function CategoriesPage() {
       });
       setNewForm(EMPTY_FORM);
       setAddingOpen(false);
-      await loadCategories();
+      await loadCollections();
     } catch (err) {
-      setError((err as Error).message || "Failed to create category.");
+      setError((err as Error).message || "Failed to create collection.");
     } finally {
       setIsCreating(false);
     }
@@ -464,12 +464,12 @@ export function CategoriesPage() {
     if (!editingId) return;
     setError("");
     if (editForm.name.trim().length < 2) {
-      setError("Category name must be at least 2 characters.");
+      setError("Collection name must be at least 2 characters.");
       return;
     }
     setIsSavingEdit(true);
     try {
-      await apiRequest<CategoryRecord>(`/api/categories/${editingId}`, {
+      await apiRequest<CollectionRecord>(`/api/collections/${editingId}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: editForm.name.trim(),
@@ -479,25 +479,25 @@ export function CategoriesPage() {
         }),
       });
       cancelEdit();
-      setNotice("Category updated.");
-      await loadCategories();
+      setNotice("Collection updated.");
+      await loadCollections();
     } catch (err) {
-      setError((err as Error).message || "Failed to update category.");
+      setError((err as Error).message || "Failed to update collection.");
     } finally {
       setIsSavingEdit(false);
     }
   }
 
-  async function deleteCategory(cat: CategoryRecord) {
+  async function deleteCollection(cat: CollectionRecord) {
     setError("");
     setDeletingId(cat.id);
     try {
-      await apiRequest(`/api/categories/${cat.id}`, { method: "DELETE" });
-      setConfirmDeleteCategory(null);
+      await apiRequest(`/api/collections/${cat.id}`, { method: "DELETE" });
+      setConfirmDeleteCollection(null);
       if (editingId === cat.id) cancelEdit();
-      await loadCategories();
+      await loadCollections();
     } catch (err) {
-      setError((err as Error).message || "Failed to delete category.");
+      setError((err as Error).message || "Failed to delete collection.");
     } finally {
       setDeletingId(null);
     }
@@ -505,15 +505,15 @@ export function CategoriesPage() {
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return categories;
-    return categories.filter(
+    if (!term) return collections;
+    return collections.filter(
       (c) =>
         c.name.toLowerCase().includes(term) ||
         (c.description || "").toLowerCase().includes(term)
     );
-  }, [categories, search]);
+  }, [collections, search]);
 
-  const columns = useMemo<Column<CategoryRecord>[]>(
+  const columns = useMemo<Column<CollectionRecord>[]>(
     () => [
       {
         key: "icon",
@@ -564,7 +564,7 @@ export function CategoriesPage() {
               Edit
             </button>
             <DeleteActionButton
-              onClick={() => setConfirmDeleteCategory(row)}
+              onClick={() => setConfirmDeleteCollection(row)}
               isDeleting={deletingId === row.id}
             />
           </div>
@@ -577,8 +577,8 @@ export function CategoriesPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Categories"
-        description="Organise items into categories and guide the AI with per-category hints"
+        title="Collections"
+        description="Organise items into collections and guide the AI with per-collection hints"
         action={
           showListView ? (
             <button
@@ -586,7 +586,7 @@ export function CategoriesPage() {
               className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
             >
               <Plus size={14} />
-              Add Category
+              Add Collection
             </button>
           ) : null
         }
@@ -594,11 +594,11 @@ export function CategoriesPage() {
 
       {addingOpen && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-neutral-100">New Category</h2>
-          <CategoryFormFields form={newForm} onChange={setNewForm} />
+          <h2 className="text-sm font-semibold text-neutral-100">New Collection</h2>
+          <CollectionFormFields form={newForm} onChange={setNewForm} />
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => void createCategory()}
+              onClick={() => void createCollection()}
               disabled={isCreating}
               className="inline-flex h-8 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
@@ -615,10 +615,10 @@ export function CategoriesPage() {
         </section>
       )}
 
-      {editingCategory && (
+      {editingCollection && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-100">Edit Category</h2>
+            <h2 className="text-sm font-semibold text-neutral-100">Edit Collection</h2>
             <button
               onClick={requestCancelEdit}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
@@ -626,10 +626,10 @@ export function CategoriesPage() {
               <X size={13} /> Close
             </button>
           </div>
-          <CategoryFormFields form={editForm} onChange={setEditForm} />
+          <CollectionFormFields form={editForm} onChange={setEditForm} />
           <div className="flex items-center justify-between gap-2">
             <button
-              onClick={() => setConfirmDeleteCategory(editingCategory)}
+              onClick={() => setConfirmDeleteCollection(editingCollection)}
               disabled={isSavingEdit}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
@@ -660,16 +660,16 @@ export function CategoriesPage() {
           <ListToolbar
             search={search}
             onSearchChange={setSearch}
-            placeholder="Search categories…"
+            placeholder="Search collections…"
             count={filtered.length}
-            countLabel="categories"
+            countLabel="collections"
             loading={loading}
           />
           <DataTable
             columns={columns}
             rows={filtered}
             keyField="id"
-            emptyMessage="No categories yet. Add your first one above."
+            emptyMessage="No collections yet. Add your first one above."
           />
         </>
       )}
@@ -680,7 +680,7 @@ export function CategoriesPage() {
           <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
             <p className="text-sm text-neutral-300">
-              You have unsaved changes. Do you want to save before leaving this category?
+              You have unsaved changes. Do you want to save before leaving this collection?
             </p>
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
@@ -708,23 +708,25 @@ export function CategoriesPage() {
       )}
 
       <DeleteConfirmDialog
-        open={Boolean(confirmDeleteCategory)}
-        title="Delete Category"
+        open={Boolean(confirmDeleteCollection)}
+        title="Delete Collection"
         message={
-          confirmDeleteCategory ? (
+          confirmDeleteCollection ? (
             <>
-              Permanently delete <span className="font-medium text-neutral-100">{confirmDeleteCategory.name}</span>? This cannot be undone.
+              Permanently delete <span className="font-medium text-neutral-100">{confirmDeleteCollection.name}</span>? This cannot be undone.
             </>
           ) : null
         }
-        deleting={Boolean(confirmDeleteCategory && deletingId === confirmDeleteCategory.id)}
-        onCancel={() => setConfirmDeleteCategory(null)}
+        deleting={Boolean(confirmDeleteCollection && deletingId === confirmDeleteCollection.id)}
+        onCancel={() => setConfirmDeleteCollection(null)}
         onConfirm={() => {
-          if (confirmDeleteCategory) {
-            void deleteCategory(confirmDeleteCategory);
+          if (confirmDeleteCollection) {
+            void deleteCollection(confirmDeleteCollection);
           }
         }}
       />
     </div>
   );
 }
+
+

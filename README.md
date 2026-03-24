@@ -1,5 +1,5 @@
 # Stowge
-Self-hosted inventory system for mobile and desktop, configurable for multiple categories and powered by an AI-assisted "Add Item" flow.
+Self-hosted inventory system for mobile and desktop, configurable for multiple collections and powered by an AI-assisted "Add Item" flow.
 
 Stowge is designed for people who want full control of their inventory data while still getting modern UX: camera-first capture, AI suggestions, and fast editing/search across collections.
 
@@ -10,7 +10,7 @@ Stowge is designed for people who want full control of their inventory data whil
 
 ## Features (MVP)
 - Works across multiple inventory domains (electronics, tools, marine, clothing, and more)
-- Category/location structure is configurable in-app
+- Collection/location structure is configurable in-app
 - PWA UI optimized for mobile capture and desktop management
 - First-run setup: create initial admin user
 - Bearer token auth (login returns JWT)

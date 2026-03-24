@@ -18,7 +18,7 @@ SYSTEM_PROMPT_BASE = (
     "- name: short label (e.g., \"ESP32-WROOM-32 Dev Module\", \"AMS1117-3.3 Regulator Module\")\n"
     "- description: 1-3 sentences with key markings/features and what to verify. "
     "Do NOT start the description with 'This is a', 'This is an', 'This is', or similar phrasing — write directly about the item.\n"
-    "- category: module|ic|connector|sensor|passive|devboard|cable|tool|unknown\n"
+    "- collection: module|ic|connector|sensor|passive|devboard|cable|tool|unknown\n"
     "- confidence: 0..1\n"
 )
 
@@ -29,12 +29,12 @@ def _system_prompt(include_evidence: bool) -> str:
 
 
 def _json_schema_one(include_evidence: bool) -> Dict[str, Any]:
-    required = ["unknown", "name", "description", "category", "confidence"]
+    required = ["unknown", "name", "description", "collection", "confidence"]
     properties: Dict[str, Any] = {
         "unknown": {"type": "boolean"},
         "name": {"type": "string"},
         "description": {"type": "string"},
-        "category": {"type": "string"},
+        "collection": {"type": "string"},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     }
     if include_evidence:
@@ -80,7 +80,7 @@ def _json_schema_five(include_evidence: bool) -> Dict[str, Any]:
         },
     }
 
-_ALLOWED_CATEGORIES = {
+_ALLOWED_COLLECTIONS = {
     "module",
     "ic",
     "connector",
@@ -153,7 +153,7 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dic
     unknown = bool(obj.get("unknown", False))
     name = str(obj.get("name", "")).strip()
     description = str(obj.get("description", "")).strip()
-    category = str(obj.get("category", "unknown")).strip().lower()
+    collection = str(obj.get("collection", "unknown")).strip().lower()
     evidence = str(obj.get("evidence", "")).strip()
 
     try:
@@ -162,8 +162,8 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dic
         confidence = 0.0
 
     confidence = max(0.0, min(1.0, confidence))
-    if category not in _ALLOWED_CATEGORIES:
-        category = "unknown"
+    if collection not in _ALLOWED_COLLECTIONS:
+        collection = "unknown"
 
     if not name:
         # If name missing, force unknown
@@ -175,7 +175,7 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dic
         "unknown": unknown,
         "name": name,
         "description": description,
-        "category": category,
+        "collection": collection,
         "confidence": confidence,
     }
     if include_evidence:
@@ -205,7 +205,7 @@ def _sanitize(mode: Mode, parsed: Dict[str, Any], include_evidence: bool) -> Dic
                     "unknown": True,
                     "name": "Unknown part",
                     "description": "Could not confidently identify from photos.",
-                    "category": "unknown",
+                    "collection": "unknown",
                     "confidence": 0.0,
                 }
             )
@@ -221,7 +221,7 @@ def identify(
     mode: Mode = "one",
     model: Optional[str] = None,
     include_evidence: bool = True,
-    category_context: Optional[str] = None,
+    collection_context: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     images_b64: list of base64 strings (no data: prefix)
@@ -245,11 +245,11 @@ def identify(
 
     # Build multi-modal message content: instruction + images
     prompt_text = _schema_instruction(mode, include_evidence)
-    if category_context:
+    if collection_context:
         prompt_text = (
             f"{prompt_text}\n"
-            "User-selected category context (treat as guidance, not certainty):\n"
-            f"{category_context}\n"
+            "User-selected collection context (treat as guidance, not certainty):\n"
+            f"{collection_context}\n"
             "Use this context to improve identification quality."
         )
 

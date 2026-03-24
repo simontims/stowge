@@ -17,7 +17,7 @@ interface IdentifyCandidate {
   evidence?: string;
   confidence?: number;
   unknown?: boolean;
-  category?: string;
+  collection?: string;
 }
 
 interface IdentifyResponse {
@@ -46,20 +46,20 @@ interface AiSettingsResponse {
   configs: LlmOption[];
 }
 
-interface CategoryOption {
+interface CollectionOption {
   id: string;
   name: string;
   ai_hint?: string | null;
 }
 
 interface MeResponse {
-  preferred_add_category_id?: string | null;
+  preferred_add_collection_id?: string | null;
 }
 
 interface PartDraft {
   name: string;
   description: string;
-  category_id: string;
+  collection_id: string;
   status: "draft" | "confirmed";
 }
 
@@ -80,11 +80,11 @@ export function ScanAddPage() {
   const [draft, setDraft] = useState<PartDraft>({
     name: "",
     description: "",
-    category_id: "",
+    collection_id: "",
     status: "draft",
   });
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [preferredCategoryId, setPreferredCategoryId] = useState<string>("");
+  const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [preferredCollectionId, setPreferredCollectionId] = useState<string>("");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -138,7 +138,7 @@ export function ScanAddPage() {
     setDraft({
       name: "",
       description: "",
-      category_id: preferredCategoryId,
+      collection_id: preferredCollectionId,
       status: "draft",
     });
     setSaveError("");
@@ -147,27 +147,27 @@ export function ScanAddPage() {
 
   async function loadAddPreferences() {
     try {
-      const [categoryData, meData] = await Promise.all([
-        apiRequest<CategoryOption[]>("/api/categories"),
+      const [collectionData, meData] = await Promise.all([
+        apiRequest<CollectionOption[]>("/api/collections"),
         apiRequest<MeResponse>("/api/me"),
       ]);
 
-      const options = categoryData || [];
-      setCategories(options);
+      const options = collectionData || [];
+      setCollections(options);
 
-      const preferred = meData.preferred_add_category_id || "";
+      const preferred = meData.preferred_add_collection_id || "";
       const validPreferred = options.some((cat) => cat.id === preferred)
         ? preferred
         : "";
 
-      setPreferredCategoryId(validPreferred);
+      setPreferredCollectionId(validPreferred);
       setDraft((current) => ({
         ...current,
-        category_id: current.category_id || validPreferred,
+        collection_id: current.collection_id || validPreferred,
       }));
     } catch {
-      setCategories([]);
-      setPreferredCategoryId("");
+      setCollections([]);
+      setPreferredCollectionId("");
     }
   }
 
@@ -195,20 +195,20 @@ export function ScanAddPage() {
     setDraft({
       name: candidate?.name || "Unknown part",
       description: candidate?.description || "",
-      category_id: preferredCategoryId,
+      collection_id: preferredCollectionId,
       status: "draft",
     });
   }
 
-  async function persistPreferredCategory(categoryId: string) {
+  async function persistPreferredCollection(collectionId: string) {
     try {
       await apiRequest("/api/me", {
         method: "PATCH",
         body: JSON.stringify({
-          preferred_add_category_id: categoryId || null,
+          preferred_add_collection_id: collectionId || null,
         }),
       });
-      setPreferredCategoryId(categoryId);
+      setPreferredCollectionId(collectionId);
     } catch {
       // Keep Add flow usable even if preference persistence fails.
     }
@@ -260,8 +260,8 @@ export function ScanAddPage() {
       if (selectedLlmId) {
         query.set("llm_id", selectedLlmId);
       }
-      if (draft.category_id) {
-        query.set("category_id", draft.category_id);
+      if (draft.collection_id) {
+        query.set("collection_id", draft.collection_id);
       }
 
       const data = await apiRequest<IdentifyResponse>(
@@ -315,7 +315,7 @@ export function ScanAddPage() {
       const payload = {
         name: draft.name.trim(),
         description: draft.description,
-        category: categories.find((cat) => cat.id === draft.category_id)?.name || null,
+        collection: collections.find((cat) => cat.id === draft.collection_id)?.name || null,
         status: draft.status,
         ai_primary: identifyData?.ai || selectedCandidate || null,
         ai_alternatives: candidates.length > 1 ? { candidates: candidates.slice(1) } : null,
@@ -425,21 +425,21 @@ export function ScanAddPage() {
           <div>
             <div className="mb-3">
               <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                Category
+                Collection
               </label>
               <select
-                value={draft.category_id}
+                value={draft.collection_id}
                 onChange={(e) => {
-                  const nextCategoryId = e.target.value;
-                  setDraft((d) => ({ ...d, category_id: nextCategoryId }));
-                  void persistPreferredCategory(nextCategoryId);
+                  const nextCollectionId = e.target.value;
+                  setDraft((d) => ({ ...d, collection_id: nextCollectionId }));
+                  void persistPreferredCollection(nextCollectionId);
                 }}
                 className="w-full sm:w-[28rem] bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
                 <option value="">None</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
+                {collections.map((collection) => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.name}
                   </option>
                 ))}
               </select>
@@ -722,3 +722,5 @@ async function takePicture(): Promise<File | null> {
     };
   });
 }
+
+
