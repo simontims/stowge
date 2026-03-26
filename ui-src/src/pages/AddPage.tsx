@@ -82,6 +82,8 @@ type ScanFlowMode = "input" | "review";
 
 const MAX_PHOTOS = 5;
 
+const RETRY_DELAY_MS = 5000;
+
 interface PhotoControlsProps {
   previewUrls: string[];
   photoCount: number;
@@ -154,6 +156,9 @@ export function AddPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
+  const [loadError, setLoadError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
   const [submitErrorDetail, setSubmitErrorDetail] = useState<string>("");
@@ -204,9 +209,25 @@ export function AddPage() {
   }, [notice]);
 
   useEffect(() => {
-    void loadAiSettings();
-    void loadAddPreferences();
-  }, []);
+    setIsLoading(true);
+    setLoadError("");
+    void loadAiSettings({ background: false });
+    void loadAddPreferences({ background: false }).finally(() => setIsLoading(false));
+    }, []);
+
+  useEffect(() => {
+    if (isLoading || !loadError) {
+      return;
+    }
+
+    const retryTimer = window.setTimeout(() => {
+      setLoadError("");
+      void loadAiSettings({ background: true });
+      void loadAddPreferences({ background: true });
+    }, RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(retryTimer);
+  }, [loadError, isLoading]);
 
   useEffect(() => {
     const urls = photos.map((f) => URL.createObjectURL(f));
@@ -255,7 +276,7 @@ export function AddPage() {
     setSubmitErrorCopied(false);
   }
 
-  async function loadAddPreferences() {
+  async function loadAddPreferences(opts?: { background?: boolean }) {
     try {
       const [collectionData, locationData, meData] = await Promise.all([
         apiRequest<CollectionOption[]>("/api/collections"),
@@ -263,12 +284,12 @@ export function AddPage() {
         apiRequest<MeResponse>("/api/me"),
       ]);
 
-      const options = collectionData || [];
-      setCollections(options);
+      const collectionOptions = collectionData || [];
+      setCollections(collectionOptions);
       setLocations(locationData || []);
 
       const preferred = meData.preferred_add_collection_id || "";
-      const validPreferred = options.some((cat) => cat.id === preferred)
+      const validPreferred = collectionOptions.some((cat) => cat.id === preferred)
         ? preferred
         : "";
 
@@ -277,14 +298,15 @@ export function AddPage() {
         ...current,
         collection_id: current.collection_id || validPreferred,
       }));
-    } catch {
+    } catch (err) {
       setCollections([]);
       setLocations([]);
       setPreferredCollectionId("");
+      setLoadError((err as Error).message || "Unable to load collections and locations right now.");
     }
   }
 
-  async function loadAiSettings() {
+  async function loadAiSettings(opts?: { background?: boolean }) {
     try {
       const data = await apiRequest<AiSettingsResponse>("/api/settings/ai");
       const options = data.configs || [];
@@ -292,9 +314,12 @@ export function AddPage() {
 
       const defaultId = data.default_llm_id || options.find((o) => o.is_default)?.id || options[0]?.id || "";
       setSelectedLlmId(defaultId);
-    } catch {
+    } catch (err) {
       setLlmOptions([]);
       setSelectedLlmId("");
+      if (!opts?.background) {
+        setLoadError((err as Error).message || "Unable to load AI settings right now.");
+      }
     }
   }
 
@@ -1001,5 +1026,15 @@ async function takePicture(): Promise<File | null> {
     };
   });
 }
+
+
+
+
+
+
+
+
+
+
 
 

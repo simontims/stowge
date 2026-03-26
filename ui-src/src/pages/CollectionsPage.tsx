@@ -347,6 +347,8 @@ function CollectionFormFields({
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
+const RETRY_DELAY_MS = 5000;
+
 export function CollectionsPage() {
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -386,14 +388,30 @@ export function CollectionsPage() {
   useEffect(() => { void loadCollections(); }, []);
 
   useEffect(() => {
+    if (loading || !loadError) {
+      return;
+    }
+
+    const retryTimer = window.setTimeout(() => {
+      void loadCollections({ background: true });
+    }, RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(retryTimer);
+  }, [loadError, loading]);
+
+  useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(t);
   }, [notice]);
 
-  async function loadCollections() {
-    setLoading(true);
-    setLoadError("");
+  async function loadCollections(options?: { background?: boolean }) {
+    const background = options?.background ?? false;
+
+    if (!background) {
+      setLoading(true);
+      setLoadError("");
+    }
     try {
       const data = await apiRequest<CollectionRecord[]>("/api/collections");
       setCollections(data);
@@ -401,7 +419,9 @@ export function CollectionsPage() {
       setCollections([]);
       setLoadError((err as Error).message || "Unable to load collections right now.");
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }
 

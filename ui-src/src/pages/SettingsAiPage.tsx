@@ -183,6 +183,8 @@ const EMPTY_FORM: NewConfigForm = {
   evidence_enabled: false,
 };
 
+const RETRY_DELAY_MS = 5000;
+
 export function SettingsAiPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -269,6 +271,18 @@ export function SettingsAiPage() {
     void loadConfigs();
   }, []);
 
+  useEffect(() => {
+    if (loading || !error) {
+      return;
+    }
+
+    const retryTimer = window.setTimeout(() => {
+      void loadConfigs({ background: true });
+    }, RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(retryTimer);
+  }, [error, loading]);
+
   function getProviderOption(provider: string): ProviderOption {
     return (
       providerOptions.find((p) => p.value === provider) ||
@@ -340,8 +354,12 @@ export function SettingsAiPage() {
     }
   }
 
-  async function loadConfigs() {
-    setLoading(true);
+  async function loadConfigs(options?: { background?: boolean }) {
+    const background = options?.background ?? false;
+
+    if (!background) {
+      setLoading(true);
+    }
     setError("");
     setNotice("");
     try {
@@ -353,7 +371,9 @@ export function SettingsAiPage() {
       setDefaultId(null);
       setError((err as Error).message || "Failed to load AI settings.");
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }
 

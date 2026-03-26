@@ -82,6 +82,8 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   );
 }
 
+const RETRY_DELAY_MS = 5000;
+
 export function ItemsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -118,6 +120,18 @@ export function ItemsPage() {
   }, []);
 
   useEffect(() => {
+    if (loading || !error) {
+      return;
+    }
+
+    const retryTimer = window.setTimeout(() => {
+      void loadParts({ background: true });
+    }, RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(retryTimer);
+  }, [error, loading]);
+
+  useEffect(() => {
     const source = new EventSource("/api/events/items");
 
     const onItemsChanged = () => {
@@ -145,9 +159,13 @@ export function ItemsPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasDirtyChanges, selectedPartId]);
 
-  async function loadParts() {
-    setLoading(true);
-    setError("");
+  async function loadParts(options?: { background?: boolean }) {
+    const background = options?.background ?? false;
+
+    if (!background) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const data = await apiRequest<Part[]>("/api/items");
       setParts(data);
@@ -155,7 +173,9 @@ export function ItemsPage() {
       setError((err as Error).message || "Failed to load parts.");
       setParts([]);
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }
 

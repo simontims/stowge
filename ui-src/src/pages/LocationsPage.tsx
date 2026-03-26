@@ -29,6 +29,8 @@ const EMPTY_FORM: LocationForm = {
   photo_path: null,
 };
 
+const RETRY_DELAY_MS = 5000;
+
 export function LocationsPage() {
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,6 +80,18 @@ export function LocationsPage() {
   }, []);
 
   useEffect(() => {
+    if (loading || !loadError) {
+      return;
+    }
+
+    const retryTimer = window.setTimeout(() => {
+      void loadLocations({ background: true });
+    }, RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(retryTimer);
+  }, [loadError, loading]);
+
+  useEffect(() => {
     if (!notice) return;
     const timeout = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(timeout);
@@ -93,9 +107,13 @@ export function LocationsPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [editingId, isEditDirty]);
 
-  async function loadLocations() {
-    setLoading(true);
-    setLoadError("");
+  async function loadLocations(options?: { background?: boolean }) {
+    const background = options?.background ?? false;
+
+    if (!background) {
+      setLoading(true);
+      setLoadError("");
+    }
     try {
       const data = await apiRequest<LocationRecord[]>("/api/locations");
       setLocations(data);
@@ -103,7 +121,9 @@ export function LocationsPage() {
       setLocations([]);
       setLoadError((err as Error).message || "Unable to load locations right now.");
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }
 

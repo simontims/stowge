@@ -31,6 +31,8 @@ const EMPTY_NEW_USER: UserForm = {
   role: "user",
 };
 
+const RETRY_DELAY_MS = 5000;
+
 export function SettingsUsersPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,6 +84,18 @@ export function SettingsUsersPage() {
   }, []);
 
   useEffect(() => {
+    if (loading || !error) {
+      return;
+    }
+
+    const retryTimer = window.setTimeout(() => {
+      void loadUsers({ background: true });
+    }, RETRY_DELAY_MS);
+
+    return () => window.clearTimeout(retryTimer);
+  }, [error, loading]);
+
+  useEffect(() => {
     if (!armedDeleteId) return;
     const timeout = setTimeout(() => {
       setArmedDeleteId((current) => (current === armedDeleteId ? null : current));
@@ -99,10 +113,14 @@ export function SettingsUsersPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [editingId, isEditDirty]);
 
-  async function loadUsers() {
-    setLoading(true);
-    setError("");
-    setNotice("");
+  async function loadUsers(options?: { background?: boolean }) {
+    const background = options?.background ?? false;
+
+    if (!background) {
+      setLoading(true);
+      setError("");
+      setNotice("");
+    }
     try {
       const data = await apiRequest<UserRecord[]>("/api/users");
       setUsers(data);
@@ -110,7 +128,9 @@ export function SettingsUsersPage() {
       setUsers([]);
       setError((err as Error).message || "Failed to load users.");
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }
 
