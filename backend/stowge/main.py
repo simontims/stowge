@@ -129,14 +129,15 @@ def _serialize_location(location: Location, db: Session) -> dict:
     }
 
 
-def _serialize_collection(collection: Collection) -> dict:
+def _serialize_collection(collection: Collection, db: Session) -> dict:
+    item_count = db.query(Part).filter(Part.collection == collection.name).count()
     return {
         "id": collection.id,
         "name": collection.name,
         "icon": collection.icon,
         "description": collection.description,
         "ai_hint": collection.ai_hint,
-        "item_count": collection.item_count,
+        "item_count": item_count,
         "created_at": _utc_iso(collection.created_at),
         "updated_at": _utc_iso(collection.updated_at),
     }
@@ -749,7 +750,7 @@ def get_location_photo(location_id: str, db: Session = Depends(get_db), me: User
 @app.get("/api/collections")
 def list_collections(db: Session = Depends(get_db), me: User = Depends(current_user)):
     collections = db.query(Collection).order_by(Collection.created_at.asc()).all()
-    return [_serialize_collection(col) for col in collections]
+    return [_serialize_collection(col, db) for col in collections]
 
 
 @app.post("/api/collections")
@@ -770,7 +771,7 @@ def create_collection(payload: dict, db: Session = Depends(get_db), me: User = D
     db.add(collection)
     db.commit()
     db.refresh(collection)
-    return _serialize_collection(collection)
+    return _serialize_collection(collection, db)
 
 
 @app.patch("/api/collections/{collection_id}")
@@ -800,7 +801,7 @@ def update_collection(collection_id: str, payload: dict, db: Session = Depends(g
     collection.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(collection)
-    return _serialize_collection(collection)
+    return _serialize_collection(collection, db)
 
 
 @app.delete("/api/collections/{collection_id}")
