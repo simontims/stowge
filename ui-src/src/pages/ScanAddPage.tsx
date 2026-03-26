@@ -156,6 +156,9 @@ export function ScanAddPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
+  const [submitErrorDetail, setSubmitErrorDetail] = useState<string>("");
+  const [showSubmitErrorDetail, setShowSubmitErrorDetail] = useState(false);
+  const [submitErrorCopied, setSubmitErrorCopied] = useState(false);
   const [submitAbort, setSubmitAbort] = useState<AbortController | null>(null);
 
   const [identifyData, setIdentifyData] = useState<IdentifyResponse | null>(null);
@@ -188,6 +191,7 @@ export function ScanAddPage() {
 
   const selectedCandidate = candidates[selectedIndex];
   const isManualReview = mode === "review" && !identifyData;
+  const canSubmitToAi = llmOptions.length > 0;
 
   useEffect(() => {
     if (!notice) return;
@@ -242,6 +246,9 @@ export function ScanAddPage() {
     });
     setSaveError("");
     setSubmitError("");
+    setSubmitErrorDetail("");
+    setShowSubmitErrorDetail(false);
+    setSubmitErrorCopied(false);
   }
 
   async function loadAddPreferences() {
@@ -305,6 +312,9 @@ export function ScanAddPage() {
 
   function startManualReview() {
     setSubmitError("");
+    setSubmitErrorDetail("");
+    setShowSubmitErrorDetail(false);
+    setSubmitErrorCopied(false);
     setSaveError("");
     setNotice("");
     clearSession();
@@ -334,6 +344,9 @@ export function ScanAddPage() {
 
   async function onTakePicture() {
     setSubmitError("");
+    setSubmitErrorDetail("");
+    setShowSubmitErrorDetail(false);
+    setSubmitErrorCopied(false);
     const file = await takePicture();
     if (!file) return;
     mergePhotos([file]);
@@ -341,12 +354,18 @@ export function ScanAddPage() {
 
   function onPickPhotos(files: FileList | null) {
     setSubmitError("");
+    setSubmitErrorDetail("");
+    setShowSubmitErrorDetail(false);
+    setSubmitErrorCopied(false);
     if (!files) return;
     mergePhotos(Array.from(files));
   }
 
   async function submitIdentify() {
     setSubmitError("");
+    setSubmitErrorDetail("");
+    setShowSubmitErrorDetail(false);
+    setSubmitErrorCopied(false);
     setSaveError("");
     setNotice("");
 
@@ -361,6 +380,11 @@ export function ScanAddPage() {
 
     if (photos.length < 1) {
       setSubmitError("Add at least one photo.");
+      return;
+    }
+
+    if (!canSubmitToAi) {
+      setSubmitError("No AI model configured.");
       return;
     }
 
@@ -417,7 +441,11 @@ export function ScanAddPage() {
       setMode("review");
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
-        setSubmitError((err as Error).message || "Identify failed.");
+        const detail = (err as Error).message || "Identify failed.";
+        setSubmitError("Error from AI Model.");
+        setSubmitErrorDetail(detail);
+        setShowSubmitErrorDetail(false);
+        setSubmitErrorCopied(false);
       }
     } finally {
       setIsSubmitting(false);
@@ -563,6 +591,12 @@ export function ScanAddPage() {
               </p>
             )}
 
+            {llmOptions.length === 0 && (
+              <p className="mb-3 text-xs text-amber-400">
+                No AI model configured. Add one under Settings / AI to enable identification.
+              </p>
+            )}
+
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={startManualReview}
@@ -574,7 +608,7 @@ export function ScanAddPage() {
 
               <button
                 onClick={submitIdentify}
-                disabled={!isSubmitting && photos.length === 0}
+                disabled={!canSubmitToAi || (!isSubmitting && photos.length === 0)}
                 className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
               >
                 {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
@@ -583,7 +617,39 @@ export function ScanAddPage() {
             </div>
           </div>
 
-          {submitError && <p className="text-sm text-red-400">{submitError}</p>}
+          {submitError && (
+            <div className="space-y-2 rounded-md border border-red-500/40 bg-red-950/20 p-3">
+              <p className="text-sm text-red-300">{submitError}</p>
+              {submitErrorDetail && (
+                <>
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setShowSubmitErrorDetail((current) => !current)}
+                      className="text-red-200 underline underline-offset-2 hover:text-red-100"
+                    >
+                      {showSubmitErrorDetail ? "Hide info" : "More info"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(submitErrorDetail);
+                        setSubmitErrorCopied(true);
+                      }}
+                      className="text-red-200 underline underline-offset-2 hover:text-red-100"
+                    >
+                      {submitErrorCopied ? "Copied" : "Copy details"}
+                    </button>
+                  </div>
+                  {showSubmitErrorDetail && (
+                    <pre className="whitespace-pre-wrap break-words rounded-md bg-black/25 p-2 text-xs text-red-100">
+                      {submitErrorDetail}
+                    </pre>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </section>
       )}
 
