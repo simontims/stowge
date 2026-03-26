@@ -87,8 +87,6 @@ export function DashboardPage() {
         description="Overview of your inventory at a glance"
       />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {statCards.map((card) => (
           <StatCard
@@ -101,6 +99,7 @@ export function DashboardPage() {
       </div>
 
       {loading && <p className="text-xs text-neutral-500">Refreshing counts...</p>}
+      {!loading && error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
