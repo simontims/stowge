@@ -133,6 +133,35 @@ function Invoke-PipFiltered {
     }
 }
 
+function Test-UiBuildRequired {
+    param(
+        [string]$UiSrcDir,
+        [string]$UiOutDir
+    )
+
+    if (-not (Test-Path $UiOutDir)) {
+        return $true
+    }
+
+    $sourceFiles = Get-ChildItem -Path $UiSrcDir -File -Recurse | Where-Object {
+        $_.FullName -notlike "*\node_modules\*"
+    }
+    $outputFiles = Get-ChildItem -Path $UiOutDir -File -Recurse -ErrorAction SilentlyContinue
+
+    if (-not $outputFiles -or $outputFiles.Count -eq 0) {
+        return $true
+    }
+
+    if (-not $sourceFiles -or $sourceFiles.Count -eq 0) {
+        return $false
+    }
+
+    $latestSourceTime = ($sourceFiles | Measure-Object -Property LastWriteTimeUtc -Maximum).Maximum
+    $latestOutputTime = ($outputFiles | Measure-Object -Property LastWriteTimeUtc -Maximum).Maximum
+
+    return $latestSourceTime -gt $latestOutputTime
+}
+
 $repoRoot = $PSScriptRoot
 $backendDir = Join-Path $repoRoot "backend"
 $venvDir = Join-Path $backendDir ".venv"
@@ -145,6 +174,7 @@ $dataDir = Join-Path $repoRoot "data"
 $dbFile = Join-Path $dataDir "stowge.db"
 $envFile = Join-Path $repoRoot ".env"
 $envExample = Join-Path $repoRoot ".env.example"
+$uiNodeModulesDir = Join-Path $uiSrcDir "node_modules"
 
 Write-Step "Preparing environment"
 if (-not (Test-Path $envFile)) {
@@ -199,23 +229,33 @@ if (-not $SkipInstall) {
 }
 
 if (-not $SkipUiBuild) {
-    Write-Step "Installing UI dependencies (if needed)"
-    Push-Location $uiSrcDir
-    try {
-        if (-not (Test-Path (Join-Path $uiSrcDir "node_modules"))) {
-            if (Test-Path (Join-Path $uiSrcDir "package-lock.json")) {
-                & npm ci
-            }
-            else {
-                & npm install
-            }
-        }
+    $uiNeedsDependencies = -not (Test-Path $uiNodeModulesDir)
+    $uiBuildRequired = $uiNeedsDependencies -or (Test-UiBuildRequired -UiSrcDir $uiSrcDir -UiOutDir $uiOutDir)
 
-        Write-Step "Building UI"
-        & npm run build
+    if ($uiNeedsDependencies -or $uiBuildRequired) {
+        Write-Step "Preparing UI build"
+        Push-Location $uiSrcDir
+        try {
+            if ($uiNeedsDependencies) {
+                Write-Step "Installing UI dependencies (if needed)"
+                if (Test-Path (Join-Path $uiSrcDir "package-lock.json")) {
+                    & npm ci
+                }
+                else {
+                    & npm install
+                }
+            }
+
+            Write-Step "Building UI"
+            & npm run build
+        }
+        finally {
+            Pop-Location
+        }
     }
-    finally {
-        Pop-Location
+    else {
+        Write-Step "Skipping UI build"
+        Write-Host "UI build output is already up to date." -ForegroundColor DarkGray
     }
 }
 

@@ -136,6 +136,55 @@ invoke_pip_filtered() {
   fi
 }
 
+test_ui_build_required() {
+  local ui_src_dir="$1"
+  local ui_out_dir="$2"
+  local python_cmd
+
+  if [[ ! -d "$ui_out_dir" ]]; then
+    return 0
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    python_cmd="python3"
+  else
+    python_cmd="python"
+  fi
+
+  "$python_cmd" - "$ui_src_dir" "$ui_out_dir" <<'PY'
+import os
+import sys
+
+ui_src_dir = sys.argv[1]
+ui_out_dir = sys.argv[2]
+
+
+def latest_mtime(root, skip_node_modules=False):
+    latest = None
+    for current_root, dirs, files in os.walk(root):
+        if skip_node_modules:
+            dirs[:] = [name for name in dirs if name != "node_modules"]
+        for file_name in files:
+            path = os.path.join(current_root, file_name)
+            mtime = os.path.getmtime(path)
+            if latest is None or mtime > latest:
+                latest = mtime
+    return latest
+
+
+src_latest = latest_mtime(ui_src_dir, skip_node_modules=True)
+out_latest = latest_mtime(ui_out_dir)
+
+if out_latest is None:
+    raise SystemExit(0)
+
+if src_latest is None:
+    raise SystemExit(1)
+
+raise SystemExit(0 if src_latest > out_latest else 1)
+PY
+}
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 backend_dir="$repo_root/backend"
 venv_dir="$backend_dir/.venv"
@@ -148,6 +197,7 @@ data_dir="$repo_root/data"
 db_file="$data_dir/stowge.db"
 env_file="$repo_root/.env"
 env_example="$repo_root/.env.example"
+ui_node_modules_dir="$ui_src_dir/node_modules"
 
 step "Preparing environment"
 if [[ ! -f "$env_file" ]]; then
@@ -203,19 +253,35 @@ if [[ $SKIP_INSTALL -eq 0 ]]; then
 fi
 
 if [[ $SKIP_UI_BUILD -eq 0 ]]; then
-  step "Installing UI dependencies (if needed)"
-  pushd "$ui_src_dir" >/dev/null
-  if [[ ! -d "$ui_src_dir/node_modules" ]]; then
-    if [[ -f "$ui_src_dir/package-lock.json" ]]; then
-      npm ci
-    else
-      npm install
-    fi
+  ui_needs_dependencies=0
+  ui_build_required=0
+
+  if [[ ! -d "$ui_node_modules_dir" ]]; then
+    ui_needs_dependencies=1
+    ui_build_required=1
+  elif test_ui_build_required "$ui_src_dir" "$ui_out_dir"; then
+    ui_build_required=1
   fi
 
-  step "Building UI"
-  npm run build
-  popd >/dev/null
+  if [[ $ui_build_required -eq 1 ]]; then
+    step "Preparing UI build"
+    pushd "$ui_src_dir" >/dev/null
+    if [[ $ui_needs_dependencies -eq 1 ]]; then
+      step "Installing UI dependencies (if needed)"
+      if [[ -f "$ui_src_dir/package-lock.json" ]]; then
+        npm ci
+      else
+        npm install
+      fi
+    fi
+
+    step "Building UI"
+    npm run build
+    popd >/dev/null
+  else
+    step "Skipping UI build"
+    echo "UI build output is already up to date."
+  fi
 fi
 
 step "Preparing local data folders"
