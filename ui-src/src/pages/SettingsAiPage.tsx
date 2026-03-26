@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Edit3, Plus, Save, Star, Trash2, X } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, Edit3, Plus, Save, Star, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { apiRequest } from "../lib/api";
@@ -60,6 +60,8 @@ interface EditConfigForm {
   is_default: boolean;
   evidence_enabled: boolean;
 }
+
+type AiSortKey = "name" | "provider" | "model" | "evidence";
 
 const FALLBACK_PROVIDERS: ProviderOption[] = [
   {
@@ -197,6 +199,8 @@ export function SettingsAiPage() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<NewConfigForm>(EMPTY_FORM);
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<AiSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
@@ -237,11 +241,34 @@ export function SettingsAiPage() {
     );
   }, [configs, search]);
   const hasConfigs = useMemo(() => configs.length > 0, [configs]);
+  const sortedFilteredConfigs = useMemo(() => {
+    const direction = sortDirection === "asc" ? 1 : -1;
+    const rows = [...filteredConfigs];
+    rows.sort((a, b) => {
+      let comparison = 0;
+      if (sortKey === "evidence") {
+        comparison = Number(a.evidence_enabled) - Number(b.evidence_enabled);
+      } else {
+        comparison = a[sortKey].localeCompare(b[sortKey], undefined, { sensitivity: "base" });
+      }
+      return comparison * direction;
+    });
+    return rows;
+  }, [filteredConfigs, sortDirection, sortKey]);
   const editingConfig = useMemo(
     () => configs.find((c) => c.id === editingId) || null,
     [configs, editingId]
   );
   const showListView = !addingOpen && !editingId;
+
+  function handleSort(nextKey: AiSortKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDirection("asc");
+  }
 
   const isEditDirty = useMemo(
     () =>
@@ -722,10 +749,46 @@ export function SettingsAiPage() {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-neutral-900 border-b border-neutral-800">
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Provider</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Model</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Evidence</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("name")}
+                    className="inline-flex items-center gap-1 hover:text-neutral-300"
+                  >
+                    Name
+                    <ArrowUpDown size={12} className={sortKey === "name" ? "text-neutral-300" : "text-neutral-600"} />
+                  </button>
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("provider")}
+                    className="inline-flex items-center gap-1 hover:text-neutral-300"
+                  >
+                    Provider
+                    <ArrowUpDown size={12} className={sortKey === "provider" ? "text-neutral-300" : "text-neutral-600"} />
+                  </button>
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("model")}
+                    className="inline-flex items-center gap-1 hover:text-neutral-300"
+                  >
+                    Model
+                    <ArrowUpDown size={12} className={sortKey === "model" ? "text-neutral-300" : "text-neutral-600"} />
+                  </button>
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("evidence")}
+                    className="inline-flex items-center gap-1 hover:text-neutral-300"
+                  >
+                    Evidence
+                    <ArrowUpDown size={12} className={sortKey === "evidence" ? "text-neutral-300" : "text-neutral-600"} />
+                  </button>
+                </th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
               </tr>
             </thead>
@@ -743,7 +806,7 @@ export function SettingsAiPage() {
                   </td>
                 </tr>
               ) : (
-                filteredConfigs.map((cfg) => {
+                sortedFilteredConfigs.map((cfg) => {
                   const isDefault = cfg.id === defaultId;
                   const isDeleting = deletingId === cfg.id;
                   const isSettingDefault = settingDefaultId === cfg.id;

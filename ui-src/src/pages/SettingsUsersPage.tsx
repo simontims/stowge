@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowUpDown, Edit3, Plus, Save, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
@@ -23,6 +23,8 @@ interface UserForm {
   password: string;
   role: "admin" | "user";
 }
+
+type UserSortKey = "email" | "firstname" | "lastname" | "role" | "last_login_at";
 
 const EMPTY_NEW_USER: UserForm = {
   email: "",
@@ -50,6 +52,8 @@ export function SettingsUsersPage() {
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addingOpen, setAddingOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<UserSortKey>("email");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const currentUserId = useMemo(() => getCurrentUserId(), []);
   const editingUser = users.find((u) => u.id === editingId) || null;
@@ -68,6 +72,23 @@ export function SettingsUsersPage() {
     );
   }, [users, search]);
 
+  const sortedFilteredUsers = useMemo(() => {
+    const direction = sortDirection === "asc" ? 1 : -1;
+    const rows = [...filteredUsers];
+    rows.sort((a, b) => {
+      if (sortKey === "last_login_at") {
+        const left = a.last_login_at ? Date.parse(a.last_login_at) : 0;
+        const right = b.last_login_at ? Date.parse(b.last_login_at) : 0;
+        return (left - right) * direction;
+      }
+
+      const left = (a[sortKey] || "").toLowerCase();
+      const right = (b[sortKey] || "").toLowerCase();
+      return left.localeCompare(right) * direction;
+    });
+    return rows;
+  }, [filteredUsers, sortDirection, sortKey]);
+
   const isEditDirty = useMemo(
     () =>
       editForm.email !== initialEditForm.email ||
@@ -77,6 +98,15 @@ export function SettingsUsersPage() {
       editForm.role !== initialEditForm.role,
     [editForm, initialEditForm]
   );
+
+  function handleSort(nextKey: UserSortKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDirection("asc");
+  }
 
   useEffect(() => {
     void loadUsers();
@@ -443,11 +473,56 @@ export function SettingsUsersPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-neutral-900 border-b border-neutral-800">
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Email</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Firstname</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Lastname</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Role</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Last Login</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("email")}
+                      className="inline-flex items-center gap-1 hover:text-neutral-300"
+                    >
+                      Email
+                      <ArrowUpDown size={12} className={sortKey === "email" ? "text-neutral-300" : "text-neutral-600"} />
+                    </button>
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("firstname")}
+                      className="inline-flex items-center gap-1 hover:text-neutral-300"
+                    >
+                      Firstname
+                      <ArrowUpDown size={12} className={sortKey === "firstname" ? "text-neutral-300" : "text-neutral-600"} />
+                    </button>
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("lastname")}
+                      className="inline-flex items-center gap-1 hover:text-neutral-300"
+                    >
+                      Lastname
+                      <ArrowUpDown size={12} className={sortKey === "lastname" ? "text-neutral-300" : "text-neutral-600"} />
+                    </button>
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("role")}
+                      className="inline-flex items-center gap-1 hover:text-neutral-300"
+                    >
+                      Role
+                      <ArrowUpDown size={12} className={sortKey === "role" ? "text-neutral-300" : "text-neutral-600"} />
+                    </button>
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("last_login_at")}
+                      className="inline-flex items-center gap-1 hover:text-neutral-300"
+                    >
+                      Last Login
+                      <ArrowUpDown size={12} className={sortKey === "last_login_at" ? "text-neutral-300" : "text-neutral-600"} />
+                    </button>
+                  </th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
                 </tr>
               </thead>
@@ -465,7 +540,7 @@ export function SettingsUsersPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user) => {
+                  sortedFilteredUsers.map((user) => {
                     const isCurrentUser = user.id === currentUserId;
                     const isArmed = armedDeleteId === user.id;
                     const isDeleting = deletingId === user.id;
