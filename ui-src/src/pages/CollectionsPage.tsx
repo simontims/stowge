@@ -63,7 +63,7 @@ const ICON_CATALOGUE: IconEntry[] = [
   { name: "shopping-bag", icon: ShoppingBag },
   { name: "shirt", icon: Shirt },
   { name: "sofa", icon: Sofa },
-  { name: "tag", icon: Tag },
+  { name: "layers", icon: Layers },
   { name: "thermometer", icon: Thermometer },
   { name: "truck", icon: Truck },
   { name: "tv", icon: Tv },

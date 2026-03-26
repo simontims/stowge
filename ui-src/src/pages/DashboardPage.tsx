@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, MapPin, Tag } from "lucide-react";
+import { Box, MapPin, Layers } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
 
@@ -75,7 +75,7 @@ export function DashboardPage() {
     () => [
       { label: "Total items", value: counts.items, icon: <Box size={16} /> },
       { label: "Total locations", value: counts.locations, icon: <MapPin size={16} /> },
-      { label: "Total collections", value: counts.collections, icon: <Tag size={16} /> },
+      { label: "Total collections", value: counts.collections, icon: <Layers size={16} /> },
     ],
     [counts.collections, counts.items, counts.locations]
   );
