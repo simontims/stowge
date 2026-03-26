@@ -702,7 +702,7 @@ export function SettingsAiPage() {
         </section>
       )}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && !showListView && <p className="text-sm text-red-400">{error}</p>}
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
       {showListView && (
@@ -730,7 +730,13 @@ export function SettingsAiPage() {
               </tr>
             </thead>
             <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
-              {!hasConfigs ? (
+              {error ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-red-400">
+                    {error}
+                  </td>
+                </tr>
+              ) : !hasConfigs ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-sm text-neutral-600">
                     {loading ? "Loading AI models..." : "No AI models configured yet."}

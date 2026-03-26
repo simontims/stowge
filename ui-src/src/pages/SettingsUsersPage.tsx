@@ -423,7 +423,7 @@ export function SettingsUsersPage() {
         </section>
       )}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && !showListView && <p className="text-sm text-red-400">{error}</p>}
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
       {showListView && (
@@ -452,7 +452,13 @@ export function SettingsUsersPage() {
                 </tr>
               </thead>
               <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
-                {users.length === 0 ? (
+                {error ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-red-400">
+                      {error}
+                    </td>
+                  </tr>
+                ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-sm text-neutral-600">
                       {loading ? "Loading users..." : "No users found."}
