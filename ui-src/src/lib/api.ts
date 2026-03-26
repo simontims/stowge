@@ -57,7 +57,20 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(path, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(path, { ...init, headers });
+  } catch (err) {
+    const message = (err as Error).message || "";
+    const isNetworkError =
+      message === "Failed to fetch" ||
+      message === "NetworkError when attempting to fetch resource.";
+    if (isNetworkError) {
+      throw new Error("Cannot reach the Stowge server right now. Check that it is running, then try again.");
+    }
+    throw err;
+  }
+
   const text = await res.text();
 
   let payload: unknown = null;

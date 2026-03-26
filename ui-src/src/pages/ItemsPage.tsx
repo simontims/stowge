@@ -405,6 +405,19 @@ export function ItemsPage() {
     [deletingId]
   );
 
+  const emptyMessage = useMemo(() => {
+    if (loading) {
+      return "Loading items...";
+    }
+    if (error) {
+      return error;
+    }
+    if (search.trim()) {
+      return "No items match your search.";
+    }
+    return "No items yet. Add your first one above.";
+  }, [error, loading, search]);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -430,13 +443,13 @@ export function ItemsPage() {
         loading={loading}
       />
 
-      {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
       {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
 
       <DataTable
         columns={columns}
         rows={filtered}
         keyField="id"
+        emptyMessage={emptyMessage}
         onRowClick={(row) => {
           if (deletingId === row.id) return;
           void openPartModal(row.id);

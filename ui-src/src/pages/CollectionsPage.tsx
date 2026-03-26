@@ -350,6 +350,7 @@ function CollectionFormFields({
 export function CollectionsPage() {
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -392,13 +393,13 @@ export function CollectionsPage() {
 
   async function loadCollections() {
     setLoading(true);
-    setError("");
+    setLoadError("");
     try {
       const data = await apiRequest<CollectionRecord[]>("/api/collections");
       setCollections(data);
     } catch (err) {
       setCollections([]);
-      setError((err as Error).message || "Failed to load collections.");
+      setLoadError((err as Error).message || "Unable to load collections right now.");
     } finally {
       setLoading(false);
     }
@@ -574,6 +575,19 @@ export function CollectionsPage() {
     [deletingId]
   );
 
+  const emptyMessage = useMemo(() => {
+    if (loading) {
+      return "Loading collections...";
+    }
+    if (loadError) {
+      return loadError;
+    }
+    if (search.trim()) {
+      return "No collections match your search.";
+    }
+    return "No collections yet. Add your first one above.";
+  }, [loadError, loading, search]);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -669,7 +683,7 @@ export function CollectionsPage() {
             columns={columns}
             rows={filtered}
             keyField="id"
-            emptyMessage="No collections yet. Add your first one above."
+            emptyMessage={emptyMessage}
           />
         </>
       )}

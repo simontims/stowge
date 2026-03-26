@@ -32,6 +32,7 @@ const EMPTY_FORM: LocationForm = {
 export function LocationsPage() {
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -94,13 +95,13 @@ export function LocationsPage() {
 
   async function loadLocations() {
     setLoading(true);
-    setError("");
+    setLoadError("");
     try {
       const data = await apiRequest<LocationRecord[]>("/api/locations");
       setLocations(data);
     } catch (err) {
       setLocations([]);
-      setError((err as Error).message || "Failed to load locations.");
+      setLoadError((err as Error).message || "Unable to load locations right now.");
     } finally {
       setLoading(false);
     }
@@ -353,6 +354,19 @@ export function LocationsPage() {
     [deletingId]
   );
 
+  const emptyMessage = useMemo(() => {
+    if (loading) {
+      return "Loading locations...";
+    }
+    if (loadError) {
+      return loadError;
+    }
+    if (search.trim()) {
+      return "No locations match your search.";
+    }
+    return "No locations found. Add your first one above.";
+  }, [loadError, loading, search]);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -561,7 +575,7 @@ export function LocationsPage() {
             columns={columns}
             rows={filtered}
             keyField="id"
-            emptyMessage="No locations found. Add your first one above."
+            emptyMessage={emptyMessage}
           />
         </>
       )}
