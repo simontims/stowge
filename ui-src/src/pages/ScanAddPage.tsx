@@ -82,6 +82,74 @@ type ScanFlowMode = "input" | "review";
 
 const MAX_PHOTOS = 5;
 
+interface PhotoControlsProps {
+  previewUrls: string[];
+  photoCount: number;
+  maxPhotos: number;
+  disabled: boolean;
+  onTakePicture: () => void;
+  onPickPhotos: () => void;
+  onRemovePhoto: (index: number) => void;
+}
+
+function PhotoControls({
+  previewUrls,
+  photoCount,
+  maxPhotos,
+  disabled,
+  onTakePicture,
+  onPickPhotos,
+  onRemovePhoto,
+}: PhotoControlsProps) {
+  return (
+    <div className="space-y-3">
+      {previewUrls.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+          {previewUrls.map((url, idx) => (
+            <div key={url} className="relative border border-neutral-800 rounded-md overflow-hidden bg-neutral-950">
+              <img
+                src={url}
+                alt={`Photo ${idx + 1}`}
+                className="w-full aspect-square object-cover"
+              />
+              <button
+                onClick={() => onRemovePhoto(idx)}
+                disabled={disabled}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-neutral-200 hover:bg-black/80 disabled:opacity-60"
+                aria-label={`Remove photo ${idx + 1}`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={onTakePicture}
+          disabled={photoCount >= maxPhotos || disabled}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <Camera size={14} />
+          Take picture
+        </button>
+
+        <button
+          onClick={onPickPhotos}
+          disabled={photoCount >= maxPhotos || disabled}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <Upload size={14} />
+          Pick photos
+        </button>
+
+        <span className="text-xs text-neutral-500">{photoCount} / {maxPhotos}</span>
+      </div>
+    </div>
+  );
+}
+
 export function ScanAddPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -437,52 +505,15 @@ export function ScanAddPage() {
 
       {mode === "input" && (
         <section className="space-y-3">
-          <div className="flex items-center justify-end gap-3">
-            <span className="text-xs text-neutral-500">{photos.length} / {MAX_PHOTOS}</span>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={onTakePicture}
-              disabled={photos.length >= MAX_PHOTOS || isSubmitting}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Camera size={14} />
-              Take picture
-            </button>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={photos.length >= MAX_PHOTOS || isSubmitting}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Upload size={14} />
-              Pick photos
-            </button>
-
-          </div>
-
-          {previewUrls.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-              {previewUrls.map((url, idx) => (
-                <div key={url} className="relative border border-neutral-800 rounded-md overflow-hidden bg-neutral-950">
-                  <img
-                    src={url}
-                    alt={`Photo ${idx + 1}`}
-                    className="w-full aspect-square object-cover"
-                  />
-                  <button
-                    onClick={() => removePhoto(idx)}
-                    disabled={isSubmitting}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-neutral-200 hover:bg-black/80 disabled:opacity-60"
-                    aria-label={`Remove photo ${idx + 1}`}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <PhotoControls
+            previewUrls={previewUrls}
+            photoCount={photos.length}
+            maxPhotos={MAX_PHOTOS}
+            disabled={isSubmitting}
+            onTakePicture={onTakePicture}
+            onPickPhotos={() => fileInputRef.current?.click()}
+            onRemovePhoto={removePhoto}
+          />
 
           <div>
             <div className="mb-3">
@@ -565,52 +596,15 @@ export function ScanAddPage() {
           </div>
 
           {isManualReview && (
-            <div className="relative space-y-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 pb-2 pt-0.5">
-              <span className="absolute right-2 top-1 text-xs text-neutral-500">{photos.length}/{MAX_PHOTOS}</span>
-
-              {previewUrls.length > 0 && (
-                <div className="flex flex-wrap items-start content-start gap-2 pt-0.5">
-                  {previewUrls.map((url, idx) => (
-                    <div key={url} className="relative w-20 h-20 border border-neutral-800 rounded-md overflow-hidden bg-neutral-950">
-                      <img
-                        src={url}
-                        alt={`Photo ${idx + 1}`}
-                        className="w-full aspect-square object-cover"
-                      />
-                      <button
-                        onClick={() => removePhoto(idx)}
-                        disabled={isSaving}
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-neutral-200 hover:bg-black/80 disabled:opacity-60"
-                        aria-label={`Remove photo ${idx + 1}`}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={onTakePicture}
-                    disabled={photos.length >= MAX_PHOTOS || isSaving}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    <Camera size={14} />
-                    Take picture
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={photos.length >= MAX_PHOTOS || isSaving}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    <Upload size={14} />
-                    Pick photos
-                  </button>
-                </div>
-              </div>
-            </div>
+            <PhotoControls
+              previewUrls={previewUrls}
+              photoCount={photos.length}
+              maxPhotos={MAX_PHOTOS}
+              disabled={isSaving}
+              onTakePicture={onTakePicture}
+              onPickPhotos={() => fileInputRef.current?.click()}
+              onRemovePhoto={removePhoto}
+            />
           )}
 
           <div className="space-y-3">
