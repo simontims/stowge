@@ -509,7 +509,7 @@ export function AddPage() {
         stored_images: storedImages,
       };
 
-      const result = await apiRequest<{ id: string }>("/api/items", {
+      await apiRequest<{ id: string }>("/api/items", {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -517,7 +517,7 @@ export function AddPage() {
       setPhotos([]);
       clearSession();
       setMode("input");
-      setNotice(`Part saved (${result.id}). Ready to add the next part.`);
+      setNotice(`Saved ${payload.name}`);
 
       const main = document.querySelector("main");
       if (main instanceof HTMLElement) {
