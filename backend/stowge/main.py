@@ -103,7 +103,7 @@ def _serialize_user(user: User) -> dict:
         "id": user.id,
         "email": user.username,
         "firstname": user.first_name or "",
-        "surname": user.last_name or "",
+        "lastname": user.last_name or "",
         "role": user.role,
         "theme": user.theme or "dark",
         "preferred_add_collection_id": user.preferred_add_collection_id,
@@ -467,7 +467,7 @@ def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
 
     username = (payload.get("username") or payload.get("email") or "").strip().lower()
     first_name = (payload.get("firstname") or payload.get("first_name") or "").strip()
-    last_name = (payload.get("surname") or payload.get("last_name") or "").strip()
+    last_name = (payload.get("lastname") or payload.get("last_name") or payload.get("surname") or "").strip()
     password = payload.get("password") or ""
     if not (_is_valid_email(username) or len(username) >= 3):
         raise HTTPException(status_code=400, detail="Email or username >= 3 chars required")
@@ -534,7 +534,7 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
 def create_user(payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
     username = (payload.get("email") or payload.get("username") or "").strip().lower()
     first_name = (payload.get("firstname") or payload.get("first_name") or "").strip()
-    last_name = (payload.get("surname") or payload.get("last_name") or "").strip()
+    last_name = (payload.get("lastname") or payload.get("last_name") or payload.get("surname") or "").strip()
     password = payload.get("password") or ""
     role = (payload.get("role") or "user").strip()
 
@@ -585,8 +585,8 @@ def update_user(user_id: str, payload: dict, db: Session = Depends(get_db), me: 
     if "firstname" in payload or "first_name" in payload:
         u.first_name = str(payload.get("firstname") or payload.get("first_name") or "").strip()
 
-    if "surname" in payload or "last_name" in payload:
-        u.last_name = str(payload.get("surname") or payload.get("last_name") or "").strip()
+    if "lastname" in payload or "surname" in payload or "last_name" in payload:
+        u.last_name = str(payload.get("lastname") or payload.get("last_name") or payload.get("surname") or "").strip()
 
     if "role" in payload:
         role = str(payload.get("role") or "").strip()

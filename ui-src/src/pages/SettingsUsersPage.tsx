@@ -10,7 +10,7 @@ interface UserRecord {
   id: string;
   email: string;
   firstname: string;
-  surname: string;
+  lastname: string;
   role: "admin" | "user";
   created_at: string | null;
   last_login_at: string | null;
@@ -19,7 +19,7 @@ interface UserRecord {
 interface UserForm {
   email: string;
   firstname: string;
-  surname: string;
+  lastname: string;
   password: string;
   role: "admin" | "user";
 }
@@ -27,7 +27,7 @@ interface UserForm {
 const EMPTY_NEW_USER: UserForm = {
   email: "",
   firstname: "",
-  surname: "",
+  lastname: "",
   password: "",
   role: "user",
 };
@@ -63,7 +63,7 @@ export function SettingsUsersPage() {
       (u) =>
         u.email.toLowerCase().includes(term) ||
         (u.firstname || "").toLowerCase().includes(term) ||
-        (u.surname || "").toLowerCase().includes(term) ||
+        (u.lastname || "").toLowerCase().includes(term) ||
         u.role.toLowerCase().includes(term)
     );
   }, [users, search]);
@@ -72,7 +72,7 @@ export function SettingsUsersPage() {
     () =>
       editForm.email !== initialEditForm.email ||
       editForm.firstname !== initialEditForm.firstname ||
-      editForm.surname !== initialEditForm.surname ||
+      editForm.lastname !== initialEditForm.lastname ||
       editForm.password !== "" ||
       editForm.role !== initialEditForm.role,
     [editForm, initialEditForm]
@@ -143,7 +143,7 @@ export function SettingsUsersPage() {
         body: JSON.stringify({
           email: newUser.email.trim(),
           firstname: newUser.firstname.trim(),
-          surname: newUser.surname.trim(),
+          lastname: newUser.lastname.trim(),
           password: newUser.password,
           role: newUser.role,
         }),
@@ -166,7 +166,7 @@ export function SettingsUsersPage() {
     const snapshot: UserForm = {
       email: user.email,
       firstname: user.firstname || "",
-      surname: user.surname || "",
+      lastname: user.lastname || "",
       password: "",
       role: user.role,
     };
@@ -219,7 +219,7 @@ export function SettingsUsersPage() {
         body: JSON.stringify({
           email: editForm.email.trim(),
           firstname: editForm.firstname.trim(),
-          surname: editForm.surname.trim(),
+          lastname: editForm.lastname.trim(),
           role: editForm.role,
           password: editForm.password || undefined,
         }),
@@ -310,10 +310,10 @@ export function SettingsUsersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Surname</span>
+              <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
               <input
-                value={newUser.surname}
-                onChange={(e) => setNewUser((v) => ({ ...v, surname: e.target.value }))}
+                value={newUser.lastname}
+                onChange={(e) => setNewUser((v) => ({ ...v, lastname: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
             </label>
@@ -382,10 +382,10 @@ export function SettingsUsersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Surname</span>
+              <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
               <input
-                value={editForm.surname}
-                onChange={(e) => setEditForm((v) => ({ ...v, surname: e.target.value }))}
+                value={editForm.lastname}
+                onChange={(e) => setEditForm((v) => ({ ...v, lastname: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
             </label>
@@ -445,7 +445,7 @@ export function SettingsUsersPage() {
                 <tr className="bg-neutral-900 border-b border-neutral-800">
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Firstname</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Surname</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Lastname</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Role</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Last Login</th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
@@ -474,7 +474,7 @@ export function SettingsUsersPage() {
                       <tr key={user.id} className="hover:bg-neutral-900/60 transition-colors">
                         <td className="px-4 py-2.5 text-neutral-200">{user.email}</td>
                         <td className="px-4 py-2.5 text-neutral-300">{user.firstname || "-"}</td>
-                        <td className="px-4 py-2.5 text-neutral-300">{user.surname || "-"}</td>
+                        <td className="px-4 py-2.5 text-neutral-300">{user.lastname || "-"}</td>
                         <td className="px-4 py-2.5 text-neutral-300">{user.role}</td>
                         <td className="px-4 py-2.5 text-neutral-500">
                           {user.last_login_at

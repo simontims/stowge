@@ -14,7 +14,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [firstname, setFirstname] = useState("");
-  const [surname, setSurname] = useState("");
+  const [lastname, setLastname] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -57,7 +57,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
       const body =
         mode === "setup"
-          ? { email, username: email, firstname, surname, password }
+          ? { email, username: email, firstname, lastname, password }
           : { username: email, email, password };
 
       const res = await fetch(endpoint, {
@@ -139,11 +139,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 </label>
                 <label className="block">
                   <span className="block text-xs text-neutral-500 mb-1">
-                    Surname
+                    Lastname
                   </span>
                   <input
-                    value={surname}
-                    onChange={(e) => setSurname(e.target.value)}
+                    value={lastname}
+                    onChange={(e) => setLastname(e.target.value)}
                     autoComplete="family-name"
                     className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors"
                   />
