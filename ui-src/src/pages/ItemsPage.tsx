@@ -82,7 +82,7 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   );
 }
 
-export function PartsPage() {
+export function ItemsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [parts, setParts] = useState<Part[]>([]);

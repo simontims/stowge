@@ -150,7 +150,7 @@ function PhotoControls({
   );
 }
 
-export function ScanAddPage() {
+export function AddPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
