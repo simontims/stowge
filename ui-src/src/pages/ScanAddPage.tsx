@@ -498,8 +498,8 @@ export function ScanAddPage() {
   return (
     <div className="space-y-5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <PageHeader
-        title="Add"
-        description="Capture up to 5 photos, submit for AI identification or complete maually"
+        title="New Item"
+        description="Add up to 5 images, submit for AI identification or complete manually"
         action={null}
       />
 

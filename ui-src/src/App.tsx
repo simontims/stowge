@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { CommandPalette } from "./components/command/CommandPalette";
 import { PartsPage } from "./pages/PartsPage";
@@ -64,7 +64,7 @@ export default function App() {
           <Route path="/suppliers"  element={<PlaceholderPage title="Suppliers"  description="Track your parts suppliers" />} />
           <Route path="/projects"   element={<PlaceholderPage title="Projects"   description="Link parts and stock to projects" />} />
           <Route path="/add"       element={<ScanAddPage />} />
-          <Route path="/scan"      element={<ScanAddPage />} />
+          <Route path="/scan"      element={<Navigate to="/add" replace />} />
           <Route path="/settings"   element={<SettingsPage />} />
           <Route path="/settings/ai" element={<SettingsAiPage />} />
           <Route path="/settings/users" element={<SettingsUsersPage />} />

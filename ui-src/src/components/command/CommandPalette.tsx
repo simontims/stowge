@@ -45,7 +45,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       label: "Add Item",
       description: "Add a new item to inventory",
       icon: <Plus size={14} />,
-      action: () => go("/scan"),
+      action: () => go("/add"),
     },
     {
       id: "search-items",
@@ -59,7 +59,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       label: "Move Stock",
       description: "Move stock to another location",
       icon: <MoveRight size={14} />,
-      action: () => go("/scan"),
+      action: () => go("/add"),
     },
     {
       id: "adjust-qty",
