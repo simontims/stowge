@@ -61,6 +61,11 @@ interface CollectionOption {
   ai_hint?: string | null;
 }
 
+interface LocationOption {
+  id: string;
+  name: string;
+}
+
 interface MeResponse {
   preferred_add_collection_id?: string | null;
 }
@@ -69,6 +74,7 @@ interface PartDraft {
   name: string;
   description: string;
   collection_id: string;
+  location_id: string;
   status: "draft" | "confirmed";
 }
 
@@ -90,9 +96,11 @@ export function ScanAddPage() {
     name: "",
     description: "",
     collection_id: "",
+    location_id: "",
     status: "draft",
   });
   const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
   const [preferredCollectionId, setPreferredCollectionId] = useState<string>("");
 
   const [isSaving, setIsSaving] = useState(false);
@@ -161,6 +169,7 @@ export function ScanAddPage() {
       name: "",
       description: "",
       collection_id: preferredCollectionId,
+      location_id: "",
       status: "draft",
     });
     setSaveError("");
@@ -169,13 +178,15 @@ export function ScanAddPage() {
 
   async function loadAddPreferences() {
     try {
-      const [collectionData, meData] = await Promise.all([
+      const [collectionData, locationData, meData] = await Promise.all([
         apiRequest<CollectionOption[]>("/api/collections"),
+        apiRequest<LocationOption[]>("/api/locations"),
         apiRequest<MeResponse>("/api/me"),
       ]);
 
       const options = collectionData || [];
       setCollections(options);
+      setLocations(locationData || []);
 
       const preferred = meData.preferred_add_collection_id || "";
       const validPreferred = options.some((cat) => cat.id === preferred)
@@ -189,6 +200,7 @@ export function ScanAddPage() {
       }));
     } catch {
       setCollections([]);
+      setLocations([]);
       setPreferredCollectionId("");
     }
   }
@@ -218,6 +230,7 @@ export function ScanAddPage() {
       name: candidate?.name || "Unknown part",
       description: candidate?.description || "",
       collection_id: preferredCollectionId,
+      location_id: "",
       status: "draft",
     });
   }
@@ -381,6 +394,7 @@ export function ScanAddPage() {
         ai_primary: identifyData?.ai || selectedCandidate || null,
         ai_alternatives: identifyData && candidates.length > 1 ? { candidates: candidates.slice(1) } : null,
         ai_chosen_index: identifyData && candidates.length > 0 ? selectedIndex : null,
+        location_id: draft.location_id || null,
         stored_images: storedImages,
       };
 
@@ -626,7 +640,7 @@ export function ScanAddPage() {
                   />
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
                       Collection
@@ -644,6 +658,29 @@ export function ScanAddPage() {
                       {collections.map((collection) => (
                         <option key={collection.id} value={collection.id}>
                           {collection.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
+                      Location
+                    </label>
+                    <select
+                      value={draft.location_id}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          location_id: e.target.value,
+                        }))
+                      }
+                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    >
+                      <option value="">None</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
                         </option>
                       ))}
                     </select>

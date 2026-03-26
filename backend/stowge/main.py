@@ -1121,6 +1121,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
     name = (payload.get("name") or "").strip()
     description = (payload.get("description") or "").strip()
     collection = (payload.get("collection") or "").strip() or None
+    location_id = payload.get("location_id")
     status = payload.get("status") or "draft"
     if status not in ("draft", "confirmed"):
         raise HTTPException(status_code=400, detail="status must be draft|confirmed")
@@ -1131,12 +1132,20 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
         if not exists:
             raise HTTPException(status_code=400, detail="Invalid collection")
 
+    normalized_location_id: Optional[str] = None
+    if location_id is not None and str(location_id).strip() != "":
+        normalized_location_id = str(location_id).strip()
+        exists = db.query(Location.id).filter(Location.id == normalized_location_id).first()
+        if not exists:
+            raise HTTPException(status_code=400, detail="Invalid location.")
+
     stored_images = payload.get("stored_images") or []
 
     p = Part(
         name=name,
         description=description or None,
         collection=collection,
+        location_id=normalized_location_id,
         status=status,
         ai_primary=payload.get("ai_primary"),
         ai_alternatives=payload.get("ai_alternatives"),
