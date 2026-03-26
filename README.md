@@ -1,29 +1,36 @@
 # Stowge
-Self-hosted inventory system for mobile and desktop, configurable for multiple collections and powered by an AI-assisted "Add Item" flow.
 
-Stowge is designed for people who want full control of their inventory data while still getting modern UX: camera-first capture, AI suggestions, and fast editing/search across collections.
+Easy inventory with a brilliant user experience and AI-assist
+
+- Self-hosted with Docker
+- No cloud dependencies
+- Mobile and desktop friendly
+- Add items quickly, photo first from mobile with AI assist
+- Add items slowly and old-skool, you do you
+
+Custom Collections
+- Electronic parts (the original inspiration)
+- Arts and Craft bits
+- Big household items for insurance listings
+- LEGO Minifigs
+- RC car spare parts
+- Artisan keyboard keycaps
+- Random cables (mystery box of 'probably important someday')
+
+Custom Locations
+- Garge 
+- Garage
+- Shed
+- Loft
+- Box 7 under the spare bed
+
+
+Tech
 
 - UI (PWA) served at `/`
 - API served under `/api`
 - OpenAPI spec: `/openapi.json`
 - Swagger UI: `/docs`
-
-## Features (MVP)
-- Works across multiple inventory domains (electronics, tools, marine, clothing, and more)
-- Collection/location structure is configurable in-app
-- PWA UI optimized for mobile capture and desktop management
-- First-run setup: create initial admin user
-- Bearer token auth (login returns JWT)
-- Add Item flow on mobile:
-  - take/pick up to 5 photos
-  - submit for AI identification (single best match)
-  - an item suggestion is returned
-  - accept → create a Draft item in the DB
-- Items list + basic search + edit/confirm
-- Image ingest pipeline:
-  - generates display + thumbnail variants
-  - optional "store original" setting
-  - images served via the API (auth-protected)
 
 ## Deploy (Docker host)
 ### 1) Create persistent folders
@@ -36,16 +43,19 @@ Copy `.env.example` to `.env` and fill in values.
 
 ### 3) Start
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env up -d
+docker compose up -d
 ```
+### 4) First login
+Visit the UI; on first run you'll be asked to create an admin user and password.
 
-### 4) Configure AI models in app
-After first login, go to `Settings / AI` and add one or more LLM providers/models,
+### 5) Configure AI models in app (optional)
+Go to `System > AI` and add one or more LLM providers/models,
 set API keys, and choose a default model for `Add`.
 
-Then configure Nginx Proxy Manager:
-- `stowge.my.domain` → `http://host.ip.address:18090`
-- Enable HTTPS (camera access on Android requires HTTPS)
+### 6) Add Collections and Locations (optional)
+Visit the Collections and Locations area and experiment
+
+### 7) Start adding items!
 
 ## Local Dev Quickstart
 
