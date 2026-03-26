@@ -618,36 +618,50 @@ export function ScanAddPage() {
           </div>
 
           {submitError && (
-            <div className="space-y-2 rounded-md border border-red-500/40 bg-red-950/20 p-3">
-              <p className="text-sm text-red-300">{submitError}</p>
-              {submitErrorDetail && (
-                <>
-                  <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+              <div className="rounded-lg border border-red-500/40 bg-neutral-900 p-6 max-w-md w-full space-y-4">
+                <p className="text-sm text-red-300">{submitError}</p>
+                {submitErrorDetail && (
+                  <div className="space-y-3">
                     <button
                       type="button"
                       onClick={() => setShowSubmitErrorDetail((current) => !current)}
-                      className="text-red-200 underline underline-offset-2 hover:text-red-100"
+                      className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100"
                     >
                       {showSubmitErrorDetail ? "Hide info" : "More info"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(submitErrorDetail);
-                        setSubmitErrorCopied(true);
-                      }}
-                      className="text-red-200 underline underline-offset-2 hover:text-red-100"
-                    >
-                      {submitErrorCopied ? "Copied" : "Copy details"}
-                    </button>
+                    {showSubmitErrorDetail && (
+                      <>
+                        <pre className="whitespace-pre-wrap break-words rounded-md bg-black/25 p-3 text-xs text-red-100 max-h-48 overflow-y-auto">
+                          {submitErrorDetail}
+                        </pre>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(submitErrorDetail);
+                            setSubmitErrorCopied(true);
+                          }}
+                          className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100"
+                        >
+                          {submitErrorCopied ? "Copied" : "Copy to clipboard"}
+                        </button>
+                      </>
+                    )}
                   </div>
-                  {showSubmitErrorDetail && (
-                    <pre className="whitespace-pre-wrap break-words rounded-md bg-black/25 p-2 text-xs text-red-100">
-                      {submitErrorDetail}
-                    </pre>
-                  )}
-                </>
-              )}
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitError("");
+                    setSubmitErrorDetail("");
+                    setShowSubmitErrorDetail(false);
+                    setSubmitErrorCopied(false);
+                  }}
+                  className="w-full mt-4 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-neutral-100 rounded-md text-sm font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           )}
         </section>
