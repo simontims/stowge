@@ -49,6 +49,11 @@ interface LocationOption {
   name: string;
 }
 
+interface CollectionOption {
+  id: string;
+  name: string;
+}
+
 const EMPTY_EDIT_FORM: PartEditForm = {
   name: "",
   description: "",
@@ -95,8 +100,7 @@ export function PartsPage() {
   const [initialEditForm, setInitialEditForm] = useState<PartEditForm>(EMPTY_EDIT_FORM);
   const [savingDetail, setSavingDetail] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [locationFilter, setLocationFilter] = useState("");
-  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
@@ -110,6 +114,7 @@ export function PartsPage() {
   useEffect(() => {
     void loadParts();
     void loadLocations();
+    void loadCollectionOptions();
   }, []);
 
   useEffect(() => {
@@ -163,6 +168,15 @@ export function PartsPage() {
     }
   }
 
+  async function loadCollectionOptions() {
+    try {
+      const data = await apiRequest<CollectionOption[]>("/api/collections");
+      setCollectionOptions(data || []);
+    } catch {
+      setCollectionOptions([]);
+    }
+  }
+
   async function deletePart(partId: string) {
     setDeleteError("");
     setDeletingId(partId);
@@ -203,7 +217,6 @@ export function PartsPage() {
       setSelectedPart(detail);
       setEditForm(mapped);
       setInitialEditForm(mapped);
-      setLocationFilter("");
     } catch (err) {
       setDetailError((err as Error).message || "Failed to load part details.");
     } finally {
@@ -219,8 +232,6 @@ export function PartsPage() {
     setSavingDetail(false);
     setEditForm(EMPTY_EDIT_FORM);
     setInitialEditForm(EMPTY_EDIT_FORM);
-    setLocationFilter("");
-    setLocationDropdownOpen(false);
     setUnsavedPromptOpen(false);
     setConfirmDeletePartOpen(false);
   }
@@ -318,22 +329,6 @@ export function PartsPage() {
       );
     });
   }, [parts, search]);
-
-  const filteredLocations = useMemo(() => {
-    const term = locationFilter.trim().toLowerCase();
-    if (!term) return locations;
-    return locations.filter((location) =>
-      location.name.toLowerCase().includes(term)
-    );
-  }, [locations, locationFilter]);
-
-  const selectedLocationLabel = useMemo(() => {
-    if (!editForm.location_id) return "No location";
-    return (
-      locations.find((location) => location.id === editForm.location_id)?.name ||
-      "No location"
-    );
-  }, [editForm.location_id, locations]);
 
   const columns = useMemo<Column<Part>[]>(
     () => [
@@ -523,76 +518,41 @@ export function PartsPage() {
 
                   <label className="space-y-1">
                     <span className="text-xs text-neutral-500 uppercase tracking-wide">Collection</span>
-                    <input
+                    <select
                       value={editForm.collection}
                       onChange={(event) =>
                         setEditForm((current) => ({ ...current, collection: event.target.value }))
                       }
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                      placeholder="Optional"
-                    />
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                    >
+                      <option value="">No collection</option>
+                      {collectionOptions.map((collection) => (
+                        <option key={collection.id} value={collection.name}>
+                          {collection.name}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="space-y-1">
                     <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLocationDropdownOpen((open) => {
-                            const nextOpen = !open;
-                            if (!nextOpen) setLocationFilter("");
-                            return nextOpen;
-                          });
-                        }}
-                        className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-left text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                      >
-                        {selectedLocationLabel}
-                      </button>
-
-                      {locationDropdownOpen && (
-                        <div className="absolute z-20 mt-1 w-full rounded-md border border-neutral-700 bg-neutral-950 p-2 shadow-lg space-y-2">
-                          <input
-                            value={locationFilter}
-                            onChange={(event) => setLocationFilter(event.target.value)}
-                            className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                            placeholder="Filter locations..."
-                            autoFocus
-                          />
-
-                          <div className="max-h-44 overflow-y-auto space-y-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditForm((current) => ({ ...current, location_id: "" }));
-                                setLocationDropdownOpen(false);
-                                setLocationFilter("");
-                              }}
-                              className="w-full rounded px-2 py-1.5 text-left text-sm text-neutral-200 hover:bg-neutral-800"
-                            >
-                              No location
-                            </button>
-                            {filteredLocations.map((location) => (
-                              <button
-                                key={location.id}
-                                type="button"
-                                onClick={() => {
-                                  setEditForm((current) => ({ ...current, location_id: location.id }));
-                                  setLocationDropdownOpen(false);
-                                  setLocationFilter("");
-                                }}
-                                className="w-full rounded px-2 py-1.5 text-left text-sm text-neutral-200 hover:bg-neutral-800"
-                              >
-                                {location.name}
-                              </button>
-                            ))}
-                            {filteredLocations.length === 0 && (
-                              <div className="px-2 py-1.5 text-xs text-neutral-500">No locations match.</div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <select
+                      value={editForm.location_id}
+                      onChange={(event) =>
+                        setEditForm((current) => ({
+                          ...current,
+                          location_id: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                    >
+                      <option value="">No location</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="space-y-1">
