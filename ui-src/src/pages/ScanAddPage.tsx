@@ -157,6 +157,8 @@ export function ScanAddPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
   const [submitErrorDetail, setSubmitErrorDetail] = useState<string>("");
+  const [submitErrorProvider, setSubmitErrorProvider] = useState<string>("");
+  const [submitErrorModel, setSubmitErrorModel] = useState<string>("");
   const [showSubmitErrorDetail, setShowSubmitErrorDetail] = useState(false);
   const [submitErrorCopied, setSubmitErrorCopied] = useState(false);
   const [submitAbort, setSubmitAbort] = useState<AbortController | null>(null);
@@ -247,6 +249,8 @@ export function ScanAddPage() {
     setSaveError("");
     setSubmitError("");
     setSubmitErrorDetail("");
+    setSubmitErrorProvider("");
+    setSubmitErrorModel("");
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
   }
@@ -313,6 +317,8 @@ export function ScanAddPage() {
   function startManualReview() {
     setSubmitError("");
     setSubmitErrorDetail("");
+    setSubmitErrorProvider("");
+    setSubmitErrorModel("");
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
     setSaveError("");
@@ -345,6 +351,8 @@ export function ScanAddPage() {
   async function onTakePicture() {
     setSubmitError("");
     setSubmitErrorDetail("");
+    setSubmitErrorProvider("");
+    setSubmitErrorModel("");
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
     const file = await takePicture();
@@ -355,6 +363,8 @@ export function ScanAddPage() {
   function onPickPhotos(files: FileList | null) {
     setSubmitError("");
     setSubmitErrorDetail("");
+    setSubmitErrorProvider("");
+    setSubmitErrorModel("");
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
     if (!files) return;
@@ -364,6 +374,8 @@ export function ScanAddPage() {
   async function submitIdentify() {
     setSubmitError("");
     setSubmitErrorDetail("");
+    setSubmitErrorProvider("");
+    setSubmitErrorModel("");
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
     setSaveError("");
@@ -442,8 +454,11 @@ export function ScanAddPage() {
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         const detail = (err as Error).message || "Identify failed.";
+        const selectedLLM = llmOptions.find((opt) => opt.id === selectedLlmId);
         setSubmitError("Error from AI Model.");
         setSubmitErrorDetail(detail);
+        setSubmitErrorProvider(selectedLLM?.provider || "Unknown");
+        setSubmitErrorModel(selectedLLM?.model || "Unknown");
         setShowSubmitErrorDetail(false);
         setSubmitErrorCopied(false);
       }
@@ -621,6 +636,11 @@ export function ScanAddPage() {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
               <div className="rounded-lg border border-red-500/40 bg-neutral-900 p-6 max-w-md w-full space-y-4">
                 <p className="text-sm text-red-300">{submitError}</p>
+                {(submitErrorProvider || submitErrorModel) && (
+                  <p className="text-xs text-neutral-400">
+                    Model: {submitErrorProvider} / {submitErrorModel}
+                  </p>
+                )}
                 {submitErrorDetail && (
                   <div className="space-y-3">
                     <button
@@ -638,7 +658,8 @@ export function ScanAddPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            void navigator.clipboard.writeText(submitErrorDetail);
+                            const clipboardText = `Model: ${submitErrorProvider} / ${submitErrorModel}\n\n${submitErrorDetail}`;
+                            void navigator.clipboard.writeText(clipboardText);
                             setSubmitErrorCopied(true);
                           }}
                           className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100"
@@ -654,6 +675,8 @@ export function ScanAddPage() {
                   onClick={() => {
                     setSubmitError("");
                     setSubmitErrorDetail("");
+                    setSubmitErrorProvider("");
+                    setSubmitErrorModel("");
                     setShowSubmitErrorDetail(false);
                     setSubmitErrorCopied(false);
                   }}
@@ -797,6 +820,9 @@ export function ScanAddPage() {
                       setMode("input");
                       clearSession();
                       setSubmitError("");
+                      setSubmitErrorDetail("");
+                      setSubmitErrorProvider("");
+                      setSubmitErrorModel("");
                     }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
