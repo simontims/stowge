@@ -4,6 +4,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { apiRequest, getCurrentUserId } from "../lib/api";
+import { useServerRetry } from "../lib/useServerRetry";
 
 interface UserRecord {
   id: string;
@@ -30,8 +31,6 @@ const EMPTY_NEW_USER: UserForm = {
   password: "",
   role: "user",
 };
-
-const RETRY_DELAY_MS = 5000;
 
 export function SettingsUsersPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
@@ -83,17 +82,7 @@ export function SettingsUsersPage() {
     void loadUsers();
   }, []);
 
-  useEffect(() => {
-    if (loading || !error) {
-      return;
-    }
-
-    const retryTimer = window.setTimeout(() => {
-      void loadUsers({ background: true });
-    }, RETRY_DELAY_MS);
-
-    return () => window.clearTimeout(retryTimer);
-  }, [error, loading]);
+  useServerRetry(error, loading, () => loadUsers({ background: true }));
 
   useEffect(() => {
     if (!armedDeleteId) return;

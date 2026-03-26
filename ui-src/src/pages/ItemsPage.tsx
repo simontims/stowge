@@ -6,6 +6,7 @@ import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { apiRequest } from "../lib/api";
+import { useServerRetry } from "../lib/useServerRetry";
 
 interface Part {
   id: string;
@@ -82,8 +83,6 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   );
 }
 
-const RETRY_DELAY_MS = 5000;
-
 export function ItemsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -119,17 +118,7 @@ export function ItemsPage() {
     void loadCollectionOptions();
   }, []);
 
-  useEffect(() => {
-    if (loading || !error) {
-      return;
-    }
-
-    const retryTimer = window.setTimeout(() => {
-      void loadParts({ background: true });
-    }, RETRY_DELAY_MS);
-
-    return () => window.clearTimeout(retryTimer);
-  }, [error, loading]);
+  useServerRetry(error, loading, () => loadParts({ background: true }));
 
   useEffect(() => {
     const source = new EventSource("/api/events/items");

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
+import { useServerRetry } from "../lib/useServerRetry";
 
 interface IdentifyCandidate {
   name?: string;
@@ -81,8 +82,6 @@ interface PartDraft {
 type ScanFlowMode = "input" | "review";
 
 const MAX_PHOTOS = 5;
-
-const RETRY_DELAY_MS = 5000;
 
 interface PhotoControlsProps {
   previewUrls: string[];
@@ -215,19 +214,10 @@ export function AddPage() {
     void loadAddPreferences({ background: false }).finally(() => setIsLoading(false));
     }, []);
 
-  useEffect(() => {
-    if (isLoading || !loadError) {
-      return;
-    }
-
-    const retryTimer = window.setTimeout(() => {
-      setLoadError("");
-      void loadAiSettings({ background: true });
-      void loadAddPreferences({ background: true });
-    }, RETRY_DELAY_MS);
-
-    return () => window.clearTimeout(retryTimer);
-  }, [loadError, isLoading]);
+  useServerRetry(loadError, isLoading, () => {
+    void loadAiSettings({ background: true });
+    void loadAddPreferences({ background: true });
+  });
 
   useEffect(() => {
     const urls = photos.map((f) => URL.createObjectURL(f));
@@ -276,7 +266,7 @@ export function AddPage() {
     setSubmitErrorCopied(false);
   }
 
-  async function loadAddPreferences(opts?: { background?: boolean }) {
+  async function loadAddPreferences(_opts?: { background?: boolean }) {
     try {
       const [collectionData, locationData, meData] = await Promise.all([
         apiRequest<CollectionOption[]>("/api/collections"),

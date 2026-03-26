@@ -5,6 +5,7 @@ import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { apiRequest } from "../lib/api";
+import { useServerRetry } from "../lib/useServerRetry";
 
 interface LocationRecord {
   id: string;
@@ -28,8 +29,6 @@ const EMPTY_FORM: LocationForm = {
   description: "",
   photo_path: null,
 };
-
-const RETRY_DELAY_MS = 5000;
 
 export function LocationsPage() {
   const [locations, setLocations] = useState<LocationRecord[]>([]);
@@ -79,17 +78,7 @@ export function LocationsPage() {
     void loadLocations();
   }, []);
 
-  useEffect(() => {
-    if (loading || !loadError) {
-      return;
-    }
-
-    const retryTimer = window.setTimeout(() => {
-      void loadLocations({ background: true });
-    }, RETRY_DELAY_MS);
-
-    return () => window.clearTimeout(retryTimer);
-  }, [loadError, loading]);
+  useServerRetry(loadError, loading, () => loadLocations({ background: true }));
 
   useEffect(() => {
     if (!notice) return;
@@ -662,3 +651,6 @@ export function LocationsPage() {
     </div>
   );
 }
+
+
+

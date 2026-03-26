@@ -3,6 +3,7 @@ import { CheckCircle2, Edit3, Plus, Save, Star, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { apiRequest } from "../lib/api";
+import { useServerRetry } from "../lib/useServerRetry";
 
 interface AiConfig {
   id: string;
@@ -183,8 +184,6 @@ const EMPTY_FORM: NewConfigForm = {
   evidence_enabled: false,
 };
 
-const RETRY_DELAY_MS = 5000;
-
 export function SettingsAiPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -271,17 +270,7 @@ export function SettingsAiPage() {
     void loadConfigs();
   }, []);
 
-  useEffect(() => {
-    if (loading || !error) {
-      return;
-    }
-
-    const retryTimer = window.setTimeout(() => {
-      void loadConfigs({ background: true });
-    }, RETRY_DELAY_MS);
-
-    return () => window.clearTimeout(retryTimer);
-  }, [error, loading]);
+  useServerRetry(error, loading, () => loadConfigs({ background: true }));
 
   function getProviderOption(provider: string): ProviderOption {
     return (

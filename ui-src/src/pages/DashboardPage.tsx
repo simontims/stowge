@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Box, MapPin, Layers } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
+import { useServerRetry } from "../lib/useServerRetry";
 
 interface DashboardCounts {
   items: number | null;
@@ -33,8 +34,6 @@ function StatCard({ label, value, icon, onClick }: StatCardProps) {
   );
 }
 
-const RETRY_DELAY_MS = 5000;
-
 export function DashboardPage() {
   const navigate = useNavigate();
   const [counts, setCounts] = useState<DashboardCounts>({
@@ -49,17 +48,7 @@ export function DashboardPage() {
     void loadCounts();
   }, []);
 
-  useEffect(() => {
-    if (loading || !error) {
-      return;
-    }
-
-    const retryTimer = window.setTimeout(() => {
-      void loadCounts({ background: true });
-    }, RETRY_DELAY_MS);
-
-    return () => window.clearTimeout(retryTimer);
-  }, [error, loading]);
+  useServerRetry(error, loading, () => loadCounts({ background: true }));
 
   async function loadCounts(options?: { background?: boolean }) {
     const background = options?.background ?? false;
