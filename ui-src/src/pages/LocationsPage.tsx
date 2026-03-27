@@ -30,6 +30,8 @@ const EMPTY_FORM: LocationForm = {
   photo_path: null,
 };
 
+type LocationSortKey = "name" | "description" | "item_count";
+
 export function LocationsPage() {
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,8 @@ export function LocationsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<LocationSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [addingOpen, setAddingOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -271,6 +275,15 @@ export function LocationsPage() {
     }
   }
 
+  function handleSort(nextKey: LocationSortKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDirection("asc");
+  }
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return locations;
@@ -282,6 +295,20 @@ export function LocationsPage() {
       return name.includes(term) || description.includes(term) || count.includes(term);
     });
   }, [locations, search]);
+
+  const sorted = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    const rows = [...filtered];
+    rows.sort((a, b) => {
+      if (sortKey === "item_count") {
+        return (a.item_count - b.item_count) * dir;
+      }
+      const left = (a[sortKey] || "").toLowerCase();
+      const right = (b[sortKey] || "").toLowerCase();
+      return left.localeCompare(right) * dir;
+    });
+    return rows;
+  }, [filtered, sortKey, sortDirection]);
 
   const columns = useMemo<Column<LocationRecord>[]>(
     () => [
@@ -303,11 +330,13 @@ export function LocationsPage() {
       {
         key: "name",
         header: "Name",
+        sortable: true,
         render: (row) => <span className="font-medium text-neutral-200">{row.name}</span>,
       },
       {
         key: "description",
         header: "Description",
+        sortable: true,
         render: (row) => (
           <span className="text-neutral-400">{row.description?.trim() || "-"}</span>
         ),
@@ -315,6 +344,7 @@ export function LocationsPage() {
       {
         key: "item_count",
         header: "Item Count",
+        sortable: true,
         className: "w-28",
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
@@ -582,9 +612,12 @@ export function LocationsPage() {
 
           <DataTable
             columns={columns}
-            rows={filtered}
+            rows={sorted}
             keyField="id"
             emptyMessage={emptyMessage}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSort={(key) => handleSort(key as LocationSortKey)}
           />
         </>
       )}

@@ -83,6 +83,8 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   );
 }
 
+type ItemSortKey = "name" | "collection" | "location" | "status";
+
 export function ItemsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -92,6 +94,8 @@ export function ItemsPage() {
   const [deleteError, setDeleteError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeletePart, setConfirmDeletePart] = useState<Part | null>(null);
+  const [sortKey, setSortKey] = useState<ItemSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [selectedPart, setSelectedPart] = useState<PartDetail | null>(null);
@@ -321,6 +325,15 @@ export function ItemsPage() {
     setUnsavedPromptOpen(false);
   }
 
+  function handleSort(nextKey: ItemSortKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDirection("asc");
+  }
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return parts;
@@ -338,6 +351,17 @@ export function ItemsPage() {
       );
     });
   }, [parts, search]);
+
+  const sorted = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    const rows = [...filtered];
+    rows.sort((a, b) => {
+      const left = (a[sortKey] || "").toLowerCase();
+      const right = (b[sortKey] || "").toLowerCase();
+      return left.localeCompare(right) * dir;
+    });
+    return rows;
+  }, [filtered, sortKey, sortDirection]);
 
   const columns = useMemo<Column<Part>[]>(
     () => [
@@ -359,6 +383,7 @@ export function ItemsPage() {
       {
         key: "name",
         header: "Name",
+        sortable: true,
         render: (row) => (
           <span className="font-medium text-neutral-200">{row.name}</span>
         ),
@@ -366,6 +391,7 @@ export function ItemsPage() {
       {
         key: "collection",
         header: "Collection",
+        sortable: true,
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.collection || "-"}
@@ -375,6 +401,7 @@ export function ItemsPage() {
       {
         key: "location",
         header: "Location",
+        sortable: true,
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.location || "-"}
@@ -384,6 +411,7 @@ export function ItemsPage() {
       {
         key: "status",
         header: "Status",
+        sortable: true,
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.status}
@@ -456,9 +484,12 @@ export function ItemsPage() {
 
       <DataTable
         columns={columns}
-        rows={filtered}
+        rows={sorted}
         keyField="id"
         emptyMessage={emptyMessage}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        onSort={(key) => handleSort(key as ItemSortKey)}
         onRowClick={(row) => {
           if (deletingId === row.id) return;
           void openPartModal(row.id);
