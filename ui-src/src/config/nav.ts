@@ -27,10 +27,10 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export const navItems: NavItem[] = [
-  { label: "Dashboard",  route: "/",           icon: Home,      group: "INVENTORY"     },
-  { label: "Items",      route: "/items",       icon: Package,   group: "INVENTORY"     },
-  { label: "Locations",  route: "/locations",   icon: MapPin,    group: "INVENTORY"     },
-  { label: "Collections", route: "/collections",  icon: Layers,    group: "INVENTORY"     },
+  { label: "Dashboard",   route: "/",            icon: Home,      group: "INVENTORY"     },
+  { label: "Collections", route: "/collections", icon: Layers,    group: "INVENTORY"     },
+  { label: "Items",       route: "/items",       icon: Package,   group: "INVENTORY"     },
+  { label: "Locations",   route: "/locations",   icon: MapPin,    group: "INVENTORY"     },
   { label: "Suppliers",  route: "/suppliers",   icon: Factory,   group: "RELATIONSHIPS" },
   { label: "Projects",   route: "/projects",    icon: Wrench,    group: "RELATIONSHIPS" },
   { label: "Settings",   route: "/settings",    icon: Settings,  group: "SYSTEM"        },
