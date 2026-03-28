@@ -8,6 +8,7 @@ export interface Column<T> {
   className?: string;
   headerClassName?: string;
   sortable?: boolean;
+  width?: string;
 }
 
 interface DataTableProps<T extends object> {
@@ -48,6 +49,7 @@ export function DataTable<T extends object>({
                   <th
                     key={col.key}
                     scope="col"
+                    style={col.width ? { width: col.width, minWidth: col.width } : undefined}
                     className={clsx(
                       "px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider select-none whitespace-nowrap",
                       isSortable && "cursor-pointer hover:text-neutral-300 transition-colors",
@@ -89,6 +91,7 @@ export function DataTable<T extends object>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
+                      style={col.width ? { width: col.width, minWidth: col.width } : undefined}
                       className={clsx(
                         "px-4 py-2.5 text-neutral-300",
                         col.className

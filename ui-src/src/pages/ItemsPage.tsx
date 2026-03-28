@@ -85,6 +85,15 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
 
 type ItemSortKey = "name" | "collection" | "location" | "status";
 
+function getColumnWidth(values: Array<string | null | undefined>, minimum: number, maximum: number): string {
+  const longest = values.reduce((currentMax, value) => {
+    const normalized = (value || "-").trim();
+    return Math.max(currentMax, normalized.length);
+  }, 0);
+  const target = Math.min(maximum, Math.max(minimum, longest + 4));
+  return `${target}ch`;
+}
+
 export function ItemsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -381,12 +390,23 @@ export function ItemsPage() {
     return rows;
   }, [filtered, sortKey, sortDirection]);
 
+  const columnWidths = useMemo(
+    () => ({
+      name: getColumnWidth(parts.map((part) => part.name), 18, 34),
+      collection: getColumnWidth(parts.map((part) => part.collection), 14, 26),
+      location: getColumnWidth(parts.map((part) => part.location), 14, 26),
+      status: getColumnWidth(parts.map((part) => part.status), 10, 14),
+    }),
+    [parts]
+  );
+
   const columns = useMemo<Column<Part>[]>(
     () => [
       {
         key: "thumb",
         header: "Image",
         className: "w-20",
+        width: "5.5rem",
         render: (row) =>
           row.thumb ? (
             <img
@@ -402,6 +422,7 @@ export function ItemsPage() {
         key: "name",
         header: "Name",
         sortable: true,
+        width: columnWidths.name,
         render: (row) => (
           <span className="font-medium text-neutral-200">{row.name}</span>
         ),
@@ -410,6 +431,7 @@ export function ItemsPage() {
         key: "collection",
         header: "Collection",
         sortable: true,
+        width: columnWidths.collection,
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.collection || "-"}
@@ -420,6 +442,7 @@ export function ItemsPage() {
         key: "location",
         header: "Location",
         sortable: true,
+        width: columnWidths.location,
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.location || "-"}
@@ -430,6 +453,7 @@ export function ItemsPage() {
         key: "status",
         header: "Status",
         sortable: true,
+        width: columnWidths.status,
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.status}
@@ -441,6 +465,7 @@ export function ItemsPage() {
         header: "ACTIONS",
         className: "w-40 text-right",
         headerClassName: "w-40 text-right",
+        width: "10rem",
         render: (row) => {
           const isDeleting = deletingId === row.id;
           return (
@@ -457,7 +482,7 @@ export function ItemsPage() {
         },
       },
     ],
-    [deletingId]
+    [columnWidths, deletingId]
   );
 
   const emptyMessage = useMemo(() => {
