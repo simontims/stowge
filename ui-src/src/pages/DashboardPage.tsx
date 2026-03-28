@@ -48,11 +48,10 @@ export function DashboardPage() {
         setStatus(data);
         setError("");
       }
-    } catch (err) {
+    } catch {
       if (mountedRef.current) {
-        const msg = (err as Error).message || "Failed to load status metrics.";
-        setError(msg);
-        console.warn("[status poll]", msg);
+        setError("Cannot reach Stowge server.");
+        console.debug("Cannot reach Stowge server.");
       }
     }
     if (!background && mountedRef.current) setLoading(false);
