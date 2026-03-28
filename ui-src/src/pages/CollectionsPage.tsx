@@ -352,7 +352,13 @@ function CollectionFormFields({
 // ── Page ─────────────────────────────────────────────────────────────────────
 type CollectionSortKey = "name" | "description" | "item_count";
 
-export function CollectionsPage() {
+interface CollectionsSectionProps {
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  saveFnRef?: { current: (() => Promise<void>) | null };
+}
+
+export function CollectionsPage({ embedded, onDirtyChange, saveFnRef }: CollectionsSectionProps = {}) {
   const navigate = useNavigate();
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -390,6 +396,10 @@ export function CollectionsPage() {
       editForm.ai_hint !== initialEditForm.ai_hint,
     [editForm, initialEditForm]
   );
+
+  // Expose dirty state and save function when embedded
+  useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
+  if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
 
   useEffect(() => { void loadCollections(); }, []);
 
@@ -646,21 +656,34 @@ export function CollectionsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Collections"
-        description="Organise items into collections and guide the AI with per-collection hints"
-        action={
-          showListView ? (
-            <button
-              onClick={() => { setAddingOpen(true); setError(""); }}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-            >
-              <Plus size={14} />
-              Add Collection
-            </button>
-          ) : null
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Collections"
+          description="Organise items into collections and guide the AI with per-collection hints"
+          action={
+            showListView ? (
+              <button
+                onClick={() => { setAddingOpen(true); setError(""); }}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                <Plus size={14} />
+                Add Collection
+              </button>
+            ) : null
+          }
+        />
+      )}
+      {embedded && showListView && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => { setAddingOpen(true); setError(""); }}
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+          >
+            <Plus size={14} />
+            Add Collection
+          </button>
+        </div>
+      )}
 
       {addingOpen && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">

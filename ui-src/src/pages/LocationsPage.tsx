@@ -32,7 +32,13 @@ const EMPTY_FORM: LocationForm = {
 
 type LocationSortKey = "name" | "description" | "item_count";
 
-export function LocationsPage() {
+interface LocationsSectionProps {
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  saveFnRef?: { current: (() => Promise<void>) | null };
+}
+
+export function LocationsPage({ embedded, onDirtyChange, saveFnRef }: LocationsSectionProps = {}) {
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -78,6 +84,10 @@ export function LocationsPage() {
     [editForm, initialEditForm]
   );
 
+  // Expose dirty state and save function when embedded
+  useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
+  if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
+
   useEffect(() => {
     void loadLocations();
   }, []);
@@ -91,14 +101,14 @@ export function LocationsPage() {
   }, [notice]);
 
   useEffect(() => {
-    if (!editingId || !isEditDirty) return;
+    if (embedded || !editingId || !isEditDirty) return;
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [editingId, isEditDirty]);
+  }, [embedded, editingId, isEditDirty]);
 
   async function loadLocations(options?: { background?: boolean }) {
     const background = options?.background ?? false;
@@ -408,25 +418,38 @@ export function LocationsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Locations"
-        description="Add, edit, and delete storage locations for your inventory"
-        action={
-          showListView ? (
-            <button
-              onClick={() => {
-                setAddingOpen(true);
-                setError("");
-                setNotice("");
-              }}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-            >
-              <Plus size={14} />
-              Add Location
-            </button>
-          ) : null
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Locations"
+          description="Add, edit, and delete storage locations for your inventory"
+          action={
+            showListView ? (
+              <button
+                onClick={() => {
+                  setAddingOpen(true);
+                  setError("");
+                  setNotice("");
+                }}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                <Plus size={14} />
+                Add Location
+              </button>
+            ) : null
+          }
+        />
+      )}
+      {embedded && showListView && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => { setAddingOpen(true); setError(""); setNotice(""); }}
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+          >
+            <Plus size={14} />
+            Add Location
+          </button>
+        </div>
+      )}
 
       {addingOpen && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">

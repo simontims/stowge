@@ -1,10 +1,7 @@
 import {
   Activity,
-  MapPin,
   Layers,
   Settings,
-  Users,
-  Brain,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -26,11 +23,8 @@ export const topNavItems: NavItem[] = [
 ];
 
 export const navItems: NavItem[] = [
-  { label: "Status",    route: "/",                  icon: Activity, group: "SYSTEM" },
-  { label: "Settings",  route: "/settings",          icon: Settings, group: "SYSTEM" },
-  { label: "  AI",      route: "/settings/ai",       icon: Brain,    group: "SYSTEM" },
-  { label: "  Locations", route: "/settings/locations", icon: MapPin,  group: "SYSTEM" },
-  { label: "  Users",   route: "/settings/users",    icon: Users,    group: "SYSTEM" },
+  { label: "Status",   route: "/",       icon: Activity, group: "SYSTEM" },
+  { label: "Settings", route: "/settings", icon: Settings, group: "SYSTEM" },
 ];
 
 export const groupedNav = NAV_GROUPS.map((group) => ({

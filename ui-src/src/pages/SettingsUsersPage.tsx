@@ -34,7 +34,13 @@ const EMPTY_NEW_USER: UserForm = {
   role: "user",
 };
 
-export function SettingsUsersPage() {
+interface UsersSectionProps {
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  saveFnRef?: { current: (() => Promise<void>) | null };
+}
+
+export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersSectionProps = {}) {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -99,6 +105,10 @@ export function SettingsUsersPage() {
     [editForm, initialEditForm]
   );
 
+  // Expose dirty state and save function when embedded
+  useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
+  if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
+
   function handleSort(nextKey: UserSortKey) {
     if (sortKey === nextKey) {
       setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
@@ -123,14 +133,14 @@ export function SettingsUsersPage() {
   }, [armedDeleteId]);
 
   useEffect(() => {
-    if (!editingId || !isEditDirty) return;
+    if (embedded || !editingId || !isEditDirty) return;
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [editingId, isEditDirty]);
+  }, [embedded, editingId, isEditDirty]);
 
   async function loadUsers(options?: { background?: boolean }) {
     const background = options?.background ?? false;
@@ -288,21 +298,34 @@ export function SettingsUsersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Settings / Users"
-        description="Manage accounts and access for your Stowge instance"
-        action={
-          showListView ? (
-            <button
-              onClick={() => setAddingOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-            >
-              <Plus size={14} />
-              Add User
-            </button>
-          ) : null
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Settings / Users"
+          description="Manage accounts and access for your Stowge instance"
+          action={
+            showListView ? (
+              <button
+                onClick={() => setAddingOpen(true)}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                <Plus size={14} />
+                Add User
+              </button>
+            ) : null
+          }
+        />
+      )}
+      {embedded && showListView && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setAddingOpen(true)}
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+          >
+            <Plus size={14} />
+            Add User
+          </button>
+        </div>
+      )}
 
       {addingOpen && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">

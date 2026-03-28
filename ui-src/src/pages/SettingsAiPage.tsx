@@ -186,7 +186,13 @@ const EMPTY_FORM: NewConfigForm = {
   evidence_enabled: false,
 };
 
-export function SettingsAiPage() {
+interface AiSectionProps {
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  saveFnRef?: { current: (() => Promise<void>) | null };
+}
+
+export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSectionProps = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -281,6 +287,10 @@ export function SettingsAiPage() {
       editForm.evidence_enabled !== initialEditForm.evidence_enabled,
     [editForm, initialEditForm]
   );
+
+  // Expose dirty state and save function when embedded
+  useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
+  if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
 
   const addModelOptions = useMemo(
     () => getModelOptionGroups(form.provider),
@@ -577,21 +587,34 @@ export function SettingsAiPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Settings / AI"
-        description="Configure one or more LLMs for Add Item and set the default model"
-        action={
-          showListView ? (
-            <button
-              onClick={() => setAddingOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-            >
-              <Plus size={14} />
-              Add Model
-            </button>
-          ) : null
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Settings / AI"
+          description="Configure one or more LLMs for Add Item and set the default model"
+          action={
+            showListView ? (
+              <button
+                onClick={() => setAddingOpen(true)}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                <Plus size={14} />
+                Add Model
+              </button>
+            ) : null
+          }
+        />
+      )}
+      {embedded && showListView && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setAddingOpen(true)}
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+          >
+            <Plus size={14} />
+            Add Model
+          </button>
+        </div>
+      )}
 
       {addingOpen && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
