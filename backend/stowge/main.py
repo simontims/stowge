@@ -460,6 +460,10 @@ def healthz():
 def version():
     return {"version": APP_VERSION}
 
+@app.get("/api/ping")
+def ping(me: User = Depends(current_user)):
+    return {"ok": True}
+
 @app.get("/api/status")
 def status(db: Session = Depends(get_db)):
     return {"needs_setup": db.query(User).count() == 0}
