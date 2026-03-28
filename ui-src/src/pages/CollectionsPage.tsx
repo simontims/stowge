@@ -14,6 +14,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
+import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
 import { useServerRetry } from "../lib/useServerRetry";
 
@@ -469,6 +470,7 @@ export function CollectionsPage() {
       setNewForm(EMPTY_FORM);
       setAddingOpen(false);
       await loadCollections();
+      window.dispatchEvent(new Event(COLLECTIONS_NAV_UPDATED_EVENT));
     } catch (err) {
       setError((err as Error).message || "Failed to create collection.");
     } finally {
@@ -497,6 +499,7 @@ export function CollectionsPage() {
       cancelEdit();
       setNotice("Collection updated.");
       await loadCollections();
+      window.dispatchEvent(new Event(COLLECTIONS_NAV_UPDATED_EVENT));
     } catch (err) {
       setError((err as Error).message || "Failed to update collection.");
     } finally {
@@ -512,6 +515,7 @@ export function CollectionsPage() {
       setConfirmDeleteCollection(null);
       if (editingId === cat.id) cancelEdit();
       await loadCollections();
+      window.dispatchEvent(new Event(COLLECTIONS_NAV_UPDATED_EVENT));
     } catch (err) {
       setError((err as Error).message || "Failed to delete collection.");
     } finally {

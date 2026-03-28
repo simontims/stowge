@@ -17,7 +17,7 @@ export interface NavItem {
   label: string;
   route: string;
   icon: LucideIcon;
-  group: NavGroup;
+  group?: NavGroup;
 }
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -26,8 +26,11 @@ export const NAV_GROUPS: NavGroup[] = [
   "SYSTEM",
 ];
 
+export const topNavItems: NavItem[] = [
+  { label: "Dashboard", route: "/", icon: Home },
+];
+
 export const navItems: NavItem[] = [
-  { label: "Dashboard",   route: "/",            icon: Home,      group: "INVENTORY"     },
   { label: "Collections", route: "/collections", icon: Layers,    group: "INVENTORY"     },
   { label: "Items",       route: "/items",       icon: Package,   group: "INVENTORY"     },
   { label: "Locations",   route: "/locations",   icon: MapPin,    group: "INVENTORY"     },
@@ -42,4 +45,6 @@ export const groupedNav = NAV_GROUPS.map((group) => ({
   group,
   items: navItems.filter((item) => item.group === group),
 }));
+
+export const COLLECTIONS_NAV_UPDATED_EVENT = "stowge:collections-nav-updated";
 
