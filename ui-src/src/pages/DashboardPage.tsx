@@ -61,21 +61,20 @@ export function DashboardPage() {
 
     const loadMetric = async (
       path: string,
-      key: keyof DashboardCounts,
-      failureMessage: string
+      key: keyof DashboardCounts
     ) => {
       try {
         const data = await apiRequest<Array<unknown>>(path);
         setCounts((current) => ({ ...current, [key]: data.length }));
-      } catch {
-        failures.push(failureMessage);
+      } catch (err) {
+        failures.push((err as Error).message || "Failed to load dashboard counts.");
       }
     };
 
     await Promise.all([
-      loadMetric("/api/items", "items", "Failed to load item count"),
-      loadMetric("/api/locations", "locations", "Failed to load location count"),
-      loadMetric("/api/collections", "collections", "Failed to load collection count"),
+      loadMetric("/api/items", "items"),
+      loadMetric("/api/locations", "locations"),
+      loadMetric("/api/collections", "collections"),
     ]);
 
     setError(failures[0] || "");
@@ -129,7 +128,7 @@ export function DashboardPage() {
       </div>
 
       {loading && <p className="text-xs text-neutral-500">Refreshing counts...</p>}
-      {!loading && error && <p className="text-xs text-red-400">{error}</p>}
+      {!loading && error && <p className="text-xs text-neutral-500">{error}</p>}
     </div>
   );
 }
