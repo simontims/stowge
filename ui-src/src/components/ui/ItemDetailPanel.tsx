@@ -190,36 +190,36 @@ export function ItemDetailPanel({
           </div>
 
           {/* Footer Actions - Sticky */}
-          <div className="border-t border-neutral-800 p-4 space-y-2 bg-neutral-950 sticky bottom-0">
-            <button
-              onClick={() => setConfirmDeletePartOpen(true)}
-              disabled={savingDetail || deletingPartFromModal}
-              className="w-full inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
+          <div className="border-t border-neutral-800 p-4 space-y-3 bg-neutral-950 sticky bottom-0">
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm"
+                className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border border-neutral-500 bg-neutral-800 text-neutral-100 hover:bg-neutral-700 text-sm font-medium"
               >
-                {isMobile ? "Back" : "Close"}
+                Cancel
               </button>
               <button
                 onClick={onSave}
                 disabled={!hasDirtyChanges || savingDetail}
                 className={[
-                  "flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors disabled:opacity-60 text-sm",
+                  "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:opacity-60 text-sm font-semibold",
                   hasDirtyChanges
-                    ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                    : "border-neutral-700 text-neutral-500",
+                    ? "border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-500"
+                    : "border-neutral-700 bg-neutral-900 text-neutral-500",
                 ].join(" ")}
               >
                 <Save size={14} />
                 {savingDetail ? "Saving..." : "Save"}
               </button>
             </div>
+            <button
+              onClick={() => setConfirmDeletePartOpen(true)}
+              disabled={savingDetail || deletingPartFromModal}
+              className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border border-neutral-800 text-neutral-500 hover:text-red-300 hover:border-red-500/60 disabled:opacity-60 disabled:cursor-not-allowed text-xs"
+            >
+              <Trash2 size={13} />
+              Delete item
+            </button>
           </div>
         </div>
       )}
