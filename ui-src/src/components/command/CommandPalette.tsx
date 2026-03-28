@@ -73,7 +73,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       label: "Open Suppliers",
       description: "Browse suppliers",
       icon: <Factory size={14} />,
-      action: () => go("/suppliers"),
+      action: () => go("/settings/suppliers"),
     },
     {
       id: "open-locations",
@@ -87,7 +87,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       label: "Create Project",
       description: "Start a new project",
       icon: <Wrench size={14} />,
-      action: () => go("/projects"),
+      action: () => go("/settings/projects"),
     },
   ];
 

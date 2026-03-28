@@ -31,12 +31,12 @@ export const topNavItems: NavItem[] = [
 ];
 
 export const navItems: NavItem[] = [
-  { label: "Status",    route: "/",               icon: Activity, group: "SYSTEM" },
-  { label: "Suppliers", route: "/suppliers",       icon: Factory,  group: "SYSTEM" },
-  { label: "Projects",  route: "/projects",        icon: Wrench,   group: "SYSTEM" },
-  { label: "Settings",  route: "/settings",        icon: Settings, group: "SYSTEM" },
-  { label: "AI",        route: "/settings/ai",     icon: Brain,    group: "SYSTEM" },
-  { label: "Users",     route: "/settings/users",  icon: Users,    group: "SYSTEM" },
+  { label: "Status",    route: "/",                    icon: Activity, group: "SYSTEM" },
+  { label: "Settings",  route: "/settings",            icon: Settings, group: "SYSTEM" },
+  { label: "Users",     route: "/settings/users",      icon: Users,    group: "SYSTEM" },
+  { label: "AI",        route: "/settings/ai",         icon: Brain,    group: "SYSTEM" },
+  { label: "Suppliers", route: "/settings/suppliers",  icon: Factory,  group: "SYSTEM" },
+  { label: "Projects",  route: "/settings/projects",   icon: Wrench,   group: "SYSTEM" },
 ];
 
 export const groupedNav = NAV_GROUPS.map((group) => ({
