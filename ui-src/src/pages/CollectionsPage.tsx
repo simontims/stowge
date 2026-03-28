@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Anchor, BarChart3, Battery, Bike, Book, Box, Brain, Cable, Camera, Car,
-  Cpu, Droplets, Dumbbell, Flame, Flower2, Gamepad2, Gem, Guitar, Hammer,
-  HardDrive, HeartPulse, Home, Layers, Leaf, Lightbulb, Microscope, Monitor,
-  Music, Package, Paintbrush, Fish, Pill, Plane, Plug, Printer, Radio,
-  Ruler, Scissors, Server, Settings, Shield, ShoppingBag, Shirt, Sofa,
-  Tag, Thermometer, Truck, Tv, Watch, Wifi, Wrench, Zap,
-  Plus, Save, Trash2, X, HelpCircle,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Tag, Plus, Save, Trash2, X, HelpCircle } from "lucide-react";
+import type { TablerEntry } from "../lib/tablerIconCatalogue";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
@@ -18,67 +10,57 @@ import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
 import { useServerRetry } from "../lib/useServerRetry";
 
-// ── Icon catalogue ───────────────────────────────────────────────────────────
-interface IconEntry { name: string; icon: LucideIcon }
-
-const ICON_CATALOGUE: IconEntry[] = [
-  { name: "anchor", icon: Anchor },
-  { name: "bar-chart-3", icon: BarChart3 },
-  { name: "battery", icon: Battery },
-  { name: "bike", icon: Bike },
-  { name: "book", icon: Book },
-  { name: "box", icon: Box },
-  { name: "brain", icon: Brain },
-  { name: "cable", icon: Cable },
-  { name: "camera", icon: Camera },
-  { name: "car", icon: Car },
-  { name: "cpu", icon: Cpu },
-  { name: "droplets", icon: Droplets },
-  { name: "dumbbell", icon: Dumbbell },
-  { name: "flame", icon: Flame },
-  { name: "flower-2", icon: Flower2 },
-  { name: "gamepad-2", icon: Gamepad2 },
-  { name: "gem", icon: Gem },
-  { name: "guitar", icon: Guitar },
-  { name: "hammer", icon: Hammer },
-  { name: "hard-drive", icon: HardDrive },
-  { name: "heart-pulse", icon: HeartPulse },
-  { name: "home", icon: Home },
-  { name: "layers", icon: Layers },
-  { name: "leaf", icon: Leaf },
-  { name: "lightbulb", icon: Lightbulb },
-  { name: "microscope", icon: Microscope },
-  { name: "monitor", icon: Monitor },
-  { name: "music", icon: Music },
-  { name: "package", icon: Package },
-  { name: "paintbrush", icon: Paintbrush },
-  { name: "fish", icon: Fish },
-  { name: "pill", icon: Pill },
-  { name: "plane", icon: Plane },
-  { name: "plug", icon: Plug },
-  { name: "printer", icon: Printer },
-  { name: "radio", icon: Radio },
-  { name: "ruler", icon: Ruler },
-  { name: "scissors", icon: Scissors },
-  { name: "server", icon: Server },
-  { name: "settings", icon: Settings },
-  { name: "shield", icon: Shield },
-  { name: "shopping-bag", icon: ShoppingBag },
-  { name: "shirt", icon: Shirt },
-  { name: "sofa", icon: Sofa },
-  { name: "layers", icon: Layers },
-  { name: "thermometer", icon: Thermometer },
-  { name: "truck", icon: Truck },
-  { name: "tv", icon: Tv },
-  { name: "watch", icon: Watch },
-  { name: "wifi", icon: Wifi },
-  { name: "wrench", icon: Wrench },
-  { name: "zap", icon: Zap },
+// ── Tabler icon catalogue (lazy-loaded) ─────────────────────────────────────
+// Popular icon names shown immediately when the picker first opens.
+// Must match the kebab names produced by tablerIconCatalogue.ts toKebabName().
+const POPULAR_NAMES: string[] = [
+  "anchor", "archive", "battery", "bell", "bike", "book", "box", "brain",
+  "camera", "car", "cpu", "database", "dumbbell", "flame", "flower",
+  "folder", "gem", "guitar", "hammer", "heart",
+  "headphones", "home", "key", "leaf", "lightbulb",
+  "lock", "microscope", "monitor", "music", "package", "paintbrush",
+  "fish", "pill", "plane", "plug", "printer", "radio", "ruler",
+  "scissors", "server", "settings", "shield", "shirt", "shopping-bag",
+  "sofa", "star", "sun", "tag", "thermometer", "tools",
+  "truck", "tv", "user", "users", "watch", "wifi", "wrench",
 ];
 
-function getIconComponent(name: string | null | undefined): LucideIcon {
-  if (!name) return Tag;
-  return ICON_CATALOGUE.find((e) => e.name === name)?.icon ?? Tag;
+// Module-level cache — catalogue is fetched once and reused for the session.
+let _catalogue: TablerEntry[] | null = null;
+let _cataloguePromise: Promise<TablerEntry[]> | null = null;
+
+function loadCatalogue(): Promise<TablerEntry[]> {
+  if (_catalogue) return Promise.resolve(_catalogue);
+  if (!_cataloguePromise) {
+    _cataloguePromise = import("../lib/tablerIconCatalogue").then((m) => {
+      _catalogue = m.TABLER_CATALOGUE;
+      return _catalogue;
+    });
+  }
+  return _cataloguePromise;
+}
+
+/** Renders a Tabler icon by stored name. Falls back to the Lucide Tag icon while
+ *  the catalogue chunk loads (first use only; cached thereafter). */
+function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }) {
+  const [entry, setEntry] = useState<TablerEntry | null>(() =>
+    name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
+  );
+  useEffect(() => {
+    if (!name) return;
+    if (_catalogue) {
+      setEntry(_catalogue.find((e) => e.name === name) ?? null);
+      return;
+    }
+    let cancelled = false;
+    loadCatalogue().then((cat) => {
+      if (!cancelled) setEntry(cat.find((e) => e.name === name) ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [name]);
+  if (!name || !entry) return <Tag size={size} />;
+  const C = entry.component;
+  return <C size={size} stroke={1.5} />;
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -135,6 +117,8 @@ const AI_HINT_EXAMPLES: { label: string; hint: string }[] = [
 ];
 
 // ── Icon picker ──────────────────────────────────────────────────────────────
+const PICKER_PAGE_SIZE = 120;
+
 function IconPicker({
   value,
   onChange,
@@ -144,23 +128,60 @@ function IconPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [catalogue, setCatalogue] = useState<TablerEntry[] | null>(_catalogue);
+  const [showAll, setShowAll] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? ICON_CATALOGUE.filter((e) => e.name.includes(q)) : ICON_CATALOGUE;
+  // Load catalogue when picker opens (no-op if already cached)
+  useEffect(() => {
+    if (open && !catalogue) {
+      loadCatalogue().then(setCatalogue);
+    }
+  }, [open, catalogue]);
+
+  // Reset browse-all state when search query changes
+  useEffect(() => {
+    setPage(1);
+    setShowAll(false);
   }, [query]);
+
+  const popular = useMemo(
+    () => (catalogue ? catalogue.filter((e) => POPULAR_NAMES.includes(e.name)) : []),
+    [catalogue]
+  );
+
+  const searchResults = useMemo(() => {
+    if (!catalogue || !query.trim()) return null;
+    const q = query.trim().toLowerCase();
+    return catalogue.filter((e) => e.name.includes(q));
+  }, [catalogue, query]);
+
+  const displayIcons: TablerEntry[] = useMemo(() => {
+    if (searchResults) return searchResults.slice(0, 200);
+    if (showAll && catalogue) return catalogue.slice(0, page * PICKER_PAGE_SIZE);
+    return popular;
+  }, [searchResults, showAll, catalogue, popular, page]);
+
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setShowAll(false);
+    setPage(1);
+  }
 
   function select(name: string) {
     onChange(name);
-    setOpen(false);
-    setQuery("");
+    close();
   }
 
-  const SelectedIcon = getIconComponent(value);
+  const isLoading = open && !catalogue;
+  const inSearch = query.trim().length > 0;
+  const totalResults = searchResults?.length ?? 0;
+  const showLoadMore = !inSearch && showAll && catalogue && page * PICKER_PAGE_SIZE < catalogue.length;
 
   return (
     <>
-      {/* Trigger button */}
+      {/* Trigger */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -168,7 +189,7 @@ function IconPicker({
       >
         {value ? (
           <>
-            <SelectedIcon size={16} />
+            <TablerIcon name={value} size={16} />
             <span className="text-neutral-400">{value}</span>
           </>
         ) : (
@@ -176,35 +197,35 @@ function IconPicker({
         )}
       </button>
 
-      {/* Modal */}
       {open && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
           {/* Backdrop */}
           <button
             type="button"
             className="absolute inset-0 bg-black/70"
-            onClick={() => { setOpen(false); setQuery(""); }}
+            onClick={close}
             aria-label="Close icon picker"
           />
-          {/* Sheet / dialog */}
+          {/* Dialog */}
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Choose an icon"
-            className="relative z-10 w-full sm:max-w-sm rounded-t-2xl sm:rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col max-h-[80dvh] sm:max-h-[70vh]"
+            className="relative z-10 w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[75vh]"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-neutral-800 shrink-0">
               <span className="text-sm font-semibold text-neutral-100">Choose icon</span>
               <button
                 type="button"
-                onClick={() => { setOpen(false); setQuery(""); }}
+                onClick={close}
                 className="text-neutral-500 hover:text-neutral-200 transition-colors"
                 aria-label="Close"
               >
                 <X size={18} />
               </button>
             </div>
+
             {/* Search */}
             <div className="px-4 py-3 border-b border-neutral-800 shrink-0">
               <input
@@ -212,45 +233,109 @@ function IconPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                placeholder="Search icons…"
+                placeholder="Search 6,000+ icons…"
               />
             </div>
-            {/* Grid */}
-            <div className="overflow-y-auto p-3">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5">
-                {/* None */}
-                <button
-                  type="button"
-                  onClick={() => select("")}
-                  title="No icon"
-                  className={[
-                    "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border text-xs transition-colors",
-                    value === ""
-                      ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
-                      : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300",
-                  ].join(" ")}
-                >
-                  <span className="text-base leading-none">–</span>
-                  <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">none</span>
-                </button>
-                {filtered.map(({ name, icon: Icon }) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => select(name)}
-                    title={name}
-                    className={[
-                      "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border transition-colors",
-                      value === name
-                        ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
-                        : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200",
-                    ].join(" ")}
-                  >
-                    <Icon size={18} />
-                    <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">{name}</span>
-                  </button>
-                ))}
-              </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto p-3 flex-1">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
+                  Loading icons…
+                </div>
+              ) : (
+                <>
+                  {/* Section label */}
+                  {!inSearch && (
+                    <p className="text-[10px] text-neutral-600 uppercase tracking-wider mb-2 px-1">
+                      {showAll
+                        ? `All icons (${catalogue?.length ?? 0})`
+                        : "Popular icons — type to search all"}
+                    </p>
+                  )}
+                  {inSearch && totalResults > 0 && (
+                    <p className="text-[10px] text-neutral-600 uppercase tracking-wider mb-2 px-1">
+                      {totalResults > 200
+                        ? `Showing 200 of ${totalResults} results`
+                        : `${totalResults} result${totalResults !== 1 ? "s" : ""}`}
+                    </p>
+                  )}
+                  {inSearch && totalResults === 0 && (
+                    <p className="text-sm text-neutral-500 text-center py-8">No icons match "{query}"</p>
+                  )}
+
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5">
+                    {/* None option — only shown outside search */}
+                    {!inSearch && (
+                      <button
+                        type="button"
+                        onClick={() => select("")}
+                        title="No icon"
+                        className={[
+                          "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border text-xs transition-colors",
+                          value === ""
+                            ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
+                            : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300",
+                        ].join(" ")}
+                      >
+                        <span className="text-base leading-none">–</span>
+                        <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">none</span>
+                      </button>
+                    )}
+
+                    {displayIcons.map(({ name, component: C }) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => select(name)}
+                        title={name}
+                        className={[
+                          "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border transition-colors",
+                          value === name
+                            ? "border-emerald-500 bg-emerald-950/40 text-emerald-300"
+                            : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200",
+                        ].join(" ")}
+                      >
+                        <C size={18} stroke={1.5} />
+                        <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">{name}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Browse-all / load-more footer */}
+                  {!inSearch && (
+                    <div className="mt-3 flex justify-center gap-2">
+                      {!showAll && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAll(true)}
+                          className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                        >
+                          Browse all {catalogue?.length ?? "6,000+"} icons
+                        </button>
+                      )}
+                      {showLoadMore && (
+                        <button
+                          type="button"
+                          onClick={() => setPage((p) => p + 1)}
+                          className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                        >
+                          Load more
+                        </button>
+                      )}
+                      {showAll && !showLoadMore && (
+                        <button
+                          type="button"
+                          onClick={() => { setShowAll(false); setPage(1); }}
+                          className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                        >
+                          Show popular only
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -580,14 +665,11 @@ export function CollectionsPage({ embedded, onDirtyChange, saveFnRef }: Collecti
         key: "icon",
         header: "Icon",
         className: "w-14",
-        render: (row) => {
-          const Icon = getIconComponent(row.icon);
-          return (
-            <span className="flex items-center justify-center w-8 h-8 rounded border border-neutral-800 bg-neutral-900 text-neutral-400">
-              <Icon size={15} />
-            </span>
-          );
-        },
+        render: (row) => (
+          <span className="flex items-center justify-center w-8 h-8 rounded border border-neutral-800 bg-neutral-900 text-neutral-400">
+            <TablerIcon name={row.icon} size={15} />
+          </span>
+        ),
       },
       {
         key: "name",
