@@ -818,7 +818,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
               {error ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-red-400">
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-neutral-500">
                     {error}
                   </td>
                 </tr>
