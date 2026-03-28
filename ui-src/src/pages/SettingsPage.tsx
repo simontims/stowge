@@ -15,17 +15,14 @@ export function SettingsPage() {
           Manage system settings and administration areas.
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-sm">
-          <Link to="/settings/users" className="rounded-md border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:bg-neutral-800/60">
-            Users
-          </Link>
           <Link to="/settings/ai" className="rounded-md border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:bg-neutral-800/60">
             AI
           </Link>
-          <Link to="/settings/suppliers" className="rounded-md border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:bg-neutral-800/60">
-            Suppliers
+          <Link to="/settings/locations" className="rounded-md border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:bg-neutral-800/60">
+            Locations
           </Link>
-          <Link to="/settings/projects" className="rounded-md border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:bg-neutral-800/60">
-            Projects
+          <Link to="/settings/users" className="rounded-md border border-neutral-700 px-3 py-1.5 text-neutral-300 hover:bg-neutral-800/60">
+            Users
           </Link>
         </div>
       </section>

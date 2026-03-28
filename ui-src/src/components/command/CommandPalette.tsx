@@ -5,8 +5,6 @@ import {
   ArrowRight,
   Plus,
   MoveRight,
-  Wrench,
-  Factory,
   MapPin,
   BarChart3,
 } from "lucide-react";
@@ -69,25 +67,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       action: () => go("/items"),
     },
     {
-      id: "open-suppliers",
-      label: "Open Suppliers",
-      description: "Browse suppliers",
-      icon: <Factory size={14} />,
-      action: () => go("/settings/suppliers"),
-    },
-    {
       id: "open-locations",
       label: "Open Locations",
       description: "Browse storage locations",
       icon: <MapPin size={14} />,
-      action: () => go("/locations"),
-    },
-    {
-      id: "create-project",
-      label: "Create Project",
-      description: "Start a new project",
-      icon: <Wrench size={14} />,
-      action: () => go("/settings/projects"),
+      action: () => go("/settings/locations"),
     },
   ];
 

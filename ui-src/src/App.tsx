@@ -85,17 +85,14 @@ export default function App() {
           <Route path="/parts"      element={<ItemsPage />} />
           <Route path="/items/new"  element={<AddPage />} />
           <Route path="/parts/new"  element={<AddPage />} />
-          <Route path="/locations"  element={<LocationsPage />} />
           <Route path="/collections" element={<CollectionsPage />} />
-          <Route path="/settings/suppliers" element={<PlaceholderPage title="Suppliers" description="Track your parts suppliers" />} />
-          <Route path="/settings/projects" element={<PlaceholderPage title="Projects" description="Link parts and stock to projects" />} />
-          <Route path="/suppliers" element={<Navigate to="/settings/suppliers" replace />} />
-          <Route path="/projects" element={<Navigate to="/settings/projects" replace />} />
           <Route path="/add"       element={<AddPage />} />
           <Route path="/scan"      element={<Navigate to="/add" replace />} />
           <Route path="/settings"   element={<SettingsPage />} />
           <Route path="/settings/ai" element={<SettingsAiPage />} />
           <Route path="/settings/users" element={<SettingsUsersPage />} />
+          <Route path="/settings/locations" element={<LocationsPage />} />
+          <Route path="/locations" element={<Navigate to="/settings/locations" replace />} />
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
       </AppShell>
