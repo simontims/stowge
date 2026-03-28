@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
-import { CommandPalette } from "./components/command/CommandPalette";
 import { ItemsPage } from "./pages/ItemsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
@@ -37,7 +36,6 @@ function StartupRedirect() {
 }
 
 export default function App() {
-  const [commandOpen, setCommandOpen] = useState(false);
   const [token, setToken] = useState<string | null>(() => getToken());
 
   // 401 from any apiRequest() call fires this event → show LoginPage
@@ -45,18 +43,6 @@ export default function App() {
     const handler = () => setToken(null);
     window.addEventListener(UNAUTHORIZED_EVENT, handler);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
-  }, []);
-
-  // Global Ctrl+K opens the command palette from anywhere
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setCommandOpen((o) => !o);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   function handleLogin(newToken: string) {
@@ -75,7 +61,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <StartupRedirect />
-      <AppShell onCommandOpen={() => setCommandOpen(true)} onLogout={handleLogout}>
+      <AppShell onLogout={handleLogout}>
         <Routes>
           <Route path="/"           element={<DashboardPage />} />
           <Route path="/items"      element={<ItemsPage />} />
@@ -94,11 +80,6 @@ export default function App() {
         </Routes>
       </AppShell>
 
-      {/* Command palette lives outside AppShell so it overlays everything */}
-      <CommandPalette
-        open={commandOpen}
-        onClose={() => setCommandOpen(false)}
-      />
     </BrowserRouter>
   );
 }

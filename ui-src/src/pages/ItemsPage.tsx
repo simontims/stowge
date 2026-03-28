@@ -97,7 +97,11 @@ function getColumnWidth(values: Array<string | null | undefined>, minimum: numbe
 export function ItemsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
+
+  // Sync search when ?q= param changes (e.g. navigating from topbar search)
+  const qParam = searchParams.get("q") ?? "";
+  useEffect(() => { setSearch(qParam); }, [qParam]);
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

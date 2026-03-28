@@ -5,11 +5,10 @@ import { Topbar } from "./Topbar";
 
 interface AppShellProps {
   children: React.ReactNode;
-  onCommandOpen: () => void;
   onLogout: () => void;
 }
 
-export function AppShell({ children, onCommandOpen, onLogout }: AppShellProps) {
+export function AppShell({ children, onLogout }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -31,7 +30,6 @@ export function AppShell({ children, onCommandOpen, onLogout }: AppShellProps) {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Topbar
           onMenuClick={() => setDrawerOpen(true)}
-          onCommandOpen={onCommandOpen}
           onLogout={onLogout}
         />
         <main className="flex-1 overflow-y-auto p-6 focus:outline-none" tabIndex={-1}>
