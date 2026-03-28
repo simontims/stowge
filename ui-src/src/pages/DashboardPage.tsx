@@ -40,19 +40,38 @@ export function DashboardPage() {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const mountedRef = useRef(true);
   const prevConnected = useRef<boolean | null>(null);
+  const failCountRef = useRef(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- Ping poll: fast lightweight check every 5s ---
+  // Backoff: 5s → 10s → 20s → 30s (cap), resets to 5s on success
+  function nextInterval(failures: number): number {
+    if (failures === 0) return 5000;
+    if (failures === 1) return 10000;
+    if (failures === 2) return 20000;
+    return 30000;
+  }
+
+  // --- Ping poll with backoff ---
+  const schedulePing = useCallback(() => {
+    if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }, []);
+
   const ping = useCallback(async () => {
     try {
       await apiRequest<{ ok: boolean }>("/api/ping");
-      if (mountedRef.current) setConnected(true);
+      if (!mountedRef.current) return;
+      failCountRef.current = 0;
+      setConnected(true);
     } catch {
-      if (mountedRef.current) {
-        setConnected(false);
-        console.debug("Cannot reach Stowge server.");
-      }
+      if (!mountedRef.current) return;
+      failCountRef.current += 1;
+      setConnected(false);
     }
-  }, []);
+    if (!mountedRef.current) return;
+    const delay = nextInterval(failCountRef.current);
+    timeoutRef.current = setTimeout(() => void ping(), delay);
+  }, [schedulePing]);
 
   // --- Metrics fetch: only when connected ---
   const fetchMetrics = useCallback(async (background: boolean) => {
@@ -66,14 +85,13 @@ export function DashboardPage() {
     if (!background && mountedRef.current) setMetricsLoading(false);
   }, []);
 
-  // Ping every 5 seconds
+  // Start ping loop on mount
   useEffect(() => {
     mountedRef.current = true;
     void ping();
-    const id = window.setInterval(() => void ping(), 5000);
     return () => {
       mountedRef.current = false;
-      window.clearInterval(id);
+      if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
     };
   }, [ping]);
 
