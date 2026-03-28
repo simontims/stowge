@@ -67,11 +67,13 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           collapsed ? "justify-center px-0" : "px-4 gap-2"
         )}
       >
-        <span className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-600 text-white font-bold text-xs select-none shrink-0">
-          S
-        </span>
+        <img
+          src="/stowgeLogoOptimized.webp"
+          alt="Stowge"
+          className="w-[46px] h-[46px] rounded-md object-cover shrink-0"
+        />
         {!collapsed && (
-          <span className="font-semibold text-sm text-neutral-100 tracking-wide">
+          <span className="font-semibold text-sm text-neutral-100 tracking-wide -translate-y-[2px]">
             Stowge
           </span>
         )}

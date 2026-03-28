@@ -451,6 +451,22 @@ def favicon_svg():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="image/svg+xml", headers=headers)
 
+@app.get("/favicon.ico")
+def favicon_ico():
+    headers = {"Cache-Control": "public, max-age=604800, immutable"}
+    path = os.path.join(UI_DIR, "favicon.ico")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="image/x-icon", headers=headers)
+
+@app.get("/stowgeLogoOptimized.webp")
+def logo_webp():
+    headers = {"Cache-Control": "public, max-age=604800, immutable"}
+    path = os.path.join(UI_DIR, "stowgeLogoOptimized.webp")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="image/webp", headers=headers)
+
 # ---------------- Health / Status / Setup ----------------
 @app.get("/healthz", include_in_schema=False)
 def healthz():
