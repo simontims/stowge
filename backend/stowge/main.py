@@ -107,6 +107,7 @@ def _serialize_user(user: User) -> dict:
         "role": user.role,
         "theme": user.theme or "dark",
         "preferred_add_collection_id": user.preferred_add_collection_id,
+        "last_open_collection": user.last_open_collection,
         "created_at": _utc_iso(user.created_at),
         "last_login_at": _utc_iso(user.last_login_at),
     }
@@ -279,6 +280,9 @@ def _run_startup_migrations():
 
             if "preferred_add_collection_id" not in user_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN preferred_add_collection_id VARCHAR NULL"))
+            user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
+            if "last_open_collection" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_open_collection VARCHAR NULL"))
 
     tables = set(inspect(engine).get_table_names())
 
@@ -525,6 +529,9 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
             if not exists:
                 raise HTTPException(status_code=400, detail="Invalid preferred_add_collection_id")
             u.preferred_add_collection_id = collection_id
+    if "last_open_collection" in payload:
+        val = payload.get("last_open_collection")
+        u.last_open_collection = str(val).strip() if val else None
     db.commit()
     db.refresh(u)
     return _serialize_user(u)

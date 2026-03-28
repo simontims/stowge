@@ -115,22 +115,50 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
               {topNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <NavLink
-                    key={item.route}
-                    to={item.route}
-                    end
-                    className={({ isActive }) =>
-                      clsx(
-                        "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",
-                        isActive
-                          ? "bg-neutral-800 text-neutral-100"
-                          : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
-                      )
-                    }
-                  >
-                    <Icon size={16} className="shrink-0" />
-                    <span>{item.label}</span>
-                  </NavLink>
+                  <div key={item.route}>
+                    <NavLink
+                      to={item.route}
+                      end={item.route === "/settings"}
+                      className={({ isActive }) =>
+                        clsx(
+                          "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",
+                          isActive
+                            ? "bg-neutral-800 text-neutral-100"
+                            : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
+                        )
+                      }
+                    >
+                      <Icon size={16} className="shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
+
+                    {item.route === "/collections" && collections.length > 0 && (
+                      <div className="mt-1 space-y-0.5 px-2">
+                        {collections.map((collection) => {
+                          const isActive =
+                            location.pathname === "/items" && activeCollectionFilter === collection.name;
+
+                          return (
+                            <NavLink
+                              key={collection.id}
+                              to={{
+                                pathname: "/items",
+                                search: new URLSearchParams({ collection: collection.name }).toString(),
+                              }}
+                              className={clsx(
+                                "ml-5 flex items-center rounded-md px-3 py-1.5 text-sm transition-colors",
+                                isActive
+                                  ? "bg-neutral-800/80 text-neutral-100"
+                                  : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
+                              )}
+                            >
+                              {collection.name}
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

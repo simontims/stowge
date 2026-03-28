@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { CommandPalette } from "./components/command/CommandPalette";
 import { ItemsPage } from "./pages/ItemsPage";
@@ -12,7 +12,32 @@ import { SettingsAiPage } from "./pages/SettingsAiPage";
 import { LocationsPage } from "./pages/LocationsPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import { LoginPage } from "./pages/LoginPage";
-import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT } from "./lib/api";
+import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT, apiRequest } from "./lib/api";
+
+function StartupRedirect() {
+  const navigate = useNavigate();
+  const redirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    void apiRequest<{ last_open_collection?: string | null }>("/api/me")
+      .then((me) => {
+        if (me.last_open_collection) {
+          navigate(
+            {
+              pathname: "/items",
+              search: new URLSearchParams({ collection: me.last_open_collection }).toString(),
+            },
+            { replace: true }
+          );
+        }
+      })
+      .catch(() => {});
+  }, [navigate]);
+
+  return null;
+}
 
 export default function App() {
   const [commandOpen, setCommandOpen] = useState(false);
@@ -52,6 +77,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <StartupRedirect />
       <AppShell onCommandOpen={() => setCommandOpen(true)} onLogout={handleLogout}>
         <Routes>
           <Route path="/"           element={<DashboardPage />} />

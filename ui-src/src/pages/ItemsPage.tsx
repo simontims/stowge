@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -122,6 +122,20 @@ export function ItemsPage() {
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
 
   const collectionFilter = searchParams.get("collection")?.trim() || "";
+
+  const collectionFilterSavedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (collectionFilterSavedRef.current === null) {
+      collectionFilterSavedRef.current = collectionFilter;
+      return;
+    }
+    if (collectionFilter === collectionFilterSavedRef.current) return;
+    collectionFilterSavedRef.current = collectionFilter;
+    void apiRequest("/api/me", {
+      method: "PATCH",
+      body: JSON.stringify({ last_open_collection: collectionFilter || null }),
+    }).catch(() => {});
+  }, [collectionFilter]);
 
   const hasDirtyChanges = useMemo(
     () => selectedPartId !== null && !isSameForm(editForm, initialEditForm),

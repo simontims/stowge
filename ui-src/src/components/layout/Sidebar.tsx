@@ -84,25 +84,53 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             {topNavItems.map((item) => {
               const Icon = item.icon;
               return (
-                <NavLink
-                  key={item.route}
-                  to={item.route}
-                  end
-                  title={collapsed ? item.label : undefined}
-                  className={({ isActive }) =>
-                    clsx(
-                      "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
-                      collapsed ? "justify-center px-0" : "px-3",
-                      isActive
-                        ? "bg-neutral-800 text-neutral-100"
-                        : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
-                    )
-                  }
-                  aria-label={collapsed ? item.label : undefined}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </NavLink>
+                <div key={item.route}>
+                  <NavLink
+                    to={item.route}
+                    end={item.route === "/settings"}
+                    title={collapsed ? item.label : undefined}
+                    className={({ isActive }) =>
+                      clsx(
+                        "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
+                        collapsed ? "justify-center px-0" : "px-3",
+                        isActive
+                          ? "bg-neutral-800 text-neutral-100"
+                          : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
+                      )
+                    }
+                    aria-label={collapsed ? item.label : undefined}
+                  >
+                    <Icon size={16} className="shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </NavLink>
+
+                  {!collapsed && item.route === "/collections" && collections.length > 0 && (
+                    <div className="mt-1 space-y-0.5 px-2">
+                      {collections.map((collection) => {
+                        const isActive =
+                          location.pathname === "/items" && activeCollectionFilter === collection.name;
+
+                        return (
+                          <NavLink
+                            key={collection.id}
+                            to={{
+                              pathname: "/items",
+                              search: new URLSearchParams({ collection: collection.name }).toString(),
+                            }}
+                            className={clsx(
+                              "ml-5 flex items-center rounded-md px-3 py-1.5 text-sm transition-colors",
+                              isActive
+                                ? "bg-neutral-800/80 text-neutral-100"
+                                : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
+                            )}
+                          >
+                            {collection.name}
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
