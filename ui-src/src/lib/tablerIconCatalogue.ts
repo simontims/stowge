@@ -36,7 +36,7 @@ export const TABLER_CATALOGUE: TablerEntry[] = (
   .filter(
     ([key, val]) =>
       /^Icon[A-Z0-9]/.test(key) &&
-      typeof val === "function" &&
+      val != null &&
       key !== "IconContext"
   )
   .map(([key, val]) => ({
