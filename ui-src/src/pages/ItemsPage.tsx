@@ -588,19 +588,84 @@ export function ItemsPage() {
             {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
 
             <div className="flex-1 min-h-0 overflow-hidden">
-              <DataTable
-                columns={columns}
-                rows={sorted}
-                keyField="id"
-                emptyMessage={emptyMessage}
-                sortKey={sortKey}
-                sortDirection={sortDirection}
-                onSort={(key) => handleSort(key as ItemSortKey)}
-                onRowClick={(row) => {
-                  if (deletingId === row.id) return;
-                  void openPartModal(row.id);
-                }}
-              />
+              {isMobile ? (
+                <div className="h-full overflow-y-auto pr-1">
+                  {sorted.length === 0 ? (
+                    <div className="border border-neutral-800 rounded-lg p-6 text-sm text-neutral-500 text-center">
+                      {emptyMessage}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pb-2">
+                      {sorted.map((row) => {
+                        const isDeleting = deletingId === row.id;
+                        return (
+                          <article
+                            key={row.id}
+                            className="rounded-lg border border-neutral-800 bg-neutral-950 p-2.5"
+                          >
+                            <div className="flex items-start gap-2.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isDeleting) return;
+                                  void openPartModal(row.id);
+                                }}
+                                className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
+                              >
+                                {row.thumb ? (
+                                  <img
+                                    src={row.thumb}
+                                    alt={row.name}
+                                    className="h-14 w-14 shrink-0 rounded border border-neutral-800 object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-14 w-14 shrink-0 rounded border border-neutral-800 bg-neutral-900 text-[10px] text-neutral-500 flex items-center justify-center">
+                                    no image
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold text-neutral-100">{row.name}</p>
+                                  <div className="mt-1 flex flex-wrap gap-1.5">
+                                    <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
+                                      {row.collection || "No collection"}
+                                    </span>
+                                    <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
+                                      {row.location || "No location"}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-[11px] text-neutral-500">Status: {row.status}</p>
+                                </div>
+                              </button>
+                              <div className="shrink-0" onClick={(event) => event.stopPropagation()}>
+                                <DeleteActionButton
+                                  onClick={() => setConfirmDeletePart(row)}
+                                  isDeleting={isDeleting}
+                                  label=""
+                                  className="px-2 py-1.5"
+                                />
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <DataTable
+                  columns={columns}
+                  rows={sorted}
+                  keyField="id"
+                  emptyMessage={emptyMessage}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSort={(key) => handleSort(key as ItemSortKey)}
+                  onRowClick={(row) => {
+                    if (deletingId === row.id) return;
+                    void openPartModal(row.id);
+                  }}
+                />
+              )}
             </div>
           </div>
 
