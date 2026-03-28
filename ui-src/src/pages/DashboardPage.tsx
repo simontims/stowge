@@ -111,8 +111,8 @@ export function DashboardPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Dashboard"
-        description="Overview of your inventory at a glance"
+        title="Status"
+        description="Overview of your inventory and system state"
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

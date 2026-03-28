@@ -79,32 +79,34 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
       {/* Nav groups */}
       <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
-        <div className="mb-4">
-          {topNavItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.route}
-                to={item.route}
-                end
-                title={collapsed ? item.label : undefined}
-                className={({ isActive }) =>
-                  clsx(
-                    "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
-                    collapsed ? "justify-center px-0" : "px-3",
-                    isActive
-                      ? "bg-neutral-800 text-neutral-100"
-                      : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
-                  )
-                }
-                aria-label={collapsed ? item.label : undefined}
-              >
-                <Icon size={16} className="shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </NavLink>
-            );
-          })}
-        </div>
+        {topNavItems.length > 0 && (
+          <div className="mb-4">
+            {topNavItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.route}
+                  to={item.route}
+                  end
+                  title={collapsed ? item.label : undefined}
+                  className={({ isActive }) =>
+                    clsx(
+                      "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
+                      collapsed ? "justify-center px-0" : "px-3",
+                      isActive
+                        ? "bg-neutral-800 text-neutral-100"
+                        : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
+                    )
+                  }
+                  aria-label={collapsed ? item.label : undefined}
+                >
+                  <Icon size={16} className="shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              );
+            })}
+          </div>
+        )}
 
         {groupedNav.map(({ group, items }) => (
           <div key={group} className="mb-4">

@@ -1,5 +1,5 @@
 import {
-  Home,
+  Activity,
   Package,
   MapPin,
   Layers,
@@ -26,9 +26,7 @@ export const NAV_GROUPS: NavGroup[] = [
   "SYSTEM",
 ];
 
-export const topNavItems: NavItem[] = [
-  { label: "Dashboard", route: "/", icon: Home },
-];
+export const topNavItems: NavItem[] = [];
 
 export const navItems: NavItem[] = [
   { label: "Collections", route: "/collections", icon: Layers,    group: "INVENTORY"     },
@@ -36,6 +34,7 @@ export const navItems: NavItem[] = [
   { label: "Locations",   route: "/locations",   icon: MapPin,    group: "INVENTORY"     },
   { label: "Suppliers",  route: "/suppliers",   icon: Factory,   group: "RELATIONSHIPS" },
   { label: "Projects",   route: "/projects",    icon: Wrench,    group: "RELATIONSHIPS" },
+  { label: "Status",     route: "/",            icon: Activity,  group: "SYSTEM"        },
   { label: "Settings",   route: "/settings",    icon: Settings,  group: "SYSTEM"        },
   { label: "AI",         route: "/settings/ai", icon: Brain,     group: "SYSTEM"        },
   { label: "Users",      route: "/settings/users", icon: Users,  group: "SYSTEM"        },
