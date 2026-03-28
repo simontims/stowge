@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Save, Trash2, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
+import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
 import { apiRequest } from "../lib/api";
 import { useServerRetry } from "../lib/useServerRetry";
+
+const MOBILE_BREAKPOINT = 1024; // lg breakpoint
 
 interface Part {
   id: string;
@@ -19,7 +22,7 @@ interface Part {
   actions?: never;
 }
 
-interface PartDetail {
+export interface PartDetail {
   id: string;
   name: string;
   description: string | null;
@@ -37,7 +40,7 @@ interface PartDetail {
   }>;
 }
 
-interface PartEditForm {
+export interface PartEditForm {
   name: string;
   description: string;
   collection: string;
@@ -45,12 +48,12 @@ interface PartEditForm {
   status: "draft" | "confirmed";
 }
 
-interface LocationOption {
+export interface LocationOption {
   id: string;
   name: string;
 }
 
-interface CollectionOption {
+export interface CollectionOption {
   id: string;
   name: string;
 }
@@ -124,6 +127,18 @@ export function ItemsPage() {
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
+
+  const [windowWidth, setWindowWidth] = useState<number>(
+    typeof window !== "undefined" ? window.innerWidth : MOBILE_BREAKPOINT
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = windowWidth < MOBILE_BREAKPOINT;
 
   const collectionFilter = searchParams.get("collection")?.trim() || "";
 
@@ -523,7 +538,7 @@ export function ItemsPage() {
   }, [collectionFilter, error, loading, search]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 h-full flex flex-col">
       <PageHeader
         title="Items"
         description="Browse and manage your items"
@@ -538,235 +553,114 @@ export function ItemsPage() {
         }
       />
 
-      <ListToolbar
-        search={search}
-        onSearchChange={setSearch}
-        placeholder="Search items, locations, collections…"
-        count={filtered.length}
-        countLabel="items"
-        loading={loading}
-      />
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-0 overflow-hidden">
+        {/* Left side: Table (always visible on desktop, hidden when detail open on mobile) */}
+        <div
+          className={`flex-1 min-h-0 flex flex-col overflow-hidden ${
+            isMobile && selectedPartId ? "hidden" : ""
+          }`}
+        >
+          <div className="space-y-4 p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
+            <ListToolbar
+              search={search}
+              onSearchChange={setSearch}
+              placeholder="Search items, locations, collections…"
+              count={filtered.length}
+              countLabel="items"
+              loading={loading}
+            />
 
-      {collectionFilter && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-emerald-200">
-            Collection: {collectionFilter}
-          </span>
-          <button
-            type="button"
-            onClick={clearCollectionFilter}
-            className="inline-flex items-center gap-1 rounded-md border border-neutral-700 px-2.5 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100"
-          >
-            Clear filter
-          </button>
-        </div>
-      )}
-
-      {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
-
-      <DataTable
-        columns={columns}
-        rows={sorted}
-        keyField="id"
-        emptyMessage={emptyMessage}
-        sortKey={sortKey}
-        sortDirection={sortDirection}
-        onSort={(key) => handleSort(key as ItemSortKey)}
-        onRowClick={(row) => {
-          if (deletingId === row.id) return;
-          void openPartModal(row.id);
-        }}
-      />
-
-      <DeleteConfirmDialog
-        open={Boolean(confirmDeletePart)}
-        title="Delete Item"
-        message={
-          confirmDeletePart ? (
-            <>
-              Permanently delete <span className="font-medium text-neutral-100">{confirmDeletePart.name}</span>? This cannot be undone.
-            </>
-          ) : null
-        }
-        deleting={Boolean(confirmDeletePart && deletingId === confirmDeletePart.id)}
-        onCancel={() => setConfirmDeletePart(null)}
-        onConfirm={() => {
-          if (confirmDeletePart) {
-            void deletePart(confirmDeletePart.id);
-          }
-        }}
-      />
-
-      {selectedPartId && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-xl rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-4"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-base font-semibold text-neutral-100">Item Details</h3>
-                {selectedPart && (
-                  <p className="text-xs text-neutral-500">ID: {selectedPart.id}</p>
-                )}
+            {collectionFilter && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-emerald-200">
+                  Collection: {collectionFilter}
+                </span>
+                <button
+                  type="button"
+                  onClick={clearCollectionFilter}
+                  className="inline-flex items-center gap-1 rounded-md border border-neutral-700 px-2.5 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100"
+                >
+                  Clear filter
+                </button>
               </div>
-              <button
-                onClick={requestCloseModal}
-                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
-                title="Close"
-              >
-                <X size={14} />
-              </button>
+            )}
+
+            {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <DataTable
+                columns={columns}
+                rows={sorted}
+                keyField="id"
+                emptyMessage={emptyMessage}
+                sortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={(key) => handleSort(key as ItemSortKey)}
+                onRowClick={(row) => {
+                  if (deletingId === row.id) return;
+                  void openPartModal(row.id);
+                }}
+              />
             </div>
-
-            {detailLoading && (
-              <p className="text-sm text-neutral-400">Loading part details...</p>
-            )}
-
-            {!detailLoading && detailError && (
-              <p className="text-sm text-red-400">{detailError}</p>
-            )}
-
-            {!detailLoading && selectedPart && (
-              <>
-                {selectedPart.images[0] && (
-                  <img
-                    src={selectedPart.images[0].display_url}
-                    alt={selectedPart.name}
-                    className="w-full max-h-80 object-cover rounded-md border border-neutral-800"
-                  />
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Name</span>
-                    <input
-                      value={editForm.name}
-                      onChange={(event) =>
-                        setEditForm((current) => ({ ...current, name: event.target.value }))
-                      }
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                      placeholder="Part name"
-                    />
-                  </label>
-
-                  <label className="space-y-1">
-                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Collection</span>
-                    <select
-                      value={editForm.collection}
-                      onChange={(event) =>
-                        setEditForm((current) => ({ ...current, collection: event.target.value }))
-                      }
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                    >
-                      <option value="">No collection</option>
-                      {collectionOptions.map((collection) => (
-                        <option key={collection.id} value={collection.name}>
-                          {collection.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="space-y-1">
-                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
-                    <select
-                      value={editForm.location_id}
-                      onChange={(event) =>
-                        setEditForm((current) => ({
-                          ...current,
-                          location_id: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                    >
-                      <option value="">No location</option>
-                      {locations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="space-y-1">
-                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Status</span>
-                    <select
-                      value={editForm.status}
-                      onChange={(event) =>
-                        setEditForm((current) => ({
-                          ...current,
-                          status: event.target.value === "confirmed" ? "confirmed" : "draft",
-                        }))
-                      }
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                    >
-                      <option value="draft">draft</option>
-                      <option value="confirmed">confirmed</option>
-                    </select>
-                  </label>
-
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-neutral-500 uppercase tracking-wide">Description</span>
-                    <textarea
-                      value={editForm.description}
-                      onChange={(event) =>
-                        setEditForm((current) => ({ ...current, description: event.target.value }))
-                      }
-                      rows={4}
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                      placeholder="Optional notes"
-                    />
-                  </label>
-                </div>
-
-                <div className="text-xs text-neutral-500">
-                  Created: {new Date(selectedPart.created_at).toLocaleString()} | Updated: {new Date(selectedPart.updated_at).toLocaleString()}
-                </div>
-
-                <div className="pt-1 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => setConfirmDeletePartOpen(true)}
-                    disabled={savingDetail || deletingPartFromModal}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 size={14} />
-                    Delete
-                  </button>
-                  <div className="flex items-center gap-2">
-                  <button
-                    onClick={requestCloseModal}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const ok = await savePartChanges();
-                      if (ok) {
-                        closeModalNow();
-                      }
-                    }}
-                    disabled={!hasDirtyChanges || savingDetail}
-                    className={[
-                      "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors disabled:opacity-60",
-                      hasDirtyChanges
-                        ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                        : "border-neutral-700 text-neutral-500",
-                    ].join(" ")}
-                  >
-                    <Save size={14} />
-                    {savingDetail ? "Saving..." : "Save"}
-                  </button>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
-        </div>
-      )}
 
+          <DeleteConfirmDialog
+            open={Boolean(confirmDeletePart)}
+            title="Delete Item"
+            message={
+              confirmDeletePart ? (
+                <>
+                  Permanently delete <span className="font-medium text-neutral-100">{confirmDeletePart.name}</span>? This cannot be undone.
+                </>
+              ) : null
+            }
+            deleting={Boolean(confirmDeletePart && deletingId === confirmDeletePart.id)}
+            onCancel={() => setConfirmDeletePart(null)}
+            onConfirm={() => {
+              if (confirmDeletePart) {
+                void deletePart(confirmDeletePart.id);
+              }
+            }}
+          />
+        </div>
+
+        {/* Right side: Detail panel (visible on desktop if selected, full-screen on mobile if selected) */}
+        {selectedPartId && (
+          <div
+            className={
+              isMobile
+                ? "fixed inset-0 z-40 w-full"
+                : "hidden lg:flex lg:w-96 lg:border-l border-neutral-800"
+            }
+          >
+            <ItemDetailPanel
+              selectedPart={selectedPart}
+              editForm={editForm}
+              detailLoading={detailLoading}
+              detailError={detailError}
+              savingDetail={savingDetail}
+              deletingPartFromModal={deletingPartFromModal}
+              locations={locations}
+              collectionOptions={collectionOptions}
+              hasDirtyChanges={hasDirtyChanges}
+              onEditChange={setEditForm}
+              onSave={async () => {
+                const ok = await savePartChanges();
+                if (ok) {
+                  closeModalNow();
+                }
+              }}
+              onClose={requestCloseModal}
+              onConfirmDelete={deletePartFromModal}
+              confirmDeletePartOpen={confirmDeletePartOpen}
+              setConfirmDeletePartOpen={setConfirmDeletePartOpen}
+              isMobile={isMobile}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Unsaved changes dialog */}
       {unsavedPromptOpen && (
         <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
           <div
@@ -796,40 +690,7 @@ export function ItemsPage() {
                 disabled={savingDetail}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
               >
-                <Save size={14} />
                 Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmDeletePartOpen && selectedPart && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
-          >
-            <h3 className="text-sm font-semibold text-neutral-100">Delete Item</h3>
-            <p className="text-sm text-neutral-300">
-              Permanently delete <span className="font-medium text-neutral-100">{selectedPart.name}</span>? This cannot be undone.
-            </p>
-            <div className="pt-1 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setConfirmDeletePartOpen(false)}
-                disabled={deletingPartFromModal}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void deletePartFromModal()}
-                disabled={deletingPartFromModal}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
-              >
-                <Trash2 size={14} />
-                {deletingPartFromModal ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
