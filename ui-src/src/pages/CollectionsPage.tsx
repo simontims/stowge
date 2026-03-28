@@ -9,6 +9,7 @@ import {
   Plus, Save, Trash2, X, HelpCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
@@ -351,6 +352,7 @@ function CollectionFormFields({
 type CollectionSortKey = "name" | "description" | "item_count";
 
 export function CollectionsPage() {
+  const navigate = useNavigate();
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -526,6 +528,14 @@ export function CollectionsPage() {
     setSortDirection("asc");
   }
 
+  function openCollectionItems(collection: CollectionRecord) {
+    if (deletingId === collection.id) return;
+    navigate({
+      pathname: "/items",
+      search: new URLSearchParams({ collection: collection.name }).toString(),
+    });
+  }
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return collections;
@@ -596,7 +606,10 @@ export function CollectionsPage() {
         className: "w-32 text-right",
         headerClassName: "w-32 text-right",
         render: (row) => (
-          <div className="inline-flex items-center gap-2 justify-end w-full">
+          <div
+            className="inline-flex items-center gap-2 justify-end w-full"
+            onClick={(event) => event.stopPropagation()}
+          >
             <button
               onClick={() => startEdit(row)}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
@@ -726,6 +739,7 @@ export function CollectionsPage() {
             sortKey={sortKey}
             sortDirection={sortDirection}
             onSort={(key) => handleSort(key as CollectionSortKey)}
+            onRowClick={openCollectionItems}
           />
         </>
       )}

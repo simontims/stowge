@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
@@ -87,6 +87,7 @@ type ItemSortKey = "name" | "collection" | "location" | "status";
 
 export function ItemsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,6 +111,8 @@ export function ItemsPage() {
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
+
+  const collectionFilter = searchParams.get("collection")?.trim() || "";
 
   const hasDirtyChanges = useMemo(
     () => selectedPartId !== null && !isSameForm(editForm, initialEditForm),
@@ -334,13 +337,28 @@ export function ItemsPage() {
     setSortDirection("asc");
   }
 
+  function clearCollectionFilter() {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("collection");
+    setSearchParams(nextParams, { replace: true });
+  }
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return parts;
+    const normalizedCollectionFilter = collectionFilter.toLowerCase();
 
     return parts.filter((part) => {
-      const name = part.name.toLowerCase();
       const collection = (part.collection || "").toLowerCase();
+
+      if (normalizedCollectionFilter && collection !== normalizedCollectionFilter) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      const name = part.name.toLowerCase();
       const location = (part.location || "").toLowerCase();
       const status = part.status.toLowerCase();
       return (
@@ -350,7 +368,7 @@ export function ItemsPage() {
         status.includes(term)
       );
     });
-  }, [parts, search]);
+  }, [collectionFilter, parts, search]);
 
   const sorted = useMemo(() => {
     const dir = sortDirection === "asc" ? 1 : -1;
@@ -449,11 +467,17 @@ export function ItemsPage() {
     if (error) {
       return error;
     }
+    if (collectionFilter && search.trim()) {
+      return `No items in ${collectionFilter} match your search.`;
+    }
+    if (collectionFilter) {
+      return `No items found in ${collectionFilter}.`;
+    }
     if (search.trim()) {
       return "No items match your search.";
     }
     return "No items yet. Add your first one above.";
-  }, [error, loading, search]);
+  }, [collectionFilter, error, loading, search]);
 
   return (
     <div className="space-y-5">
@@ -479,6 +503,21 @@ export function ItemsPage() {
         countLabel="items"
         loading={loading}
       />
+
+      {collectionFilter && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-emerald-200">
+            Collection: {collectionFilter}
+          </span>
+          <button
+            type="button"
+            onClick={clearCollectionFilter}
+            className="inline-flex items-center gap-1 rounded-md border border-neutral-700 px-2.5 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
 
