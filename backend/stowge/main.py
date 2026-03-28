@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, func
 import jwt
 from jwt import InvalidTokenError
 
@@ -463,6 +463,104 @@ def version():
 @app.get("/api/status")
 def status(db: Session = Depends(get_db)):
     return {"needs_setup": db.query(User).count() == 0}
+
+
+@app.get("/api/status/collections")
+def status_collections(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    collections = db.query(Collection).order_by(Collection.name.asc()).all()
+
+    item_count_rows = (
+        db.query(Part.collection, func.count(Part.id))
+        .filter(Part.collection.isnot(None))
+        .group_by(Part.collection)
+        .all()
+    )
+    item_counts = {
+        str(collection_name): int(count)
+        for collection_name, count in item_count_rows
+        if collection_name
+    }
+
+    asset_count_rows = (
+        db.query(Part.collection, func.count(PartImage.id))
+        .join(Part, Part.id == PartImage.part_id)
+        .filter(Part.collection.isnot(None))
+        .group_by(Part.collection)
+        .all()
+    )
+    asset_counts = {
+        str(collection_name): int(count)
+        for collection_name, count in asset_count_rows
+        if collection_name
+    }
+
+    asset_size_rows = (
+        db.query(Part.collection, PartImage.path_thumb, PartImage.path_display, PartImage.path_original)
+        .join(Part, Part.id == PartImage.part_id)
+        .filter(Part.collection.isnot(None))
+        .all()
+    )
+    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    disk_bytes: dict[str, int] = {}
+    seen_paths: dict[str, set[str]] = {}
+    for collection_name, path_thumb, path_display, path_original in asset_size_rows:
+        if not collection_name:
+            continue
+
+        key = str(collection_name)
+        if key not in seen_paths:
+            seen_paths[key] = set()
+
+        for rel_path in (path_thumb, path_display, path_original):
+            if not rel_path:
+                continue
+
+            rel_key = str(rel_path)
+            if rel_key in seen_paths[key]:
+                continue
+
+            seen_paths[key].add(rel_key)
+            abs_path = os.path.join(assets_dir, rel_key)
+            try:
+                size = os.path.getsize(abs_path)
+            except OSError:
+                size = 0
+            disk_bytes[key] = disk_bytes.get(key, 0) + int(size)
+
+    rows = []
+    total_items = 0
+    total_assets = 0
+    total_disk_bytes = 0
+
+    for collection in collections:
+        name = collection.name
+        item_count = int(item_counts.get(name, 0))
+        asset_count = int(asset_counts.get(name, 0))
+        collection_bytes = int(disk_bytes.get(name, 0))
+
+        total_items += item_count
+        total_assets += asset_count
+        total_disk_bytes += collection_bytes
+
+        rows.append(
+            {
+                "id": collection.id,
+                "name": name,
+                "item_count": item_count,
+                "asset_count": asset_count,
+                "disk_bytes": collection_bytes,
+            }
+        )
+
+    return {
+        "server": "ok",
+        "collections": rows,
+        "totals": {
+            "item_count": total_items,
+            "asset_count": total_assets,
+            "disk_bytes": total_disk_bytes,
+        },
+    }
 
 @app.post("/api/setup/first-admin")
 def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
