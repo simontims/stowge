@@ -540,7 +540,7 @@ export function ItemsPage() {
   return (
     <div className="space-y-5 h-full flex flex-col">
       <PageHeader
-        title="Items"
+        title={collectionFilter || "Items"}
         description="Browse and manage your items"
         action={
           <button
