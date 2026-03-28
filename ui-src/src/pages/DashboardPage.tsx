@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Server } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
-import { useServerRetry } from "../lib/useServerRetry";
 
 interface CollectionStatusRow {
   id: string;
@@ -39,32 +38,35 @@ export function DashboardPage() {
   const [status, setStatus] = useState<StatusMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    void loadStatus();
-  }, []);
-
-  useServerRetry(error, loading, () => loadStatus({ background: true }));
-
-  async function loadStatus(options?: { background?: boolean }) {
-    const background = options?.background ?? false;
-
-    if (!background) {
-      setLoading(true);
-    }
-
+  const poll = useCallback(async (background: boolean) => {
+    if (!background) setLoading(true);
     try {
       const data = await apiRequest<StatusMetrics>("/api/status/collections");
-      setStatus(data);
-      setError("");
+      if (mountedRef.current) {
+        setStatus(data);
+        setError("");
+      }
     } catch (err) {
-      setError((err as Error).message || "Failed to load status metrics.");
+      if (mountedRef.current) {
+        const msg = (err as Error).message || "Failed to load status metrics.";
+        setError(msg);
+        console.warn("[status poll]", msg);
+      }
     }
+    if (!background && mountedRef.current) setLoading(false);
+  }, []);
 
-    if (!background) {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    mountedRef.current = true;
+    void poll(false);
+    const id = window.setInterval(() => void poll(true), 5000);
+    return () => {
+      mountedRef.current = false;
+      window.clearInterval(id);
+    };
+  }, [poll]);
 
   const rows = useMemo(() => status?.collections ?? [], [status]);
 
