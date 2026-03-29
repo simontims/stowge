@@ -422,33 +422,7 @@ export function LocationsPage({ embedded, onDirtyChange, saveFnRef }: LocationsS
         <PageHeader
           title="Locations"
           description="Add, edit, and delete storage locations for your inventory"
-          action={
-            showListView ? (
-              <button
-                onClick={() => {
-                  setAddingOpen(true);
-                  setError("");
-                  setNotice("");
-                }}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-              >
-                <Plus size={14} />
-                Add Location
-              </button>
-            ) : null
-          }
         />
-      )}
-      {embedded && showListView && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => { setAddingOpen(true); setError(""); setNotice(""); }}
-            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-          >
-            <Plus size={14} />
-            Add Location
-          </button>
-        </div>
       )}
 
       {addingOpen && (
@@ -628,9 +602,18 @@ export function LocationsPage({ embedded, onDirtyChange, saveFnRef }: LocationsS
             search={search}
             onSearchChange={setSearch}
             placeholder="Search locations…"
-            count={filtered.length}
+            count={loadError ? undefined : filtered.length}
             countLabel="locations"
             loading={loading}
+            action={
+              <button
+                onClick={() => { setAddingOpen(true); setError(""); setNotice(""); }}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                <Plus size={14} />
+                Add Location
+              </button>
+            }
           />
 
           <DataTable

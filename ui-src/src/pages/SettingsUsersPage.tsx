@@ -302,29 +302,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
         <PageHeader
           title="Settings / Users"
           description="Manage accounts and access for your Stowge instance"
-          action={
-            showListView ? (
-              <button
-                onClick={() => setAddingOpen(true)}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-              >
-                <Plus size={14} />
-                Add User
-              </button>
-            ) : null
-          }
         />
-      )}
-      {embedded && showListView && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => setAddingOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-          >
-            <Plus size={14} />
-            Add User
-          </button>
-        </div>
       )}
 
       {addingOpen && (
@@ -484,9 +462,18 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
           search={search}
           onSearchChange={setSearch}
           placeholder="Search users…"
-          count={filteredUsers.length}
+          count={error && !loading && users.length === 0 ? undefined : filteredUsers.length}
           countLabel="users"
           loading={loading}
+          action={
+            <button
+              onClick={() => setAddingOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            >
+              <Plus size={14} />
+              Add User
+            </button>
+          }
         />
       )}
 
