@@ -1,16 +1,24 @@
 services:
   stowge:
+    # Build locally from this repository.
     build: .
     image: stowge-local:latest
     container_name: stowge
-    environment:
-      DATABASE_URL: sqlite:////data/stowge.db
 
-      JWT_SECRET: ${JWT_SECRET}
+    # Everything needed for a first run is defined here.
+    # You can override any value via shell environment variables when running compose.
+    environment:
+      # App data
+      DATABASE_URL: sqlite:////data/stowge.db
+      ASSETS_DIR: /assets
+
+      # Auth
+      # IMPORTANT: Change this for any non-throwaway deployment.
+      JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string}
       JWT_ISSUER: stowge
       JWT_EXPIRES_MINUTES: "1440"
 
-      ASSETS_DIR: /assets
+      # Image processing defaults
       STORE_ORIGINAL: ${STORE_ORIGINAL:-false}
       OUTPUT_FORMAT: ${OUTPUT_FORMAT:-webp}
       DISPLAY_MAX_EDGE: ${DISPLAY_MAX_EDGE:-2048}
@@ -18,15 +26,24 @@ services:
       THUMB_MAX_EDGE: ${THUMB_MAX_EDGE:-360}
       THUMB_QUALITY: ${THUMB_QUALITY:-70}
 
+      # Leave blank when UI is served by this same container.
+      # Set when hosting UI from another origin.
       CORS_ORIGINS: "${CORS_ORIGINS:-}"
 
+    # Named Docker volumes keep data between container restarts.
     volumes:
       - stowge_assets:/assets
       - stowge_data:/data
+
+    # App is exposed at http://localhost:18090
     ports:
       - "18090:8000"
+
+    # Keep running unless explicitly stopped.
     restart: unless-stopped
 
 volumes:
+  # Image files stored by the app
   stowge_assets:
+  # SQLite database and app data
   stowge_data:

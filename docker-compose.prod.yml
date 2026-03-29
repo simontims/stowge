@@ -1,15 +1,23 @@
 services:
   stowge:
+    # Pull prebuilt image from Docker Hub.
     image: simontims/stowge:latest
     container_name: stowge
+
+    # Self-contained runtime configuration.
+    # Override values with shell environment variables in your deployment pipeline if needed.
     environment:
+      # App data
       DATABASE_URL: sqlite:////data/stowge.db
-
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ISSUER: stowge
-      JWT_EXPIRES_MINUTES: "1440"  # 24h
-
       ASSETS_DIR: /assets
+
+      # Auth
+      # IMPORTANT: Set a strong secret in production.
+      JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string}
+      JWT_ISSUER: stowge
+      JWT_EXPIRES_MINUTES: "1440"
+
+      # Image processing defaults
       STORE_ORIGINAL: ${STORE_ORIGINAL:-false}
       OUTPUT_FORMAT: ${OUTPUT_FORMAT:-webp}
       DISPLAY_MAX_EDGE: ${DISPLAY_MAX_EDGE:-2048}
@@ -17,12 +25,19 @@ services:
       THUMB_MAX_EDGE: ${THUMB_MAX_EDGE:-360}
       THUMB_QUALITY: ${THUMB_QUALITY:-70}
 
-      # If you later host UI elsewhere, set this (comma-separated):
-      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Leave blank when UI is served by this same container.
+      # Set when hosting UI from another origin (comma-separated list).
+      CORS_ORIGINS: "${CORS_ORIGINS:-}"
 
+    # Bind host folders for persistence.
+    # Adjust these paths to your server before running.
     volumes:
       - /mnt/data/docker/stowge/assets:/assets
       - /mnt/data/docker/stowge/data:/data
+
+    # App is exposed at http://<host>:18090
     ports:
       - "18090:8000"
+
+    # Keep running unless explicitly stopped.
     restart: unless-stopped
