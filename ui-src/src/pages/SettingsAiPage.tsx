@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, CheckCircle2, Edit3, Plus, Save, Star, Trash2, X } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, Edit3, Plus, Save, Star, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { apiRequest } from "../lib/api";
