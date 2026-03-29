@@ -379,12 +379,6 @@ export function ItemsPage() {
     setSortDirection("asc");
   }
 
-  function clearCollectionFilter() {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("collection");
-    setSearchParams(nextParams, { replace: true });
-  }
-
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     const normalizedCollectionFilter = collectionFilter.toLowerCase();
@@ -541,16 +535,6 @@ export function ItemsPage() {
     <div className="space-y-5 h-full flex flex-col">
       <PageHeader
         title={collectionFilter || "Items"}
-        description="Browse and manage your items"
-        action={
-          <button
-            onClick={() => navigate("/add")}
-            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-          >
-            <Plus size={14} />
-            Add Item
-          </button>
-        }
       />
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-0 overflow-hidden">
@@ -564,26 +548,20 @@ export function ItemsPage() {
             <ListToolbar
               search={search}
               onSearchChange={setSearch}
-              placeholder="Search items, locations, collections…"
+              placeholder={collectionFilter ? "Search within Collection" : "Search items, locations, collections…"}
               count={filtered.length}
               countLabel="items"
               loading={loading}
-            />
-
-            {collectionFilter && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-emerald-200">
-                  Collection: {collectionFilter}
-                </span>
+              action={
                 <button
-                  type="button"
-                  onClick={clearCollectionFilter}
-                  className="inline-flex items-center gap-1 rounded-md border border-neutral-700 px-2.5 py-1.5 text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100"
+                  onClick={() => navigate("/add")}
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
                 >
-                  Clear filter
+                  <Plus size={14} />
+                  Add Item
                 </button>
-              </div>
-            )}
+              }
+            />
 
             {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { SearchInput } from "./SearchInput";
 
 interface ListToolbarProps {
@@ -7,6 +8,7 @@ interface ListToolbarProps {
   count?: number;
   countLabel?: string;
   loading?: boolean;
+  action?: ReactNode;
 }
 
 export function ListToolbar({
@@ -16,6 +18,7 @@ export function ListToolbar({
   count,
   countLabel = "items",
   loading = false,
+  action,
 }: ListToolbarProps) {
   return (
     <div className="flex items-center gap-2">
@@ -25,6 +28,7 @@ export function ListToolbar({
         onChange={onSearchChange}
         className="flex-1 max-w-sm"
       />
+      {action}
       <span className="text-xs text-neutral-600 ml-auto">
         {loading ? "Loading..." : count !== undefined ? `${count} ${countLabel}` : null}
       </span>
