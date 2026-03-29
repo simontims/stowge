@@ -38,7 +38,7 @@ interface LocationsSectionProps {
   saveFnRef?: { current: (() => Promise<void>) | null };
 }
 
-export function LocationsPage({ embedded, onDirtyChange, saveFnRef }: LocationsSectionProps = {}) {
+export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: LocationsSectionProps = {}) {
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
