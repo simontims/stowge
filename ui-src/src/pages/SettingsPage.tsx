@@ -86,14 +86,13 @@ export function SettingsPage() {
     }
   }
 
-  const activeTabMeta  = TABS.find((t) => t.id === activeTab)!;
   const dirtyTabLabel  = dirtySection
     ? (TABS.find((t) => t.id === dirtySection)?.label ?? dirtySection)
     : null;
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Settings" description={activeTabMeta.description} />
+      <PageHeader title="Settings" />
 
       {/* Tab bar */}
       <div className="flex border-b border-neutral-800">

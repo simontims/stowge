@@ -526,14 +526,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     setUnsavedPromptOpen(false);
   }
 
-  function requestCancelEdit() {
-    if (isEditDirty) {
-      setUnsavedPromptOpen(true);
-      return;
-    }
-    cancelEdit();
-  }
-
   async function handleUnsavedSave() {
     await saveEdit();
     // saveEdit calls cancelEdit on success
@@ -903,16 +895,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
 
       {editingConfig && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-100">Edit AI Model</h2>
-            <button
-              onClick={requestCancelEdit}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-            >
-              <X size={13} />
-              Close
-            </button>
-          </div>
+          <h2 className="text-sm font-semibold text-neutral-100">Edit AI Model</h2>
 
           <p className="text-sm text-neutral-500">Editing {editingConfig.name}</p>
 
@@ -1032,19 +1015,27 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <Trash2 size={14} />
               Delete
             </button>
-            <button
-              onClick={() => void saveEdit()}
-              disabled={!isEditDirty || savingEdit}
-              className={[
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
-                isEditDirty
-                  ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                  : "border-neutral-700 text-neutral-500",
-              ].join(" ")}
-            >
-              <Save size={14} />
-              {savingEdit ? "Saving..." : "Save"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={cancelEdit}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void saveEdit()}
+                disabled={!isEditDirty || savingEdit}
+                className={[
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+                  isEditDirty
+                    ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
+                    : "border-neutral-700 text-neutral-500",
+                ].join(" ")}
+              >
+                <Save size={14} />
+                {savingEdit ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
         </section>
       )}

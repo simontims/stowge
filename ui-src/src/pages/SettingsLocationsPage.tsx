@@ -150,14 +150,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     setUnsavedPromptOpen(false);
   }
 
-  function requestCancelEdit() {
-    if (isEditDirty) {
-      setUnsavedPromptOpen(true);
-      return;
-    }
-    cancelEdit();
-  }
-
   async function handleUnsavedSave() {
     await saveEdit();
     // saveEdit calls cancelEdit on success; if it fails the prompt stays open.
@@ -570,7 +562,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             </button>
             <div className="flex items-center gap-2">
               <button
-                onClick={requestCancelEdit}
+                onClick={cancelEdit}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
               >
                 Cancel

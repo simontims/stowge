@@ -221,14 +221,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
     setUnsavedPromptOpen(false);
   }
 
-  function requestCancelEdit() {
-    if (isEditDirty) {
-      setUnsavedPromptOpen(true);
-      return;
-    }
-    closeEditNow();
-  }
-
   async function handleUnsavedSave() {
     await saveEdit();
   }
@@ -432,7 +424,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={requestCancelEdit}
+              onClick={closeEditNow}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
             >
               Cancel
