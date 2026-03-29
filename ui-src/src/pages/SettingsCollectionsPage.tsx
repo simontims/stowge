@@ -443,7 +443,7 @@ interface CollectionsSectionProps {
   saveFnRef?: { current: (() => Promise<void>) | null };
 }
 
-export function CollectionsPage({ embedded, onDirtyChange, saveFnRef }: CollectionsSectionProps = {}) {
+export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: CollectionsSectionProps = {}) {
   const navigate = useNavigate();
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [loading, setLoading] = useState(false);

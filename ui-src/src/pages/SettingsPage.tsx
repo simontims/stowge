@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
-import { CollectionsPage } from "./CollectionsPage";
+import { SettingsCollectionsPage } from "./SettingsCollectionsPage";
 import { SettingsAiPage } from "./SettingsAiPage";
-import { LocationsPage } from "./LocationsPage";
+import { SettingsLocationsPage } from "./SettingsLocationsPage";
 import { SettingsUsersPage } from "./SettingsUsersPage";
 
 type Tab = "collections" | "ai" | "locations" | "users";
@@ -120,7 +120,7 @@ export function SettingsPage() {
 
       {/* Section content — remounts per tab switch (clean state, API re-fetches) */}
       {activeTab === "collections" && (
-        <CollectionsPage
+        <SettingsCollectionsPage
           embedded
           onDirtyChange={(d) => handleDirtyChange("collections", d)}
           saveFnRef={collectionsSaveFnRef}
@@ -134,7 +134,7 @@ export function SettingsPage() {
         />
       )}
       {activeTab === "locations" && (
-        <LocationsPage
+        <SettingsLocationsPage
           embedded
           onDirtyChange={(d) => handleDirtyChange("locations", d)}
           saveFnRef={locationsSaveFnRef}

@@ -6,7 +6,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { AddPage } from "./pages/AddPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { CollectionsPage } from "./pages/CollectionsPage";
+import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT, apiRequest } from "./lib/api";
 
@@ -68,7 +68,7 @@ export default function App() {
           <Route path="/parts"      element={<ItemsPage />} />
           <Route path="/items/new"  element={<AddPage />} />
           <Route path="/parts/new"  element={<AddPage />} />
-          <Route path="/collections" element={<CollectionsPage />} />
+          <Route path="/collections" element={<SettingsCollectionsPage />} />
           <Route path="/add"        element={<AddPage />} />
           <Route path="/scan"       element={<Navigate to="/add" replace />} />
           <Route path="/settings"   element={<SettingsPage />} />
