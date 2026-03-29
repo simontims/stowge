@@ -101,7 +101,7 @@ docker compose up -d --build
 Then open: http://localhost:18090/
 
 The local run scripts automatically:
-- create `.env` from `.env.example` if missing
+- create a default `.env` if missing
 - generate `JWT_SECRET` if it is missing, placeholder, or too short
 - create `backend/.venv` if missing
 - install backend dependencies
