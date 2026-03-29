@@ -544,7 +544,11 @@ export function ItemsPage() {
             isMobile && selectedPartId ? "hidden" : ""
           }`}
         >
-          <div className="space-y-4 p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div
+            className={`space-y-4 flex-1 min-h-0 flex flex-col overflow-hidden ${
+              collectionFilter ? "" : "p-4"
+            }`}
+          >
             <ListToolbar
               search={search}
               onSearchChange={setSearch}
