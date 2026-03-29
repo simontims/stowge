@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, Moon, Plus, Search, Sun, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Menu, Moon, Sun, User } from "lucide-react";
 import { getStoredTheme, setTheme, type ThemeMode } from "../../lib/theme";
 import { apiRequest } from "../../lib/api";
 
@@ -10,8 +9,6 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
-  const navigate = useNavigate();
-  const [topbarSearch, setTopbarSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getStoredTheme());
   const [version, setVersion] = useState<string>("");
@@ -134,38 +131,7 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
           <Menu size={18} />
         </button>
 
-        {/* Global item search */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const q = topbarSearch.trim();
-            void navigate(q ? `/items?q=${encodeURIComponent(q)}` : "/items");
-            setTopbarSearch("");
-          }}
-          className="flex items-center flex-1 max-w-xl"
-        >
-          <div className="relative flex items-center flex-1">
-            <Search size={14} className="absolute left-3 text-neutral-500 pointer-events-none" />
-            <input
-              type="search"
-              value={topbarSearch}
-              onChange={(e) => setTopbarSearch(e.target.value)}
-              placeholder="Search items…"
-              className="w-full bg-neutral-800 border border-neutral-700 rounded-md pl-8 pr-3 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 outline-none focus:border-neutral-500 focus:ring-1 focus:ring-neutral-600 transition-colors"
-            />
-          </div>
-        </form>
-
-        {/* New Item button */}
-        <button
-          onClick={() => void navigate("/add")}
-          className="shrink-0 inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-        >
-          <Plus size={14} />
-          <span className="hidden sm:inline">New Item</span>
-        </button>
-
-        <div className="flex-1 hidden md:block" />
+        <div className="flex-1" />
 
         <button
           onClick={() => handleThemeChange(themeMode === "dark" ? "light" : "dark")}
