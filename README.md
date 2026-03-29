@@ -38,8 +38,10 @@ Tech
 mkdir -p /local/path/to/stowage/{data,assets}
 ```
 
-### 2) Create `.env`
-Copy `.env.example` to `.env` and fill in values.
+### 2) Edit compose file paths and secret
+- Open `docker-compose.yml` (or `docker-compose.prod.yml` for Docker Hub image).
+- Update volume paths if needed.
+- Set `JWT_SECRET` in the compose file (or override it from your shell/CI).
 
 ### 3) Start
 ```bash
@@ -94,7 +96,7 @@ Optional flags:
 
 ### Cross-platform Docker dev
 ```bash
-docker compose --env-file .env up -d --build
+docker compose up -d --build
 ```
 Then open: http://localhost:18090/
 
