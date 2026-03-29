@@ -99,7 +99,7 @@ function getColumnWidth(values: Array<string | null | undefined>, minimum: numbe
 
 export function ItemsPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
 
   // Sync search when ?q= param changes (e.g. navigating from topbar search)
