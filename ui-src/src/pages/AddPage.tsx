@@ -7,6 +7,7 @@ import {
   Save,
   Upload,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
 
@@ -151,6 +152,7 @@ function PhotoControls({
 }
 
 export function AddPage() {
+  const [searchParams] = useSearchParams();
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
@@ -185,6 +187,8 @@ export function AddPage() {
   const [selectedLlmId, setSelectedLlmId] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const requestedCollectionId = searchParams.get("collection_id")?.trim() || "";
+  const requestedCollectionName = searchParams.get("collection")?.trim().toLowerCase() || "";
 
   const candidates = useMemo(
     () => identifyData?.ai?.candidates ?? [],
@@ -271,11 +275,16 @@ export function AddPage() {
       const validPreferred = collectionOptions.some((cat) => cat.id === preferred)
         ? preferred
         : "";
+      const requestedCollection =
+        collectionOptions.find((cat) => cat.id === requestedCollectionId) ??
+        collectionOptions.find((cat) => cat.name.trim().toLowerCase() === requestedCollectionName) ??
+        null;
+      const initialCollectionId = requestedCollection?.id || validPreferred;
 
-      setPreferredCollectionId(validPreferred);
+      setPreferredCollectionId(initialCollectionId);
       setDraft((current) => ({
         ...current,
-        collection_id: current.collection_id || validPreferred,
+        collection_id: current.collection_id || initialCollectionId,
       }));
     } catch (err) {
       setCollections([]);

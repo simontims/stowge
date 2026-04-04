@@ -140,6 +140,10 @@ export function ItemsPage() {
   const isMobile = windowWidth < MOBILE_BREAKPOINT;
 
   const collectionFilter = searchParams.get("collection")?.trim() || "";
+  const activeCollectionOption = useMemo(
+    () => collectionOptions.find((option) => option.name === collectionFilter) ?? null,
+    [collectionFilter, collectionOptions]
+  );
 
   const collectionFilterSavedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -555,7 +559,24 @@ export function ItemsPage() {
               loading={loading}
               action={
                 <button
-                  onClick={() => navigate("/add")}
+                  onClick={() => {
+                    if (!collectionFilter) {
+                      navigate("/add");
+                      return;
+                    }
+
+                    const nextSearch = new URLSearchParams();
+                    if (activeCollectionOption?.id) {
+                      nextSearch.set("collection_id", activeCollectionOption.id);
+                    } else {
+                      nextSearch.set("collection", collectionFilter);
+                    }
+
+                    navigate({
+                      pathname: "/add",
+                      search: nextSearch.toString(),
+                    });
+                  }}
                   className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
                 >
                   <Plus size={14} />
