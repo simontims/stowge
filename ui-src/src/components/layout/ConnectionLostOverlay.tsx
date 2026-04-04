@@ -1,11 +1,11 @@
 export function ConnectionLostOverlay() {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 bg-neutral-950/96 px-6 text-center backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-1">
         <img
           src="/stowgeLogoOptimized.webp"
           alt="Stowage"
-          className="h-24 w-24 rounded-2xl object-cover shadow-[0_0_40px_rgba(41,182,246,0.12)]"
+          className="h-40 w-40"
         />
         <h1 className="text-2xl font-semibold tracking-wide text-white">Stowage</h1>
       </div>
