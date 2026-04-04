@@ -7,6 +7,5 @@ SQLAlchemy==2.0.48
 bcrypt==5.0.0
 PyJWT==2.12.1
 
-pillow==12.1.1
 litellm==1.82.6
 httpx>=0.28.0
