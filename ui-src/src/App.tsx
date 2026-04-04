@@ -8,7 +8,8 @@ import { AddPage } from "./pages/AddPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
 import { LoginPage } from "./pages/LoginPage";
-import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT, apiRequest } from "./lib/api";
+import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT, OFFLINE_EVENT, apiRequest } from "./lib/api";
+import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
 
 function StartupRedirect() {
   const navigate = useNavigate();
@@ -37,12 +38,75 @@ function StartupRedirect() {
 
 export default function App() {
   const [token, setToken] = useState<string | null>(() => getToken());
+  const [isOffline, setIsOffline] = useState(false);
 
   // 401 from any apiRequest() call fires this event → show LoginPage
   useEffect(() => {
     const handler = () => setToken(null);
     window.addEventListener(UNAUTHORIZED_EVENT, handler);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let probeInFlight = false;
+
+    const checkServerHealth = async () => {
+      if (cancelled || probeInFlight) {
+        return;
+      }
+
+      probeInFlight = true;
+      try {
+        const res = await fetch("/healthz", {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        if (res.ok) {
+          setIsOffline((current) => {
+            if (current) {
+              window.location.reload();
+              return current;
+            }
+            return false;
+          });
+          return;
+        }
+
+        setIsOffline(true);
+      } catch {
+        if (!cancelled) {
+          setIsOffline(true);
+        }
+      } finally {
+        probeInFlight = false;
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void checkServerHealth();
+    }, 5000);
+
+    const handleOffline = () => {
+      setIsOffline(true);
+      void checkServerHealth();
+    };
+
+    window.addEventListener(OFFLINE_EVENT, handleOffline);
+    void checkServerHealth();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener(OFFLINE_EVENT, handleOffline);
+    };
   }, []);
 
   function handleLogin(newToken: string) {
@@ -52,6 +116,10 @@ export default function App() {
 
   function handleLogout() {
     removeToken(); // removes from localStorage + fires UNAUTHORIZED_EVENT → setToken(null)
+  }
+
+  if (isOffline) {
+    return <ConnectionLostOverlay />;
   }
 
   if (!token) {

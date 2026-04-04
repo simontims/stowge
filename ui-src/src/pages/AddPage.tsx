@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
-import { useServerRetry } from "../lib/useServerRetry";
 
 interface IdentifyCandidate {
   name?: string;
@@ -155,9 +154,6 @@ export function AddPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
-  const [loadError, setLoadError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
   const [submitErrorDetail, setSubmitErrorDetail] = useState<string>("");
@@ -208,16 +204,9 @@ export function AddPage() {
   }, [notice]);
 
   useEffect(() => {
-    setIsLoading(true);
-    setLoadError("");
-    void loadAiSettings({ background: false });
-    void loadAddPreferences({ background: false }).finally(() => setIsLoading(false));
-    }, []);
-
-  useServerRetry(loadError, isLoading, () => {
-    void loadAiSettings({ background: true });
-    void loadAddPreferences({ background: true });
-  });
+    void loadAiSettings();
+    void loadAddPreferences({ background: false });
+  }, []);
 
   useEffect(() => {
     const urls = photos.map((f) => URL.createObjectURL(f));
@@ -292,11 +281,10 @@ export function AddPage() {
       setCollections([]);
       setLocations([]);
       setPreferredCollectionId("");
-      setLoadError((err as Error).message || "Unable to load collections and locations right now.");
     }
   }
 
-  async function loadAiSettings(opts?: { background?: boolean }) {
+  async function loadAiSettings() {
     try {
       const data = await apiRequest<AiSettingsResponse>("/api/settings/ai");
       const options = data.configs || [];
@@ -307,9 +295,6 @@ export function AddPage() {
     } catch (err) {
       setLlmOptions([]);
       setSelectedLlmId("");
-      if (!opts?.background) {
-        setLoadError((err as Error).message || "Unable to load AI settings right now.");
-      }
     }
   }
 
