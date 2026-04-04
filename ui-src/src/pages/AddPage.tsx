@@ -875,11 +875,8 @@ export function AddPage() {
   );
 }
 
-async function isWindowsChrome(): Promise<boolean> {
-  const ua = navigator.userAgent || "";
-  const isWindows = /Windows/i.test(ua);
-  const isChrome = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua) && !/OPR\//i.test(ua);
-  return isWindows && isChrome;
+function takePicture(): Promise<File | null> {
+  return pickSingleImage(true);
 }
 
 function pickSingleImage(preferCamera: boolean): Promise<File | null> {
@@ -916,98 +913,6 @@ function pickSingleImage(preferCamera: boolean): Promise<File | null> {
     );
 
     input.click();
-  });
-}
-
-async function takePicture(): Promise<File | null> {
-  if (await isWindowsChrome()) {
-    return pickSingleImage(true);
-  }
-
-  if (!navigator.mediaDevices?.getUserMedia) {
-    return pickSingleImage(true);
-  }
-
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "environment" },
-    audio: false,
-  });
-
-  return new Promise((resolve, reject) => {
-    const overlay = document.createElement("div");
-    overlay.className = "fixed inset-0 z-[70] bg-black flex flex-col";
-
-    const video = document.createElement("video");
-    video.autoplay = true;
-    video.playsInline = true;
-    video.className = "flex-1 w-full h-full object-cover";
-    video.srcObject = stream;
-
-    const controls = document.createElement("div");
-    controls.className = "flex gap-3 p-4 bg-black/70";
-
-    const snapBtn = document.createElement("button");
-    snapBtn.className =
-      "flex-1 bg-blue-600 hover:bg-blue-500 text-white rounded-md px-3 py-2 text-sm";
-    snapBtn.textContent = "Take picture";
-
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className =
-      "flex-1 border border-neutral-700 text-neutral-200 rounded-md px-3 py-2 text-sm";
-    cancelBtn.textContent = "Cancel";
-
-    controls.appendChild(snapBtn);
-    controls.appendChild(cancelBtn);
-    overlay.appendChild(video);
-    overlay.appendChild(controls);
-    document.body.appendChild(overlay);
-
-    const cleanup = () => {
-      stream.getTracks().forEach((t) => t.stop());
-      overlay.remove();
-      window.removeEventListener("keydown", onEsc);
-    };
-
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        cleanup();
-        resolve(null);
-      }
-    };
-
-    window.addEventListener("keydown", onEsc);
-
-    cancelBtn.onclick = () => {
-      cleanup();
-      resolve(null);
-    };
-
-    snapBtn.onclick = async () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          cleanup();
-          reject(new Error("Unable to capture frame."));
-          return;
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const blob = await new Promise<Blob | null>((res) =>
-          canvas.toBlob(res, "image/jpeg", 0.9)
-        );
-        cleanup();
-        if (!blob) {
-          resolve(null);
-          return;
-        }
-        resolve(new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" }));
-      } catch (err) {
-        cleanup();
-        reject(err);
-      }
-    };
   });
 }
 
