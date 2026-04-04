@@ -7,7 +7,6 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
 import { apiRequest } from "../lib/api";
-import { useServerRetry } from "../lib/useServerRetry";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
 
@@ -166,8 +165,6 @@ export function ItemsPage() {
     void loadLocations();
     void loadCollectionOptions();
   }, []);
-
-  useServerRetry(error, loading, () => loadParts({ background: true }));
 
   useEffect(() => {
     const source = new EventSource("/api/events/items");

@@ -3,7 +3,6 @@ import { ArrowUpDown, CheckCircle2, Edit3, Plus, Save, Star, Trash2 } from "luci
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { apiRequest } from "../lib/api";
-import { useServerRetry } from "../lib/useServerRetry";
 
 interface AiConfig {
   id: string;
@@ -306,8 +305,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     void loadProviderCatalog();
     void loadConfigs();
   }, []);
-
-  useServerRetry(error, loading, () => loadConfigs({ background: true }));
 
   function getProviderOption(provider: string): ProviderOption {
     return (

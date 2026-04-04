@@ -8,7 +8,6 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
-import { useServerRetry } from "../lib/useServerRetry";
 
 // ── Tabler icon catalogue (lazy-loaded) ─────────────────────────────────────
 // Popular icon names shown immediately when the picker first opens.
@@ -487,8 +486,6 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
 
   useEffect(() => { void loadCollections(); }, []);
-
-  useServerRetry(loadError, loading, () => loadCollections({ background: true }));
 
   useEffect(() => {
     if (!notice) return;

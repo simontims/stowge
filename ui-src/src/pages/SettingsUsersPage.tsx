@@ -4,7 +4,6 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { apiRequest, getCurrentUserId } from "../lib/api";
-import { useServerRetry } from "../lib/useServerRetry";
 
 interface UserRecord {
   id: string;
@@ -121,8 +120,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   useEffect(() => {
     void loadUsers();
   }, []);
-
-  useServerRetry(error, loading, () => loadUsers({ background: true }));
 
   useEffect(() => {
     if (!armedDeleteId) return;

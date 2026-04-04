@@ -5,7 +5,6 @@ import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { apiRequest } from "../lib/api";
-import { useServerRetry } from "../lib/useServerRetry";
 
 interface LocationRecord {
   id: string;
@@ -91,8 +90,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   useEffect(() => {
     void loadLocations();
   }, []);
-
-  useServerRetry(loadError, loading, () => loadLocations({ background: true }));
 
   useEffect(() => {
     if (!notice) return;

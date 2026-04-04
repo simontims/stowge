@@ -1,6 +1,25 @@
 /** Custom DOM event fired whenever a request returns 401. App.tsx listens to
  *  this to null-out its token state and show the LoginPage. */
 export const UNAUTHORIZED_EVENT = "stowge:unauthorized";
+export const OFFLINE_EVENT = "stowge:offline";
+
+function isNetworkFailure(err: unknown): boolean {
+  if (err instanceof TypeError) {
+    return true;
+  }
+  if (!(err instanceof Error)) {
+    return false;
+  }
+
+  const message = err.message.toLowerCase();
+  return (
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("network request failed") ||
+    message.includes("load failed") ||
+    message.includes("fetch")
+  );
+}
 
 function setSseTokenCookie(token: string): void {
   const encoded = encodeURIComponent(token);
@@ -61,11 +80,8 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   try {
     res = await fetch(path, { ...init, headers });
   } catch (err) {
-    const message = (err as Error).message || "";
-    const isNetworkError =
-      message === "Failed to fetch" ||
-      message === "NetworkError when attempting to fetch resource.";
-    if (isNetworkError) {
+    if (isNetworkFailure(err)) {
+      window.dispatchEvent(new Event(OFFLINE_EVENT));
       throw new Error("Cannot reach the Stowge server right now. Check that it is running, then try again.");
     }
     throw err;
@@ -92,6 +108,11 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   }
 
   if (!res.ok) {
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      window.dispatchEvent(new Event(OFFLINE_EVENT));
+      throw new Error("Cannot reach the Stowge server right now. Check that it is running, then try again.");
+    }
+
     const detail =
       typeof payload === "object" && payload && "detail" in payload
         ? String((payload as { detail: unknown }).detail)
