@@ -93,3 +93,17 @@ class Collection(Base):
     item_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+
+class ImageSettings(Base):
+    """Single-row singleton (id='singleton') for image processing configuration."""
+    __tablename__ = "image_settings"
+
+    id = Column(String, primary_key=True, default="singleton")
+    store_original = Column(Integer, nullable=False, default=0)       # 0|1
+    output_format = Column(String, nullable=False, default="webp")    # webp|jpg
+    display_max_edge = Column(Integer, nullable=False, default=2048)
+    display_quality = Column(Integer, nullable=False, default=82)
+    thumb_max_edge = Column(Integer, nullable=False, default=360)
+    thumb_quality = Column(Integer, nullable=False, default=70)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)

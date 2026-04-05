@@ -3,14 +3,16 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { SettingsCollectionsPage } from "./SettingsCollectionsPage";
 import { SettingsAiPage } from "./SettingsAiPage";
+import { SettingsImagesPage } from "./SettingsImagesPage";
 import { SettingsLocationsPage } from "./SettingsLocationsPage";
 import { SettingsUsersPage } from "./SettingsUsersPage";
 
-type Tab = "collections" | "ai" | "locations" | "users";
+type Tab = "collections" | "ai" | "images" | "locations" | "users";
 
 const TABS: Array<{ id: Tab; label: string; description: string }> = [
   { id: "collections", label: "Collections", description: "Manage inventory collections and AI hints" },
   { id: "ai",          label: "AI",          description: "Configure LLM providers and models" },
+  { id: "images",      label: "Images",      description: "Image storage quality and format" },
   { id: "locations",   label: "Locations",   description: "Manage storage locations" },
   { id: "users",       label: "Users",       description: "Manage user accounts and access" },
 ];
@@ -25,12 +27,14 @@ export function SettingsPage() {
 
   const collectionsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
   const aiSaveFnRef          = useRef<(() => Promise<void>) | null>(null);
+  const imagesSaveFnRef      = useRef<(() => Promise<void>) | null>(null);
   const locationsSaveFnRef   = useRef<(() => Promise<void>) | null>(null);
   const usersSaveFnRef       = useRef<(() => Promise<void>) | null>(null);
 
   const saveFnRefMap: Record<Tab, SaveRef> = {
     collections: collectionsSaveFnRef,
     ai:          aiSaveFnRef,
+    images:      imagesSaveFnRef,
     locations:   locationsSaveFnRef,
     users:       usersSaveFnRef,
   };
@@ -130,6 +134,13 @@ export function SettingsPage() {
           embedded
           onDirtyChange={(d) => handleDirtyChange("ai", d)}
           saveFnRef={aiSaveFnRef}
+        />
+      )}
+      {activeTab === "images" && (
+        <SettingsImagesPage
+          embedded
+          onDirtyChange={(d) => handleDirtyChange("images", d)}
+          saveFnRef={imagesSaveFnRef}
         />
       )}
       {activeTab === "locations" && (
