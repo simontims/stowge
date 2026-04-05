@@ -785,8 +785,6 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
             search={search}
             onSearchChange={setSearch}
             placeholder="Search collections…"
-            count={loadError ? undefined : filtered.length}
-            countLabel="collections"
             loading={loading}
             action={
               <button
@@ -808,6 +806,11 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
             onSort={(key) => handleSort(key as CollectionSortKey)}
             onRowClick={openCollectionItems}
           />
+          {!loadError && (
+            <p className="text-xs text-neutral-600 text-right">
+              {loading ? "Loading…" : `${filtered.length} collection${filtered.length !== 1 ? "s" : ""}`}
+            </p>
+          )}
         </>
       )}
 
