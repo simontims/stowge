@@ -203,33 +203,6 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                     {!collapsed && <span>{item.label}</span>}
                   </NavLink>
 
-                  {!collapsed && item.route === "/collections" && collections.length > 0 && (
-                    <div className="mt-1 space-y-0.5 px-2">
-                      {collections.map((collection) => {
-                        const isActive =
-                          location.pathname === "/items" && activeCollectionFilter === collection.name;
-
-                        return (
-                          <NavLink
-                            key={collection.id}
-                            to={{
-                              pathname: "/items",
-                              search: new URLSearchParams({ collection: collection.name }).toString(),
-                            }}
-                            className={clsx(
-                              "ml-5 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-                              isActive
-                                ? "bg-neutral-800/80 text-neutral-100"
-                                : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
-                            )}
-                          >
-                            <TablerIcon name={collection.icon} size={14} />
-                            {collection.name}
-                          </NavLink>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               );
             })}
