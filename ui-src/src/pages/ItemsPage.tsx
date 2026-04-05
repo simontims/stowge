@@ -613,10 +613,9 @@ export function ItemsPage() {
 
             {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
 
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <div className="flex-1 min-h-0 relative overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {isMobile ? (
-                <div className="h-full overflow-y-auto pr-1">
+                <div className="pr-1">
                   {sorted.length === 0 ? (
                     <div className="border border-neutral-800 rounded-lg p-6 text-sm text-neutral-500 text-center">
                       {emptyMessage}
@@ -679,28 +678,27 @@ export function ItemsPage() {
                   )}
                 </div>
               ) : (
-                <DataTable
-                  columns={columns}
-                  rows={sorted}
-                  keyField="id"
-                  emptyMessage={emptyMessage}
-                  sortKey={sortKey}
-                  sortDirection={sortDirection}
-                  onSort={(key) => handleSort(key as ItemSortKey)}
-                  activeRowId={selectedPartId ?? undefined}
-                  tableRef={tableRef}
-                  onRowClick={(row) => {
-                    if (deletingId === row.id) return;
-                    void openPartModal(row.id);
-                  }}
-                />
+                <>
+                  <DataTable
+                    columns={columns}
+                    rows={sorted}
+                    keyField="id"
+                    emptyMessage={emptyMessage}
+                    sortKey={sortKey}
+                    sortDirection={sortDirection}
+                    onSort={(key) => handleSort(key as ItemSortKey)}
+                    activeRowId={selectedPartId ?? undefined}
+                    tableRef={tableRef}
+                    onRowClick={(row) => {
+                      if (deletingId === row.id) return;
+                      void openPartModal(row.id);
+                    }}
+                  />
+                  <p className="text-xs text-neutral-600 text-right pt-1">
+                    {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
+                  </p>
+                </>
               )}
-              {!isMobile && (
-                <div className="absolute bottom-1.5 right-2 z-10 text-xs text-neutral-600 pointer-events-none">
-                  {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
-                </div>
-              )}
-              </div>
             </div>
 
           </div>
