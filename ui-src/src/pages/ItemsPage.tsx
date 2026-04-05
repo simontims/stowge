@@ -582,8 +582,6 @@ export function ItemsPage() {
               search={search}
               onSearchChange={setSearch}
               placeholder={collectionFilter ? "Search within Collection" : "Search items, locations, collections…"}
-              count={filtered.length}
-              countLabel="items"
               loading={loading}
               action={
                 <button
@@ -697,6 +695,12 @@ export function ItemsPage() {
                 />
               )}
             </div>
+
+            {!isMobile && (
+              <p className="text-xs text-neutral-600 text-right">
+                {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
+              </p>
+            )}
           </div>
 
           <DeleteConfirmDialog
