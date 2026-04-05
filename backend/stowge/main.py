@@ -593,10 +593,32 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
                 size = 0
             disk_bytes[key] = disk_bytes.get(key, 0) + int(size)
 
+    # Add location photo sizes to the global total.
+    # Location photos don't belong to a specific collection so they only
+    # contribute to the overall total, not to per-collection rows.
+    location_photo_bytes = 0
+    location_photo_paths = db.query(Location.photo_path).filter(Location.photo_path.isnot(None)).all()
+    for (photo_path,) in location_photo_paths:
+        if not photo_path:
+            continue
+        # Each location photo may have a display variant stored; also check for
+        # sibling thumb/original variants using the same naming convention that
+        # _cleanup_asset_paths uses.
+        for rel_path in (
+            photo_path,
+            photo_path.replace("/display.", "/thumb."),
+            photo_path.replace("/display.", "/original."),
+        ):
+            abs_path = os.path.join(assets_dir, rel_path)
+            try:
+                location_photo_bytes += os.path.getsize(abs_path)
+            except OSError:
+                pass
+
     rows = []
     total_items = 0
     total_assets = 0
-    total_disk_bytes = 0
+    total_disk_bytes = location_photo_bytes
 
     for collection in collections:
         name = collection.name
