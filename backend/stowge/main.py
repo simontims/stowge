@@ -632,6 +632,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
             {
                 "id": collection.id,
                 "name": name,
+                "icon": collection.icon,
                 "item_count": item_count,
                 "asset_count": asset_count,
                 "disk_bytes": collection_bytes,
