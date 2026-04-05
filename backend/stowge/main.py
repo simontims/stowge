@@ -1157,13 +1157,40 @@ def update_collection(collection_id: str, payload: dict, db: Session = Depends(g
 
 
 @app.delete("/api/collections/{collection_id}")
-def delete_collection(collection_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+def delete_collection(
+    collection_id: str,
+    move_to_collection_id: str | None = None,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
     collection = db.query(Collection).filter(Collection.id == collection_id).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
+
+    # Determine the target collection name (None = clear to no-collection).
+    target_name: str | None = None
+    if move_to_collection_id:
+        target = db.query(Collection).filter(Collection.id == move_to_collection_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="Target collection not found")
+        if target.id == collection_id:
+            raise HTTPException(status_code=400, detail="Cannot move items to the same collection")
+        target_name = target.name
+
+    # Reassign (or clear) parts that belong to this collection.
+    db.query(Part).filter(Part.collection == collection.name).update(
+        {"collection": target_name}, synchronize_session="fetch"
+    )
+
     db.delete(collection)
     db.commit()
-    return {"ok": True}
+
+    items_moved = (
+        db.query(func.count(Part.id))
+        .filter(Part.collection == target_name if target_name else Part.collection.is_(None))
+        .scalar() or 0
+    )
+    return {"ok": True, "items_moved": int(items_moved), "target_collection": target_name}
 
 
 # ---------------- AI Settings (LLM configs) ----------------

@@ -6,7 +6,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { DataTable, type Column } from "../components/ui/DataTable";
-import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
+import { DeleteActionButton } from "../components/ui/DeleteControls";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
 
@@ -466,6 +466,10 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
 
   const [confirmDeleteCollection, setConfirmDeleteCollection] = useState<CollectionRecord | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Delete modal state
+  const [deleteStep, setDeleteStep] = useState<"confirm" | "progress" | "done">("confirm");
+  const [deleteProgress, setDeleteProgress] = useState<string[]>([]);
+  const [deleteMoveToId, setDeleteMoveToId] = useState<string>("");
 
   const editingCollection = useMemo(
     () => collections.find((c) => c.id === editingId) || null,
@@ -598,17 +602,48 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   async function deleteCollection(cat: CollectionRecord) {
     setError("");
     setDeletingId(cat.id);
+    setDeleteStep("progress");
+    setDeleteProgress([]);
+
+    const targetCollection = deleteMoveToId
+      ? collections.find((c) => c.id === deleteMoveToId) ?? null
+      : null;
+
     try {
-      await apiRequest(`/api/collections/${cat.id}`, { method: "DELETE" });
-      setConfirmDeleteCollection(null);
+      // Step 1: move/clear items
+      setDeleteProgress([`Moving items to ${targetCollection ? `"${targetCollection.name}"` : "no collection"}…`]);
+      const url = deleteMoveToId
+        ? `/api/collections/${cat.id}?move_to_collection_id=${deleteMoveToId}`
+        : `/api/collections/${cat.id}`;
+      // Step 2: delete collection (done server-side in the same DELETE request)
+      setDeleteProgress((p) => [...p, `Deleting collection "${cat.name}"…`]);
+      await apiRequest(url, { method: "DELETE" });
+      setDeleteProgress((p) => [...p, "Complete."]);
+      setDeleteStep("done");
       if (editingId === cat.id) cancelEdit();
       await loadCollections();
       window.dispatchEvent(new Event(COLLECTIONS_NAV_UPDATED_EVENT));
     } catch (err) {
       setError((err as Error).message || "Failed to delete collection.");
+      setConfirmDeleteCollection(null);
+      setDeleteStep("confirm");
     } finally {
       setDeletingId(null);
     }
+  }
+
+  function openDeleteModal(cat: CollectionRecord) {
+    setDeleteStep("confirm");
+    setDeleteProgress([]);
+    setDeleteMoveToId("");
+    setConfirmDeleteCollection(cat);
+  }
+
+  function closeDeleteModal() {
+    setConfirmDeleteCollection(null);
+    setDeleteStep("confirm");
+    setDeleteProgress([]);
+    setDeleteMoveToId("");
   }
 
   function handleSort(nextKey: CollectionSortKey) {
@@ -706,7 +741,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
               Edit
             </button>
             <DeleteActionButton
-              onClick={() => setConfirmDeleteCollection(row)}
+              onClick={() => openDeleteModal(row)}
               isDeleting={deletingId === row.id}
             />
           </div>
@@ -770,7 +805,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
             saving={isSavingEdit}
             onSave={() => void saveEdit()}
             onCancel={cancelEdit}
-            onDelete={() => setConfirmDeleteCollection(editingCollection)}
+            onDelete={() => editingCollection && openDeleteModal(editingCollection)}
             deleteDisabled={isSavingEdit}
           />
         </section>
@@ -847,26 +882,102 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         </div>
       )}
 
-      <DeleteConfirmDialog
-        open={Boolean(confirmDeleteCollection)}
-        title="Delete Collection"
-        message={
-          confirmDeleteCollection ? (
-            <>
-              Permanently delete <span className="font-medium text-neutral-100">{confirmDeleteCollection.name}</span>? This cannot be undone.
-            </>
-          ) : null
-        }
-        deleting={Boolean(confirmDeleteCollection && deletingId === confirmDeleteCollection.id)}
-        onCancel={() => setConfirmDeleteCollection(null)}
-        onConfirm={() => {
-          if (confirmDeleteCollection) {
-            void deleteCollection(confirmDeleteCollection);
-          }
-        }}
-      />
+      {/* Delete collection modal */}
+      {confirmDeleteCollection && (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-neutral-100">Delete Collection</h3>
+
+            {deleteStep === "confirm" && (
+              <>
+                <p className="text-sm text-neutral-300">
+                  Permanently delete collection{" "}
+                  <span className="font-medium text-neutral-100">{confirmDeleteCollection.name}</span>?{" "}
+                  {confirmDeleteCollection.item_count > 0 ? (
+                    <>
+                      The{" "}
+                      <span className="font-medium text-neutral-100">
+                        {confirmDeleteCollection.item_count} item{confirmDeleteCollection.item_count !== 1 ? "s" : ""}
+                      </span>{" "}
+                      in this collection will be moved to:
+                    </>
+                  ) : (
+                    "This collection has no items. It will be permanently removed."
+                  )}
+                </p>
+
+                {confirmDeleteCollection.item_count > 0 && (
+                  <div>
+                    <label className="text-xs uppercase tracking-wide text-neutral-500">Move items to</label>
+                    <select
+                      value={deleteMoveToId}
+                      onChange={(e) => setDeleteMoveToId(e.target.value)}
+                      className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    >
+                      <option value="">No collection</option>
+                      {collections
+                        .filter((c) => c.id !== confirmDeleteCollection.id)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="pt-1 flex items-center justify-end gap-2">
+                  <button
+                    onClick={closeDeleteModal}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => void deleteCollection(confirmDeleteCollection)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+
+            {deleteStep === "progress" && (
+              <div className="space-y-3">
+                {deleteProgress.map((msg, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-neutral-300">
+                    {i === deleteProgress.length - 1 ? (
+                      <span className="w-4 h-4 rounded-full border-2 border-neutral-500 border-t-transparent animate-spin shrink-0" />
+                    ) : (
+                      <span className="w-4 h-4 rounded-full bg-emerald-600/80 shrink-0" />
+                    )}
+                    {msg}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {deleteStep === "done" && (
+              <div className="space-y-3">
+                {deleteProgress.map((msg, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-neutral-300">
+                    <span className="w-4 h-4 rounded-full bg-emerald-600/80 shrink-0" />
+                    {msg}
+                  </div>
+                ))}
+                <div className="pt-1 flex justify-end">
+                  <button
+                    onClick={closeDeleteModal}
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-sm"
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 
