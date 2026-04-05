@@ -613,7 +613,8 @@ export function ItemsPage() {
 
             {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
 
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-hidden">
               {isMobile ? (
                 <div className="h-full overflow-y-auto pr-1">
                   {sorted.length === 0 ? (
@@ -694,13 +695,15 @@ export function ItemsPage() {
                   }}
                 />
               )}
+              </div>
+
+              {!isMobile && (
+                <p className="flex-none text-xs text-neutral-600 text-right pt-1">
+                  {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
+                </p>
+              )}
             </div>
 
-            {!isMobile && (
-              <p className="text-xs text-neutral-600 text-right">
-                {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
-              </p>
-            )}
           </div>
 
           <DeleteConfirmDialog
