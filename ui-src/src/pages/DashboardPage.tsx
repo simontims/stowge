@@ -1,11 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Tag } from "lucide-react";
+import type { TablerEntry } from "../lib/tablerIconCatalogue";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
+
+// ── Tabler icon catalogue (module-level cache shared with other pages) ────────
+let _catalogue: TablerEntry[] | null = null;
+let _cataloguePromise: Promise<TablerEntry[]> | null = null;
+function loadCatalogue(): Promise<TablerEntry[]> {
+  if (_catalogue) return Promise.resolve(_catalogue);
+  if (!_cataloguePromise) {
+    _cataloguePromise = import("../lib/tablerIconCatalogue").then((m) => {
+      _catalogue = m.TABLER_CATALOGUE;
+      return _catalogue;
+    });
+  }
+  return _cataloguePromise;
+}
+function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }) {
+  const [entry, setEntry] = useState<TablerEntry | null>(() =>
+    name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
+  );
+  useEffect(() => {
+    if (!name) return;
+    if (_catalogue) { setEntry(_catalogue.find((e) => e.name === name) ?? null); return; }
+    let cancelled = false;
+    loadCatalogue().then((cat) => { if (!cancelled) setEntry(cat.find((e) => e.name === name) ?? null); });
+    return () => { cancelled = true; };
+  }, [name]);
+  if (!name || !entry) return <Tag size={size} />;
+  const C = entry.component;
+  return <C size={size} stroke={1.5} />;
+}
 
 interface CollectionStatusRow {
   id: string;
   name: string;
+  icon: string | null;
   item_count: number;
   asset_count: number;
   disk_bytes: number;
@@ -167,7 +199,12 @@ export function DashboardPage() {
                 className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
                 onClick={() => navigate(`/items?collection=${encodeURIComponent(row.name)}`)}
               >
-                <td className="px-4 py-3">{row.name}</td>
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-2">
+                    <TablerIcon name={row.icon} size={15} />
+                    {row.name}
+                  </span>
+                </td>
                 <td className="px-4 py-3 tabular-nums">{row.item_count}</td>
                 <td className="px-4 py-3 tabular-nums">{row.asset_count}</td>
                 <td className="px-4 py-3 tabular-nums">{formatBytes(row.disk_bytes)}</td>
@@ -178,7 +215,12 @@ export function DashboardPage() {
                 className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
                 onClick={() => navigate("/items?collection=__none")}
               >
-                <td className="px-4 py-3">No collection</td>
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-2 text-neutral-500">
+                    <Tag size={15} />
+                    No collection
+                  </span>
+                </td>
                 <td className="px-4 py-3 tabular-nums">{uncollected.item_count}</td>
                 <td className="px-4 py-3 tabular-nums">{uncollected.asset_count}</td>
                 <td className="px-4 py-3 tabular-nums">{formatBytes(uncollected.disk_bytes)}</td>
