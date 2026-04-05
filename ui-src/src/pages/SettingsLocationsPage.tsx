@@ -569,8 +569,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             search={search}
             onSearchChange={setSearch}
             placeholder="Search locations…"
-            count={loadError ? undefined : filtered.length}
-            countLabel="locations"
             loading={loading}
             action={
               <button
@@ -592,6 +590,11 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             sortDirection={sortDirection}
             onSort={(key) => handleSort(key as LocationSortKey)}
           />
+          {!loadError && (
+            <p className="text-xs text-neutral-600 text-right">
+              {loading ? "Loading…" : `${filtered.length} location${filtered.length !== 1 ? "s" : ""}`}
+            </p>
+          )}
         </>
       )}
 

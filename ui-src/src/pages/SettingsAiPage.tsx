@@ -728,8 +728,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           search={search}
           onSearchChange={setSearch}
           placeholder="Search models…"
-          count={error && !loading && !hasConfigs ? undefined : filteredConfigs.length}
-          countLabel="models"
           loading={loading}
           action={
             <button
@@ -889,6 +887,12 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           </table>
         </div>
       </section>
+      )}
+
+      {showListView && hasConfigs && !error && (
+        <p className="text-xs text-neutral-600 text-right">
+          {loading ? "Loading…" : `${filteredConfigs.length} model${filteredConfigs.length !== 1 ? "s" : ""}`}
+        </p>
       )}
 
       {editingConfig && (

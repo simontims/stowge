@@ -451,8 +451,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
           search={search}
           onSearchChange={setSearch}
           placeholder="Search users…"
-          count={error && !loading && users.length === 0 ? undefined : filteredUsers.length}
-          countLabel="users"
           loading={loading}
           action={
             <button
@@ -614,6 +612,12 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
             </table>
           </div>
         </section>
+      )}
+
+      {showListView && !(error && !loading && users.length === 0) && (
+        <p className="text-xs text-neutral-600 text-right">
+          {loading ? "Loading…" : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""}`}
+        </p>
       )}
 
       <UnsavedChangesDialog
