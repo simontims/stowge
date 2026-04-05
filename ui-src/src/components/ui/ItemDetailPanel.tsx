@@ -65,9 +65,9 @@ export function ItemDetailPanel({
           )}
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-neutral-100 truncate">Item Details</h3>
-            {selectedPart && (
-              <p className="text-xs text-neutral-500 truncate">ID: {selectedPart.id}</p>
-            )}
+            <p className={`text-xs text-neutral-500 truncate ${selectedPart ? "" : "invisible"}`}>
+              ID: {selectedPart?.id ?? "—"}
+            </p>
           </div>
         </div>
         {!isMobile && (
