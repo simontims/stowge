@@ -18,10 +18,13 @@ from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
 from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
-from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
+from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER, _TIMING_DUMMY_HASH
 from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, ImageConfig, DEFAULT_IMAGE_CONFIG
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
@@ -343,7 +346,11 @@ def init_db():
 
 init_db()
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="Stowge", version=APP_VERSION)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _PARTS_EVENTS_LOCK = Lock()
 _PARTS_EVENTS_SEQ = 0
@@ -366,6 +373,15 @@ if CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(self)"
+    return response
 
 # ---------------- helpers ----------------
 
@@ -583,7 +599,8 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     }
 
 @app.post("/api/setup/first-admin")
-def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def setup_first_admin(request: Request, payload: dict, db: Session = Depends(get_db)):
     if db.query(User).count() != 0:
         raise HTTPException(status_code=404, detail="Setup disabled")
 
@@ -610,12 +627,16 @@ def setup_first_admin(payload: dict, db: Session = Depends(get_db)):
     return {"access_token": create_token(user), "token_type": "bearer"}
 
 @app.post("/api/login")
-def login(payload: dict, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, payload: dict, db: Session = Depends(get_db)):
     username = (payload.get("username") or payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
 
     user = db.query(User).filter(User.username == username).first()
-    if not user or not verify_password(password, user.password_hash):
+    # Always call verify_password regardless of whether the user was found so
+    # response time is constant, preventing email enumeration via timing.
+    check_hash = user.password_hash if user else _TIMING_DUMMY_HASH
+    if not verify_password(password, check_hash) or not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     user.last_login_at = datetime.now(timezone.utc)
@@ -775,7 +796,26 @@ def upload_location_photo(
 @app.get("/api/locations")
 def list_locations(db: Session = Depends(get_db), me: User = Depends(current_user)):
     locations = db.query(Location).order_by(Location.created_at.asc()).all()
-    return [_serialize_location(loc, db) for loc in locations]
+    if not locations:
+        return []
+    counts: dict[str, int] = dict(
+        db.query(Part.location_id, func.count(Part.id))
+        .filter(Part.location_id.in_([loc.id for loc in locations]))
+        .group_by(Part.location_id)
+        .all()
+    )
+    return [
+        {
+            "id": loc.id,
+            "name": loc.name,
+            "description": loc.description,
+            "item_count": int(counts.get(loc.id, 0)),
+            "photo_url": (_location_photo_url(loc.id) if loc.photo_path else None),
+            "created_at": _utc_iso(loc.created_at),
+            "updated_at": _utc_iso(loc.updated_at),
+        }
+        for loc in locations
+    ]
 
 
 @app.post("/api/locations")
@@ -876,7 +916,27 @@ def get_location_photo(location_id: str, db: Session = Depends(get_db), me: User
 @app.get("/api/collections")
 def list_collections(db: Session = Depends(get_db), me: User = Depends(current_user)):
     collections = db.query(Collection).order_by(Collection.created_at.asc()).all()
-    return [_serialize_collection(col, db) for col in collections]
+    if not collections:
+        return []
+    counts: dict[str, int] = dict(
+        db.query(Part.collection, func.count(Part.id))
+        .filter(Part.collection.in_([col.name for col in collections]))
+        .group_by(Part.collection)
+        .all()
+    )
+    return [
+        {
+            "id": col.id,
+            "name": col.name,
+            "icon": col.icon,
+            "description": col.description,
+            "ai_hint": col.ai_hint,
+            "item_count": int(counts.get(col.name, 0)),
+            "created_at": _utc_iso(col.created_at),
+            "updated_at": _utc_iso(col.updated_at),
+        }
+        for col in collections
+    ]
 
 
 @app.post("/api/collections")
@@ -1151,18 +1211,25 @@ def delete_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = 
 
 
 # ---------------- Image Processing Settings ----------------
+_image_config_cache: ImageConfig | None = None
+
 def _get_image_config(db: Session) -> ImageConfig:
+    global _image_config_cache
+    if _image_config_cache is not None:
+        return _image_config_cache
     row = db.query(ImageSettings).filter(ImageSettings.id == "singleton").first()
     if not row:
-        return DEFAULT_IMAGE_CONFIG
-    return ImageConfig(
-        store_original=bool(row.store_original),
-        output_format=row.output_format or "webp",
-        display_max_edge=row.display_max_edge or 2048,
-        display_quality=row.display_quality or 82,
-        thumb_max_edge=row.thumb_max_edge or 360,
-        thumb_quality=row.thumb_quality or 70,
-    )
+        _image_config_cache = DEFAULT_IMAGE_CONFIG
+    else:
+        _image_config_cache = ImageConfig(
+            store_original=bool(row.store_original),
+            output_format=row.output_format or "webp",
+            display_max_edge=row.display_max_edge or 2048,
+            display_quality=row.display_quality or 82,
+            thumb_max_edge=row.thumb_max_edge or 360,
+            thumb_quality=row.thumb_quality or 70,
+        )
+    return _image_config_cache
 
 
 def _serialize_image_settings(row: ImageSettings) -> dict:
@@ -1194,6 +1261,7 @@ def get_image_settings(db: Session = Depends(get_db), me: User = Depends(require
 
 @app.patch("/api/admin/settings/images")
 def update_image_settings(payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    global _image_config_cache
     row = db.query(ImageSettings).filter(ImageSettings.id == "singleton").first()
     if not row:
         row = ImageSettings(id="singleton")
@@ -1228,6 +1296,7 @@ def update_image_settings(payload: dict, db: Session = Depends(get_db), me: User
         row.thumb_quality = v
 
     row.updated_at = datetime.now(timezone.utc)
+    _image_config_cache = None
     db.commit()
     db.refresh(row)
     return _serialize_image_settings(row)

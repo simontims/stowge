@@ -25,6 +25,10 @@ def hash_password(pw: str) -> str:
     hashed = bcrypt.hashpw(_pw_bytes(pw), bcrypt.gensalt())
     return hashed.decode("utf-8")
 
+# Computed once at startup. Used in login so that an unknown email address takes
+# the same bcrypt time as a wrong password, preventing email enumeration.
+_TIMING_DUMMY_HASH: str = hash_password("__stowge_timing_dummy__")
+
 def verify_password(pw: str, pw_hash: str) -> bool:
     return bcrypt.checkpw(_pw_bytes(pw), pw_hash.encode("utf-8"))
 
