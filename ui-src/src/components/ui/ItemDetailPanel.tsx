@@ -98,11 +98,11 @@ export function ItemDetailPanel({
         <div className="flex flex-col h-full overflow-y-auto">
           <div className="flex-1 p-4 space-y-4">
             {selectedPart.images.length > 0 && (
-              <div className="relative group">
+              <div className="relative group h-64 rounded-md border border-neutral-800 overflow-hidden bg-neutral-900">
                 <img
                   src={selectedPart.images[activeImageIdx]?.display_url}
                   alt={selectedPart.name}
-                  className="w-full max-h-80 object-cover rounded-md border border-neutral-800"
+                  className="w-full h-full object-cover"
                 />
                 {selectedPart.images.length > 1 && (
                   <>
