@@ -1,4 +1,5 @@
-import { Save, Trash2, ChevronLeft } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Save, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { PartDetail, PartEditForm, LocationOption, CollectionOption } from "../../pages/ItemsPage";
 
 interface ItemDetailPanelProps {
@@ -38,6 +39,12 @@ export function ItemDetailPanel({
   setConfirmDeletePartOpen,
   isMobile = false,
 }: ItemDetailPanelProps) {
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+
+  // Reset to first image whenever a different item is selected
+  useEffect(() => {
+    setActiveImageIdx(0);
+  }, [selectedPart?.id]);
   return (
     <div
       className={`flex flex-col h-full border-l border-neutral-800 bg-neutral-950 overflow-y-auto ${
@@ -90,12 +97,45 @@ export function ItemDetailPanel({
       {!detailLoading && selectedPart && (
         <div className="flex flex-col h-full overflow-y-auto">
           <div className="flex-1 p-4 space-y-4">
-            {selectedPart.images[0] && (
-              <img
-                src={selectedPart.images[0].display_url}
-                alt={selectedPart.name}
-                className="w-full max-h-80 object-cover rounded-md border border-neutral-800"
-              />
+            {selectedPart.images.length > 0 && (
+              <div className="relative group">
+                <img
+                  src={selectedPart.images[activeImageIdx]?.display_url}
+                  alt={selectedPart.name}
+                  className="w-full max-h-80 object-cover rounded-md border border-neutral-800"
+                />
+                {selectedPart.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setActiveImageIdx((i) => (i - 1 + selectedPart.images.length) % selectedPart.images.length)}
+                      className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                      aria-label="Previous image"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button
+                      onClick={() => setActiveImageIdx((i) => (i + 1) % selectedPart.images.length)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                      aria-label="Next image"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                    <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                      {selectedPart.images.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveImageIdx(idx)}
+                          className={[
+                            "w-1.5 h-1.5 rounded-full transition-colors",
+                            idx === activeImageIdx ? "bg-white" : "bg-white/40 hover:bg-white/70",
+                          ].join(" ")}
+                          aria-label={`Image ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             <div className="space-y-3">
