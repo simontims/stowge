@@ -127,6 +127,8 @@ export function ItemsPage() {
   const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
 
+  const tableRef = useRef<HTMLTableElement>(null);
+
   const [windowWidth, setWindowWidth] = useState<number>(
     typeof window !== "undefined" ? window.innerWidth : MOBILE_BREAKPOINT
   );
@@ -189,7 +191,6 @@ export function ItemsPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedPartId === null || !hasDirtyChanges) return;
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
@@ -417,6 +418,33 @@ export function ItemsPage() {
     });
     return rows;
   }, [filtered, sortKey, sortDirection]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      if (sorted.length === 0) return;
+      const currentIdx = selectedPartId ? sorted.findIndex((r) => r.id === selectedPartId) : -1;
+      let nextIdx: number;
+      if (e.key === "ArrowDown") {
+        nextIdx = currentIdx < sorted.length - 1 ? currentIdx + 1 : 0;
+      } else {
+        nextIdx = currentIdx > 0 ? currentIdx - 1 : sorted.length - 1;
+      }
+      const nextRow = sorted[nextIdx];
+      if (!nextRow || deletingId === nextRow.id) return;
+      void openPartModal(nextRow.id);
+      requestAnimationFrame(() => {
+        const el = tableRef.current?.querySelector<HTMLTableRowElement>(`[data-row-id="${nextRow.id}"]`);
+        el?.scrollIntoView({ block: "nearest" });
+      });
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isMobile, sorted, selectedPartId, deletingId]);
 
   const columnWidths = useMemo(
     () => ({
@@ -660,6 +688,8 @@ export function ItemsPage() {
                   sortKey={sortKey}
                   sortDirection={sortDirection}
                   onSort={(key) => handleSort(key as ItemSortKey)}
+                  activeRowId={selectedPartId ?? undefined}
+                  tableRef={tableRef}
                   onRowClick={(row) => {
                     if (deletingId === row.id) return;
                     void openPartModal(row.id);
