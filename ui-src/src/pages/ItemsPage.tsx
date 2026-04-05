@@ -142,6 +142,8 @@ export function ItemsPage() {
   const isMobile = windowWidth < MOBILE_BREAKPOINT;
 
   const collectionFilter = searchParams.get("collection")?.trim() || "";
+  const isUncollectedFilter = collectionFilter === "__none";
+  const collectionLabel = isUncollectedFilter ? "No collection" : collectionFilter;
   const activeCollectionOption = useMemo(
     () => collectionOptions.find((option) => option.name === collectionFilter) ?? null,
     [collectionFilter, collectionOptions]
@@ -157,7 +159,7 @@ export function ItemsPage() {
     collectionFilterSavedRef.current = collectionFilter;
     void apiRequest("/api/me", {
       method: "PATCH",
-      body: JSON.stringify({ last_open_collection: collectionFilter || null }),
+      body: JSON.stringify({ last_open_collection: isUncollectedFilter ? null : (collectionFilter || null) }),
     }).catch(() => {});
   }, [collectionFilter]);
 
@@ -388,7 +390,9 @@ export function ItemsPage() {
     return parts.filter((part) => {
       const collection = (part.collection || "").toLowerCase();
 
-      if (normalizedCollectionFilter && collection !== normalizedCollectionFilter) {
+      if (isUncollectedFilter) {
+        if (collection !== "") return false;
+      } else if (normalizedCollectionFilter && collection !== normalizedCollectionFilter) {
         return false;
       }
 
@@ -549,10 +553,10 @@ export function ItemsPage() {
       return error;
     }
     if (collectionFilter && search.trim()) {
-      return `No items in ${collectionFilter} match your search.`;
+      return `No items in ${collectionLabel} match your search.`;
     }
     if (collectionFilter) {
-      return `No items found in ${collectionFilter}.`;
+      return `No items found in ${collectionLabel}.`;
     }
     if (search.trim()) {
       return "No items match your search.";
@@ -563,7 +567,7 @@ export function ItemsPage() {
   return (
     <div className="space-y-5 h-full flex flex-col">
       <PageHeader
-        title={collectionFilter || "Items"}
+        title={collectionLabel || "Items"}
       />
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-0 overflow-hidden">

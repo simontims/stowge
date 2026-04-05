@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
 
@@ -41,6 +42,8 @@ function formatBytes(bytes: number): string {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+
   // ── Status ──
   const [metrics, setMetrics] = useState<StatusMetrics | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -159,7 +162,11 @@ export function DashboardPage() {
           </thead>
           <tbody className="divide-y divide-neutral-800">
             {rows.map((row) => (
-              <tr key={row.id} className="text-neutral-200">
+              <tr
+                key={row.id}
+                className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
+                onClick={() => navigate(`/items?collection=${encodeURIComponent(row.name)}`)}
+              >
                 <td className="px-4 py-3">{row.name}</td>
                 <td className="px-4 py-3 tabular-nums">{row.item_count}</td>
                 <td className="px-4 py-3 tabular-nums">{row.asset_count}</td>
@@ -167,8 +174,11 @@ export function DashboardPage() {
               </tr>
             ))}
             {uncollected && uncollected.item_count > 0 && (
-              <tr className="text-neutral-400">
-                <td className="px-4 py-3 italic">No collection</td>
+              <tr
+                className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
+                onClick={() => navigate("/items?collection=__none")}
+              >
+                <td className="px-4 py-3">No collection</td>
                 <td className="px-4 py-3 tabular-nums">{uncollected.item_count}</td>
                 <td className="px-4 py-3 tabular-nums">{uncollected.asset_count}</td>
                 <td className="px-4 py-3 tabular-nums">{formatBytes(uncollected.disk_bytes)}</td>
