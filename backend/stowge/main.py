@@ -484,9 +484,39 @@ def logo_webp():
     return FileResponse(path, media_type="image/webp", headers=headers)
 
 # ---------------- Health / Status / Setup ----------------
+
 @app.get("/healthz", include_in_schema=False)
 def healthz():
+    """Liveness: returns 200 iff the process is alive and serving HTTP.
+    No dependencies checked — never fails unless the process is dead."""
     return {"status": "ok"}
+
+
+@app.get("/readyz", include_in_schema=False)
+def readyz(db: Session = Depends(get_db)):
+    """Readiness: returns 200 only when essential dependencies are available.
+    Returns 503 if the database cannot be reached."""
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        raise HTTPException(status_code=503, detail="database unavailable")
+    return {"status": "ok"}
+
+
+@app.get("/health", include_in_schema=False)
+def health(db: Session = Depends(get_db)):
+    """Human/debug: always returns 200 with a structured diagnostic summary.
+    Never returns 5xx — callers should inspect the payload for status details."""
+    db_status = "ok"
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "unavailable"
+    return {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "version": APP_VERSION,
+        "database": db_status,
+    }
 
 @app.get("/api/version")
 def version():
