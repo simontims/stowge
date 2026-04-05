@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Save } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
 
 interface ImageSettingsData {
@@ -213,25 +213,12 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
         </div>
       </section>
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => void save()}
-          disabled={!isDirty || saving}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-neutral-700 text-sm text-neutral-200 hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Save size={14} />
-          {saving ? "Saving…" : "Save"}
-        </button>
-        {isDirty && (
-          <button
-            onClick={() => { setForm(saved); setNotice(""); setError(""); }}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-neutral-700 text-sm text-neutral-500 hover:text-neutral-200 hover:border-neutral-500 disabled:opacity-50"
-          >
-            Discard
-          </button>
-        )}
-      </div>
+      <SettingsSaveBar
+        isDirty={isDirty}
+        saving={saving}
+        onSave={() => void save()}
+        onCancel={() => { setForm(saved); setNotice(""); setError(""); }}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowUpDown, CheckCircle2, Edit3, Plus, Save, Star, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
+import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
 
 interface AiConfig {
@@ -1003,37 +1004,14 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </label>
           </div>
 
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => setConfirmDeleteConfig(editingConfig)}
-              disabled={savingEdit}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={cancelEdit}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void saveEdit()}
-                disabled={!isEditDirty || savingEdit}
-                className={[
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
-                  isEditDirty
-                    ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                    : "border-neutral-700 text-neutral-500",
-                ].join(" ")}
-              >
-                <Save size={14} />
-                {savingEdit ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
+          <SettingsSaveBar
+            isDirty={isEditDirty}
+            saving={savingEdit}
+            onSave={() => void saveEdit()}
+            onCancel={cancelEdit}
+            onDelete={() => setConfirmDeleteConfig(editingConfig)}
+            deleteDisabled={savingEdit}
+          />
         </section>
       )}
 

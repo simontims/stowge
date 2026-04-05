@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Tag, Plus, Save, Trash2, X, HelpCircle } from "lucide-react";
+import { Tag, Plus, Save, X, HelpCircle } from "lucide-react";
 import type { TablerEntry } from "../lib/tablerIconCatalogue";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
+import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
@@ -764,36 +765,14 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
           <h2 className="text-sm font-semibold text-neutral-100">Edit Collection</h2>
           <CollectionFormFields form={editForm} onChange={setEditForm} />
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => setConfirmDeleteCollection(editingCollection)}
-              disabled={isSavingEdit}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <Trash2 size={14} /> Delete
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={cancelEdit}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void saveEdit()}
-                disabled={!isEditDirty || isSavingEdit}
-                className={[
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
-                  isEditDirty
-                    ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                    : "border-neutral-700 text-neutral-500",
-                ].join(" ")}
-              >
-                <Save size={14} />
-                {isSavingEdit ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
+          <SettingsSaveBar
+            isDirty={isEditDirty}
+            saving={isSavingEdit}
+            onSave={() => void saveEdit()}
+            onCancel={cancelEdit}
+            onDelete={() => setConfirmDeleteCollection(editingCollection)}
+            deleteDisabled={isSavingEdit}
+          />
         </section>
       )}
 
