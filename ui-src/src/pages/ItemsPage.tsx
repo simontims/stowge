@@ -613,14 +613,8 @@ export function ItemsPage() {
 
             {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
 
-            {!isMobile && (
-              <p className="flex-none text-xs text-neutral-600 text-right -mt-2">
-                {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
-              </p>
-            )}
-
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <div className="flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 min-h-0 relative overflow-hidden">
               {isMobile ? (
                 <div className="h-full overflow-y-auto pr-1">
                   {sorted.length === 0 ? (
@@ -700,6 +694,11 @@ export function ItemsPage() {
                     void openPartModal(row.id);
                   }}
                 />
+              )}
+              {!isMobile && (
+                <div className="absolute bottom-1.5 right-2 z-10 text-xs text-neutral-600 pointer-events-none">
+                  {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
+                </div>
               )}
               </div>
             </div>
