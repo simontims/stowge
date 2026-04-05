@@ -1,13 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import clsx from "clsx";
+import type { TablerEntry } from "../../lib/tablerIconCatalogue";
 import { COLLECTIONS_NAV_UPDATED_EVENT, groupedNav, topNavItems } from "../../config/nav";
 import { apiRequest } from "../../lib/api";
+
+// ── Tabler icon catalogue (module-level cache) ────────────────────────────────
+let _catalogue: TablerEntry[] | null = null;
+let _cataloguePromise: Promise<TablerEntry[]> | null = null;
+function loadCatalogue(): Promise<TablerEntry[]> {
+  if (_catalogue) return Promise.resolve(_catalogue);
+  if (!_cataloguePromise) {
+    _cataloguePromise = import("../../lib/tablerIconCatalogue").then((m) => {
+      _catalogue = m.TABLER_CATALOGUE;
+      return _catalogue;
+    });
+  }
+  return _cataloguePromise;
+}
+function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }) {
+  const [entry, setEntry] = useState<TablerEntry | null>(() =>
+    name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
+  );
+  useEffect(() => {
+    if (!name) return;
+    if (_catalogue) { setEntry(_catalogue.find((e) => e.name === name) ?? null); return; }
+    let cancelled = false;
+    loadCatalogue().then((cat) => { if (!cancelled) setEntry(cat.find((e) => e.name === name) ?? null); });
+    return () => { cancelled = true; };
+  }, [name]);
+  if (!name || !entry) return <Tag size={size} />;
+  const C = entry.component;
+  return <C size={size} stroke={1.5} />;
+}
 
 interface CollectionNavItem {
   id: string;
   name: string;
+  icon: string | null;
 }
 
 interface SidebarProps {
@@ -120,12 +151,13 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                               search: new URLSearchParams({ collection: collection.name }).toString(),
                             }}
                             className={clsx(
-                              "ml-5 flex items-center rounded-md px-3 py-1.5 text-sm transition-colors",
+                              "ml-5 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
                               isActive
                                 ? "bg-neutral-800/80 text-neutral-100"
                                 : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
                             )}
                           >
+                            <TablerIcon name={collection.icon} size={14} />
                             {collection.name}
                           </NavLink>
                         );
@@ -185,12 +217,13 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                               search: new URLSearchParams({ collection: collection.name }).toString(),
                             }}
                             className={clsx(
-                              "ml-5 flex items-center rounded-md px-3 py-1.5 text-sm transition-colors",
+                              "ml-5 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
                               isActive
                                 ? "bg-neutral-800/80 text-neutral-100"
                                 : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
                             )}
                           >
+                            <TablerIcon name={collection.icon} size={14} />
                             {collection.name}
                           </NavLink>
                         );
