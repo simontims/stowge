@@ -17,9 +17,9 @@ import jwt
 from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
-from .models import User, Part, PartImage, LLMConfig, Location, Collection
+from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
 from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER
-from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images
+from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, ImageConfig, DEFAULT_IMAGE_CONFIG
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
 
@@ -759,9 +759,10 @@ def delete_user(user_id: str, db: Session = Depends(get_db), me: User = Depends(
 @app.post("/api/locations/photo")
 def upload_location_photo(
     photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
     me: User = Depends(current_user),
 ):
-    stored, _ = process_and_store([photo])
+    stored = process_and_store([photo], _get_image_config(db))
     if not stored:
         raise HTTPException(status_code=400, detail="No photo uploaded")
     payload = stored[0]
@@ -1148,16 +1149,100 @@ def delete_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = 
     db.commit()
     return {"ok": True}
 
+
+# ---------------- Image Processing Settings ----------------
+def _get_image_config(db: Session) -> ImageConfig:
+    row = db.query(ImageSettings).filter(ImageSettings.id == "singleton").first()
+    if not row:
+        return DEFAULT_IMAGE_CONFIG
+    return ImageConfig(
+        store_original=bool(row.store_original),
+        output_format=row.output_format or "webp",
+        display_max_edge=row.display_max_edge or 2048,
+        display_quality=row.display_quality or 82,
+        thumb_max_edge=row.thumb_max_edge or 360,
+        thumb_quality=row.thumb_quality or 70,
+    )
+
+
+def _serialize_image_settings(row: ImageSettings) -> dict:
+    return {
+        "store_original": bool(row.store_original),
+        "output_format": row.output_format,
+        "display_max_edge": row.display_max_edge,
+        "display_quality": row.display_quality,
+        "thumb_max_edge": row.thumb_max_edge,
+        "thumb_quality": row.thumb_quality,
+    }
+
+
+@app.get("/api/admin/settings/images")
+def get_image_settings(db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    row = db.query(ImageSettings).filter(ImageSettings.id == "singleton").first()
+    if not row:
+        cfg = DEFAULT_IMAGE_CONFIG
+        return {
+            "store_original": cfg.store_original,
+            "output_format": cfg.output_format,
+            "display_max_edge": cfg.display_max_edge,
+            "display_quality": cfg.display_quality,
+            "thumb_max_edge": cfg.thumb_max_edge,
+            "thumb_quality": cfg.thumb_quality,
+        }
+    return _serialize_image_settings(row)
+
+
+@app.patch("/api/admin/settings/images")
+def update_image_settings(payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    row = db.query(ImageSettings).filter(ImageSettings.id == "singleton").first()
+    if not row:
+        row = ImageSettings(id="singleton")
+        db.add(row)
+
+    if "store_original" in payload:
+        row.store_original = 1 if payload["store_original"] else 0
+    if "output_format" in payload:
+        fmt = str(payload["output_format"]).lower()
+        if fmt not in ("webp", "jpg"):
+            raise HTTPException(status_code=400, detail="output_format must be webp or jpg")
+        row.output_format = fmt
+    if "display_max_edge" in payload:
+        v = int(payload["display_max_edge"])
+        if not (256 <= v <= 8192):
+            raise HTTPException(status_code=400, detail="display_max_edge must be 256-8192")
+        row.display_max_edge = v
+    if "display_quality" in payload:
+        v = int(payload["display_quality"])
+        if not (1 <= v <= 100):
+            raise HTTPException(status_code=400, detail="display_quality must be 1-100")
+        row.display_quality = v
+    if "thumb_max_edge" in payload:
+        v = int(payload["thumb_max_edge"])
+        if not (64 <= v <= 1024):
+            raise HTTPException(status_code=400, detail="thumb_max_edge must be 64-1024")
+        row.thumb_max_edge = v
+    if "thumb_quality" in payload:
+        v = int(payload["thumb_quality"])
+        if not (1 <= v <= 100):
+            raise HTTPException(status_code=400, detail="thumb_quality must be 1-100")
+        row.thumb_quality = v
+
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return _serialize_image_settings(row)
+
 # ---------------- Identify ----------------
 @app.post("/api/images/store")
 def store_images_only(
     images: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
     me: User = Depends(current_user),
 ):
     if len(images) < 1 or len(images) > 5:
         raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
 
-    stored, _ = process_and_store(images)
+    stored = process_and_store(images, _get_image_config(db))
     return {
         "uploaded_images": [
             {"id": s["id"], "thumb_url": _signed_image_url(s["id"], "thumb")}
