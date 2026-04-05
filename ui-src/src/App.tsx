@@ -18,6 +18,12 @@ function StartupRedirect() {
   useEffect(() => {
     if (redirectedRef.current) return;
     redirectedRef.current = true;
+
+    // Only redirect to the last open collection when the user landed on the
+    // root path (fresh load / no specific destination).  Any other path means
+    // the user refreshed on a real page and should stay there.
+    if (window.location.pathname !== "/") return;
+
     void apiRequest<{ last_open_collection?: string | null }>("/api/me")
       .then((me) => {
         if (me.last_open_collection) {
