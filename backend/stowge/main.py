@@ -563,35 +563,33 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     asset_size_rows = (
         db.query(Part.collection, PartImage.path_thumb, PartImage.path_display, PartImage.path_original)
         .join(Part, Part.id == PartImage.part_id)
-        .filter(Part.collection.isnot(None))
         .all()
     )
     assets_dir = os.getenv("ASSETS_DIR", "/assets")
     disk_bytes: dict[str, int] = {}
-    seen_paths: dict[str, set[str]] = {}
+    uncollected_bytes = 0  # images from items with no collection — counted in total only
+    seen_paths: set[str] = set()
     for collection_name, path_thumb, path_display, path_original in asset_size_rows:
-        if not collection_name:
-            continue
-
-        key = str(collection_name)
-        if key not in seen_paths:
-            seen_paths[key] = set()
-
         for rel_path in (path_thumb, path_display, path_original):
             if not rel_path:
                 continue
 
             rel_key = str(rel_path)
-            if rel_key in seen_paths[key]:
+            if rel_key in seen_paths:
                 continue
 
-            seen_paths[key].add(rel_key)
+            seen_paths.add(rel_key)
             abs_path = os.path.join(assets_dir, rel_key)
             try:
-                size = os.path.getsize(abs_path)
+                size = int(os.path.getsize(abs_path))
             except OSError:
                 size = 0
-            disk_bytes[key] = disk_bytes.get(key, 0) + int(size)
+
+            if collection_name:
+                key = str(collection_name)
+                disk_bytes[key] = disk_bytes.get(key, 0) + size
+            else:
+                uncollected_bytes += size
 
     # Add location photo sizes to the global total.
     # Location photos don't belong to a specific collection so they only
@@ -618,7 +616,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     rows = []
     total_items = 0
     total_assets = 0
-    total_disk_bytes = location_photo_bytes
+    total_disk_bytes = location_photo_bytes + uncollected_bytes
 
     for collection in collections:
         name = collection.name
