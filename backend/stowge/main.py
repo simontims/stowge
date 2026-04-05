@@ -638,15 +638,131 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
             }
         )
 
+    # Counts for items with no collection assigned (disk bytes already in uncollected_bytes)
+    uncollected_item_count = int(
+        db.query(func.count(Part.id)).filter(Part.collection.is_(None)).scalar() or 0
+    )
+    uncollected_asset_count = int(
+        db.query(func.count(PartImage.id))
+        .join(Part, Part.id == PartImage.part_id)
+        .filter(Part.collection.is_(None))
+        .scalar() or 0
+    )
+
     return {
         "server": "ok",
         "collections": rows,
+        "uncollected": {
+            "item_count": uncollected_item_count,
+            "asset_count": uncollected_asset_count,
+            "disk_bytes": uncollected_bytes,
+        },
         "totals": {
-            "item_count": total_items,
-            "asset_count": total_assets,
+            "item_count": total_items + uncollected_item_count,
+            "asset_count": total_assets + uncollected_asset_count,
             "disk_bytes": total_disk_bytes,
         },
     }
+
+
+# ---------------- Maintenance ----------------
+
+def _build_tracked_paths(db: Session) -> set[str]:
+    """Return the set of all asset relative paths referenced in the database."""
+    tracked: set[str] = set()
+    for (pt, pd, po) in db.query(
+        PartImage.path_thumb, PartImage.path_display, PartImage.path_original
+    ).all():
+        for p in (pt, pd, po):
+            if p:
+                tracked.add(str(p))
+    for (photo_path,) in db.query(Location.photo_path).filter(
+        Location.photo_path.isnot(None)
+    ).all():
+        if photo_path:
+            tracked.add(str(photo_path))
+            tracked.add(str(photo_path).replace("/display.", "/thumb."))
+            tracked.add(str(photo_path).replace("/display.", "/original."))
+    return tracked
+
+
+@app.get("/api/admin/maintenance/orphaned-images")
+def scan_orphaned_images(db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    """Scan the assets directory for files not referenced in the database (dry run)."""
+    tracked = _build_tracked_paths(db)
+    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    file_count = 0
+    disk_bytes = 0
+    for root, _dirs, files in os.walk(assets_dir):
+        for fname in files:
+            abs_path = os.path.join(root, fname)
+            rel_path = os.path.relpath(abs_path, assets_dir).replace("\\", "/")
+            if rel_path not in tracked:
+                file_count += 1
+                try:
+                    disk_bytes += os.path.getsize(abs_path)
+                except OSError:
+                    pass
+    return {"file_count": file_count, "disk_bytes": disk_bytes}
+
+
+@app.delete("/api/admin/maintenance/orphaned-images")
+def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    """Delete all asset files not referenced in the database."""
+    tracked = _build_tracked_paths(db)
+    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    deleted = 0
+    freed_bytes = 0
+    for root, _dirs, files in os.walk(assets_dir):
+        for fname in files:
+            abs_path = os.path.join(root, fname)
+            rel_path = os.path.relpath(abs_path, assets_dir).replace("\\", "/")
+            if rel_path not in tracked:
+                try:
+                    freed_bytes += os.path.getsize(abs_path)
+                    os.remove(abs_path)
+                    deleted += 1
+                except OSError:
+                    pass
+    # Remove newly empty subdirectories (best-effort).
+    for root, _dirs, _files in os.walk(assets_dir, topdown=False):
+        if root == assets_dir:
+            continue
+        try:
+            if not os.listdir(root):
+                os.rmdir(root)
+        except OSError:
+            pass
+    return {"deleted": deleted, "freed_bytes": freed_bytes}
+
+
+@app.post("/api/admin/maintenance/vacuum")
+def vacuum_database(me: User = Depends(require_admin)):
+    """Run VACUUM, ANALYZE, and PRAGMA optimize on the SQLite database."""
+    import sqlite3 as _sqlite3
+    db_url = os.getenv("DATABASE_URL", "sqlite:///./stowge.db")
+    if not db_url.startswith("sqlite:///"):
+        raise HTTPException(status_code=400, detail="VACUUM is only supported for SQLite databases")
+    db_file = db_url[len("sqlite:///"):]
+    try:
+        size_before = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
+        raw = _sqlite3.connect(db_file)
+        try:
+            raw.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            raw.execute("VACUUM")
+            raw.execute("ANALYZE")
+            raw.execute("PRAGMA optimize")
+        finally:
+            raw.close()
+        size_after = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Vacuum failed: {exc}")
+    return {
+        "size_before": size_before,
+        "size_after": size_after,
+        "freed_bytes": max(0, size_before - size_after),
+    }
+
 
 @app.post("/api/setup/first-admin")
 @limiter.limit("5/minute")
