@@ -6,6 +6,8 @@ _dev_data/
 assets/
 *.pid
 *.db
+*.db-shm
+*.db-wal
 
 # Dependencies
 node_modules/
