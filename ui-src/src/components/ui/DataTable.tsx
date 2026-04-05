@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import clsx from "clsx";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
@@ -20,6 +21,8 @@ interface DataTableProps<T extends object> {
   sortKey?: string;
   sortDirection?: "asc" | "desc";
   onSort?: (key: keyof T & string) => void;
+  activeRowId?: string;
+  tableRef?: React.RefObject<HTMLTableElement | null>;
 }
 
 export function DataTable<T extends object>({
@@ -31,11 +34,15 @@ export function DataTable<T extends object>({
   sortKey,
   sortDirection,
   onSort,
+  activeRowId,
+  tableRef,
 }: DataTableProps<T>) {
+  const internalRef = useRef<HTMLTableElement>(null);
+  const resolvedRef = tableRef ?? internalRef;
   return (
     <div className="border border-neutral-800 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-max w-full text-sm border-collapse">
+        <table ref={resolvedRef} className="min-w-max w-full text-sm border-collapse">
           <thead>
             <tr className="bg-neutral-900 border-b border-neutral-800">
               {columns.map((col) => {
@@ -79,12 +86,19 @@ export function DataTable<T extends object>({
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
+              rows.map((row) => {
+                const rowId = String(row[keyField]);
+                const isActive = activeRowId !== undefined && rowId === activeRowId;
+                return (
                 <tr
-                  key={String(row[keyField])}
+                  key={rowId}
+                  data-row-id={rowId}
                   className={clsx(
-                    "hover:bg-neutral-900/60 transition-colors",
-                    onRowClick ? "cursor-pointer" : ""
+                    "transition-colors",
+                    onRowClick ? "cursor-pointer" : "",
+                    isActive
+                      ? "bg-neutral-800/80"
+                      : "hover:bg-neutral-900/60"
                   )}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
@@ -103,7 +117,8 @@ export function DataTable<T extends object>({
                     </td>
                   ))}
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
