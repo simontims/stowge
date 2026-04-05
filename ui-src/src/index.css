@@ -98,6 +98,43 @@
   background-color: rgb(254 226 226) !important;
 }
 
+/* Tab bar active indicator — neutral-100 is near-white (invisible on light bg) */
+:root[data-theme="light"] .border-neutral-100 {
+  border-color: rgb(17 24 39) !important;
+}
+
+/* Table section backgrounds (thead/tfoot use bg-neutral-950/50 which has no light override) */
+:root[data-theme="light"] .bg-neutral-950\/50 {
+  background-color: rgb(226 232 240) !important;
+}
+
+/* Green "Save" button — active/dirty state */
+:root[data-theme="light"] .bg-emerald-950\/30,
+:root[data-theme="light"] .bg-emerald-950\/40 {
+  background-color: rgb(209 250 229) !important; /* emerald-100 */
+}
+:root[data-theme="light"] .text-emerald-300 {
+  color: rgb(4 120 87) !important; /* emerald-700 */
+}
+:root[data-theme="light"] .hover\:text-emerald-200:hover,
+:root[data-theme="light"] .hover\:text-emerald-300:hover {
+  color: rgb(6 95 70) !important; /* emerald-800 */
+}
+
+/* Red "Delete" confirmation button */
+:root[data-theme="light"] .bg-red-950\/30 {
+  background-color: rgb(254 242 242) !important; /* red-50 */
+}
+:root[data-theme="light"] .hover\:bg-red-900\/30:hover {
+  background-color: rgb(254 226 226) !important; /* red-100 */
+}
+:root[data-theme="light"] .text-red-300 {
+  color: rgb(185 28 28) !important; /* red-700 */
+}
+:root[data-theme="light"] .hover\:text-red-200:hover {
+  color: rgb(153 27 27) !important; /* red-800 */
+}
+
 /* Smooth scroll for command-palette list; reduce motion respects user preference */
 @media (prefers-reduced-motion: no-preference) {
   html {
