@@ -18,11 +18,12 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System deps (Pillow, bcrypt)
+# System deps (Pillow, bcrypt, curl for healthcheck)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
     zlib1g-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps first (layer caching)
@@ -42,6 +43,6 @@ ENV UI_DIR=/app/ui
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
+  CMD curl -f http://localhost:8000/healthz || exit 1
 
 CMD ["uvicorn", "stowge.main:app", "--host", "0.0.0.0", "--port", "8000"]
