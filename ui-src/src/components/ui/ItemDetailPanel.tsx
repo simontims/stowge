@@ -47,7 +47,7 @@ export function ItemDetailPanel({
   }, [selectedPart?.id]);
   return (
     <div
-      className={`flex flex-col h-full border-l border-neutral-800 bg-neutral-950 ${
+      className={`flex flex-col h-full w-full border-l border-neutral-800 bg-neutral-950 ${
         isMobile ? "fixed inset-0 z-40" : "relative"
       }`}
     >
