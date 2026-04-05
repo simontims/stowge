@@ -47,12 +47,12 @@ export function ItemDetailPanel({
   }, [selectedPart?.id]);
   return (
     <div
-      className={`flex flex-col h-full border-l border-neutral-800 bg-neutral-950 overflow-y-auto ${
+      className={`flex flex-col h-full border-l border-neutral-800 bg-neutral-950 ${
         isMobile ? "fixed inset-0 z-40" : "relative"
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 p-4 border-b border-neutral-800 sticky top-0 bg-neutral-950 z-10">
+      <div className="flex items-center justify-between gap-2 p-4 border-b border-neutral-800 flex-none bg-neutral-950">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {isMobile && (
             <button
@@ -82,7 +82,8 @@ export function ItemDetailPanel({
       </div>
 
       {/* Content */}
-      {detailLoading && (
+      <div className="flex-1 overflow-y-auto">
+        {detailLoading && (
         <div className="flex items-center justify-center py-8">
           <p className="text-sm text-neutral-400">Loading part details...</p>
         </div>
@@ -95,7 +96,7 @@ export function ItemDetailPanel({
       )}
 
       {!detailLoading && selectedPart && (
-        <div className="flex flex-col h-full overflow-y-auto">
+        <div className="flex flex-col min-h-full">
           <div className="flex-1 p-4 space-y-4">
             {selectedPart.images.length > 0 && (
               <div className="relative group h-64 rounded-md border border-neutral-800 overflow-hidden bg-neutral-900">
@@ -263,6 +264,7 @@ export function ItemDetailPanel({
           </div>
         </div>
       )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       {confirmDeletePartOpen && selectedPart && (
