@@ -91,6 +91,7 @@ interface PhotoCaptureProps {
   photoCount: number;
   maxPhotos: number;
   disabled: boolean;
+  hideButtons?: boolean;
   onTakePicture: () => void;
   onPickPhotos: () => void;
   onRemovePhoto: (index: number) => void;
@@ -101,6 +102,7 @@ function PhotoCapture({
   photoCount,
   maxPhotos,
   disabled,
+  hideButtons = false,
   onTakePicture,
   onPickPhotos,
   onRemovePhoto,
@@ -108,41 +110,45 @@ function PhotoCapture({
   const atMax = photoCount >= maxPhotos;
   return (
     <div className="space-y-3">
-      {/* Fixed button row — never moves */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onTakePicture}
-          disabled={disabled || atMax}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-neutral-700 rounded-md text-sm text-neutral-200 hover:text-white hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <Camera size={16} />
-          Take photo
-        </button>
-        <button
-          onClick={onPickPhotos}
-          disabled={disabled || atMax}
-          className="inline-flex items-center justify-center gap-1.5 px-3 py-3 border border-neutral-700 rounded-md text-sm text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          aria-label="Upload photos"
-        >
-          <Upload size={16} />
-        </button>
-        <span className="text-xs text-neutral-600 w-8 text-right shrink-0">{photoCount}/{maxPhotos}</span>
-      </div>
+      {/* Button row — hidden in review mode but keeps same space for thumbnails */}
+      {!hideButtons && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onTakePicture}
+            disabled={disabled || atMax}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-neutral-700 rounded-md text-sm text-neutral-200 hover:text-white hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Camera size={16} />
+            Take photo
+          </button>
+          <button
+            onClick={onPickPhotos}
+            disabled={disabled || atMax}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-3 border border-neutral-700 rounded-md text-sm text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            aria-label="Upload photos"
+          >
+            <Upload size={16} />
+          </button>
+          <span className="text-xs text-neutral-600 w-8 text-right shrink-0">{photoCount}/{maxPhotos}</span>
+        </div>
+      )}
 
-      {/* Thumbnail strip — only appears once photos exist, below the button */}
+      {/* Thumbnail strip */}
       {previewUrls.length > 0 && (
         <div className="flex gap-2">
           {previewUrls.map((url, idx) => (
             <div key={url} className="relative w-14 h-14 shrink-0 rounded border border-neutral-700 overflow-hidden bg-neutral-900">
               <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
-              <button
-                onClick={() => onRemovePhoto(idx)}
-                disabled={disabled}
-                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 disabled:opacity-60"
-                aria-label={`Remove photo ${idx + 1}`}
-              >
-                <X size={8} />
-              </button>
+              {!hideButtons && (
+                <button
+                  onClick={() => onRemovePhoto(idx)}
+                  disabled={disabled}
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 disabled:opacity-60"
+                  aria-label={`Remove photo ${idx + 1}`}
+                >
+                  <X size={8} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -639,7 +645,7 @@ export function AddPage() {
                 disabled={isSubmitting}
                 className="inline-flex items-center gap-1.5 px-3 py-2 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
-                Add manually
+                Continue manually
               </button>
               <button
                 onClick={submitIdentify}
@@ -660,23 +666,17 @@ export function AddPage() {
       {/* ── MODE: REVIEW ──────────────────────────────────────────────────── */}
       {mode === "review" && (
         <div className="space-y-4">
-          {/* Compact thumbnail strip */}
-          <div className="grid grid-cols-5 gap-1.5">
-            {Array.from({ length: MAX_PHOTOS }).map((_, idx) => {
-              const url = previewUrls[idx];
-              return (
-                <div
-                  key={idx}
-                  className={`aspect-square rounded border overflow-hidden ${url ? "border-neutral-700 bg-neutral-900" : "border-neutral-800 bg-neutral-950"}`}
-                >
-                  {url
-                    ? <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
-                    : <span className="w-full h-full flex items-center justify-center text-neutral-700 text-[10px]">—</span>
-                  }
-                </div>
-              );
-            })}
-          </div>
+          {/* Same thumbnail strip as input mode — no layout jump */}
+          <PhotoCapture
+            previewUrls={previewUrls}
+            photoCount={photos.length}
+            maxPhotos={MAX_PHOTOS}
+            disabled={false}
+            hideButtons
+            onTakePicture={() => {}}
+            onPickPhotos={() => {}}
+            onRemovePhoto={() => {}}
+          />
 
           <div className="space-y-3">
             {/* Name */}
