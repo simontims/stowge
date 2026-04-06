@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Brain,
   Camera,
+  ChevronDown,
+  ChevronUp,
   Loader2,
-  RefreshCw,
   Save,
   Upload,
+  X,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -81,7 +83,10 @@ type ScanFlowMode = "input" | "review";
 
 const MAX_PHOTOS = 5;
 
-interface PhotoControlsProps {
+// ---------------------------------------------------------------------------
+// PhotoSlots — fixed 5-slot grid; buttons never move
+// ---------------------------------------------------------------------------
+interface PhotoSlotsProps {
   previewUrls: string[];
   photoCount: number;
   maxPhotos: number;
@@ -91,7 +96,7 @@ interface PhotoControlsProps {
   onRemovePhoto: (index: number) => void;
 }
 
-function PhotoControls({
+function PhotoSlots({
   previewUrls,
   photoCount,
   maxPhotos,
@@ -99,51 +104,64 @@ function PhotoControls({
   onTakePicture,
   onPickPhotos,
   onRemovePhoto,
-}: PhotoControlsProps) {
+}: PhotoSlotsProps) {
+  const atMax = photoCount >= maxPhotos;
   return (
     <div className="space-y-3">
-      {previewUrls.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-          {previewUrls.map((url, idx) => (
-            <div key={url} className="relative border border-neutral-800 rounded-md overflow-hidden bg-neutral-950">
-              <img
-                src={url}
-                alt={`Photo ${idx + 1}`}
-                className="w-full aspect-square object-cover"
-              />
-              <button
-                onClick={() => onRemovePhoto(idx)}
-                disabled={disabled}
-                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-neutral-200 hover:bg-black/80 disabled:opacity-60"
-                aria-label={`Remove photo ${idx + 1}`}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Fixed 5-slot grid — always rendered, never reflows */}
+      <div className="grid grid-cols-5 gap-2">
+        {Array.from({ length: maxPhotos }).map((_, idx) => {
+          const url = previewUrls[idx];
+          if (url) {
+            return (
+              <div key={idx} className="relative aspect-square rounded-md border border-neutral-700 overflow-hidden bg-neutral-900">
+                <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => onRemovePhoto(idx)}
+                  disabled={disabled}
+                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 disabled:opacity-60"
+                  aria-label={`Remove photo ${idx + 1}`}
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            );
+          }
+          // Empty slot — tapping fires the camera
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={onTakePicture}
+              disabled={disabled || atMax}
+              aria-label="Take photo"
+              className="aspect-square rounded-md border border-dashed border-neutral-700 bg-neutral-950 flex items-center justify-center text-neutral-600 hover:border-neutral-500 hover:text-neutral-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Camera size={18} />
+            </button>
+          );
+        })}
+      </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Action buttons — fixed below the grid, never move */}
+      <div className="flex items-center gap-2">
         <button
           onClick={onTakePicture}
-          disabled={photoCount >= maxPhotos || disabled}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={disabled || atMax}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Camera size={14} />
-          Take picture
+          Take photo
         </button>
-
         <button
           onClick={onPickPhotos}
-          disabled={photoCount >= maxPhotos || disabled}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={disabled || atMax}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Upload size={14} />
-          Pick photos
+          Upload
         </button>
-
-        <span className="text-xs text-neutral-500">{photoCount} / {maxPhotos}</span>
+        <span className="text-xs text-neutral-600 ml-auto">{photoCount} / {maxPhotos}</span>
       </div>
     </div>
   );
@@ -176,12 +194,15 @@ export function AddPage() {
   });
   const [collections, setCollections] = useState<CollectionOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [preferredCollectionId, setPreferredCollectionId] = useState<string>("");
+  // Session-level persistent context — survives Save / Discard
+  const [sessionCollectionId, setSessionCollectionId] = useState<string>("");
+  const [sessionLocationId, setSessionLocationId] = useState<string>("");
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [notice, setNotice] = useState<string>("");
   const [mode, setMode] = useState<ScanFlowMode>("input");
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const [llmOptions, setLlmOptions] = useState<LlmOption[]>([]);
   const [selectedLlmId, setSelectedLlmId] = useState<string>("");
@@ -196,7 +217,6 @@ export function AddPage() {
   );
 
   const selectedCandidate = candidates[selectedIndex];
-  const isManualReview = mode === "review" && !identifyData;
   const canSubmitToAi = llmOptions.length > 0;
 
   useEffect(() => {
@@ -236,21 +256,21 @@ export function AddPage() {
       void apiRequest<DiscardImagesResponse>("/api/images/discard", {
         method: "POST",
         body: JSON.stringify({ image_ids: pendingImageIds }),
-      }).catch(() => {
-        // Best effort cleanup; keep UX responsive if cleanup fails.
-      });
+      }).catch(() => {});
     }
 
     setIdentifyData(null);
     setSelectedIndex(0);
+    // Reset item-level draft fields but keep session context (collection + location)
     setDraft({
       name: "",
       description: "",
-      collection_id: preferredCollectionId,
-      location_id: "",
+      collection_id: sessionCollectionId,
+      location_id: sessionLocationId,
       status: "draft",
       quantity: 1,
     });
+    setDescExpanded(false);
     setSaveError("");
     setSubmitError("");
     setSubmitErrorDetail("");
@@ -281,15 +301,21 @@ export function AddPage() {
         null;
       const initialCollectionId = requestedCollection?.id || validPreferred;
 
-      setPreferredCollectionId(initialCollectionId);
+      const preferredLocId = currentUser.preferred_add_location_id || "";
+      const validLocId = (locationData || []).some((l) => l.id === preferredLocId)
+        ? preferredLocId
+        : "";
+
+      setSessionCollectionId(initialCollectionId);
+      setSessionLocationId(validLocId);
       setDraft((current) => ({
         ...current,
         collection_id: current.collection_id || initialCollectionId,
+        location_id: current.location_id || validLocId,
       }));
-    } catch (err) {
+    } catch {
       setCollections([]);
       setLocations([]);
-      setPreferredCollectionId("");
     }
   }
 
@@ -317,8 +343,8 @@ export function AddPage() {
     setDraft({
       name: candidate?.name || "Unknown part",
       description: candidate?.description || "",
-      collection_id: preferredCollectionId,
-      location_id: "",
+      collection_id: sessionCollectionId,
+      location_id: sessionLocationId,
       status: "draft",
       quantity: 1,
     });
@@ -342,6 +368,7 @@ export function AddPage() {
       status: "draft",
       quantity: 1,
     }));
+    setDescExpanded(false);
     setMode("review");
   }
 
@@ -349,14 +376,34 @@ export function AddPage() {
     try {
       await apiRequest("/api/me", {
         method: "PATCH",
-        body: JSON.stringify({
-          preferred_add_collection_id: collectionId || null,
-        }),
+        body: JSON.stringify({ preferred_add_collection_id: collectionId || null }),
       });
-      setPreferredCollectionId(collectionId);
     } catch {
       // Keep Add flow usable even if preference persistence fails.
     }
+  }
+
+  async function persistPreferredLocation(locationId: string) {
+    try {
+      await apiRequest("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({ preferred_add_location_id: locationId || null }),
+      });
+    } catch {
+      // Best effort.
+    }
+  }
+
+  function handleSessionCollectionChange(id: string) {
+    setSessionCollectionId(id);
+    setDraft((d) => ({ ...d, collection_id: id }));
+    void persistPreferredCollection(id);
+  }
+
+  function handleSessionLocationChange(id: string) {
+    setSessionLocationId(id);
+    setDraft((d) => ({ ...d, location_id: id }));
+    void persistPreferredLocation(id);
   }
 
   async function onTakePicture() {
@@ -530,7 +577,7 @@ export function AddPage() {
       setPhotos([]);
       clearSession();
       setMode("input");
-      setNotice(`Saved ${payload.name}`);
+      setNotice(`Saved "${payload.name}"`);
 
       const main = document.querySelector("main");
       if (main instanceof HTMLElement) {
@@ -552,16 +599,43 @@ export function AddPage() {
   }
 
   return (
-    <div className="space-y-5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-      <PageHeader
-        title="New Item"
-        description="Add up to 5 images, submit for AI identification or complete manually"
-        action={null}
-      />
+    <div className="flex flex-col pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <PageHeader title="Add item" action={null} />
 
+      {/* ── SESSION STRIP ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <div>
+          <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Collection</label>
+          <select
+            value={sessionCollectionId}
+            onChange={(e) => handleSessionCollectionChange(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+          >
+            <option value="">None</option>
+            {collections.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Location</label>
+          <select
+            value={sessionLocationId}
+            onChange={(e) => handleSessionLocationChange(e.target.value)}
+            className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+          >
+            <option value="">None</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* ── MODE: INPUT ───────────────────────────────────────────────────── */}
       {mode === "input" && (
-        <section className="space-y-3">
-          <PhotoControls
+        <div className="space-y-4">
+          <PhotoSlots
             previewUrls={previewUrls}
             photoCount={photos.length}
             maxPhotos={MAX_PHOTOS}
@@ -571,315 +645,213 @@ export function AddPage() {
             onRemovePhoto={removePhoto}
           />
 
-          <div>
-            <div className="mb-3">
-              <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                Collection
-              </label>
-              <select
-                value={draft.collection_id}
-                onChange={(e) => {
-                  const nextCollectionId = e.target.value;
-                  setDraft((d) => ({ ...d, collection_id: nextCollectionId }));
-                  void persistPreferredCollection(nextCollectionId);
-                }}
-                className="w-full sm:w-[28rem] bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              >
-                <option value="">None</option>
-                {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-            {llmOptions.length > 1 && (
-              <div className="mb-3">
-                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                  AI Model
-                </label>
-                <select
-                  value={selectedLlmId}
-                  onChange={(e) => setSelectedLlmId(e.target.value)}
-                  className="w-full sm:w-[28rem] bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                >
-                  {llmOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.name} ({opt.model})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {llmOptions.length === 1 && (
-              <p className="mb-3 text-xs text-neutral-500">
-                Using AI model: {llmOptions[0].name} ({llmOptions[0].model})
-              </p>
-            )}
-
-            {llmOptions.length === 0 && (
-              <p className="mb-3 text-xs text-amber-400">
-                No AI model configured. Add one under Settings / AI to enable identification.
-              </p>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2">
+          {/* Sticky action bar */}
+          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur">
+            <div className="flex items-center gap-2">
               <button
                 onClick={startManualReview}
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
-                Manual
+                Add manually
               </button>
-
               <button
                 onClick={submitIdentify}
                 disabled={!canSubmitToAi || (!isSubmitting && photos.length === 0)}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
-                {submitAbort ? "Cancel" : "AI Submit"}
+                {isSubmitting ? "Identifying…" : "Identify"}
+              </button>
+            </div>
+            {llmOptions.length === 0 && (
+              <p className="mt-2 text-xs text-amber-400">No AI model configured — identification unavailable. Add one in Settings / AI.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODE: REVIEW ──────────────────────────────────────────────────── */}
+      {mode === "review" && (
+        <div className="space-y-4">
+          {/* Compact thumbnail strip */}
+          <div className="grid grid-cols-5 gap-1.5">
+            {Array.from({ length: MAX_PHOTOS }).map((_, idx) => {
+              const url = previewUrls[idx];
+              return (
+                <div
+                  key={idx}
+                  className={`aspect-square rounded border overflow-hidden ${url ? "border-neutral-700 bg-neutral-900" : "border-neutral-800 bg-neutral-950"}`}
+                >
+                  {url
+                    ? <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                    : <span className="w-full h-full flex items-center justify-center text-neutral-700 text-[10px]">—</span>
+                  }
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="space-y-3">
+            {/* Name */}
+            <div>
+              <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Name</label>
+              <input
+                autoFocus
+                value={draft.name}
+                onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                placeholder="Item name"
+              />
+            </div>
+
+            {/* Description — collapsed on mobile */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setDescExpanded((v) => !v)}
+                className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 mb-1 transition-colors"
+              >
+                {descExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                {descExpanded ? "Hide description" : "Add description"}
+              </button>
+              {descExpanded && (
+                <textarea
+                  rows={3}
+                  value={draft.description}
+                  onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  placeholder="Optional notes"
+                />
+              )}
+            </div>
+
+            {/* Evidence from AI */}
+            {selectedCandidate?.evidence && (
+              <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3">
+                <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">AI evidence</p>
+                <p className="text-sm text-neutral-400">{selectedCandidate.evidence}</p>
+              </div>
+            )}
+
+            {/* Metadata grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Collection</label>
+                <select
+                  value={draft.collection_id}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setDraft((d) => ({ ...d, collection_id: id }));
+                    setSessionCollectionId(id);
+                    void persistPreferredCollection(id);
+                  }}
+                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                >
+                  <option value="">None</option>
+                  {collections.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Location</label>
+                <select
+                  value={draft.location_id}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setDraft((d) => ({ ...d, location_id: id }));
+                    setSessionLocationId(id);
+                    void persistPreferredLocation(id);
+                  }}
+                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                >
+                  <option value="">None</option>
+                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Status</label>
+                <select
+                  value={draft.status}
+                  onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value as "draft" | "confirmed" }))}
+                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                >
+                  <option value="draft">draft</option>
+                  <option value="confirmed">confirmed</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Quantity</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={draft.quantity}
+                  onChange={(e) => setDraft((d) => ({ ...d, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                />
+              </div>
+            </div>
+
+            {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+          </div>
+
+          {/* Sticky review footer */}
+          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setMode("input"); clearSession(); }}
+                className="inline-flex items-center gap-1 px-3 py-2 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 transition-colors"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={resetToStart}
+                className="inline-flex items-center px-3 py-2 border border-neutral-700 rounded-md text-sm text-neutral-400 hover:text-neutral-100 hover:border-neutral-600 transition-colors"
+              >
+                Discard
+              </button>
+              <button
+                onClick={savePart}
+                disabled={isSaving}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors"
+              >
+                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Save
               </button>
             </div>
           </div>
-
-          {submitError && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-              <div className="rounded-lg border border-red-500/40 bg-neutral-900 p-6 max-w-md w-full space-y-4">
-                <p className="text-sm text-red-300">{submitError}</p>
-                {(submitErrorProvider || submitErrorModel) && (
-                  <p className="text-xs text-neutral-400">
-                    Model: {submitErrorProvider} / {submitErrorModel}
-                  </p>
-                )}
-                {submitErrorDetail && (
-                  <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowSubmitErrorDetail((current) => !current)}
-                      className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100"
-                    >
-                      {showSubmitErrorDetail ? "Hide info" : "More info"}
-                    </button>
-                    {showSubmitErrorDetail && (
-                      <>
-                        <pre className="whitespace-pre-wrap break-words rounded-md bg-black/25 p-3 text-xs text-red-100 max-h-48 overflow-y-auto">
-                          {submitErrorDetail}
-                        </pre>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const clipboardText = `Model: ${submitErrorProvider} / ${submitErrorModel}\n\n${submitErrorDetail}`;
-                            void navigator.clipboard.writeText(clipboardText);
-                            setSubmitErrorCopied(true);
-                          }}
-                          className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100"
-                        >
-                          {submitErrorCopied ? "Copied" : "Copy to clipboard"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubmitError("");
-                    setSubmitErrorDetail("");
-                    setSubmitErrorProvider("");
-                    setSubmitErrorModel("");
-                    setShowSubmitErrorDetail(false);
-                    setSubmitErrorCopied(false);
-                  }}
-                  className="w-full mt-4 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-neutral-100 rounded-md text-sm font-medium transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
+        </div>
       )}
 
-      {notice && <p className="text-sm text-emerald-400">{notice}</p>}
-
-      {mode === "review" && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-200">Review and Edit</h2>
-          </div>
-
-          {isManualReview && (
-            <PhotoControls
-              previewUrls={previewUrls}
-              photoCount={photos.length}
-              maxPhotos={MAX_PHOTOS}
-              disabled={isSaving}
-              onTakePicture={onTakePicture}
-              onPickPhotos={() => fileInputRef.current?.click()}
-              onRemovePhoto={removePhoto}
-            />
-          )}
-
-          <div className="space-y-3">
-              <div className="grid gap-3">
-                <div>
-                  <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                    Name
-                  </label>
-                  <input
-                    value={draft.name}
-                    onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-                    className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={draft.description}
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, description: e.target.value }))
-                    }
-                    className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                  />
-                </div>
-
-                <div className="grid sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                      Collection
-                    </label>
-                    <select
-                      value={draft.collection_id}
-                      onChange={(e) => {
-                        const nextCollectionId = e.target.value;
-                        setDraft((d) => ({ ...d, collection_id: nextCollectionId }));
-                        void persistPreferredCollection(nextCollectionId);
-                      }}
-                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    >
-                      <option value="">None</option>
-                      {collections.map((collection) => (
-                        <option key={collection.id} value={collection.id}>
-                          {collection.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                      Location
-                    </label>
-                    <select
-                      value={draft.location_id}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          location_id: e.target.value,
-                        }))
-                      }
-                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    >
-                      <option value="">None</option>
-                      {locations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                      Status
-                    </label>
-                    <select
-                      value={draft.status}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          status: e.target.value as "draft" | "confirmed",
-                        }))
-                      }
-                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    >
-                      <option value="draft">draft</option>
-                      <option value="confirmed">confirmed</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                      Quantity
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={draft.quantity}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          quantity: Math.max(1, parseInt(e.target.value) || 1),
-                        }))
-                      }
-                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    />
-                  </div>
-                </div>
-
-                {selectedCandidate?.evidence ? (
-                  <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3">
-                    <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">
-                      Evidence
-                    </p>
-                    <p className="text-sm text-neutral-400">{selectedCandidate.evidence}</p>
-                  </div>
-                ) : null}
+      {/* AI error modal */}
+      {submitError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="rounded-lg border border-red-500/40 bg-neutral-900 p-6 max-w-md w-full space-y-4">
+            <p className="text-sm text-red-300">{submitError}</p>
+            {(submitErrorProvider || submitErrorModel) && (
+              <p className="text-xs text-neutral-400">Model: {submitErrorProvider} / {submitErrorModel}</p>
+            )}
+            {submitErrorDetail && (
+              <div className="space-y-3">
+                <button type="button" onClick={() => setShowSubmitErrorDetail((v) => !v)} className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100">
+                  {showSubmitErrorDetail ? "Hide info" : "More info"}
+                </button>
+                {showSubmitErrorDetail && (
+                  <>
+                    <pre className="whitespace-pre-wrap break-words rounded-md bg-black/25 p-3 text-xs text-red-100 max-h-48 overflow-y-auto">{submitErrorDetail}</pre>
+                    <button type="button" onClick={() => { void navigator.clipboard.writeText(`Model: ${submitErrorProvider} / ${submitErrorModel}\n\n${submitErrorDetail}`); setSubmitErrorCopied(true); }} className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100">
+                      {submitErrorCopied ? "Copied" : "Copy to clipboard"}
+                    </button>
+                  </>
+                )}
               </div>
-
-              <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur md:static md:mx-0 md:px-0 md:py-0 md:border-0 md:bg-transparent md:backdrop-blur-none">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setMode("input");
-                      clearSession();
-                      setSubmitError("");
-                      setSubmitErrorDetail("");
-                      setSubmitErrorProvider("");
-                      setSubmitErrorModel("");
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    <RefreshCw size={14} />
-                    Back to ID Inputs
-                  </button>
-                  <button
-                    onClick={resetToStart}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-                  >
-                    Discard
-                  </button>
-                  <button
-                    onClick={savePart}
-                    disabled={isSaving}
-                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                  >
-                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                    Save
-                  </button>
-                </div>
-              </div>
-
-              {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+            )}
+            <button type="button" onClick={() => { setSubmitError(""); setSubmitErrorDetail(""); setSubmitErrorProvider(""); setSubmitErrorModel(""); setShowSubmitErrorDetail(false); setSubmitErrorCopied(false); }} className="w-full mt-4 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-neutral-100 rounded-md text-sm font-medium transition-colors">
+              Close
+            </button>
           </div>
-        </section>
+        </div>
       )}
 
       <input
@@ -888,10 +860,7 @@ export function AddPage() {
         accept="image/*"
         multiple
         className="hidden"
-        onChange={(e) => {
-          onPickPhotos(e.target.files);
-          e.currentTarget.value = "";
-        }}
+        onChange={(e) => { onPickPhotos(e.target.files); e.currentTarget.value = ""; }}
       />
     </div>
   );
