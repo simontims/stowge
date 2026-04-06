@@ -885,10 +885,8 @@ def create_user(payload: dict, db: Session = Depends(get_db), me: User = Depends
     first_name = (payload.get("firstname") or payload.get("first_name") or "").strip()
     last_name = (payload.get("lastname") or payload.get("last_name") or payload.get("surname") or "").strip()
     password = payload.get("password") or ""
-    role = (payload.get("role") or "user").strip()
+    role = "admin"  # all users are admin until roles are introduced
 
-    if role not in ("admin", "user"):
-        raise HTTPException(status_code=400, detail="role must be admin|user")
     if not _is_valid_email(username):
         raise HTTPException(status_code=400, detail="Valid email required")
     if len(password) < 8:
@@ -938,16 +936,7 @@ def update_user(user_id: str, payload: dict, db: Session = Depends(get_db), me: 
         u.last_name = str(payload.get("lastname") or payload.get("last_name") or payload.get("surname") or "").strip()
 
     if "role" in payload:
-        role = str(payload.get("role") or "").strip()
-        if role not in ("admin", "user"):
-            raise HTTPException(status_code=400, detail="role must be admin|user")
-        if u.id == me.id and role != "admin":
-            raise HTTPException(status_code=400, detail="Cannot remove your own admin role")
-        if u.role == "admin" and role != "admin":
-            admins = db.query(User).filter(User.role == "admin").count()
-            if admins <= 1:
-                raise HTTPException(status_code=400, detail="Cannot demote the last admin")
-        u.role = role
+        pass  # role changes are not supported yet; all users are admin
 
     if "password" in payload:
         password = str(payload.get("password") or "")
