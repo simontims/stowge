@@ -297,7 +297,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       {addingOpen && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
           <h2 className="text-sm font-semibold text-neutral-100">Add User</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3">
             <label className="block">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Email</span>
               <input
@@ -308,23 +308,25 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                 placeholder="user@example.com"
               />
             </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
+                <input
+                  value={newUser.firstname}
+                  onChange={(e) => setNewUser((v) => ({ ...v, firstname: e.target.value }))}
+                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
+                <input
+                  value={newUser.lastname}
+                  onChange={(e) => setNewUser((v) => ({ ...v, lastname: e.target.value }))}
+                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                />
+              </label>
+            </div>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
-              <input
-                value={newUser.firstname}
-                onChange={(e) => setNewUser((v) => ({ ...v, firstname: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
-              <input
-                value={newUser.lastname}
-                onChange={(e) => setNewUser((v) => ({ ...v, lastname: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              />
-            </label>
-            <label className="block sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Password</span>
               <input
                 type="password"
@@ -357,7 +359,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
           <h2 className="text-sm font-semibold text-neutral-100">Edit User</h2>
           <p className="text-sm text-neutral-500">Editing {editingUser.email}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3">
             <label className="block">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Email</span>
               <input
@@ -367,23 +369,25 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
             </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
+                <input
+                  value={editForm.firstname}
+                  onChange={(e) => setEditForm((v) => ({ ...v, firstname: e.target.value }))}
+                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
+                <input
+                  value={editForm.lastname}
+                  onChange={(e) => setEditForm((v) => ({ ...v, lastname: e.target.value }))}
+                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                />
+              </label>
+            </div>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
-              <input
-                value={editForm.firstname}
-                onChange={(e) => setEditForm((v) => ({ ...v, firstname: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
-              <input
-                value={editForm.lastname}
-                onChange={(e) => setEditForm((v) => ({ ...v, lastname: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              />
-            </label>
-            <label className="block sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-neutral-500">New Password (optional)</span>
               <input
                 type="password"
