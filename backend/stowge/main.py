@@ -270,6 +270,8 @@ def _run_startup_migrations():
                 parts_columns = {c["name"] for c in inspect(engine).get_columns("parts")}
             if "location_id" not in parts_columns:
                 conn.execute(text("ALTER TABLE parts ADD COLUMN location_id VARCHAR NULL"))
+            if "quantity" not in parts_columns:
+                conn.execute(text("ALTER TABLE parts ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1"))
 
         if "users" in set(inspect(engine).get_table_names()):
             user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
@@ -1642,6 +1644,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
         collection=collection,
         location_id=normalized_location_id,
         status=status,
+        quantity=max(1, int(payload.get("quantity") or 1)),
         ai_primary=payload.get("ai_primary"),
         ai_alternatives=payload.get("ai_alternatives"),
         ai_chosen_index=payload.get("ai_chosen_index"),
@@ -1688,6 +1691,7 @@ def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User 
         "collection": p.collection,
         "location": (location_names.get(p.location_id) if p.location_id else None),
         "status": p.status,
+        "quantity": p.quantity if p.quantity is not None else 1,
         "created_at": p.created_at.isoformat(),
         "thumb": (_signed_image_url(p.images[0].id, "thumb") if p.images else None),
     } for p in parts]
@@ -1713,6 +1717,7 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
         "location_id": p.location_id,
         "location": location_name,
         "status": p.status,
+        "quantity": p.quantity if p.quantity is not None else 1,
         "created_at": p.created_at.isoformat(),
         "updated_at": p.updated_at.isoformat(),
         "images": [{
@@ -1736,6 +1741,12 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
     for field in ("name", "description", "status"):
         if field in payload:
             setattr(p, field, payload[field])
+
+    if "quantity" in payload:
+        try:
+            p.quantity = max(1, int(payload["quantity"]))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="quantity must be a positive integer")
 
     if "collection" in payload:
         raw_collection = payload.get("collection")

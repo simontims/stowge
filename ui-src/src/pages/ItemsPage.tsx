@@ -16,6 +16,7 @@ interface Part {
   collection: string | null;
   location: string | null;
   status: string;
+  quantity: number;
   created_at: string;
   thumb: string | null;
   actions?: never;
@@ -29,6 +30,7 @@ export interface PartDetail {
   location_id: string | null;
   location: string | null;
   status: string;
+  quantity: number;
   created_at: string;
   updated_at: string;
   images: Array<{
@@ -45,6 +47,7 @@ export interface PartEditForm {
   collection: string;
   location_id: string;
   status: "draft" | "confirmed";
+  quantity: number;
 }
 
 export interface LocationOption {
@@ -63,6 +66,7 @@ const EMPTY_EDIT_FORM: PartEditForm = {
   collection: "",
   location_id: "",
   status: "draft",
+  quantity: 1,
 };
 
 function toEditForm(part: PartDetail): PartEditForm {
@@ -72,6 +76,7 @@ function toEditForm(part: PartDetail): PartEditForm {
     collection: part.collection ?? "",
     location_id: part.location_id ?? "",
     status: part.status === "confirmed" ? "confirmed" : "draft",
+    quantity: part.quantity ?? 1,
   };
 }
 
@@ -81,7 +86,8 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
     a.description.trim() === b.description.trim() &&
     a.collection.trim() === b.collection.trim() &&
     a.location_id === b.location_id &&
-    a.status === b.status
+    a.status === b.status &&
+    a.quantity === b.quantity
   );
 }
 
@@ -328,6 +334,7 @@ export function ItemsPage() {
           collection: editForm.collection.trim() || null,
           location_id: editForm.location_id || null,
           status: editForm.status,
+          quantity: editForm.quantity,
         }),
       });
 
@@ -345,6 +352,7 @@ export function ItemsPage() {
                 collection: refreshed.collection,
                 location: refreshed.location,
                 status: refreshed.status,
+                quantity: refreshed.quantity,
               }
             : p
         )
@@ -529,6 +537,14 @@ export function ItemsPage() {
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.status}
           </span>
+        ),
+      },
+      {
+        key: "quantity",
+        header: "Qty",
+        width: "5ch",
+        render: (row) => (
+          <span className="text-sm text-neutral-300">{row.quantity}</span>
         ),
       },
       {

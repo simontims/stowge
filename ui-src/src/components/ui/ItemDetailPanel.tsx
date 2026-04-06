@@ -208,6 +208,19 @@ export function ItemDetailPanel({
                     <option value="confirmed">confirmed</option>
                   </select>
                 </label>
+
+                <label className="space-y-1 block">
+                  <span className="text-xs text-neutral-500 uppercase tracking-wide">Quantity</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editForm.quantity}
+                    onChange={(event) =>
+                      onEditChange({ ...editForm, quantity: Math.max(1, parseInt(event.target.value) || 1) })
+                    }
+                    className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                  />
+                </label>
               </div>
 
               <label className="space-y-1 block">
