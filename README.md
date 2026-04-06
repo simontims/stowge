@@ -5,10 +5,9 @@ Easy inventory with a brilliant user experience and AI-assist
 - Self-hosted with Docker
 - No cloud dependencies
 - Mobile and desktop friendly
-- Add items quickly, photo first from mobile with AI assist
-- Add items slowly and old-skool, you do you
+- Add items quickly, photo first from mobile with AI assist, or add items slowly and old-skool, you do you
 
-Custom Collections
+Unlimited custom collections
 - Electronic parts (the original inspiration)
 - Arts and Craft bits
 - Big household items for insurance listings
@@ -17,7 +16,7 @@ Custom Collections
 - Artisan keyboard keycaps
 - Random cables (mystery box of 'probably important someday')
 
-Custom Locations
+Unlimited custom locations
 - Garge 
 - Garage
 - Shed
@@ -25,29 +24,18 @@ Custom Locations
 - Box 7 under the spare bed
 
 
-Tech
-
-- UI (PWA) served at `/`
-- API served under `/api`
-- OpenAPI spec: `/openapi.json`
-- Swagger UI: `/docs`
-
-## Deploy (Docker host)
+## Quick Start (Docker host)
 ### 1) Create persistent folders
-```bash
-mkdir -p /local/path/to/stowage/{data,assets}
-```
+You'll need a location for the database and another to save the asset files (only photos right now).
+They might be in the same place, or you might use a local M.2 drive for the database and a remote NAS path for the images.
 
-### 2) Edit compose file paths and secret
-- Open `docker-compose.yml` (or `docker-compose.prod.yml` for Docker Hub image).
-- Update volume paths if needed.
-- Set `JWT_SECRET` in the compose file (or override it from your shell/CI).
 
-### 3) Start
-```bash
-docker compose up -d
-```
-### 4) First login
+
+### 2) Copy the compose file and edit for your use
+
+- Set `IMAGE_URL_SECRET` in the compose file to a strong random secret
+
+### 3) First login
 Visit the UI; on first run you'll be asked to create an admin user and password.
 
 ### 5) Configure AI models in app (optional)
@@ -107,7 +95,3 @@ The local run scripts automatically:
 - install backend dependencies
 - install/build UI from `ui-src` to `ui`
 - start FastAPI on `http://localhost:18090`
-
-## Notes
-- Uses a local SQL database (SQLite) stored in the mounted `data` path.
-- Images are stored under the host-mounted `/mnt/data/docker/stowge/assets` volume.
