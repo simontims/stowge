@@ -29,11 +29,12 @@ Unlimited custom locations
 You'll need a location for the database and another to save the asset files (only photos right now).
 They might be in the same place, or you might use a local M.2 drive for the database and a remote NAS path for the images.
 
-
-
 ### 2) Copy the compose file and edit for your use
+https://github.com/simontims/stowge/blob/main/docker-compose.prod.yml
 
-- Set `IMAGE_URL_SECRET` in the compose file to a strong random secret
+
+Set `IMAGE_URL_SECRET` in the compose file to a strong random secret.
+The other settings should be self-explanatory.
 
 ### 3) First login
 Visit the UI; on first run you'll be asked to create an admin user and password.
