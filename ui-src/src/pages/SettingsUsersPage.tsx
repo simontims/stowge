@@ -102,8 +102,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       editForm.email !== initialEditForm.email ||
       editForm.firstname !== initialEditForm.firstname ||
       editForm.lastname !== initialEditForm.lastname ||
-      editForm.password !== "" ||
-      editForm.role !== initialEditForm.role,
+      editForm.password !== "",
     [editForm, initialEditForm]
   );
 
@@ -185,7 +184,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
           firstname: newUser.firstname.trim(),
           lastname: newUser.lastname.trim(),
           password: newUser.password,
-          role: newUser.role,
         }),
       });
       setNewUser(EMPTY_NEW_USER);
@@ -252,7 +250,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
           email: editForm.email.trim(),
           firstname: editForm.firstname.trim(),
           lastname: editForm.lastname.trim(),
-          role: editForm.role,
           password: editForm.password || undefined,
         }),
       });
@@ -312,19 +309,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
               />
             </label>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Role</span>
-              <select
-                value={newUser.role}
-                onChange={(e) =>
-                  setNewUser((v) => ({ ...v, role: e.target.value as "admin" | "user" }))
-                }
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              >
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
-            </label>
-            <label className="block">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
               <input
                 value={newUser.firstname}
@@ -382,19 +366,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                 onChange={(e) => setEditForm((v) => ({ ...v, email: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
-            </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Role</span>
-              <select
-                value={editForm.role}
-                onChange={(e) =>
-                  setEditForm((v) => ({ ...v, role: e.target.value as "admin" | "user" }))
-                }
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              >
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
             </label>
             <label className="block">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
