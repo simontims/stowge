@@ -70,6 +70,8 @@ export function DeleteConfirmDialog({
             Cancel
           </button>
           <button
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
             onClick={onConfirm}
             disabled={deleting}
             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
