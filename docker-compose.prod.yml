@@ -12,10 +12,10 @@ services:
       ASSETS_DIR: /assets
 
       # Auth
-      # IMPORTANT: Set a strong secret in production.
-      JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string}
-      JWT_ISSUER: stowge
-      JWT_EXPIRES_MINUTES: "1440"
+      # IMPORTANT: Set a strong random secret in production.
+      IMAGE_URL_SECRET: ${IMAGE_URL_SECRET:-change_me_to_a_long_random_string}
+      # SESSION_LIFETIME_MINUTES: "1440"    # default: 24 h
+      SESSION_COOKIE_SECURE: "true"         # served over HTTPS in production
 
       # Leave blank when UI is served by this same container.
       # Set when hosting UI from another origin (comma-separated list).

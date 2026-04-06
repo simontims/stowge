@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Menu, Moon, Sun, User } from "lucide-react";
 import { getStoredTheme, setTheme, type ThemeMode } from "../../lib/theme";
 import { apiRequest } from "../../lib/api";
+import { useCurrentUser } from "../../lib/UserContext";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -9,36 +10,30 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
+  const currentUser = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getStoredTheme());
   const [version, setVersion] = useState<string>("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   const displayName = useMemo(() => {
-    const token = localStorage.getItem("stowge_token");
-    if (!token) return "Guest";
+    const first = currentUser.firstname.trim();
+    const last = currentUser.lastname.trim();
+    const fullName = [first, last].filter(Boolean).join(" ");
+    if (fullName) return fullName;
+    return currentUser.email.trim() || "Guest";
+  }, [currentUser]);
 
-    try {
-      const payloadPart = token.split(".")[1];
-      if (!payloadPart) return "Guest";
-      const b64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-      const decoded = atob(padded);
-      const payload = JSON.parse(decoded) as {
-        username?: unknown;
-        first_name?: unknown;
-        last_name?: unknown;
-      };
-      const first = typeof payload.first_name === "string" ? payload.first_name.trim() : "";
-      const last = typeof payload.last_name === "string" ? payload.last_name.trim() : "";
-      const fullName = [first, last].filter(Boolean).join(" ");
-      if (fullName) return fullName;
-      return typeof payload.username === "string" && payload.username.trim()
-        ? payload.username
-        : "Guest";
-    } catch {
-      return "Guest";
+  // Sync theme once from the user object already in context — no extra fetch needed.
+  useEffect(() => {
+    const serverTheme = currentUser.theme === "light" || currentUser.theme === "dark"
+      ? currentUser.theme
+      : null;
+    if (serverTheme) {
+      setThemeMode(serverTheme);
+      setTheme(serverTheme);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -84,23 +79,6 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
     return () => {
       active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    async function syncTheme() {
-      try {
-        const me = await apiRequest<{ theme?: string }>("/api/me");
-        const serverTheme = me.theme === "light" || me.theme === "dark" ? me.theme : null;
-        if (serverTheme) {
-          setThemeMode(serverTheme);
-          setTheme(serverTheme);
-        }
-      } catch {
-        // Not signed in or network error — keep local preference.
-      }
-    }
-    void syncTheme();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function logout() {

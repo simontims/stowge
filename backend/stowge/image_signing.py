@@ -4,8 +4,7 @@ import os
 import time
 
 def _secret() -> bytes:
-    # Default to JWT_SECRET so homelab users don't need extra env vars.
-    s = os.getenv("IMAGE_URL_SECRET") or os.getenv("JWT_SECRET", "")
+    s = os.getenv("IMAGE_URL_SECRET", "")
     return s.encode("utf-8")
 
 def ttl_seconds() -> int:

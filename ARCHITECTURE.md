@@ -14,7 +14,7 @@ stowge/
 │       ├── main.py              # FastAPI app and routes
 │       ├── models.py            # SQLAlchemy models
 │       ├── db.py                # DB engine/session wiring
-│       ├── auth.py              # JWT auth and role checks
+│       ├── auth.py              # Session-based auth and role checks
 │       ├── images.py            # Image processing and storage helpers
 │       ├── image_signing.py     # Signed image URL generation/verification
 │       └── openai_id.py         # AI identify prompt/adapter layer
@@ -65,7 +65,8 @@ stowge/
 
 - Name: Stowge API
 - Description: Handles auth, authorization, CRUD operations, AI identify orchestration, image storage/signing, and user/admin settings.
-- Technologies: Python 3, FastAPI, SQLAlchemy, JWT, Pillow for image processing.
+- Technologies: Python 3, FastAPI, SQLAlchemy, bcrypt, Pillow for image processing.
+- Auth mechanism: Server-managed sessions via HTTP-only `stowge_session` cookie (SameSite=Lax). No JWT in the browser auth path.
 - Runtime/Deployment: Docker container (single service in current deployment model).
 
 ### 3.3 AI Identification Module
@@ -82,7 +83,8 @@ stowge/
 - Name: Application DB
 - Type: SQLite (current local and compose defaults)
 - Purpose: Persistent state for users, items, images, collections, locations, and AI config metadata.
-- Key tables: users, parts, part_images, collections, locations, llm_configs.
+- Key tables: users, sessions, parts, part_images, collections, locations, llm_configs.
+- Stub tables (schema present, no routes yet): external_identities, api_keys.
 
 ### 4.2 File Storage
 
@@ -101,11 +103,13 @@ stowge/
 ## 6. API Design (Current)
 
 - Base path: /api
-- Auth: Bearer JWT for protected routes.
+- Auth: HTTP-only `stowge_session` cookie (set by POST /api/login, cleared by POST /api/logout).
+  Authorization is enforced server-side on every request from live database state (role column on User).
 - Representative endpoints:
 	- GET /api/status
 	- POST /api/setup/first-admin
-	- POST /api/login
+	- POST /api/login              → sets stowge_session cookie, returns user object
+	- POST /api/logout             → deletes session, clears cookie
 	- GET /api/me
 	- GET /api/items
 	- POST /api/items
@@ -117,14 +121,24 @@ stowge/
 	- POST /api/identify
 	- POST /api/images/store
 	- POST /api/images/discard
+	- GET /api/events/items        → SSE stream (authenticated via session cookie)
 
 ## 7. Security Considerations
 
-- Authentication: JWT access tokens.
-- Authorization: Role-based controls (admin and user).
-- Image access: Signed image URLs with expiry and signature verification.
-- Password handling: Hashed passwords (never stored plaintext).
-- Transport: Intended to run behind HTTPS in production deployments.
+- Authentication: HTTP-only session cookie (`stowge_session`, SameSite=Lax). No tokens in localStorage.
+- Authorization: Role-based controls enforced server-side from live database state. Role is never trusted from client input or token claims.
+- Session management: Sessions stored in the `sessions` table with an expiry timestamp. Expired sessions are pruned lazily on each new login. Sessions are immediately invalidated on logout.
+- Image access: Signed image URLs with expiry and HMAC signature verification (key: IMAGE_URL_SECRET).
+- Password handling: bcrypt + SHA-256 pre-hash (72-byte bcrypt limit mitigation).
+- Transport: Intended to run behind HTTPS in production deployments (set SESSION_COOKIE_SECURE=true).
+- CSRF: SameSite=Lax cookie policy is sufficient for same-origin self-hosted deployments.
+
+### Auth Design — Separation of Concerns
+
+- **Authentication** (who is the user?): Answered by the session cookie lookup → resolves to a User row.
+- **Authorization** (what can they do?): Answered by the `role` column on User, read from the database on each request. Role decisions are never based solely on session or token claims.
+- **Future API keys**: `api_keys` table stub is in place. When implemented, API key auth will be a parallel path to session auth — not a replacement.
+- **Future OIDC**: `external_identities` table stub is in place. When Google/Microsoft login is added, the external identity will map to a local User row so that Stowge authorization remains database-driven.
 
 ## 8. Development and Deployment
 
@@ -152,6 +166,39 @@ stowge/
 - role (admin or user)
 - theme
 - preferred_add_collection_id
+- password_hash (bcrypt)
+
+### Session (sessions table)
+
+- id (opaque 32-byte hex token)
+- user_id (FK → users)
+- created_at
+- last_seen_at
+- expires_at
+
+### ExternalIdentity (stub — external_identities table)
+
+For future OAuth/OIDC provider links (Google, Microsoft, etc.).
+
+- id
+- user_id (FK → users)
+- provider (e.g. 'google' | 'microsoft')
+- external_id (subject from provider)
+- email
+- created_at
+
+### ApiKey (stub — api_keys table)
+
+For future user-managed API keys for scripts and automation.
+
+- id
+- user_id (FK → users)
+- name
+- key_prefix (first 8 chars, display only)
+- key_hash (SHA-256 of full key)
+- created_at
+- last_used_at
+- expires_at
 
 ### Item (parts table)
 

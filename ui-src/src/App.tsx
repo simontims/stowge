@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ItemsPage } from "./pages/ItemsPage";
@@ -8,7 +9,8 @@ import { AddPage } from "./pages/AddPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
 import { LoginPage } from "./pages/LoginPage";
-import { getToken, saveToken, removeToken, UNAUTHORIZED_EVENT, OFFLINE_EVENT, apiRequest } from "./lib/api";
+import { type CurrentUser, UNAUTHORIZED_EVENT, OFFLINE_EVENT } from "./lib/api";
+import { UserContext } from "./lib/UserContext";
 import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
 
 function StartupRedirect() {
@@ -28,8 +30,11 @@ function StartupRedirect() {
     // Also skip if the user already has a specific destination in the URL.
     if (window.location.pathname !== "/") return;
 
-    void apiRequest<{ last_open_collection?: string | null }>("/api/me")
-      .then((me) => {
+    // Read last_open_collection from the server — avoids needing it passed as a prop.
+    fetch("/api/me", { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const me = (await res.json()) as { last_open_collection?: string | null };
         if (me.last_open_collection) {
           navigate(
             {
@@ -41,18 +46,36 @@ function StartupRedirect() {
         }
       })
       .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   return null;
 }
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(() => getToken());
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
-  // 401 from any apiRequest() call fires this event → show LoginPage
+  // Probe the session on mount to determine initial auth state.
   useEffect(() => {
-    const handler = () => setToken(null);
+    fetch("/api/me", { credentials: "include" })
+      .then(async (res) => {
+        if (res.ok) {
+          const me = (await res.json()) as CurrentUser;
+          setCurrentUser(me);
+        }
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        setAuthChecked(true);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mid-session 401 on any apiRequest() fires this event → show LoginPage
+  useEffect(() => {
+    const handler = () => setCurrentUser(null);
     window.addEventListener(UNAUTHORIZED_EVENT, handler);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
   }, []);
@@ -119,27 +142,41 @@ export default function App() {
     };
   }, []);
 
-  function handleLogin(newToken: string) {
-    saveToken(newToken);
-    setToken(newToken);
+  function handleLogin(user: CurrentUser) {
+    setCurrentUser(user);
+    setAuthChecked(true);
   }
 
-  function handleLogout() {
-    removeToken(); // removes from localStorage + fires UNAUTHORIZED_EVENT → setToken(null)
+  async function handleLogout() {
+    try {
+      await fetch("/api/logout", { method: "POST", credentials: "include" });
+    } catch {
+      // Best-effort: clear local state regardless.
+    }
+    setCurrentUser(null);
   }
 
   if (isOffline) {
     return <ConnectionLostOverlay />;
   }
 
-  if (!token) {
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <Loader2 size={24} className="text-neutral-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
   return (
-    <BrowserRouter>
-      <StartupRedirect />
-      <AppShell onLogout={handleLogout}>
+    <UserContext.Provider value={{ currentUser }}>
+      <BrowserRouter>
+        <StartupRedirect />
+        <AppShell onLogout={handleLogout}>
         <Routes>
           <Route path="/"           element={<DashboardPage />} />
           <Route path="/items"      element={<ItemsPage />} />
@@ -157,8 +194,8 @@ export default function App() {
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
       </AppShell>
-
-    </BrowserRouter>
+      </BrowserRouter>
+    </UserContext.Provider>
   );
 }
 

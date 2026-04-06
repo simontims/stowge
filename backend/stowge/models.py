@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON
+from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .db import Base
 
@@ -107,3 +107,55 @@ class ImageSettings(Base):
     thumb_max_edge = Column(Integer, nullable=False, default=360)
     thumb_quality = Column(Integer, nullable=False, default=70)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+
+class UserSession(Base):
+    """Server-side browser session. Created on login, deleted on logout."""
+    __tablename__ = "sessions"
+
+    id = Column(String, primary_key=True)           # secrets.token_hex(32)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    last_seen_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class ExternalIdentity(Base):
+    """Stub model for future OAuth/OIDC provider links (Google, Microsoft, etc.).
+
+    Not yet wired to any routes.  When OIDC support is added, each provider
+    login will upsert a row here and resolve to a local User record so that
+    Stowge authorization remains entirely database-driven.
+    """
+    __tablename__ = "external_identities"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    provider = Column(String, nullable=False)       # e.g. 'google' | 'microsoft'
+    external_id = Column(String, nullable=False)    # subject identifier from provider
+    email = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id", name="uq_ext_identity_provider_id"),
+    )
+
+
+class ApiKey(Base):
+    """Stub model for future user-managed API keys for scripts and automation.
+
+    Not yet wired to any routes.  When API key support is added:
+    - The full key is shown once on creation and never stored in plaintext.
+    - key_hash stores a SHA-256 hash of the full key for constant-time lookup.
+    - key_prefix (first 8 chars) is stored for display-only identification.
+    """
+    __tablename__ = "api_keys"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    key_prefix = Column(String, nullable=False)     # first 8 chars, shown for identification
+    key_hash = Column(String, nullable=False)       # SHA-256 hash of the full key
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
