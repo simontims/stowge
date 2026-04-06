@@ -427,9 +427,19 @@ export function ItemsPage() {
   useEffect(() => {
     if (isMobile) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (!selectedPartId) return;
+        const row = sorted.find((r) => r.id === selectedPartId);
+        if (!row || deletingId === row.id) return;
+        e.preventDefault();
+        setConfirmDeletePart(row);
+        return;
+      }
+
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
       e.preventDefault();
       if (sorted.length === 0) return;
       const currentIdx = selectedPartId ? sorted.findIndex((r) => r.id === selectedPartId) : -1;
