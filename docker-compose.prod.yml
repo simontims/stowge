@@ -6,7 +6,7 @@ services:
       DATABASE_DIR: /data
       ASSETS_DIR: /assets
 
-      # Iet a strong random secret in production.
+      # Set a strong random secret in production.
       IMAGE_URL_SECRET: "change_me_to_a_long_random_string"
       # SESSION_LIFETIME_MINUTES: "1440"    # default: 24 h
       SESSION_COOKIE_SECURE: "true"         # served over HTTPS in production
