@@ -194,6 +194,7 @@ export function ItemsPage() {
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
+      if (!hasDirtyChanges) return;
       event.preventDefault();
       event.returnValue = "";
     };
