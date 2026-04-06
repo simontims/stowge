@@ -410,13 +410,12 @@ export function AddPage() {
     cameraInputRef.current?.click();
   }
 
-  async function handleCameraCapture(files: FileList | null) {
+  function handleCameraCapture(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const resized = await resizeImage(files[0]);
-    mergePhotos([resized]);
+    mergePhotos([files[0]]);
   }
 
-  async function onPickPhotos(files: FileList | null) {
+  function onPickPhotos(files: FileList | null) {
     setSubmitError("");
     setSubmitErrorDetail("");
     setSubmitErrorProvider("");
@@ -424,8 +423,7 @@ export function AddPage() {
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
     if (!files) return;
-    const resized = await Promise.all(Array.from(files).map(resizeImage));
-    mergePhotos(resized);
+    mergePhotos(Array.from(files));
   }
 
   async function submitIdentify() {
@@ -462,8 +460,9 @@ export function AddPage() {
     setIsSubmitting(true);
 
     try {
+      const toUpload = await Promise.all(photos.slice(0, MAX_PHOTOS).map(resizeImage));
       const fd = new FormData();
-      photos.slice(0, MAX_PHOTOS).forEach((file, idx) => {
+      toUpload.forEach((file, idx) => {
         fd.append("images", file, `photo${idx + 1}.jpg`);
       });
 
@@ -540,8 +539,9 @@ export function AddPage() {
     setIsSaving(true);
     try {
       if (photos.length > 0) {
+        const toUpload = await Promise.all(photos.slice(0, MAX_PHOTOS).map(resizeImage));
         const fd = new FormData();
-        photos.slice(0, MAX_PHOTOS).forEach((file, idx) => {
+        toUpload.forEach((file, idx) => {
           fd.append("images", file, `photo${idx + 1}.jpg`);
         });
         const stored = await apiRequest<StoreImagesResponse>("/api/images/store", {
