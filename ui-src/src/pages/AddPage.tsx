@@ -196,8 +196,10 @@ export function AddPage() {
 
   const [llmOptions, setLlmOptions] = useState<LlmOption[]>([]);
   const [selectedLlmId, setSelectedLlmId] = useState<string>("");
+  const [aiSettingsLoaded, setAiSettingsLoaded] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const requestedCollectionId = searchParams.get("collection_id")?.trim() || "";
   const requestedCollectionName = searchParams.get("collection")?.trim().toLowerCase() || "";
 
@@ -320,6 +322,8 @@ export function AddPage() {
     } catch (err) {
       setLlmOptions([]);
       setSelectedLlmId("");
+    } finally {
+      setAiSettingsLoaded(true);
     }
   }
 
@@ -396,16 +400,20 @@ export function AddPage() {
     void persistPreferredLocation(id);
   }
 
-  async function onTakePicture() {
+  function onTakePicture() {
     setSubmitError("");
     setSubmitErrorDetail("");
     setSubmitErrorProvider("");
     setSubmitErrorModel("");
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
-    const file = await takePicture();
-    if (!file) return;
-    mergePhotos([await resizeImage(file)]);
+    cameraInputRef.current?.click();
+  }
+
+  async function handleCameraCapture(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const resized = await resizeImage(files[0]);
+    mergePhotos([resized]);
   }
 
   async function onPickPhotos(files: FileList | null) {
@@ -656,7 +664,7 @@ export function AddPage() {
                 {isSubmitting ? "Identifying…" : "Identify"}
               </button>
             </div>
-            {llmOptions.length === 0 && (
+            {aiSettingsLoaded && llmOptions.length === 0 && (
               <p className="mt-2 text-xs text-amber-400">No AI model configured — identification unavailable. Add one in Settings / AI.</p>
             )}
           </div>
@@ -814,12 +822,16 @@ export function AddPage() {
         className="hidden"
         onChange={(e) => { onPickPhotos(e.target.files); e.currentTarget.value = ""; }}
       />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => { void handleCameraCapture(e.target.files); e.currentTarget.value = ""; }}
+      />
     </div>
   );
-}
-
-function takePicture(): Promise<File | null> {
-  return pickSingleImage(true);
 }
 
 const RESIZE_MAX_PX = 1600;
@@ -849,43 +861,6 @@ function resizeImage(file: File): Promise<File> {
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
     img.src = objectUrl;
-  });
-}
-
-function pickSingleImage(preferCamera: boolean): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    if (preferCamera) input.setAttribute("capture", "environment");
-    input.style.display = "none";
-    document.body.appendChild(input);
-
-    let settled = false;
-    const finish = (file: File | null) => {
-      if (settled) return;
-      settled = true;
-      input.remove();
-      resolve(file);
-    };
-
-    input.addEventListener(
-      "change",
-      () => {
-        finish(input.files?.[0] ?? null);
-      },
-      { once: true }
-    );
-
-    window.addEventListener(
-      "focus",
-      () => {
-        setTimeout(() => finish(null), 400);
-      },
-      { once: true }
-    );
-
-    input.click();
   });
 }
 
