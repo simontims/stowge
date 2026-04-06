@@ -293,8 +293,8 @@ fi
 
 export UI_DIR="$ui_out_dir"
 export ASSETS_DIR="$assets_dir"
-if [[ -z "${DATABASE_URL:-}" ]]; then
-  export DATABASE_URL="sqlite:///$db_file"
+if [[ -z "${DATABASE_DIR:-}" && -z "${DATABASE_URL:-}" ]]; then
+  export DATABASE_DIR="$data_dir"
 fi
 if [[ -z "${JWT_ISSUER:-}" ]]; then
   export JWT_ISSUER="stowge"

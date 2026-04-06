@@ -8,7 +8,7 @@ services:
     # Override values with shell environment variables in your deployment pipeline if needed.
     environment:
       # App data
-      DATABASE_URL: sqlite:////data/stowge.db
+      DATABASE_DIR: /data
       ASSETS_DIR: /assets
 
       # Auth

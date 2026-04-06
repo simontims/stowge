@@ -732,10 +732,9 @@ def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requ
 def vacuum_database(me: User = Depends(require_admin)):
     """Run VACUUM, ANALYZE, and PRAGMA optimize on the SQLite database."""
     import sqlite3 as _sqlite3
-    db_url = os.getenv("DATABASE_URL", "sqlite:///./stowge.db")
-    if not db_url.startswith("sqlite:///"):
+    db_file = db.DATABASE_FILE
+    if not db_file or not db_file.endswith(".db"):
         raise HTTPException(status_code=400, detail="VACUUM is only supported for SQLite databases")
-    db_file = db_url[len("sqlite:///"):]
     try:
         size_before = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
         raw = _sqlite3.connect(db_file)
