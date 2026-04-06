@@ -13,10 +13,10 @@ services:
       ASSETS_DIR: /assets
 
       # Auth
-      # IMPORTANT: Change this for any non-throwaway deployment.
-      JWT_SECRET: ${JWT_SECRET:-change_me_to_a_long_random_string}
-      JWT_ISSUER: stowge
-      JWT_EXPIRES_MINUTES: "1440"
+      # IMPORTANT: Set a strong random secret before any non-throwaway deployment.
+      IMAGE_URL_SECRET: ${IMAGE_URL_SECRET:-change_me_to_a_long_random_string}
+      # SESSION_LIFETIME_MINUTES: "1440"    # default: 24 h
+      # SESSION_COOKIE_SECURE: "false"      # set "true" when behind HTTPS
 
       # Leave blank when UI is served by this same container.
       # Set when hosting UI from another origin.

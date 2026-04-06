@@ -8,17 +8,20 @@ from datetime import datetime, timezone
 from typing import Any, Optional, Literal, List
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text, func
-import jwt
-from jwt import InvalidTokenError
 
 from .db import engine, Base, get_db
-from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
-from .auth import hash_password, verify_password, create_token, current_user, require_admin, JWT_SECRET, JWT_ISSUER, _TIMING_DUMMY_HASH
+from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings, UserSession
+from .auth import (
+    hash_password, verify_password, create_session, delete_session,
+    current_user, require_admin,
+    SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
+    _TIMING_DUMMY_HASH,
+)
 from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, ImageConfig, DEFAULT_IMAGE_CONFIG
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
@@ -425,18 +428,6 @@ def _parts_events_since(last_seq: int) -> list[dict]:
     with _PARTS_EVENTS_LOCK:
         return [e for e in _PARTS_EVENTS_LOG if int(e.get("seq", 0)) > last_seq]
 
-def _user_from_query_token(token: str, db: Session) -> User:
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"], issuer=JWT_ISSUER)
-    except InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
-
 # ---------------- UI (PWA) ----------------
 @app.get("/", response_class=HTMLResponse)
 def index():
@@ -791,7 +782,18 @@ def setup_first_admin(request: Request, payload: dict, db: Session = Depends(get
     db.commit()
     db.refresh(user)
 
-    return {"access_token": create_token(user), "token_type": "bearer"}
+    session_id = create_session(user, db)
+    response = JSONResponse(content=_serialize_user(user))
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        session_id,
+        httponly=True,
+        samesite="lax",
+        secure=SESSION_COOKIE_SECURE,
+        path="/",
+        max_age=SESSION_LIFETIME_MINUTES * 60,
+    )
+    return response
 
 @app.post("/api/login")
 @limiter.limit("10/minute")
@@ -808,7 +810,27 @@ def login(request: Request, payload: dict, db: Session = Depends(get_db)):
 
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
-    return {"access_token": create_token(user), "token_type": "bearer"}
+    session_id = create_session(user, db)
+    response = JSONResponse(content=_serialize_user(user))
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        session_id,
+        httponly=True,
+        samesite="lax",
+        secure=SESSION_COOKIE_SECURE,
+        path="/",
+        max_age=SESSION_LIFETIME_MINUTES * 60,
+    )
+    return response
+
+@app.post("/api/logout")
+def logout(request: Request, db: Session = Depends(get_db)):
+    session_id = request.cookies.get(SESSION_COOKIE_NAME)
+    if session_id:
+        delete_session(session_id, db)
+    response = JSONResponse(content={"ok": True})
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return response
 
 # ---------------- Current user (self) ----------------
 @app.get("/api/me")
@@ -1791,16 +1813,11 @@ def delete_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(
 @app.get("/api/events/items")
 async def parts_events(
     request: Request,
-    token: Optional[str] = None,
     since: int = 0,
     db: Session = Depends(get_db),
+    _me: User = Depends(current_user),
 ):
-    # SSE EventSource cannot set Authorization headers.
-    # Prefer auth from a cookie to avoid JWT in URL/logs, but keep query fallback.
-    auth_token = token or request.cookies.get("stowge_sse_token")
-    if not auth_token:
-        raise HTTPException(status_code=401, detail="Missing bearer token")
-    _ = _user_from_query_token(auth_token, db)
+    # The session cookie is sent automatically by the browser for same-origin EventSource.
 
     async def event_stream():
         last_seq = max(0, int(since))

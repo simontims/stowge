@@ -3,7 +3,8 @@ import { ArrowUpDown, Edit3, Plus, Save, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
-import { apiRequest, getCurrentUserId } from "../lib/api";
+import { apiRequest } from "../lib/api";
+import { useCurrentUser } from "../lib/UserContext";
 
 interface UserRecord {
   id: string;
@@ -60,8 +61,10 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   const [sortKey, setSortKey] = useState<UserSortKey>("email");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const currentUserId = useMemo(() => getCurrentUserId(), []);
+  const currentUser = useCurrentUser();
+  const currentUserId = currentUser.id;
   const editingUser = users.find((u) => u.id === editingId) || null;
+
   const showListView = !addingOpen && !editingId;
 
   const [search, setSearch] = useState("");

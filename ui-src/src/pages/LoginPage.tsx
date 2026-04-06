@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { saveToken } from "../lib/api";
+import { type CurrentUser } from "../lib/api";
 
 interface LoginPageProps {
-  onLogin: (token: string) => void;
+  onLogin: (user: CurrentUser) => void;
 }
 
 type Mode = "checking" | "setup" | "login";
@@ -63,12 +63,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
 
       const data = (await res.json()) as {
         detail?: string;
-        access_token?: string;
+        id?: string;
       };
 
       if (!res.ok) {
@@ -76,13 +77,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         return;
       }
 
-      if (!data.access_token) {
-        setError("No token returned from server.");
-        return;
-      }
-
-      saveToken(data.access_token);
-      onLogin(data.access_token);
+      onLogin(data as CurrentUser);
     } catch {
       setError("Network error. Please try again.");
     } finally {

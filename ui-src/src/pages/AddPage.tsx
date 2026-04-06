@@ -10,6 +10,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
+import { useCurrentUser } from "../lib/UserContext";
 
 interface IdentifyCandidate {
   name?: string;
@@ -65,10 +66,6 @@ interface CollectionOption {
 interface LocationOption {
   id: string;
   name: string;
-}
-
-interface MeResponse {
-  preferred_add_collection_id?: string | null;
 }
 
 interface PartDraft {
@@ -152,6 +149,7 @@ function PhotoControls({
 }
 
 export function AddPage() {
+  const currentUser = useCurrentUser();
   const [searchParams] = useSearchParams();
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -261,17 +259,16 @@ export function AddPage() {
 
   async function loadAddPreferences(_opts?: { background?: boolean }) {
     try {
-      const [collectionData, locationData, meData] = await Promise.all([
+      const [collectionData, locationData] = await Promise.all([
         apiRequest<CollectionOption[]>("/api/collections"),
         apiRequest<LocationOption[]>("/api/locations"),
-        apiRequest<MeResponse>("/api/me"),
       ]);
 
       const collectionOptions = collectionData || [];
       setCollections(collectionOptions);
       setLocations(locationData || []);
 
-      const preferred = meData.preferred_add_collection_id || "";
+      const preferred = currentUser.preferred_add_collection_id || "";
       const validPreferred = collectionOptions.some((cat) => cat.id === preferred)
         ? preferred
         : "";
