@@ -274,8 +274,9 @@ $dbFileUnix = $dbFile.Replace("\", "/")
 
 [Environment]::SetEnvironmentVariable("UI_DIR", $uiDirUnix, "Process")
 [Environment]::SetEnvironmentVariable("ASSETS_DIR", $assetsDirUnix, "Process")
-if (-not $env:DATABASE_URL) {
-    [Environment]::SetEnvironmentVariable("DATABASE_URL", "sqlite:///$dbFileUnix", "Process")
+if (-not $env:DATABASE_DIR -and -not $env:DATABASE_URL) {
+    $dataDirUnix = $dataDir.Replace("\", "/")
+    [Environment]::SetEnvironmentVariable("DATABASE_DIR", $dataDirUnix, "Process")
 }
 if (-not $env:JWT_ISSUER) {
     [Environment]::SetEnvironmentVariable("JWT_ISSUER", "stowge", "Process")

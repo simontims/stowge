@@ -9,7 +9,7 @@ services:
     # You can override any value via shell environment variables when running compose.
     environment:
       # App data
-      DATABASE_URL: sqlite:////data/stowge.db
+      DATABASE_DIR: /data
       ASSETS_DIR: /assets
 
       # Auth

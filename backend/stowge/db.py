@@ -3,11 +3,20 @@ from pathlib import Path
 from sqlalchemy import create_engine, event as sa_event
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./stowge.db")
+# DATABASE_URL is the escape hatch for tests and advanced users.
+# Most deployments set DATABASE_DIR instead, and the URL is built from it.
+_explicit_url = os.environ.get("DATABASE_URL")
+if _explicit_url:
+    DATABASE_URL = _explicit_url
+else:
+    _db_dir = os.environ.get("DATABASE_DIR", "")
+    DATABASE_URL = f"sqlite:///{_db_dir}/stowge.db" if _db_dir else "sqlite:///./stowge.db"
 
-# Create parent directories for SQLite
-db_path = DATABASE_URL.replace("sqlite:///", "")
-Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+# Resolved filesystem path to the database file (used by vacuum endpoint etc.)
+DATABASE_FILE = DATABASE_URL[len("sqlite:///"):]
+
+# Create parent directories for SQLite file
+Path(DATABASE_FILE).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(
     DATABASE_URL,
