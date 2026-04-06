@@ -84,9 +84,9 @@ type ScanFlowMode = "input" | "review";
 const MAX_PHOTOS = 5;
 
 // ---------------------------------------------------------------------------
-// PhotoSlots — fixed 5-slot grid; buttons never move
+// PhotoCapture — fixed-position button + thumbnail strip below
 // ---------------------------------------------------------------------------
-interface PhotoSlotsProps {
+interface PhotoCaptureProps {
   previewUrls: string[];
   photoCount: number;
   maxPhotos: number;
@@ -96,7 +96,7 @@ interface PhotoSlotsProps {
   onRemovePhoto: (index: number) => void;
 }
 
-function PhotoSlots({
+function PhotoCapture({
   previewUrls,
   photoCount,
   maxPhotos,
@@ -104,65 +104,49 @@ function PhotoSlots({
   onTakePicture,
   onPickPhotos,
   onRemovePhoto,
-}: PhotoSlotsProps) {
+}: PhotoCaptureProps) {
   const atMax = photoCount >= maxPhotos;
   return (
     <div className="space-y-3">
-      {/* Fixed 5-slot grid — always rendered, never reflows */}
-      <div className="grid grid-cols-5 gap-2">
-        {Array.from({ length: maxPhotos }).map((_, idx) => {
-          const url = previewUrls[idx];
-          if (url) {
-            return (
-              <div key={idx} className="relative aspect-square rounded-md border border-neutral-700 overflow-hidden bg-neutral-900">
-                <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
-                <button
-                  onClick={() => onRemovePhoto(idx)}
-                  disabled={disabled}
-                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 disabled:opacity-60"
-                  aria-label={`Remove photo ${idx + 1}`}
-                >
-                  <X size={10} />
-                </button>
-              </div>
-            );
-          }
-          // Empty slot — tapping fires the camera
-          return (
-            <button
-              key={idx}
-              type="button"
-              onClick={onTakePicture}
-              disabled={disabled || atMax}
-              aria-label="Take photo"
-              className="aspect-square rounded-md border border-dashed border-neutral-700 bg-neutral-950 flex items-center justify-center text-neutral-600 hover:border-neutral-500 hover:text-neutral-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <Camera size={18} />
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Action buttons — fixed below the grid, never move */}
+      {/* Fixed button row — never moves */}
       <div className="flex items-center gap-2">
         <button
           onClick={onTakePicture}
           disabled={disabled || atMax}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-neutral-700 rounded-md text-sm text-neutral-200 hover:text-white hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <Camera size={14} />
+          <Camera size={16} />
           Take photo
         </button>
         <button
           onClick={onPickPhotos}
           disabled={disabled || atMax}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-3 border border-neutral-700 rounded-md text-sm text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          aria-label="Upload photos"
         >
-          <Upload size={14} />
-          Upload
+          <Upload size={16} />
         </button>
-        <span className="text-xs text-neutral-600 ml-auto">{photoCount} / {maxPhotos}</span>
+        <span className="text-xs text-neutral-600 w-8 text-right shrink-0">{photoCount}/{maxPhotos}</span>
       </div>
+
+      {/* Thumbnail strip — only appears once photos exist, below the button */}
+      {previewUrls.length > 0 && (
+        <div className="flex gap-2">
+          {previewUrls.map((url, idx) => (
+            <div key={url} className="relative w-14 h-14 shrink-0 rounded border border-neutral-700 overflow-hidden bg-neutral-900">
+              <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+              <button
+                onClick={() => onRemovePhoto(idx)}
+                disabled={disabled}
+                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 disabled:opacity-60"
+                aria-label={`Remove photo ${idx + 1}`}
+              >
+                <X size={8} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -635,7 +619,7 @@ export function AddPage() {
       {/* ── MODE: INPUT ───────────────────────────────────────────────────── */}
       {mode === "input" && (
         <div className="space-y-4">
-          <PhotoSlots
+          <PhotoCapture
             previewUrls={previewUrls}
             photoCount={photos.length}
             maxPhotos={MAX_PHOTOS}
@@ -736,40 +720,8 @@ export function AddPage() {
               </div>
             )}
 
-            {/* Metadata grid */}
+            {/* Metadata grid — Collection/Location are in the session strip above */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Collection</label>
-                <select
-                  value={draft.collection_id}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setDraft((d) => ({ ...d, collection_id: id }));
-                    setSessionCollectionId(id);
-                    void persistPreferredCollection(id);
-                  }}
-                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                >
-                  <option value="">None</option>
-                  {collections.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Location</label>
-                <select
-                  value={draft.location_id}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setDraft((d) => ({ ...d, location_id: id }));
-                    setSessionLocationId(id);
-                    void persistPreferredLocation(id);
-                  }}
-                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                >
-                  <option value="">None</option>
-                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
               <div>
                 <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Status</label>
                 <select
