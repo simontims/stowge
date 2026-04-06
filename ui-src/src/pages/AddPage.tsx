@@ -358,7 +358,7 @@ export function AddPage() {
       status: "draft",
       quantity: 1,
     }));
-    setDescExpanded(false);
+    setDescExpanded(true);
     setMode("review");
   }
 
