@@ -74,6 +74,7 @@ interface PartDraft {
   collection_id: string;
   location_id: string;
   status: "draft" | "confirmed";
+  quantity: number;
 }
 
 type ScanFlowMode = "input" | "review";
@@ -171,6 +172,7 @@ export function AddPage() {
     collection_id: "",
     location_id: "",
     status: "draft",
+    quantity: 1,
   });
   const [collections, setCollections] = useState<CollectionOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -247,6 +249,7 @@ export function AddPage() {
       collection_id: preferredCollectionId,
       location_id: "",
       status: "draft",
+      quantity: 1,
     });
     setSaveError("");
     setSubmitError("");
@@ -317,6 +320,7 @@ export function AddPage() {
       collection_id: preferredCollectionId,
       location_id: "",
       status: "draft",
+      quantity: 1,
     });
   }
 
@@ -336,6 +340,7 @@ export function AddPage() {
       name: "",
       description: "",
       status: "draft",
+      quantity: 1,
     }));
     setMode("review");
   }
@@ -509,6 +514,7 @@ export function AddPage() {
         description: draft.description,
         collection: collections.find((cat) => cat.id === draft.collection_id)?.name || null,
         status: draft.status,
+        quantity: draft.quantity,
         ai_primary: identifyData?.ai || selectedCandidate || null,
         ai_alternatives: identifyData && candidates.length > 1 ? { candidates: candidates.slice(1) } : null,
         ai_chosen_index: identifyData && candidates.length > 0 ? selectedIndex : null,
@@ -744,7 +750,7 @@ export function AddPage() {
                   />
                 </div>
 
-                <div className="grid sm:grid-cols-3 gap-3">
+                <div className="grid sm:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
                       Collection
@@ -807,6 +813,24 @@ export function AddPage() {
                       <option value="draft">draft</option>
                       <option value="confirmed">confirmed</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">
+                      Quantity
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={draft.quantity}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          quantity: Math.max(1, parseInt(e.target.value) || 1),
+                        }))
+                      }
+                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    />
                   </div>
                 </div>
 

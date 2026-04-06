@@ -28,6 +28,7 @@ class Part(Base):
     description = Column(Text, nullable=True)
     collection = Column(String, nullable=True)
     status = Column(String, nullable=False, default="draft")  # draft|confirmed
+    quantity = Column(Integer, nullable=False, default=1)
     location_id = Column(String, ForeignKey("locations.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
