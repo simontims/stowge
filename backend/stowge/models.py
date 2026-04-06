@@ -17,6 +17,7 @@ class User(Base):
     role = Column(String, nullable=False, default="admin")  # admin|user
     theme = Column(String, nullable=False, default="dark")  # dark|light
     preferred_add_collection_id = Column(String, nullable=True)
+    preferred_add_location_id = Column(String, nullable=True)
     last_open_collection = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
