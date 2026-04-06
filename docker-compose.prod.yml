@@ -1,28 +1,20 @@
 services:
   stowge:
-    # Pull prebuilt image from Docker Hub.
     image: simontims/stowge:latest
     container_name: stowge
-
-    # Self-contained runtime configuration.
-    # Override values with shell environment variables in your deployment pipeline if needed.
     environment:
-      # App data
       DATABASE_DIR: /data
       ASSETS_DIR: /assets
 
-      # Auth
-      # IMPORTANT: Set a strong random secret in production.
-      IMAGE_URL_SECRET: ${IMAGE_URL_SECRET:-change_me_to_a_long_random_string}
+      # Iet a strong random secret in production.
+      IMAGE_URL_SECRET: "change_me_to_a_long_random_string"
       # SESSION_LIFETIME_MINUTES: "1440"    # default: 24 h
       SESSION_COOKIE_SECURE: "true"         # served over HTTPS in production
 
-      # Leave blank when UI is served by this same container.
-      # Set when hosting UI from another origin (comma-separated list).
+      # Leave blank when UI is served by this same container,
+      # set when hosting UI from another origin (comma-separated list).
       CORS_ORIGINS: "${CORS_ORIGINS:-}"
 
-    # Bind host folders for persistence.
-    # Adjust these paths to your server before running.
     volumes:
       - /mnt/data/docker/stowge/assets:/assets
       - /mnt/data/docker/stowge/data:/data
@@ -31,9 +23,7 @@ services:
     ports:
       - "18090:8000"
 
-    # Keep running unless explicitly stopped.
     restart: unless-stopped
-
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 30s
