@@ -129,6 +129,8 @@ export function ItemsPage() {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
 
+  const [collectionsLoaded, setCollectionsLoaded] = useState(false);
+
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
@@ -154,6 +156,16 @@ export function ItemsPage() {
     () => collectionOptions.find((option) => option.name === collectionFilter) ?? null,
     [collectionFilter, collectionOptions]
   );
+
+  // Redirect to /collections if the ?collection= param doesn't match any known collection.
+  // __none is a valid virtual filter (uncollected items) and is exempt.
+  useEffect(() => {
+    if (!collectionsLoaded) return;
+    if (!collectionFilter || collectionFilter === "__none") return;
+    if (activeCollectionOption === null) {
+      navigate("/collections");
+    }
+  }, [collectionsLoaded, collectionFilter, activeCollectionOption, navigate]);
 
   const collectionFilterSavedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -243,6 +255,8 @@ export function ItemsPage() {
       setCollectionOptions(data || []);
     } catch {
       setCollectionOptions([]);
+    } finally {
+      setCollectionsLoaded(true);
     }
   }
 
