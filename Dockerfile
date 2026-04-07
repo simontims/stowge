@@ -19,7 +19,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # System deps (Pillow, bcrypt, curl for healthcheck)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libjpeg-dev \
     zlib1g-dev \
