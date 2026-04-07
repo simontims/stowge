@@ -8,6 +8,9 @@ interface LoginPageProps {
 
 type Mode = "checking" | "setup" | "login";
 
+const INPUT_CLS =
+  "w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors";
+
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [mode, setMode] = useState<Mode>("checking");
   const [email, setEmail] = useState("");
@@ -98,20 +101,21 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white font-bold text-xl select-none">
-            S
-          </div>
+          <img src="/stowgeLogoOptimized.webp" alt="Stowge" className="w-36 h-36 select-none" />
           <h1 className="text-lg font-semibold text-neutral-100">Stowge</h1>
         </div>
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6">
           <h2 className="text-sm font-semibold text-neutral-100 mb-1">
-            {mode === "setup" ? "Create admin account" : "Sign in"}
+            {mode === "setup" ? "Welcome to Stowge" : "Sign in"}
           </h2>
           <p className="text-xs text-neutral-500 mb-5">
-            {mode === "setup"
-              ? "First-run setup — create your administrator account."
-              : "Enter your credentials to access Stowge."}
+            {mode === "setup" ? (
+              <>
+                Create your first user.<br />
+                You&apos;ll have full access. Roles can be changed later.
+              </>
+            ) : "Enter your credentials to access Stowge."}
           </p>
 
           <form
@@ -129,7 +133,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                     value={firstname}
                     onChange={(e) => setFirstname(e.target.value)}
                     autoComplete="given-name"
-                    className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors"
+                    className={INPUT_CLS}
                   />
                 </label>
                 <label className="block">
@@ -140,7 +144,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                     value={lastname}
                     onChange={(e) => setLastname(e.target.value)}
                     autoComplete="family-name"
-                    className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors"
+                    className={INPUT_CLS}
                   />
                 </label>
               </div>
@@ -156,7 +160,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 autoComplete="username email"
                 required
                 placeholder="you@example.com"
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors"
+                className={INPUT_CLS}
               />
             </label>
 
@@ -172,7 +176,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   mode === "setup" ? "new-password" : "current-password"
                 }
                 required
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors"
+                className={INPUT_CLS}
               />
             </label>
 
@@ -187,7 +191,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(e) => setConfirm(e.target.value)}
                   autoComplete="new-password"
                   required
-                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors"
+                  className={INPUT_CLS}
                 />
               </label>
             )}
