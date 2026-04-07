@@ -6,6 +6,7 @@ _dev_data/
 assets/
 *.pid
 *.db
+*.db.bak
 *.db-shm
 *.db-wal
 
