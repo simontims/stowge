@@ -29,23 +29,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-import logging
-
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
-
-# When LOG_HTTP is not set, suppress routine 200/304 access log lines so the
-# terminal stays readable in production. Set LOG_HTTP=1 (done automatically by
-# run.ps1 / run.sh) to restore full uvicorn access logs for local dev.
-if not os.getenv("LOG_HTTP"):
-    class _QuietAccessFilter(logging.Filter):
-        def filter(self, record: logging.LogRecord) -> bool:
-            msg = record.getMessage()
-            # Keep anything that isn't a successful read-only request
-            return not (' 200 ' in msg or ' 304 ' in msg)
-
-    logging.getLogger("uvicorn.access").addFilter(_QuietAccessFilter())
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 AI_PROVIDER_META: dict[str, dict[str, str]] = {
