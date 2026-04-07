@@ -309,11 +309,9 @@ else
 fi
 
 step "Starting Stowge at http://localhost:18090"
-# Enable full HTTP access logs for local dev runs
-export LOG_HTTP=1
 pushd "$backend_dir" >/dev/null
 
-uvicorn_args=("-m" "uvicorn" "stowge.main:app" "--host" "0.0.0.0" "--port" "18090")
+uvicorn_args=("-m" "uvicorn" "stowge.main:app" "--host" "0.0.0.0" "--port" "18090" "--access-log")
 if [[ $RELOAD -eq 1 ]]; then
   uvicorn_args+=("--reload")
 fi

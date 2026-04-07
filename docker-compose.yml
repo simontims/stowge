@@ -22,9 +22,8 @@ services:
       # Set when hosting UI from another origin.
       CORS_ORIGINS: "${CORS_ORIGINS:-}"
 
-      # Uncomment to enable full HTTP access logs (200s, 304s, etc.).
-      # By default only errors and mutating requests are logged.
-      # LOG_HTTP: "1"
+      # Uncomment to enable full HTTP access logs.
+      # LOG_HTTP: "true"
 
     # Named Docker volumes keep data between container restarts.
     volumes:

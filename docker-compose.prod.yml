@@ -15,9 +15,8 @@ services:
       # set when hosting UI from another origin (comma-separated list).
       CORS_ORIGINS: "${CORS_ORIGINS:-}"
 
-      # Uncomment to enable full HTTP access logs (200s, 304s, etc.).
-      # By default only errors and mutating requests are logged.
-      # LOG_HTTP: "1"
+      # Uncomment to enable full HTTP access logs.
+      # LOG_HTTP: "true"
 
     volumes:
       - /mnt/data/docker/stowge/assets:/assets

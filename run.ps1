@@ -292,12 +292,10 @@ else {
 }
 
 Write-Step "Starting Stowge at http://localhost:18090"
-# Enable full HTTP access logs for local dev runs
-[Environment]::SetEnvironmentVariable("LOG_HTTP", "1", "Process")
 
 Push-Location $backendDir
 try {
-    $uvicornArgs = @("-m", "uvicorn", "stowge.main:app", "--host", "0.0.0.0", "--port", "18090")
+    $uvicornArgs = @("-m", "uvicorn", "stowge.main:app", "--host", "0.0.0.0", "--port", "18090", "--access-log")
     if ($Reload) {
         $uvicornArgs += "--reload"
     }
