@@ -11,6 +11,10 @@ on:
         description: Push image to registry
         type: boolean
         default: true
+      multiarch:
+        description: Build for linux/amd64 and linux/arm64 (slow); if false, amd64 only
+        type: boolean
+        default: false
     secrets:
       DOCKER_USERNAME:
         description: Docker username (required if push is true)
@@ -29,6 +33,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup QEMU
+        if: ${{ inputs.multiarch == true }}
         uses: docker/setup-qemu-action@v4
 
       - name: Setup Docker Buildx
@@ -68,6 +73,6 @@ jobs:
         with:
           push: ${{ inputs.push }}
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ inputs.multiarch == true && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: ${{ steps.docker-metadata.outputs.tags }}
           labels: ${{ steps.docker-metadata.outputs.labels }}
