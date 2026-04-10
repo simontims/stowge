@@ -162,13 +162,13 @@ function Test-UiBuildRequired {
     return $latestSourceTime -gt $latestOutputTime
 }
 
-$repoRoot = $PSScriptRoot
-$backendDir = Join-Path $repoRoot "backend"
-$venvDir = Join-Path $backendDir ".venv"
+$repoRoot = Split-Path $PSScriptRoot -Parent
+$apiDir = Join-Path $repoRoot "api"
+$venvDir = Join-Path $apiDir ".venv"
 $pythonExe = Join-Path $venvDir "Scripts\python.exe"
-$requirementsFile = Join-Path $backendDir "requirements.txt"
-$uiSrcDir = Join-Path $repoRoot "ui-src"
-$uiOutDir = Join-Path $repoRoot "ui"
+$requirementsFile = Join-Path $apiDir "requirements.txt"
+$uiSrcDir = Join-Path $repoRoot "ui"
+$uiOutDir = Join-Path $repoRoot "ui\dist"
 $assetsDir = Join-Path $repoRoot "assets"
 $dataDir = Join-Path $repoRoot "data"
 $dbFile = Join-Path $dataDir "stowge.db"
@@ -213,7 +213,7 @@ if (-not (Get-Command "py" -ErrorAction SilentlyContinue) -and -not (Get-Command
 }
 
 if (-not (Test-Path $venvDir)) {
-    Write-Step "Creating backend virtual environment"
+    Write-Step "Creating API virtual environment"
     if (Get-Command "py" -ErrorAction SilentlyContinue) {
         & py -3 -m venv $venvDir
     }
@@ -223,7 +223,7 @@ if (-not (Test-Path $venvDir)) {
 }
 
 if (-not $SkipInstall) {
-    Write-Step "Installing backend dependencies"
+    Write-Step "Installing API dependencies"
     Invoke-PipFiltered -PythonExe $pythonExe -PipArgs @("install", "--upgrade", "pip")
     Invoke-PipFiltered -PythonExe $pythonExe -PipArgs @("install", "-r", $requirementsFile)
 }
@@ -293,7 +293,7 @@ else {
 
 Write-Step "Starting Stowge at http://localhost:18090"
 
-Push-Location $backendDir
+Push-Location $apiDir
 try {
     $uvicornArgs = @("-m", "uvicorn", "stowge.main:app", "--host", "0.0.0.0", "--port", "18090", "--access-log")
     if ($Reload) {

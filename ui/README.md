@@ -5,20 +5,21 @@ React + TypeScript + Tailwind CSS front-end for the Stowge inventory app.
 ## Quick start
 
 ```bash
-cd ui-src
+cd ui
 npm install
-npm run dev       # http://localhost:5173
+npm run dev       # http://localhost:5173 (proxies /api to :18090)
 ```
 
-## Build for production (outputs to ../ui/)
+Run the api first (`./scripts/run.sh --skip-ui-build`) so the Vite proxy has something to talk to.
+
+## Build for production (outputs to dist/)
 
 ```bash
 npm run build
 ```
 
-The Vite config sets `outDir: "../ui"`, so the compiled bundle replaces the
-vanilla-JS files the FastAPI backend already serves.  After building, a normal
-`docker compose up --build` picks up the new UI automatically.
+The Vite config sets `outDir: "./dist"`, so the compiled bundle lands in `ui/dist/`.
+The api serves this via the `UI_DIR` env var. `docker compose up --build` picks up the new UI automatically.
 
 ## Structure
 

@@ -5,5 +5,5 @@ __pycache__
 .env
 .env.*
 _dev_data
-node_modules
-dist
+ui/node_modules
+ui/dist

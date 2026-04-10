@@ -1,13 +1,13 @@
-FROM node:20-alpine AS ui_builder
+FROM node:24-alpine AS ui_builder
 
-WORKDIR /ui-src
+WORKDIR /ui
 
 # Install front-end dependencies first for better layer caching.
-COPY ui-src/package*.json ./
+COPY ui/package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Build React app to a local dist directory inside this stage.
-COPY ui-src/ ./
+COPY ui/ ./
 RUN npx tsc && npx vite build --outDir dist
 
 FROM python:3.12-slim
@@ -20,21 +20,21 @@ WORKDIR /app
 
 # System deps (Pillow, bcrypt, curl for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libjpeg-dev \
-    zlib1g-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+  build-essential \
+  libjpeg-dev \
+  zlib1g-dev \
+  curl \
+  && rm -rf /var/lib/apt/lists/*
 
 # Python deps first (layer caching)
-COPY backend/requirements.txt /app/requirements.txt
+COPY api/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # App code
-COPY backend/stowge /app/stowge
+COPY api/stowge /app/stowge
 
 # Front-end static files from the React build stage.
-COPY --from=ui_builder /ui-src/dist /app/ui
+COPY --from=ui_builder /ui/dist /app/ui
 
 # Default paths
 ENV ASSETS_DIR=/assets

@@ -4,11 +4,11 @@ This document is the working architecture reference for Stowge. It captures how 
 
 ## 1. Project Structure
 
-Stowge is a monorepo containing a FastAPI backend, a React frontend source tree, and generated frontend build artifacts.
+Stowge is a monorepo containing a FastAPI api and a React frontend.
 
 ```
 stowge/
-├── backend/
+├── api/
 │   ├── requirements.txt
 │   └── stowge/
 │       ├── main.py              # FastAPI app and routes
@@ -18,20 +18,24 @@ stowge/
 │       ├── images.py            # Image processing and storage helpers
 │       ├── image_signing.py     # Signed image URL generation/verification
 │       └── openai_id.py         # AI identify prompt/adapter layer
-├── ui-src/
+├── ui/                          # React/TypeScript frontend source
 │   ├── package.json
+│   ├── vite.config.ts
 │   ├── src/
 │   │   ├── pages/               # Route pages (Add, Items, Locations, etc.)
 │   │   ├── components/          # Reusable UI pieces
 │   │   ├── lib/api.ts           # Frontend API utility
 │   │   └── config/nav.ts        # Navigation configuration
-│   └── public/
-├── ui/                          # Built frontend assets served by backend
+│   ├── public/
+│   └── dist/                    # Build output (gitignored) — served by api
+├── scripts/
+│   ├── run.sh                   # Unix/macOS dev launcher
+│   ├── run.ps1                  # Windows PowerShell dev launcher
+│   └── run.cmd                  # Windows CMD launcher
 ├── data/                        # Runtime data volume (DB and app state)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
-├── run.ps1 / run.sh / run.cmd
 ├── README.md
 └── ARCHITECTURE.md
 ```
@@ -59,7 +63,7 @@ stowge/
 - Name: Stowge Web UI (PWA-capable)
 - Description: Main user interface for authentication, inventory management, Add Item workflows (AI-assisted and manual), collections, locations, users, and AI settings.
 - Technologies: React, TypeScript, Vite, Tailwind-style utility CSS, lucide-react icons.
-- Runtime/Deployment: Built in ui-src, output to ui, served by backend as static files.
+- Runtime/Deployment: Source in `ui/`, builds to `ui/dist/`, served by api as static files.
 
 ### 3.2 Backend API Service
 
@@ -97,7 +101,7 @@ stowge/
 
 - AI Providers (OpenAI-compatible endpoints)
 	- Purpose: Item photo identification and candidate generation.
-	- Integration method: HTTPS REST requests via backend.
+	- Integration method: HTTPS REST requests via api.
 	- Supported provider metadata includes OpenAI, Anthropic, Gemini, Azure OpenAI, Groq, Mistral, xAI, and OpenRouter.
 
 ## 6. API Design (Current)
@@ -144,14 +148,15 @@ stowge/
 
 ### 8.1 Local Development
 
-- Quick start scripts: run.ps1, run.sh, run.cmd
+- Quick start scripts: scripts/run.sh, scripts/run.ps1, scripts/run.cmd
 - Compose support: docker-compose.yml
-- Frontend development/build source: ui-src
-- Backend app code: backend/stowge
+- Frontend dev: `cd ui && npm run dev` (Vite proxy to :18090 for API calls)
+- Frontend source: ui/ → builds to ui/dist/
+- Backend app code: api/stowge
 
 ### 8.2 Production-Oriented Deployment
 
-- Dockerfile builds frontend and backend into one deployable image.
+- Dockerfile builds frontend and api into one deployable image.
 - Compose prod workflow: docker-compose.prod.yml
 - Container image published to Docker Hub: simontims/stowge
 
@@ -263,6 +268,6 @@ For future user-managed API keys for scripts and automation.
 ## 13. Glossary
 
 - Collection: Domain grouping for items (for example Electronic Parts, Sailing Gear, Houseplants).
-- Item: Inventory record; represented by Part model/table in backend.
+- Item: Inventory record; represented by Part model/table in api.
 - Identify: AI-assisted suggestion flow based on uploaded photos.
 - Stored Image: Persisted image variant set attached to an item after save.
