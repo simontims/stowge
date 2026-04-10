@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Brain,
   Camera,
-  ChevronDown,
-  ChevronUp,
   Loader2,
   Save,
   Upload,
@@ -192,7 +190,6 @@ export function AddPage() {
   const [saveError, setSaveError] = useState("");
   const [notice, setNotice] = useState<string>("");
   const [mode, setMode] = useState<ScanFlowMode>("input");
-  const [descExpanded, setDescExpanded] = useState(false);
 
   const [llmOptions, setLlmOptions] = useState<LlmOption[]>([]);
   const [selectedLlmId, setSelectedLlmId] = useState<string>("");
@@ -262,7 +259,6 @@ export function AddPage() {
       status: "draft",
       quantity: 1,
     });
-    setDescExpanded(false);
     setSaveError("");
     setSubmitError("");
     setSubmitErrorDetail("");
@@ -362,7 +358,6 @@ export function AddPage() {
       status: "draft",
       quantity: 1,
     }));
-    setDescExpanded(true);
     setMode("review");
   }
 
@@ -699,25 +694,16 @@ export function AddPage() {
               />
             </div>
 
-            {/* Description — collapsed on mobile */}
+            {/* Description */}
             <div>
-              <button
-                type="button"
-                onClick={() => setDescExpanded((v) => !v)}
-                className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 mb-1 transition-colors"
-              >
-                {descExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                {descExpanded ? "Hide description" : "Add description"}
-              </button>
-              {descExpanded && (
-                <textarea
-                  rows={3}
-                  value={draft.description}
-                  onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                  placeholder="Optional notes"
-                />
-              )}
+              <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Description</label>
+              <textarea
+                rows={3}
+                value={draft.description}
+                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                placeholder="Optional notes"
+              />
             </div>
 
             {/* Evidence from AI */}
