@@ -1,5 +1,7 @@
 # Stowge
 
+*Pronounced /ˈstoʊɪdʒ/ — rhymes with "stowage"*
+
 Easy inventory with a brilliant user experience and AI-assist
 
 - Self-hosted with Docker

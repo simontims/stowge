@@ -26,7 +26,11 @@
 }
 
 :root[data-theme="light"] .bg-neutral-800 {
-  background-color: rgb(241 245 249) !important;
+  background-color: rgb(219 234 254) !important; /* blue-100 */
+}
+
+:root[data-theme="light"] .bg-neutral-800\/80 {
+  background-color: rgb(219 234 254) !important; /* blue-100 */
 }
 
 :root[data-theme="light"] .bg-neutral-700 {
@@ -101,6 +105,12 @@
 /* Tab bar active indicator — neutral-100 is near-white (invisible on light bg) */
 :root[data-theme="light"] .border-neutral-100 {
   border-color: rgb(17 24 39) !important;
+}
+
+/* Connection lost spinner — border-neutral-700 override wipes border-t color, so restore it */
+:root[data-theme="light"] .connection-lost-spinner {
+  border-color: rgb(203 213 225) !important; /* slate-300 */
+  border-top-color: #0284c7 !important; /* sky-600 */
 }
 
 /* Table section backgrounds (thead/tfoot use bg-neutral-950/50 which has no light override) */

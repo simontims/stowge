@@ -173,7 +173,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Status" description="Collection storage metrics" />
+      <PageHeader title="Status" />
 
       {loadError && !metricsLoading && (
         <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200">
@@ -216,7 +216,7 @@ export function DashboardPage() {
                 onClick={() => navigate("/items?collection=__none")}
               >
                 <td className="px-4 py-3">
-                  <span className="flex items-center gap-2 text-neutral-500">
+                  <span className="flex items-center gap-2">
                     <Tag size={15} />
                     No collection
                   </span>
