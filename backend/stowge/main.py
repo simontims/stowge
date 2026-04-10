@@ -5,7 +5,7 @@ import asyncio
 import re
 from threading import Lock
 from datetime import datetime, timezone
-from typing import Any, Optional, Literal, List
+from typing import Optional, Literal, List
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse
@@ -14,8 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text, func
 
-from .db import engine, Base, get_db
-from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings, UserSession
+from .db import engine, Base, get_db, DATABASE_FILE
+from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
 from .auth import (
     hash_password, verify_password, create_session, delete_session,
     current_user, require_admin,
@@ -737,7 +737,7 @@ def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requ
 def vacuum_database(me: User = Depends(require_admin)):
     """Run VACUUM, ANALYZE, and PRAGMA optimize on the SQLite database."""
     import sqlite3 as _sqlite3
-    db_file = db.DATABASE_FILE
+    db_file = DATABASE_FILE
     if not db_file or not db_file.endswith(".db"):
         raise HTTPException(status_code=400, detail="VACUUM is only supported for SQLite databases")
     try:

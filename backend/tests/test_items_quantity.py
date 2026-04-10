@@ -11,7 +11,6 @@ Covers:
   - PATCH /api/items/{id}  — quantity < 1 rejected with 400
   - PATCH /api/items/{id}  — non-integer quantity rejected with 400
 """
-import pytest
 from fastapi.testclient import TestClient
 
 from stowge.auth import SESSION_COOKIE_NAME, create_session

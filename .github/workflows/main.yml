@@ -17,7 +17,7 @@ jobs:
     uses: ./.github/workflows/_docker.yml
     with:
       images: ${{ vars.DOCKER_IMAGES }}
-      push: false
+      push: true
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
