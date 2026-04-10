@@ -54,13 +54,13 @@ Visit the Collections and Locations area and experiment
 From the repository root:
 
 ```powershell
-.\run.ps1
+.\scripts\run.ps1
 ```
 
 Or with CMD:
 
 ```bat
-run.cmd
+scripts\run.cmd
 ```
 
 Optional flags:
@@ -73,8 +73,8 @@ Optional flags:
 From the repository root:
 
 ```bash
-chmod +x ./run.sh
-./run.sh
+chmod +x ./scripts/run.sh
+./scripts/run.sh
 ```
 
 Optional flags:
@@ -82,6 +82,19 @@ Optional flags:
 - `--skip-ui-build` to skip UI build
 - `--reload` to run uvicorn with auto-reload
 - `--fresh-setup` to reset local `data/stowge.db` so first-run admin setup is shown again
+
+### Frontend hot-reload dev
+Run the api and frontend separately for hot-reload:
+
+```bash
+# Terminal 1 — api
+./scripts/run.sh --skip-ui-build
+
+# Terminal 2 — frontend (proxies /api to :18090)
+cd ui && npm run dev
+```
+
+Then open: http://localhost:5173/
 
 ### Cross-platform Docker dev
 ```bash
@@ -92,7 +105,7 @@ Then open: http://localhost:18090/
 The local run scripts automatically:
 - create a default `.env` if missing
 - generate `JWT_SECRET` if it is missing, placeholder, or too short
-- create `backend/.venv` if missing
-- install backend dependencies
-- install/build UI from `ui-src` to `ui`
+- create `api/.venv` if missing
+- install api dependencies
+- install/build UI from `ui/` to `ui/dist`
 - start FastAPI on `http://localhost:18090`

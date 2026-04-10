@@ -10,13 +10,16 @@ assets/
 *.db-shm
 *.db-wal
 
+# Build output
+ui/dist/
+
 # Dependencies
 node_modules/
-ui-src/node_modules/
+ui/node_modules/
 .venv/
-backend/.venv/
+api/.venv/
 venv/
-backend/venv/
+api/venv/
 
 # Python bytecode/cache
 __pycache__/

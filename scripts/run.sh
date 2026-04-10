@@ -185,13 +185,13 @@ raise SystemExit(0 if src_latest > out_latest else 1)
 PY
 }
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-backend_dir="$repo_root/backend"
-venv_dir="$backend_dir/.venv"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+api_dir="$repo_root/api"
+venv_dir="$api_dir/.venv"
 python_exe="$venv_dir/bin/python"
-requirements_file="$backend_dir/requirements.txt"
-ui_src_dir="$repo_root/ui-src"
-ui_out_dir="$repo_root/ui"
+requirements_file="$api_dir/requirements.txt"
+ui_src_dir="$repo_root/ui"
+ui_out_dir="$repo_root/ui/dist"
 assets_dir="$repo_root/assets"
 data_dir="$repo_root/data"
 db_file="$data_dir/stowge.db"
@@ -232,7 +232,7 @@ if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; 
 fi
 
 if [[ ! -d "$venv_dir" ]]; then
-  step "Creating backend virtual environment"
+  step "Creating API virtual environment"
   if command -v python3 >/dev/null 2>&1; then
     python3 -m venv "$venv_dir"
   else
@@ -246,7 +246,7 @@ if [[ ! -x "$python_exe" ]]; then
 fi
 
 if [[ $SKIP_INSTALL -eq 0 ]]; then
-  step "Installing backend dependencies"
+  step "Installing API dependencies"
   invoke_pip_filtered "$python_exe" install --upgrade pip
   invoke_pip_filtered "$python_exe" install -r "$requirements_file"
 fi
@@ -309,7 +309,7 @@ else
 fi
 
 step "Starting Stowge at http://localhost:18090"
-pushd "$backend_dir" >/dev/null
+pushd "$api_dir" >/dev/null
 
 uvicorn_args=("-m" "uvicorn" "stowge.main:app" "--host" "0.0.0.0" "--port" "18090" "--access-log")
 if [[ $RELOAD -eq 1 ]]; then
