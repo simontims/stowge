@@ -1,0 +1,19 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/_ci.yml
+
+  docker:
+    name: Docker
+    needs: ci
+    uses: ./.github/workflows/_docker.yml
+    with:
+      images: ${{ vars.DOCKER_IMAGES }}
+      push: false
