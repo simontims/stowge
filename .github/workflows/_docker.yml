@@ -1,0 +1,73 @@
+name: Docker
+
+on:
+  workflow_call:
+    inputs:
+      images:
+        description: Docker image names (e.g., user/app)
+        type: string
+        required: true
+      push:
+        description: Push image to registry
+        type: boolean
+        default: true
+    secrets:
+      DOCKER_USERNAME:
+        description: Docker username (required if push is true)
+      DOCKER_PASSWORD:
+        description: Docker password (required if push is true)
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v4
+        with:
+          versionSpec: '6.x'
+
+      - name: GitVersion
+        uses: gittools/actions/gitversion/execute@v4
+        with:
+          disableNormalization: true
+
+      - name: Docker Login
+        if: ${{ inputs.push == true }}
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker Metadata
+        id: docker-metadata
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ inputs.images }}
+          tags: |
+            type=edge,enable={{is_default_branch}}
+            type=sha,enable={{is_default_branch}}
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}}
+
+      - name: Docker Build
+        uses: docker/build-push-action@v7
+        with:
+          push: ${{ inputs.push }}
+          context: .
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.docker-metadata.outputs.tags }}
+          labels: ${{ steps.docker-metadata.outputs.labels }}

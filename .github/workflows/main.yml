@@ -1,0 +1,23 @@
+name: Main
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/_ci.yml
+
+  docker:
+    name: Docker
+    needs: ci
+    uses: ./.github/workflows/_docker.yml
+    with:
+      images: ${{ vars.DOCKER_IMAGES }}
+      push: false
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}

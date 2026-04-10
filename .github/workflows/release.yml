@@ -1,0 +1,19 @@
+name: Tag
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+
+  workflow_dispatch:
+
+jobs:
+  docker:
+    name: Docker
+    uses: ./.github/workflows/_docker.yml
+    with:
+      images: ${{ vars.DOCKER_IMAGES }}
+      push: true
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
