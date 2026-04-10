@@ -32,6 +32,9 @@ They might be in the same place, or you might use a local M.2 drive for the data
 ### 2) Copy the compose file and edit for your use
 https://github.com/simontims/stowge/blob/main/docker-compose.prod.yml
 
+The compose file uses the `simontims/stowge` image. Two tags are available:
+- `:latest` — latest stable release (recommended)
+- `:edge` — latest commit on `main`, built automatically on every push
 
 Set `IMAGE_URL_SECRET` in the compose file to a strong random secret.
 The other settings should be self-explanatory.
