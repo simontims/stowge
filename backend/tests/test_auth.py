@@ -17,7 +17,6 @@ directly, so they never hit the rate-limiter on /api/login.
 """
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
