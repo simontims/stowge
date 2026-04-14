@@ -2,28 +2,30 @@
 
 *Pronounced /ˈstoʊɪdʒ/ — rhymes with "stowage"*
 
-Easy inventory with a brilliant user experience and AI-assist
+Inventory with a fast, simple user experience and optional AI-assist
 
 - Self-hosted with Docker
+- Free and open source
 - No cloud dependencies
 - Mobile and desktop friendly
-- Add items quickly, photo first from mobile with AI assist, or add items slowly and old-skool, you do you
+- Add items quickly, photo first from mobile with AI assist
+    - or add items slowly and old-skool, you do you
 
 Unlimited custom collections
 - Electronic parts (the original inspiration)
 - Arts and Craft bits
 - Big household items for insurance listings
 - LEGO Minifigs
+- Packing for moving house or vacations
 - RC car spare parts
 - Artisan keyboard keycaps
 - Random cables (mystery box of 'probably important someday')
 
 Unlimited custom locations
-- Garge 
 - Garage
 - Shed
 - Loft
-- Box 7 under the spare bed
+- Box #7 under the spare bed
 
 
 ## Quick Start (Docker host)
@@ -31,7 +33,7 @@ Unlimited custom locations
 You'll need a location for the database and another to save the asset files (only photos right now).
 They might be in the same place, or you might use a local M.2 drive for the database and a remote NAS path for the images.
 
-### 2) Copy the compose file and edit for your use
+### 2) Copy the compose file, edit for your use and start your container
 https://github.com/simontims/stowge/blob/main/docker-compose.prod.yml
 
 The compose file uses the `simontims/stowge` image. Two tags are available:
@@ -49,7 +51,7 @@ Go to `System > AI` and add one or more LLM providers/models,
 set API keys, and choose a default model for `Add`.
 
 ### 6) Add Collections and Locations (optional)
-Visit the Collections and Locations area and experiment
+Visit the Collections and Locations areas, and experiment
 
 ### 7) Start adding items!
 
