@@ -38,6 +38,7 @@ export interface PartDetail {
     thumb_url: string;
     display_url: string;
     original_url: string | null;
+    is_primary: boolean;
   }>;
 }
 
@@ -386,6 +387,13 @@ export function ItemsPage() {
 
     setUnsavedPromptOpen(false);
     closeModalNow();
+  }
+
+  async function handleSetPrimaryImage(imageId: string) {
+    if (!selectedPartId) return;
+    await apiRequest(`/api/images/${imageId}/set-primary`, { method: "POST" });
+    const refreshed = await apiRequest<PartDetail>(`/api/items/${selectedPartId}`);
+    setSelectedPart(refreshed);
   }
 
   function handleUnsavedDiscard() {
@@ -799,6 +807,7 @@ export function ItemsPage() {
               confirmDeletePartOpen={confirmDeletePartOpen}
               setConfirmDeletePartOpen={setConfirmDeletePartOpen}
               isMobile={isMobile}
+              onSetPrimaryImage={handleSetPrimaryImage}
             />
           </div>
         )}

@@ -300,6 +300,23 @@ def _run_startup_migrations():
     if "users" not in tables:
         return
 
+    if "images" in tables:
+        image_columns = {c["name"] for c in inspect(engine).get_columns("images")}
+        with engine.begin() as conn:
+            if "is_primary" not in image_columns:
+                conn.execute(text("ALTER TABLE images ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0"))
+                # Backfill: for each part, mark the earliest image as primary.
+                conn.execute(text("""
+                    UPDATE images SET is_primary = 1
+                    WHERE id IN (
+                        SELECT id FROM images AS i1
+                        WHERE i1.created_at = (
+                            SELECT MIN(i2.created_at) FROM images AS i2
+                            WHERE i2.part_id = i1.part_id
+                        )
+                    )
+                """))
+
     if "llm_configs" in tables:
         llm_columns = {c["name"] for c in inspect(engine).get_columns("llm_configs")}
         with engine.begin() as conn:
@@ -1654,7 +1671,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
     db.add(p)
     db.flush()
 
-    for s in stored_images:
+    for idx, s in enumerate(stored_images):
         img = PartImage(
             id=s["id"],
             part_id=p.id,
@@ -1664,6 +1681,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
             mime=s.get("mime") or "image/webp",
             width=s.get("width"),
             height=s.get("height"),
+            is_primary=1 if idx == 0 else 0,
         )
         db.add(img)
 
@@ -1695,7 +1713,10 @@ def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User 
         "status": p.status,
         "quantity": p.quantity if p.quantity is not None else 1,
         "created_at": p.created_at.isoformat(),
-        "thumb": (_signed_image_url(p.images[0].id, "thumb") if p.images else None),
+        "thumb": (_signed_image_url(
+            next((img for img in p.images if img.is_primary), p.images[0]).id,
+            "thumb",
+        ) if p.images else None),
     } for p in parts]
 
 @app.get("/api/parts/{part_id}")
@@ -1727,6 +1748,7 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
             "thumb_url": _signed_image_url(img.id, "thumb"),
             "display_url": _signed_image_url(img.id, "display"),
             "original_url": (_signed_image_url(img.id, "original") if img.path_original else None),
+            "is_primary": bool(img.is_primary),
         } for img in p.images],
         "ai_primary": p.ai_primary,
         "ai_alternatives": p.ai_alternatives,
@@ -1868,6 +1890,22 @@ async def parts_events(
     )
 
 # ---------------- Images ----------------
+
+@app.post("/api/images/{image_id}/set-primary")
+def set_primary_image(
+    image_id: str,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    img = db.query(PartImage).filter(PartImage.id == image_id).first()
+    if not img:
+        raise HTTPException(status_code=404, detail="Not found")
+    # Clear primary on all images for this part, then set on selected.
+    db.query(PartImage).filter(PartImage.part_id == img.part_id).update({"is_primary": 0})
+    img.is_primary = 1
+    db.commit()
+    _publish_inventory_change("updated", img.part_id)
+    return {"ok": True}
 
 @app.get("/api/images/{image_id}/signed")
 def get_signed_image_url(

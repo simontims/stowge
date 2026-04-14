@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Save, Trash2, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import type { PartDetail, PartEditForm, LocationOption, CollectionOption } from "../../pages/ItemsPage";
 
 interface ItemDetailPanelProps {
@@ -19,6 +19,7 @@ interface ItemDetailPanelProps {
   confirmDeletePartOpen: boolean;
   setConfirmDeletePartOpen: (open: boolean) => void;
   isMobile?: boolean;
+  onSetPrimaryImage?: (imageId: string) => Promise<void>;
 }
 
 export function ItemDetailPanel({
@@ -38,12 +39,15 @@ export function ItemDetailPanel({
   confirmDeletePartOpen,
   setConfirmDeletePartOpen,
   isMobile = false,
+  onSetPrimaryImage,
 }: ItemDetailPanelProps) {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [settingPrimary, setSettingPrimary] = useState(false);
 
-  // Reset to first image whenever a different item is selected
+  // Reset to primary image whenever a different item is selected
   useEffect(() => {
-    setActiveImageIdx(0);
+    const primaryIdx = selectedPart?.images.findIndex((img) => img.is_primary) ?? -1;
+    setActiveImageIdx(primaryIdx >= 0 ? primaryIdx : 0);
   }, [selectedPart?.id]);
   return (
     <div
@@ -107,6 +111,30 @@ export function ItemDetailPanel({
                 />
                 {selectedPart.images.length > 1 && (
                   <>
+                    {selectedPart.images[activeImageIdx]?.is_primary ? (
+                      <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/90 text-white text-xs font-medium pointer-events-none">
+                        <Star size={10} fill="currentColor" />
+                        Primary
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          const imgId = selectedPart.images[activeImageIdx]?.id;
+                          if (!imgId || !onSetPrimaryImage || settingPrimary) return;
+                          setSettingPrimary(true);
+                          try {
+                            await onSetPrimaryImage(imgId);
+                          } finally {
+                            setSettingPrimary(false);
+                          }
+                        }}
+                        disabled={settingPrimary}
+                        className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
+                      >
+                        <Star size={10} />
+                        {settingPrimary ? "Setting…" : "Make primary"}
+                      </button>
+                    )}
                     <button
                       onClick={() => setActiveImageIdx((i) => (i - 1 + selectedPart.images.length) % selectedPart.images.length)}
                       className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"

@@ -53,6 +53,7 @@ class PartImage(Base):
     mime = Column(String, nullable=False, default="image/webp")
     width = Column(Integer, nullable=True)
     height = Column(Integer, nullable=True)
+    is_primary = Column(Integer, nullable=False, default=0)  # 0|1
 
     part = relationship("Part", back_populates="images")
 
