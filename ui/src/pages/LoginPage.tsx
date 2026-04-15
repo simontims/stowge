@@ -109,14 +109,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <h2 className="text-sm font-semibold text-neutral-100 mb-1">
             {mode === "setup" ? "Welcome to Stowge" : "Sign in"}
           </h2>
+          {mode === "setup" && (
           <p className="text-xs text-neutral-500 mb-5">
-            {mode === "setup" ? (
-              <>
-                Create your first user.<br />
-                You&apos;ll have full access. Roles can be changed later.
-              </>
-            ) : "Enter your credentials to access Stowge."}
+            <>
+              Create your first user.<br />
+              You&apos;ll have full access. Roles can be changed later.
+            </>
           </p>
+          )}
 
           <form
             onSubmit={(e) => void handleSubmit(e)}
