@@ -37,14 +37,33 @@ They might be in the same place, or you might use a local M.2 drive for the data
 https://github.com/simontims/stowge/blob/main/docker-compose.prod.yml
 
 The compose file uses the `simontims/stowge` image. Two tags are available:
-- `:latest` — latest stable release (recommended)
-- `:edge` — latest commit on `main`, built automatically on every push
+- `:latest` — latest stable release, built for **linux/amd64 and linux/arm64** (recommended)
+- `:edge` — latest commit on `main`, built for **linux/amd64** only
+
+Specific semver tags (e.g. `:1`, `:1.2`, `:1.2.3`) are also published for each release and are multi-arch.
 
 Set `IMAGE_URL_SECRET` in the compose file to a strong random secret.
 The other settings should be self-explanatory.
 
 ### 3) First login
 Visit the UI; on first run you'll be asked to create an admin user and password.
+
+### Recovering admin access
+If you lose access to your admin account, use the `stowge` CLI. You can run it directly from the host (replace `{container-name}` with the name from your compose file):
+
+```bash
+docker exec -it {container-name} stowge reset-password --email admin@example.com
+docker exec -it {container-name} stowge admin create --email admin@example.com
+```
+
+Or from a shell inside the container (`docker exec -it {container-name} bash`):
+
+```bash
+stowge reset-password --email admin@example.com
+stowge admin create --email admin@example.com
+```
+
+You will be prompted to enter and confirm the new password.
 
 ### 5) Configure AI models in app (optional)
 Go to `System > AI` and add one or more LLM providers/models,
