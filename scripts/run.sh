@@ -247,7 +247,6 @@ fi
 
 if [[ $SKIP_INSTALL -eq 0 ]]; then
   step "Installing API dependencies"
-  invoke_pip_filtered "$python_exe" install --upgrade pip
   invoke_pip_filtered "$python_exe" install -r "$requirements_file"
 fi
 

@@ -224,7 +224,6 @@ if (-not (Test-Path $venvDir)) {
 
 if (-not $SkipInstall) {
     Write-Step "Installing API dependencies"
-    Invoke-PipFiltered -PythonExe $pythonExe -PipArgs @("install", "--upgrade", "pip")
     Invoke-PipFiltered -PythonExe $pythonExe -PipArgs @("install", "-r", $requirementsFile)
 }
 
