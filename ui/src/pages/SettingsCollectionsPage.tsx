@@ -147,6 +147,8 @@ function IconPicker({
   const [showAll, setShowAll] = useState(false);
   const [page, setPage] = useState(1);
   const didRevealRef = useRef(false);
+  // Local draft — only committed to parent on explicit Apply/Done
+  const [draftColor, setDraftColor] = useState(color);
 
   // Load catalogue when picker opens (no-op if already cached)
   useEffect(() => {
@@ -194,15 +196,28 @@ function IconPicker({
     setQuery("");
     setShowAll(false);
     setPage(1);
+    // draftColor is intentionally NOT committed here — discard on dismiss
   }
 
   function openPicker() {
+    setDraftColor(color); // snapshot committed colour as draft
     setTab("icon");
     setOpen(true);
   }
 
   function select(name: string) {
     onChange(name);
+    close();
+  }
+
+  function applyColor() {
+    onColorChange(draftColor);
+    close();
+  }
+
+  function removeColor() {
+    setDraftColor("");
+    onColorChange("");
     close();
   }
 
@@ -284,7 +299,7 @@ function IconPicker({
               >
                 <span
                   className="w-3 h-3 rounded-full border border-neutral-600 shrink-0"
-                  style={{ backgroundColor: color || "transparent" }}
+                  style={{ backgroundColor: draftColor || "transparent" }}
                 />
                 Colour
               </button>
@@ -295,21 +310,30 @@ function IconPicker({
               <div className="flex-1 overflow-y-auto flex flex-col items-center gap-3 p-4">
                 <div data-color-mode="dark">
                   <Sketch
-                    color={color || "#60a5fa"}
+                    color={draftColor || "#60a5fa"}
                     disableAlpha
                     presetColors={COLOR_PRESETS}
-                    onChange={(c) => onColorChange(c.hex)}
+                    onChange={(c) => setDraftColor(c.hex)}
                   />
                 </div>
-                {color && (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => onColorChange("")}
-                    className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                    onClick={applyColor}
+                    className="text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-md transition-colors"
                   >
-                    Remove colour
+                    Done
                   </button>
-                )}
+                  {color && (
+                    <button
+                      type="button"
+                      onClick={removeColor}
+                      className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                    >
+                      Remove colour
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
