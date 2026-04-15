@@ -714,7 +714,6 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         }),
       });
       cancelEdit();
-      setNotice("Collection updated.");
       await loadCollections();
       window.dispatchEvent(new Event(COLLECTIONS_NAV_UPDATED_EVENT));
     } catch (err) {
