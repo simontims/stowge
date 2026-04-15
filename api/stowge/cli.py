@@ -41,7 +41,7 @@ def cmd_admin_create(args):
         existing = db.query(User).filter(User.username == email).first()
         if existing:
             print(f"User '{email}' already exists.")
-            print(f"\nPassword can be reset with:")
+            print("\nPassword can be reset with:")
             print(f"  stowge reset-password --email {email}")
             return
 
@@ -62,7 +62,7 @@ def cmd_admin_create(args):
         db.add(user)
         db.commit()
         print(f"Admin user '{email}' created.")
-        print(f"\nPassword can be reset with:")
+        print("\nPassword can be reset with:")
         print(f"  stowge reset-password --email {email}")
     finally:
         db.close()
