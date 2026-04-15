@@ -91,6 +91,7 @@ class Collection(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, unique=True, index=True)
     icon = Column(String, nullable=True)  # lucide icon name, e.g. 'cpu'
+    color = Column(String, nullable=True)  # CSS colour string, e.g. '#60a5fa'
     description = Column(Text, nullable=True)
     ai_hint = Column(Text, nullable=True)
     item_count = Column(Integer, nullable=False, default=0)

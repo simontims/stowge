@@ -19,7 +19,7 @@ function loadCatalogue(): Promise<TablerEntry[]> {
   }
   return _cataloguePromise;
 }
-function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }) {
+function TablerIcon({ name, size = 15, color }: { name?: string | null; size?: number; color?: string | null }) {
   const [entry, setEntry] = useState<TablerEntry | null>(() =>
     name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
   );
@@ -32,13 +32,14 @@ function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }
   }, [name]);
   if (!name || !entry) return <Tag size={size} />;
   const C = entry.component;
-  return <C size={size} stroke={1.5} />;
+  return <C size={size} stroke={1.5} color={color || undefined} />;
 }
 
 interface CollectionNavItem {
   id: string;
   name: string;
   icon: string | null;
+  color: string | null;
 }
 
 interface SidebarProps {
@@ -157,7 +158,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                                 : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
                             )}
                           >
-                            <TablerIcon name={collection.icon} size={14} />
+                            <TablerIcon name={collection.icon} size={14} color={collection.color} />
                             {collection.name}
                           </NavLink>
                         );

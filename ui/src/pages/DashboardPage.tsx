@@ -18,7 +18,7 @@ function loadCatalogue(): Promise<TablerEntry[]> {
   }
   return _cataloguePromise;
 }
-function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }) {
+function TablerIcon({ name, size = 15, color }: { name?: string | null; size?: number; color?: string | null }) {
   const [entry, setEntry] = useState<TablerEntry | null>(() =>
     name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
   );
@@ -31,13 +31,14 @@ function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }
   }, [name]);
   if (!name || !entry) return <Tag size={size} />;
   const C = entry.component;
-  return <C size={size} stroke={1.5} />;
+  return <C size={size} stroke={1.5} color={color || undefined} />;
 }
 
 interface CollectionStatusRow {
   id: string;
   name: string;
   icon: string | null;
+  color: string | null;
   item_count: number;
   asset_count: number;
   disk_bytes: number;
@@ -201,7 +202,7 @@ export function DashboardPage() {
               >
                 <td className="px-4 py-3">
                   <span className="flex items-center gap-2">
-                    <TablerIcon name={row.icon} size={15} />
+                    <TablerIcon name={row.icon} size={15} color={row.color} />
                     {row.name}
                   </span>
                 </td>

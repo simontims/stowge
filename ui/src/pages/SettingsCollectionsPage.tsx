@@ -42,7 +42,7 @@ function loadCatalogue(): Promise<TablerEntry[]> {
 
 /** Renders a Tabler icon by stored name. Falls back to the Lucide Tag icon while
  *  the catalogue chunk loads (first use only; cached thereafter). */
-function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }) {
+function TablerIcon({ name, size = 15, color }: { name?: string | null; size?: number; color?: string | null }) {
   const [entry, setEntry] = useState<TablerEntry | null>(() =>
     name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
   );
@@ -60,7 +60,7 @@ function TablerIcon({ name, size = 15 }: { name?: string | null; size?: number }
   }, [name]);
   if (!name || !entry) return <Tag size={size} />;
   const C = entry.component;
-  return <C size={size} stroke={1.5} />;
+  return <C size={size} stroke={1.5} color={color || undefined} />;
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -68,6 +68,7 @@ interface CollectionRecord {
   id: string;
   name: string;
   icon: string | null;
+  color: string | null;
   description: string | null;
   ai_hint: string | null;
   item_count: number;
@@ -79,11 +80,12 @@ interface CollectionRecord {
 interface CollectionForm {
   name: string;
   icon: string;
+  color: string;
   description: string;
   ai_hint: string;
 }
 
-const EMPTY_FORM: CollectionForm = { name: "", icon: "", description: "", ai_hint: "" };
+const EMPTY_FORM: CollectionForm = { name: "", icon: "", color: "", description: "", ai_hint: "" };
 
 // ── AI Hint help examples ────────────────────────────────────────────────────
 const AI_HINT_EXAMPLES: { label: string; hint: string }[] = [
@@ -122,9 +124,11 @@ const PICKER_PAGE_SIZE = 120;
 function IconPicker({
   value,
   onChange,
+  color,
 }: {
   value: string;
   onChange: (name: string) => void;
+  color?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -189,7 +193,7 @@ function IconPicker({
       >
         {value ? (
           <>
-            <TablerIcon name={value} size={16} />
+            <TablerIcon name={value} size={16} color={color} />
             <span className="text-neutral-400">{value}</span>
           </>
         ) : (
@@ -384,6 +388,65 @@ function AiHintHelp() {
   );
 }
 
+// ── Colour picker ────────────────────────────────────────────────────────────
+const COLOR_PALETTE: { label: string; value: string }[] = [
+  { label: "Red",     value: "#f87171" },
+  { label: "Orange",  value: "#fb923c" },
+  { label: "Amber",   value: "#fbbf24" },
+  { label: "Yellow",  value: "#facc15" },
+  { label: "Lime",    value: "#a3e635" },
+  { label: "Green",   value: "#4ade80" },
+  { label: "Teal",    value: "#2dd4bf" },
+  { label: "Sky",     value: "#38bdf8" },
+  { label: "Blue",    value: "#60a5fa" },
+  { label: "Indigo",  value: "#818cf8" },
+  { label: "Purple",  value: "#c084fc" },
+  { label: "Pink",    value: "#f472b6" },
+  { label: "Slate",   value: "#94a3b8" },
+];
+
+function ColourPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (hex: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {/* None swatch */}
+      <button
+        type="button"
+        onClick={() => onChange("")}
+        title="No colour"
+        className={[
+          "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors bg-neutral-800",
+          value === ""
+            ? "border-neutral-300"
+            : "border-neutral-700 hover:border-neutral-500",
+        ].join(" ")}
+        aria-label="No colour"
+      >
+        <span className="text-neutral-500 text-[10px] font-bold leading-none">–</span>
+      </button>
+      {COLOR_PALETTE.map(({ label, value: hex }) => (
+        <button
+          key={hex}
+          type="button"
+          onClick={() => onChange(hex)}
+          title={label}
+          style={{ backgroundColor: hex }}
+          className={[
+            "w-6 h-6 rounded-full border-2 transition-colors",
+            value === hex ? "border-white scale-110" : "border-transparent hover:border-white/60",
+          ].join(" ")}
+          aria-label={label}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ── Collection form fields (must be top-level so React doesn't remount on parent re-render) ──
 function CollectionFormFields({
   form,
@@ -414,9 +477,15 @@ function CollectionFormFields({
           />
         </label>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
-        <IconPicker value={form.icon} onChange={(name) => onChange({ ...form, icon: name })} />
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+          <IconPicker value={form.icon} onChange={(name) => onChange({ ...form, icon: name })} color={form.color} />
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Colour</span>
+          <ColourPicker value={form.color} onChange={(hex) => onChange({ ...form, color: hex })} />
+        </div>
       </div>
       <label className="block">
         <span className="inline-flex items-center gap-1 text-xs tracking-wide text-neutral-500">
@@ -481,6 +550,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
     () =>
       editForm.name !== initialEditForm.name ||
       editForm.icon !== initialEditForm.icon ||
+      editForm.color !== initialEditForm.color ||
       editForm.description !== initialEditForm.description ||
       editForm.ai_hint !== initialEditForm.ai_hint,
     [editForm, initialEditForm]
@@ -524,6 +594,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
     const snapshot: CollectionForm = {
       name: cat.name,
       icon: cat.icon || "",
+      color: cat.color || "",
       description: cat.description || "",
       ai_hint: cat.ai_hint || "",
     };
@@ -555,6 +626,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         body: JSON.stringify({
           name: newForm.name.trim(),
           icon: newForm.icon || null,
+          color: newForm.color || null,
           description: newForm.description.trim() || null,
           ai_hint: newForm.ai_hint.trim() || null,
         }),
@@ -584,6 +656,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         body: JSON.stringify({
           name: editForm.name.trim(),
           icon: editForm.icon || null,
+          color: editForm.color || null,
           description: editForm.description.trim() || null,
           ai_hint: editForm.ai_hint.trim() || null,
         }),
@@ -695,7 +768,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         className: "w-14",
         render: (row) => (
           <span className="flex items-center justify-center w-8 h-8 rounded border border-neutral-800 bg-neutral-900 text-neutral-400">
-            <TablerIcon name={row.icon} size={15} />
+            <TablerIcon name={row.icon} size={15} color={row.color} />
           </span>
         ),
       },

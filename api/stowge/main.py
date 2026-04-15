@@ -143,6 +143,7 @@ def _serialize_collection(collection: Collection, db: Session) -> dict:
         "id": collection.id,
         "name": collection.name,
         "icon": collection.icon,
+        "color": collection.color,
         "description": collection.description,
         "ai_hint": collection.ai_hint,
         "item_count": item_count,
@@ -261,6 +262,11 @@ def _run_startup_migrations():
         # Rename legacy categories table in-place.
         if "categories" in tables and "collections" not in tables:
             conn.execute(text("ALTER TABLE categories RENAME TO collections"))
+
+        if "collections" in set(inspect(engine).get_table_names()):
+            coll_columns = {c["name"] for c in inspect(engine).get_columns("collections")}
+            if "color" not in coll_columns:
+                conn.execute(text("ALTER TABLE collections ADD COLUMN color VARCHAR NULL"))
 
         # Rename legacy parts.category column to parts.collection.
         parts_columns = set()
@@ -646,6 +652,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
                 "id": collection.id,
                 "name": name,
                 "icon": collection.icon,
+                "color": collection.color,
                 "item_count": item_count,
                 "asset_count": asset_count,
                 "disk_bytes": collection_bytes,
@@ -1152,6 +1159,7 @@ def list_collections(db: Session = Depends(get_db), me: User = Depends(current_u
 def create_collection(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
     name = str(payload.get("name") or "").strip()
     icon = str(payload.get("icon") or "").strip() or None
+    color = str(payload.get("color") or "").strip() or None
     description = str(payload.get("description") or "").strip() or None
     ai_hint = str(payload.get("ai_hint") or "").strip() or None
 
@@ -1162,7 +1170,7 @@ def create_collection(payload: dict, db: Session = Depends(get_db), me: User = D
     if existing:
         raise HTTPException(status_code=400, detail="Collection name already exists")
 
-    collection = Collection(name=name, icon=icon, description=description, ai_hint=ai_hint)
+    collection = Collection(name=name, icon=icon, color=color, description=description, ai_hint=ai_hint)
     db.add(collection)
     db.commit()
     db.refresh(collection)
@@ -1186,6 +1194,9 @@ def update_collection(collection_id: str, payload: dict, db: Session = Depends(g
 
     if "icon" in payload:
         collection.icon = str(payload.get("icon") or "").strip() or None
+
+    if "color" in payload:
+        collection.color = str(payload.get("color") or "").strip() or None
 
     if "description" in payload:
         collection.description = str(payload.get("description") or "").strip() or None
