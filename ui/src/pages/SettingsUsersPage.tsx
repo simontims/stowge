@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Edit3, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowUpDown, Edit3, Plus, Save, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
@@ -55,7 +55,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
-  const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<UserRecord | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addingOpen, setAddingOpen] = useState(false);
   const [sortKey, setSortKey] = useState<UserSortKey>("email");
@@ -122,14 +122,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   useEffect(() => {
     void loadUsers();
   }, []);
-
-  useEffect(() => {
-    if (!armedDeleteId) return;
-    const timeout = setTimeout(() => {
-      setArmedDeleteId((current) => (current === armedDeleteId ? null : current));
-    }, 3000);
-    return () => clearTimeout(timeout);
-  }, [armedDeleteId]);
 
   useEffect(() => {
     if (embedded || !editingId || !isEditDirty) return;
@@ -275,7 +267,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
     setDeletingId(user.id);
     try {
       await apiRequest(`/api/users/${user.id}`, { method: "DELETE" });
-      setArmedDeleteId(null);
+      setConfirmDeleteUser(null);
       setNotice("User deleted.");
       await loadUsers();
     } catch (err) {
@@ -517,7 +509,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                 ) : (
                   sortedFilteredUsers.map((user) => {
                     const isCurrentUser = user.id === currentUserId;
-                    const isArmed = armedDeleteId === user.id;
                     const isDeleting = deletingId === user.id;
 
                     return (
@@ -548,34 +539,12 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                             </button>
                             <button
                               onClick={() => {
-                                if (isDeleting) return;
-                                if (isCurrentUser) {
-                                  setError("You cannot delete your own account.");
-                                  return;
-                                }
-                                if (!isArmed) {
-                                  setArmedDeleteId(user.id);
-                                  return;
-                                }
-                                void deleteUser(user);
+                                if (isDeleting || isCurrentUser) return;
+                                setConfirmDeleteUser(user);
                               }}
-                              disabled={isDeleting}
-                              className={[
-                                "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors",
-                                isCurrentUser
-                                  ? "border-neutral-800 text-neutral-600 cursor-not-allowed"
-                                  : isArmed
-                                    ? "border-red-500/70 text-red-300 bg-red-950/30"
-                                    : "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
-                                isDeleting ? "opacity-60 cursor-not-allowed" : "",
-                              ].join(" ")}
-                              title={
-                                isCurrentUser
-                                  ? "You cannot delete your own account"
-                                  : isArmed
-                                    ? "Click again to confirm delete"
-                                    : "Click to arm delete"
-                              }
+                              disabled={isDeleting || isCurrentUser}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              title={isCurrentUser ? "You cannot delete your own account" : "Delete user"}
                             >
                               <Trash2 size={13} />
                               Delete
@@ -606,6 +575,49 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
         onDiscard={handleUnsavedDiscard}
         onSave={() => void handleUnsavedSave()}
       />
+
+      {confirmDeleteUser && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-neutral-100">Delete User</h3>
+              <button
+                onClick={() => setConfirmDeleteUser(null)}
+                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                title="Close"
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            <p className="text-sm text-neutral-300">
+              Delete user <span className="font-medium text-neutral-100">{confirmDeleteUser.email}</span>?
+            </p>
+
+            <div className="pt-1 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeleteUser(null)}
+                disabled={deletingId === confirmDeleteUser.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void deleteUser(confirmDeleteUser)}
+                disabled={deletingId === confirmDeleteUser.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+              >
+                <Trash2 size={13} />
+                {deletingId === confirmDeleteUser.id ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
