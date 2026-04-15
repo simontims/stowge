@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Tag, Plus, Save, X, HelpCircle, Settings } from "lucide-react";
 import type { TablerEntry } from "../lib/tablerIconCatalogue";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton } from "../components/ui/DeleteControls";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
+import Sketch from "@uiw/react-color-sketch";
 
 // ── Tabler icon catalogue (lazy-loaded) ─────────────────────────────────────
 // Popular icon names shown immediately when the picker first opens.
@@ -121,20 +122,31 @@ const AI_HINT_EXAMPLES: { label: string; hint: string }[] = [
 // ── Icon picker ──────────────────────────────────────────────────────────────
 const PICKER_PAGE_SIZE = 120;
 
+// Preset colours offered as swatches inside the colour tab
+const COLOR_PRESETS = [
+  "#f87171", "#fb923c", "#fbbf24", "#facc15", "#a3e635",
+  "#4ade80", "#2dd4bf", "#38bdf8", "#60a5fa", "#818cf8",
+  "#c084fc", "#f472b6", "#94a3b8",
+];
+
 function IconPicker({
   value,
   onChange,
   color,
+  onColorChange,
 }: {
   value: string;
   onChange: (name: string) => void;
-  color?: string;
+  color: string;
+  onColorChange: (hex: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"icon" | "color">("icon");
   const [query, setQuery] = useState("");
   const [catalogue, setCatalogue] = useState<TablerEntry[] | null>(_catalogue);
   const [showAll, setShowAll] = useState(false);
   const [page, setPage] = useState(1);
+  const didRevealRef = useRef(false);
 
   // Load catalogue when picker opens (no-op if already cached)
   useEffect(() => {
@@ -143,7 +155,18 @@ function IconPicker({
     }
   }, [open, catalogue]);
 
-  // Reset browse-all state when search query changes
+  // When opened with an existing selection not in the popular list, auto-search for it
+  useEffect(() => {
+    if (!open) { didRevealRef.current = false; return; }
+    if (didRevealRef.current) return;
+    if (!catalogue) return; // wait until catalogue is loaded
+    didRevealRef.current = true;
+    if (value && !POPULAR_NAMES.includes(value)) {
+      setQuery(value);
+    }
+  }, [open, value, catalogue]);
+
+  // Reset paging when search query changes
   useEffect(() => {
     setPage(1);
     setShowAll(false);
@@ -173,6 +196,11 @@ function IconPicker({
     setPage(1);
   }
 
+  function openPicker() {
+    setTab("icon");
+    setOpen(true);
+  }
+
   function select(name: string) {
     onChange(name);
     close();
@@ -188,16 +216,22 @@ function IconPicker({
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openPicker}
         className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-neutral-700 bg-neutral-950 text-neutral-300 hover:border-neutral-500 hover:text-neutral-100 transition-colors text-sm"
       >
         {value ? (
           <>
-            <TablerIcon name={value} size={16} color={color} />
+            <TablerIcon name={value} size={16} color={color || undefined} />
             <span className="text-neutral-400">{value}</span>
           </>
         ) : (
           <span className="text-neutral-500">Choose icon…</span>
+        )}
+        {color && (
+          <span
+            className="w-3 h-3 rounded-full border border-white/20 shrink-0"
+            style={{ backgroundColor: color }}
+          />
         )}
       </button>
 
@@ -214,12 +248,12 @@ function IconPicker({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Choose an icon"
+            aria-label="Choose an icon and colour"
             className="relative z-10 w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[75vh]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-neutral-800 shrink-0">
-              <span className="text-sm font-semibold text-neutral-100">Choose icon</span>
+            <div className="flex items-center justify-between px-4 pt-4 shrink-0">
+              <span className="text-sm font-semibold text-neutral-100">Icon &amp; colour</span>
               <button
                 type="button"
                 onClick={close}
@@ -230,6 +264,58 @@ function IconPicker({
               </button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex gap-4 px-4 mt-3 border-b border-neutral-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setTab("icon")}
+                className={"pb-2 text-sm font-medium border-b-2 transition-colors " + (
+                  tab === "icon" ? "border-neutral-300 text-neutral-100" : "border-transparent text-neutral-500 hover:text-neutral-300"
+                )}
+              >
+                Icon
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("color")}
+                className={"pb-2 text-sm font-medium border-b-2 transition-colors inline-flex items-center gap-1.5 " + (
+                  tab === "color" ? "border-neutral-300 text-neutral-100" : "border-transparent text-neutral-500 hover:text-neutral-300"
+                )}
+              >
+                <span
+                  className="w-3 h-3 rounded-full border border-neutral-600 shrink-0"
+                  style={{ backgroundColor: color || "transparent" }}
+                />
+                Colour
+              </button>
+            </div>
+
+            {/* Colour tab */}
+            {tab === "color" && (
+              <div className="flex-1 overflow-y-auto flex flex-col items-center gap-3 p-4">
+                <div data-color-mode="dark">
+                  <Sketch
+                    color={color || "#60a5fa"}
+                    disableAlpha
+                    presetColors={COLOR_PRESETS}
+                    onChange={(c) => onColorChange(c.hex)}
+                  />
+                </div>
+                {color && (
+                  <button
+                    type="button"
+                    onClick={() => onColorChange("")}
+                    className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                  >
+                    Remove colour
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Icon tab */}
+            {tab === "icon" && (
+            <>
             {/* Search */}
             <div className="px-4 py-3 border-b border-neutral-800 shrink-0">
               <input
@@ -300,7 +386,7 @@ function IconPicker({
                             : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200",
                         ].join(" ")}
                       >
-                        <C size={18} stroke={1.5} />
+                        <C size={18} stroke={1.5} color={value === name && color ? color : undefined} />
                         <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">{name}</span>
                       </button>
                     ))}
@@ -341,6 +427,8 @@ function IconPicker({
                 </>
               )}
             </div>
+            </>
+            )}
           </div>
         </div>
       )}
@@ -388,65 +476,6 @@ function AiHintHelp() {
   );
 }
 
-// ── Colour picker ────────────────────────────────────────────────────────────
-const COLOR_PALETTE: { label: string; value: string }[] = [
-  { label: "Red",     value: "#f87171" },
-  { label: "Orange",  value: "#fb923c" },
-  { label: "Amber",   value: "#fbbf24" },
-  { label: "Yellow",  value: "#facc15" },
-  { label: "Lime",    value: "#a3e635" },
-  { label: "Green",   value: "#4ade80" },
-  { label: "Teal",    value: "#2dd4bf" },
-  { label: "Sky",     value: "#38bdf8" },
-  { label: "Blue",    value: "#60a5fa" },
-  { label: "Indigo",  value: "#818cf8" },
-  { label: "Purple",  value: "#c084fc" },
-  { label: "Pink",    value: "#f472b6" },
-  { label: "Slate",   value: "#94a3b8" },
-];
-
-function ColourPicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (hex: string) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {/* None swatch */}
-      <button
-        type="button"
-        onClick={() => onChange("")}
-        title="No colour"
-        className={[
-          "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors bg-neutral-800",
-          value === ""
-            ? "border-neutral-300"
-            : "border-neutral-700 hover:border-neutral-500",
-        ].join(" ")}
-        aria-label="No colour"
-      >
-        <span className="text-neutral-500 text-[10px] font-bold leading-none">–</span>
-      </button>
-      {COLOR_PALETTE.map(({ label, value: hex }) => (
-        <button
-          key={hex}
-          type="button"
-          onClick={() => onChange(hex)}
-          title={label}
-          style={{ backgroundColor: hex }}
-          className={[
-            "w-6 h-6 rounded-full border-2 transition-colors",
-            value === hex ? "border-white scale-110" : "border-transparent hover:border-white/60",
-          ].join(" ")}
-          aria-label={label}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ── Collection form fields (must be top-level so React doesn't remount on parent re-render) ──
 function CollectionFormFields({
   form,
@@ -477,15 +506,14 @@ function CollectionFormFields({
           />
         </label>
       </div>
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-3">
-          <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
-          <IconPicker value={form.icon} onChange={(name) => onChange({ ...form, icon: name })} color={form.color} />
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Colour</span>
-          <ColourPicker value={form.color} onChange={(hex) => onChange({ ...form, color: hex })} />
-        </div>
+      <div className="flex items-center gap-3">
+        <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+        <IconPicker
+          value={form.icon}
+          onChange={(name) => onChange({ ...form, icon: name })}
+          color={form.color}
+          onColorChange={(hex) => onChange({ ...form, color: hex })}
+        />
       </div>
       <label className="block">
         <span className="inline-flex items-center gap-1 text-xs tracking-wide text-neutral-500">

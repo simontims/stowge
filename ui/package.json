@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tabler/icons-react": "^3.41.0",
+    "@uiw/react-color-sketch": "^2.10.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
