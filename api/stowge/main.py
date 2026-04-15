@@ -1145,6 +1145,7 @@ def list_collections(db: Session = Depends(get_db), me: User = Depends(current_u
             "id": col.id,
             "name": col.name,
             "icon": col.icon,
+            "color": col.color,
             "description": col.description,
             "ai_hint": col.ai_hint,
             "item_count": int(counts.get(col.name, 0)),
