@@ -33,6 +33,10 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # App code
 COPY api/stowge /app/stowge
 
+# Install the stowge CLI wrapper so it is available as `stowge` in the container shell.
+RUN printf '#!/bin/sh\ncd /app && exec python -m stowge.cli "$@"\n' > /usr/local/bin/stowge \
+    && chmod +x /usr/local/bin/stowge
+
 # Front-end static files from the React build stage.
 COPY --from=ui_builder /ui/dist /app/ui
 
