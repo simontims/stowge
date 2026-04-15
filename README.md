@@ -135,3 +135,8 @@ The local run scripts automatically:
 - install api dependencies
 - install/build UI from `ui/` to `ui/dist`
 - start FastAPI on `http://localhost:18090`
+
+## License
+
+Stowge is released under the [MIT License](LICENSE).
+Third-party library notices: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)
