@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { SettingsCollectionsPage } from "./SettingsCollectionsPage";
@@ -20,7 +21,9 @@ const TABS: Array<{ id: Tab; label: string; description: string }> = [
 type SaveRef = { current: (() => Promise<void>) | null };
 
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("collections");
+  const [searchParams] = useSearchParams();
+  const initialTab = (TABS.find((t) => t.id === searchParams.get("tab")) ?? TABS[0]).id;
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [dirtySection, setDirtySection] = useState<Tab | null>(null);
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
   const [savingFromDialog, setSavingFromDialog] = useState(false); // used by dialog

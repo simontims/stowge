@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Tag, Plus, Save, X, HelpCircle } from "lucide-react";
+import { Tag, Plus, Save, X, HelpCircle, Settings } from "lucide-react";
 import type { TablerEntry } from "../lib/tablerIconCatalogue";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -724,12 +724,12 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
           </span>
         ),
       },
-      {
+      ...(embedded ? [{
         key: "actions",
         header: "ACTIONS",
         className: "w-32 text-right",
         headerClassName: "w-32 text-right",
-        render: (row) => (
+        render: (row: CollectionRecord) => (
           <div
             className="inline-flex items-center gap-2 justify-end w-full"
             onClick={(event) => event.stopPropagation()}
@@ -746,9 +746,9 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
             />
           </div>
         ),
-      },
+      } as Column<CollectionRecord>] : []),
     ],
-    [deletingId]
+    [deletingId, embedded]
   );
 
   const emptyMessage = useMemo(() => {
@@ -770,6 +770,15 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         <PageHeader
           title="Collections"
           description="Organise items into collections and guide the AI with per-collection hints"
+          action={
+            <button
+              onClick={() => navigate({ pathname: "/settings", search: "?tab=collections" })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium transition-colors"
+            >
+              <Settings size={14} />
+              Manage in Settings
+            </button>
+          }
         />
       )}
 
@@ -822,13 +831,15 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
             placeholder="Search collections…"
             loading={loading}
             action={
-              <button
-                onClick={() => { setAddingOpen(true); setError(""); }}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-              >
-                <Plus size={14} />
-                Add Collection
-              </button>
+              embedded ? (
+                <button
+                  onClick={() => { setAddingOpen(true); setError(""); }}
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                >
+                  <Plus size={14} />
+                  Add Collection
+                </button>
+              ) : null
             }
           />
           <DataTable
