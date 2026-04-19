@@ -22,6 +22,7 @@ jobs:
     with:
       images: ${{ vars.DOCKER_IMAGES }}
       push: true
+      multiarch: true
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
