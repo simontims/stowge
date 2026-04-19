@@ -71,7 +71,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       label: "Open Locations",
       description: "Browse storage locations",
       icon: <MapPin size={14} />,
-      action: () => go("/settings/locations"),
+      action: () => go("/system?tab=locations"),
     },
   ];
 

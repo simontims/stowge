@@ -660,7 +660,7 @@ export function AddPage() {
               </button>
             </div>
             {aiSettingsLoaded && llmOptions.length === 0 && (
-              <p className="mt-2 text-xs text-amber-400">No AI model configured — identification unavailable. Add one in Settings / AI.</p>
+              <p className="mt-2 text-xs text-amber-400">No AI model configured — identification unavailable. Add one in System / AI.</p>
             )}
           </div>
         </div>

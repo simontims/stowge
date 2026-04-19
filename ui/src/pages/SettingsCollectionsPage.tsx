@@ -896,11 +896,11 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
           description="Organise items into collections and guide the AI with per-collection hints"
           action={
             <button
-              onClick={() => navigate({ pathname: "/settings", search: "?tab=collections" })}
+              onClick={() => navigate({ pathname: "/system", search: "?tab=collections" })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium transition-colors"
             >
               <Settings size={14} />
-              Manage in Settings
+              Manage in System
             </button>
           }
         />

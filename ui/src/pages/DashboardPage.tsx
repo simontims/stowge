@@ -74,7 +74,11 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
 }
 
-export function DashboardPage() {
+interface DashboardPageProps {
+  embedded?: boolean;
+}
+
+export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const navigate = useNavigate();
 
   // ── Status ──
@@ -174,7 +178,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Status" />
+      {!embedded && <PageHeader title="Status" />}
 
       {loadError && !metricsLoading && (
         <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200">

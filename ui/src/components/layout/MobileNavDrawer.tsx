@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import clsx from "clsx";
-import { COLLECTIONS_NAV_UPDATED_EVENT, groupedNav, topNavItems } from "../../config/nav";
+import { COLLECTIONS_NAV_UPDATED_EVENT, navItems, topNavItems } from "../../config/nav";
 import { apiRequest } from "../../lib/api";
 
 interface CollectionNavItem {
@@ -24,11 +24,16 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
     [location.search]
   );
 
+  function isNavItemActive(route: string): boolean {
+    const [path] = route.split("?");
+    return location.pathname === path;
+  }
+
   // Close on route change
   useEffect(() => {
     onClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   // Close on Escape
   useEffect(() => {
@@ -118,11 +123,11 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
                   <div key={item.route}>
                     <NavLink
                       to={item.route}
-                      end={item.route === "/settings"}
-                      className={({ isActive }) =>
+                      end={item.route === "/system"}
+                      className={() =>
                         clsx(
                           "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",
-                          isActive
+                          isNavItemActive(item.route)
                             ? "bg-neutral-800 text-neutral-100"
                             : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
                         )
@@ -164,62 +169,30 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
             </div>
           )}
 
-          {groupedNav.map(({ group, items }) => (
-            <div key={group} className="mb-4">
-              <div className="px-4 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-600 select-none">
-                {group}
-              </div>
-              {items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.route}>
-                    <NavLink
-                      to={item.route}
-                      end={item.route === "/settings"}
-                      className={({ isActive }) =>
-                        clsx(
-                          "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",
-                          isActive
-                            ? "bg-neutral-800 text-neutral-100"
-                            : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
-                        )
-                      }
-                    >
-                      <Icon size={16} className="shrink-0" />
-                      <span>{item.label}</span>
-                    </NavLink>
-
-                    {item.route === "/collections" && collections.length > 0 && (
-                      <div className="mt-1 space-y-0.5 px-2">
-                        {collections.map((collection) => {
-                          const isActive =
-                            location.pathname === "/items" && activeCollectionFilter === collection.name;
-
-                          return (
-                            <NavLink
-                              key={collection.id}
-                              to={{
-                                pathname: "/items",
-                                search: new URLSearchParams({ collection: collection.name }).toString(),
-                              }}
-                              className={clsx(
-                                "ml-5 flex items-center rounded-md px-3 py-1.5 text-sm transition-colors",
-                                isActive
-                                  ? "bg-neutral-800/80 text-neutral-100"
-                                  : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
-                              )}
-                            >
-                              {collection.name}
-                            </NavLink>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+          <div className="mb-4">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.route}>
+                  <NavLink
+                    to={item.route}
+                    end={item.route === "/system"}
+                    className={() =>
+                      clsx(
+                        "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",
+                        isNavItemActive(item.route)
+                          ? "bg-neutral-800 text-neutral-100"
+                          : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
+                      )
+                    }
+                  >
+                    <Icon size={16} className="shrink-0" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                </div>
+              );
+            })}
+          </div>
         </nav>
       </div>
     </>

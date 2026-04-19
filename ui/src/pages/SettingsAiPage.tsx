@@ -579,7 +579,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     <div className="space-y-5">
       {!embedded && (
         <PageHeader
-          title="Settings / AI"
+          title="System / AI"
           description="Configure one or more LLMs for Add Item and set the default model"
         />
       )}

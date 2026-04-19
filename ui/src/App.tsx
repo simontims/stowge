@@ -1,55 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ItemsPage } from "./pages/ItemsPage";
-import { DashboardPage } from "./pages/DashboardPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { AddPage } from "./pages/AddPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { SystemPage } from "./pages/SystemPage";
 import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { type CurrentUser, UNAUTHORIZED_EVENT, OFFLINE_EVENT } from "./lib/api";
 import { UserContext } from "./lib/UserContext";
 import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
 
-function StartupRedirect() {
-  const navigate = useNavigate();
-  const redirectedRef = useRef(false);
-
-  useEffect(() => {
-    if (redirectedRef.current) return;
-    redirectedRef.current = true;
-
-    // Only redirect to the last open collection on a genuine fresh navigation
-    // (not a browser refresh or back/forward).  This covers all paths: even if
-    // the user refreshes on / (Dashboard) they stay there.
-    const navEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    if (navEntry && navEntry.type !== "navigate") return;
-
-    // Also skip if the user already has a specific destination in the URL.
-    if (window.location.pathname !== "/") return;
-
-    // Read last_open_collection from the server — avoids needing it passed as a prop.
-    fetch("/api/me", { credentials: "include" })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const me = (await res.json()) as { last_open_collection?: string | null };
-        if (me.last_open_collection) {
-          navigate(
-            {
-              pathname: "/items",
-              search: new URLSearchParams({ collection: me.last_open_collection }).toString(),
-            },
-            { replace: true }
-          );
-        }
-      })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
-
-  return null;
+function resolvePostLoginRoute(user: CurrentUser): string {
+  const lastCollection = user.last_open_collection?.trim();
+  if (lastCollection) {
+    return `/items?collection=${encodeURIComponent(lastCollection)}`;
+  }
+  return "/collections";
 }
 
 export default function App() {
@@ -143,6 +111,8 @@ export default function App() {
   }, []);
 
   function handleLogin(user: CurrentUser) {
+    const destination = resolvePostLoginRoute(user);
+    window.history.replaceState(null, "", destination);
     setCurrentUser(user);
     setAuthChecked(true);
   }
@@ -175,10 +145,9 @@ export default function App() {
   return (
     <UserContext.Provider value={{ currentUser }}>
       <BrowserRouter>
-        <StartupRedirect />
         <AppShell onLogout={handleLogout}>
         <Routes>
-          <Route path="/"           element={<DashboardPage />} />
+          <Route path="/"           element={<Navigate to={resolvePostLoginRoute(currentUser)} replace />} />
           <Route path="/items"      element={<ItemsPage />} />
           <Route path="/parts"      element={<ItemsPage />} />
           <Route path="/items/new"  element={<AddPage />} />
@@ -186,11 +155,8 @@ export default function App() {
           <Route path="/collections" element={<SettingsCollectionsPage />} />
           <Route path="/add"        element={<AddPage />} />
           <Route path="/scan"       element={<Navigate to="/add" replace />} />
-          <Route path="/settings"   element={<SettingsPage />} />
-          <Route path="/settings/ai"        element={<Navigate to="/settings" replace />} />
-          <Route path="/settings/users"     element={<Navigate to="/settings" replace />} />
-          <Route path="/settings/locations" element={<Navigate to="/settings" replace />} />
-          <Route path="/locations"          element={<Navigate to="/settings" replace />} />
+          <Route path="/system"     element={<SystemPage />} />
+          <Route path="/locations"  element={<Navigate to="/system?tab=locations" replace />} />
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
       </AppShell>

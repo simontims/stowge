@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import clsx from "clsx";
 import type { TablerEntry } from "../../lib/tablerIconCatalogue";
-import { COLLECTIONS_NAV_UPDATED_EVENT, groupedNav, topNavItems } from "../../config/nav";
+import { COLLECTIONS_NAV_UPDATED_EVENT, navItems, topNavItems } from "../../config/nav";
 import { apiRequest } from "../../lib/api";
 
 // ── Tabler icon catalogue (module-level cache) ────────────────────────────────
@@ -55,6 +55,11 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
     () => new URLSearchParams(location.search).get("collection")?.trim() || "",
     [location.search]
   );
+
+  function isNavItemActive(route: string): boolean {
+    const [path] = route.split("?");
+    return location.pathname === path;
+  }
 
   useEffect(() => {
     let active = true;
@@ -121,13 +126,13 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                 <div key={item.route}>
                   <NavLink
                     to={item.route}
-                    end={item.route === "/settings"}
+                    end={item.route === "/system"}
                     title={collapsed ? item.label : undefined}
-                    className={({ isActive }) =>
+                    className={() =>
                       clsx(
                         "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
                         collapsed ? "justify-center px-0" : "px-3",
-                        isActive
+                        isNavItemActive(item.route)
                           ? "bg-neutral-800 text-neutral-100"
                           : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
                       )
@@ -171,44 +176,37 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           </div>
         )}
 
-        {groupedNav.map(({ group, items }) => (
-          <div key={group} className="mb-4">
-            {!collapsed && (
-              <div className="px-4 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-widest text-neutral-600 select-none">
-                {group}
-              </div>
-            )}
-            {collapsed && (
-              <div className="border-t border-neutral-800/60 mx-2 mb-1 mt-1" />
-            )}
-            {items.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.route}>
-                  <NavLink
-                    to={item.route}
-                    end={item.route === "/settings"}
-                    title={collapsed ? item.label : undefined}
-                    className={({ isActive }) =>
-                      clsx(
-                        "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
-                        collapsed ? "justify-center px-0" : "px-3",
-                        isActive
-                          ? "bg-neutral-800 text-neutral-100"
-                          : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
-                      )
-                    }
-                    aria-label={collapsed ? item.label : undefined}
-                  >
-                    <Icon size={16} className="shrink-0" />
-                    {!collapsed && <span>{item.label}</span>}
-                  </NavLink>
+        <div className="mb-4">
+          {collapsed && (
+            <div className="border-t border-neutral-800/60 mx-2 mb-1 mt-1" />
+          )}
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.route}>
+                <NavLink
+                  to={item.route}
+                  end={item.route === "/system"}
+                  title={collapsed ? item.label : undefined}
+                  className={() =>
+                    clsx(
+                      "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
+                      collapsed ? "justify-center px-0" : "px-3",
+                      isNavItemActive(item.route)
+                        ? "bg-neutral-800 text-neutral-100"
+                        : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
+                    )
+                  }
+                  aria-label={collapsed ? item.label : undefined}
+                >
+                  <Icon size={16} className="shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
 
-                </div>
-              );
-            })}
-          </div>
-        ))}
+              </div>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Collapse toggle */}

@@ -281,7 +281,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
     <div className="space-y-5">
       {!embedded && (
         <PageHeader
-          title="Settings / Users"
+          title="System / Users"
           description="Manage accounts and access for your Stowge instance"
         />
       )}

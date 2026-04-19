@@ -1,16 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
+import { DashboardPage } from "./DashboardPage";
 import { SettingsCollectionsPage } from "./SettingsCollectionsPage";
 import { SettingsAiPage } from "./SettingsAiPage";
 import { SettingsImagesPage } from "./SettingsImagesPage";
 import { SettingsLocationsPage } from "./SettingsLocationsPage";
 import { SettingsUsersPage } from "./SettingsUsersPage";
 
-type Tab = "collections" | "ai" | "images" | "locations" | "users";
+type Tab = "status" | "collections" | "ai" | "images" | "locations" | "users";
+
+const DEFAULT_TAB: Tab = "status";
 
 const TABS: Array<{ id: Tab; label: string; description: string }> = [
+  { id: "status",      label: "Status",      description: "System health and inventory metrics" },
   { id: "collections", label: "Collections", description: "Manage inventory collections and AI hints" },
   { id: "ai",          label: "AI",          description: "Configure LLM providers and models" },
   { id: "images",      label: "Images",      description: "Image storage quality and format" },
@@ -20,58 +24,101 @@ const TABS: Array<{ id: Tab; label: string; description: string }> = [
 
 type SaveRef = { current: (() => Promise<void>) | null };
 
-export function SettingsPage() {
-  const [searchParams] = useSearchParams();
-  const initialTab = (TABS.find((t) => t.id === searchParams.get("tab")) ?? TABS[0]).id;
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
-  const [dirtySection, setDirtySection] = useState<Tab | null>(null);
+function parseTab(raw: string | null): Tab {
+  const match = TABS.find((tab) => tab.id === raw);
+  return match?.id ?? DEFAULT_TAB;
+}
+
+export function SystemPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = useMemo(() => parseTab(searchParams.get("tab")), [searchParams]);
+
+  const [activeTab, setActiveTab] = useState<Tab>(requestedTab);
+  const [dirtySection, setDirtySection] = useState<Exclude<Tab, "status"> | null>(null);
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
-  const [savingFromDialog, setSavingFromDialog] = useState(false); // used by dialog
+  const [savingFromDialog, setSavingFromDialog] = useState(false);
 
   const collectionsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
-  const aiSaveFnRef          = useRef<(() => Promise<void>) | null>(null);
-  const imagesSaveFnRef      = useRef<(() => Promise<void>) | null>(null);
-  const locationsSaveFnRef   = useRef<(() => Promise<void>) | null>(null);
-  const usersSaveFnRef       = useRef<(() => Promise<void>) | null>(null);
+  const aiSaveFnRef = useRef<(() => Promise<void>) | null>(null);
+  const imagesSaveFnRef = useRef<(() => Promise<void>) | null>(null);
+  const locationsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
+  const usersSaveFnRef = useRef<(() => Promise<void>) | null>(null);
 
-  const saveFnRefMap: Record<Tab, SaveRef> = {
+  const saveFnRefMap: Record<Exclude<Tab, "status">, SaveRef> = {
     collections: collectionsSaveFnRef,
-    ai:          aiSaveFnRef,
-    images:      imagesSaveFnRef,
-    locations:   locationsSaveFnRef,
-    users:       usersSaveFnRef,
+    ai: aiSaveFnRef,
+    images: imagesSaveFnRef,
+    locations: locationsSaveFnRef,
+    users: usersSaveFnRef,
   };
 
-  const isDirty   = dirtySection !== null;
+  const isDirty = dirtySection !== null;
   const dialogOpen = pendingTab !== null;
 
   useEffect(() => {
+    if (activeTab === requestedTab) {
+      return;
+    }
+    if (isDirty) {
+      const rollback = new URLSearchParams(searchParams);
+      if (activeTab === DEFAULT_TAB) {
+        rollback.delete("tab");
+      } else {
+        rollback.set("tab", activeTab);
+      }
+      setSearchParams(rollback, { replace: true });
+      setPendingTab(requestedTab);
+      return;
+    }
+    setActiveTab(requestedTab);
+  }, [requestedTab, activeTab, isDirty, searchParams, setSearchParams]);
+
+  useEffect(() => {
     if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  function handleDirtyChange(tab: Tab, dirty: boolean) {
+  function navigateToTab(tab: Tab) {
+    const next = new URLSearchParams(searchParams);
+    if (tab === DEFAULT_TAB) {
+      next.delete("tab");
+    } else {
+      next.set("tab", tab);
+    }
+    setSearchParams(next, { replace: false });
+    setActiveTab(tab);
+  }
+
+  function handleDirtyChange(tab: Exclude<Tab, "status">, dirty: boolean) {
     setDirtySection((current) => (dirty ? tab : current === tab ? null : current));
   }
 
   function handleTabClick(tab: Tab) {
     if (tab === activeTab) return;
-    if (isDirty) { setPendingTab(tab); return; }
-    setActiveTab(tab);
+    if (isDirty) {
+      setPendingTab(tab);
+      return;
+    }
+    navigateToTab(tab);
   }
 
   async function handleDialogSave() {
     const fn = dirtySection ? saveFnRefMap[dirtySection].current : null;
-    if (!fn) { handleDialogDiscard(); return; }
+    if (!fn) {
+      handleDialogDiscard();
+      return;
+    }
     setSavingFromDialog(true);
     try {
       await fn();
       setDirtySection(null);
       proceedAction();
     } catch {
-      /* save failed — stay and let user retry */
+      // Save failed: keep current tab so user can retry.
     } finally {
       setSavingFromDialog(false);
     }
@@ -88,24 +135,22 @@ export function SettingsPage() {
 
   function proceedAction() {
     if (pendingTab) {
-      setActiveTab(pendingTab);
+      navigateToTab(pendingTab);
       setPendingTab(null);
     }
   }
 
-  const dirtyTabLabel  = dirtySection
-    ? (TABS.find((t) => t.id === dirtySection)?.label ?? dirtySection)
+  const dirtyTabLabel = dirtySection
+    ? (TABS.find((tab) => tab.id === dirtySection)?.label ?? dirtySection)
     : null;
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Settings" />
+      <PageHeader title="System" />
 
-      {/* Tab bar */}
       <div className="flex border-b border-neutral-800">
         {TABS.map((tab) => {
-          const isActive   = tab.id === activeTab;
-
+          const isActive = tab.id === activeTab;
           return (
             <button
               key={tab.id}
@@ -124,39 +169,39 @@ export function SettingsPage() {
         })}
       </div>
 
-      {/* Section content — remounts per tab switch (clean state, API re-fetches) */}
+      {activeTab === "status" && <DashboardPage embedded />}
       {activeTab === "collections" && (
         <SettingsCollectionsPage
           embedded
-          onDirtyChange={(d) => handleDirtyChange("collections", d)}
+          onDirtyChange={(dirty) => handleDirtyChange("collections", dirty)}
           saveFnRef={collectionsSaveFnRef}
         />
       )}
       {activeTab === "ai" && (
         <SettingsAiPage
           embedded
-          onDirtyChange={(d) => handleDirtyChange("ai", d)}
+          onDirtyChange={(dirty) => handleDirtyChange("ai", dirty)}
           saveFnRef={aiSaveFnRef}
         />
       )}
       {activeTab === "images" && (
         <SettingsImagesPage
           embedded
-          onDirtyChange={(d) => handleDirtyChange("images", d)}
+          onDirtyChange={(dirty) => handleDirtyChange("images", dirty)}
           saveFnRef={imagesSaveFnRef}
         />
       )}
       {activeTab === "locations" && (
         <SettingsLocationsPage
           embedded
-          onDirtyChange={(d) => handleDirtyChange("locations", d)}
+          onDirtyChange={(dirty) => handleDirtyChange("locations", dirty)}
           saveFnRef={locationsSaveFnRef}
         />
       )}
       {activeTab === "users" && (
         <SettingsUsersPage
           embedded
-          onDirtyChange={(d) => handleDirtyChange("users", d)}
+          onDirtyChange={(dirty) => handleDirtyChange("users", dirty)}
           saveFnRef={usersSaveFnRef}
         />
       )}
