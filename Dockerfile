@@ -33,6 +33,10 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # App code
 COPY api/stowge /app/stowge
 
+# License notices included in the runtime image.
+COPY LICENSE /licenses/LICENSE
+COPY THIRD_PARTY_LICENSES.md /licenses/THIRD_PARTY_LICENSES.md
+
 # Install the stowge CLI wrapper so it is available as `stowge` in the container shell.
 RUN printf '#!/bin/sh\ncd /app && exec python -m stowge.cli "$@"\n' > /usr/local/bin/stowge \
     && chmod +x /usr/local/bin/stowge
