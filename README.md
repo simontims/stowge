@@ -38,7 +38,7 @@ https://github.com/simontims/stowge/blob/main/docker-compose.prod.yml
 
 The compose file uses the `simontims/stowge` image. Two tags are available:
 - `:latest` — latest stable release, built for **linux/amd64 and linux/arm64** (recommended)
-- `:edge` — latest commit on `main`, built for **linux/amd64** only
+- `:edge` — latest commit on `main`, built for **linux/amd64 and linux/arm64**
 
 Specific semver tags (e.g. `:1`, `:1.2`, `:1.2.3`) are also published for each release and are multi-arch.
 
