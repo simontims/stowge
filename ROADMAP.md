@@ -7,15 +7,17 @@ Easy inventory with a brilliant user experience and AI-assist
 
 ## 🔜 Next
 
-- Lots of UI polish
+- Backup and restore
+- Generic user roles
+- Maintainance automation
+- Backup automation
+- Basic Home Assistant integration (read-only)
+- Image recognition improvements (retry + suggestions)
+- API
+- Bulk export and import (CSV / JSON)
+- User role expaction to Collection access
 - AI helper assist (scan collections and suggest AI helper improvements)
 - AI Setup Wizard (collections + locations bootstrap)
-- Image recognition improvements (retry + suggestions)
-- Basic Home Assistant integration (read-only)
-- Bulk export and import (CSV / JSON)
-- Backup
-- Backup automation
-- User / Collection access and permissions
 
 ---
 
@@ -23,10 +25,10 @@ Easy inventory with a brilliant user experience and AI-assist
  
 - AI duplicate detection and item merge
 - Item values for insurance purposes
-- Inventory sharing via Stowge Cloud
 - PDF export
 - Smart recommendations ("you probably stored this here")
 - Voice input
+- Inventory sharing via Stowge Cloud
 
 ---
 
