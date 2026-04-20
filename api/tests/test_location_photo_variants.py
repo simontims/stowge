@@ -6,7 +6,6 @@ Covers:
   - DELETE /api/locations/{id} cleans display/thumb/original siblings
   - GET /api/admin/maintenance/orphaned-images does not count tracked location siblings
 """
-from pathlib import Path
 from conftest import (
     client,
     auth_cookies,
