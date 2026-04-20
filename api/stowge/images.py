@@ -16,7 +16,7 @@ from .image_defaults import (
     IMAGE_THUMB_QUALITY_DEFAULT,
 )
 
-def _assets_dir() -> str:
+def assets_dir() -> str:
     return os.getenv("ASSETS_DIR", "/assets")
 
 # AI identify settings — fixed, optimised for token efficiency.
@@ -41,7 +41,7 @@ class ImageConfig:
 DEFAULT_IMAGE_CONFIG = ImageConfig()
 
 def ensure_assets_dir():
-    os.makedirs(_assets_dir(), exist_ok=True)
+    os.makedirs(assets_dir(), exist_ok=True)
 
 def _mime_ext(output_format: str) -> Tuple[str, str]:
     if output_format == "webp":
@@ -64,7 +64,7 @@ def _save_variant(img: Image.Image, max_edge: int, quality: int, folder: str, fi
 
     out.seek(0)
     rel_path = os.path.join(folder, f"{filename}.{ext}")
-    abs_path = os.path.join(_assets_dir(), rel_path)
+    abs_path = os.path.join(assets_dir(), rel_path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     with open(abs_path, "wb") as f:
         f.write(out.read())
@@ -145,7 +145,7 @@ def process_for_identify(files: List[UploadFile]) -> List[str]:
     return b64_images
 
 def resolve_path(rel_path: str) -> str:
-    abs_path = os.path.join(_assets_dir(), rel_path)
+    abs_path = os.path.join(assets_dir(), rel_path)
     if not os.path.exists(abs_path):
         raise HTTPException(status_code=404, detail="File missing")
     return abs_path
@@ -157,7 +157,7 @@ def cleanup_asset_paths(paths: List[str]) -> int:
     Returns the number of files deleted.
     """
     ensure_assets_dir()
-    assets_dir = _assets_dir()
+    base_assets_dir = assets_dir()
     deleted_files = 0
     rel_dirs = set()
 
@@ -166,7 +166,7 @@ def cleanup_asset_paths(paths: List[str]) -> int:
             continue
 
         rel_path = str(rel)
-        abs_path = os.path.join(assets_dir, rel_path)
+        abs_path = os.path.join(base_assets_dir, rel_path)
         rel_dir = os.path.dirname(rel_path)
         if rel_dir:
             rel_dirs.add(rel_dir)
@@ -180,7 +180,7 @@ def cleanup_asset_paths(paths: List[str]) -> int:
             pass
 
     for rel_dir in rel_dirs:
-        abs_dir = os.path.join(assets_dir, rel_dir)
+        abs_dir = os.path.join(base_assets_dir, rel_dir)
         try:
             if os.path.isdir(abs_dir) and not os.listdir(abs_dir):
                 os.rmdir(abs_dir)
@@ -192,11 +192,11 @@ def cleanup_asset_paths(paths: List[str]) -> int:
 
 def delete_stored_images(image_ids: List[str]) -> int:
     ensure_assets_dir()
-    assets_dir = _assets_dir()
+    base_assets_dir = assets_dir()
     deleted = 0
 
     for image_id in set(image_ids):
-        folder = os.path.join(assets_dir, image_id)
+        folder = os.path.join(base_assets_dir, image_id)
         if not os.path.isdir(folder):
             continue
 
@@ -204,7 +204,7 @@ def delete_stored_images(image_ids: List[str]) -> int:
         for root, _dirs, files in os.walk(folder):
             for fname in files:
                 abs_path = os.path.join(root, fname)
-                rel_path = os.path.relpath(abs_path, assets_dir).replace("\\", "/")
+                rel_path = os.path.relpath(abs_path, base_assets_dir).replace("\\", "/")
                 rel_paths.append(rel_path)
 
         cleanup_asset_paths(rel_paths)

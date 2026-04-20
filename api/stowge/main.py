@@ -22,7 +22,7 @@ from .auth import (
     SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
     _TIMING_DUMMY_HASH,
 )
-from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, cleanup_asset_paths, ImageConfig, DEFAULT_IMAGE_CONFIG
+from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, cleanup_asset_paths, assets_dir, ImageConfig, DEFAULT_IMAGE_CONFIG
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -706,7 +706,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
         .join(Part, Part.id == PartImage.part_id)
         .all()
     )
-    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    base_assets_dir = assets_dir()
     disk_bytes: dict[str, int] = {}
     uncollected_bytes = 0  # images from items with no collection — counted in total only
     seen_paths: set[str] = set()
@@ -720,7 +720,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
                 continue
 
             seen_paths.add(rel_key)
-            abs_path = os.path.join(assets_dir, rel_key)
+            abs_path = os.path.join(base_assets_dir, rel_key)
             try:
                 size = int(os.path.getsize(abs_path))
             except OSError:
@@ -742,7 +742,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
         # sibling thumb/original variants using the same naming convention that
         # cleanup_asset_paths uses.
         for rel_path in _location_photo_variant_paths(photo_path):
-            abs_path = os.path.join(assets_dir, rel_path)
+            abs_path = os.path.join(base_assets_dir, rel_path)
             try:
                 location_photo_bytes += os.path.getsize(abs_path)
             except OSError:
@@ -825,13 +825,13 @@ def _build_tracked_paths(db: Session) -> set[str]:
 def scan_orphaned_images(db: Session = Depends(get_db), me: User = Depends(require_admin)):
     """Scan the assets directory for files not referenced in the database (dry run)."""
     tracked = _build_tracked_paths(db)
-    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    base_assets_dir = assets_dir()
     file_count = 0
     disk_bytes = 0
-    for root, _dirs, files in os.walk(assets_dir):
+    for root, _dirs, files in os.walk(base_assets_dir):
         for fname in files:
             abs_path = os.path.join(root, fname)
-            rel_path = os.path.relpath(abs_path, assets_dir).replace("\\", "/")
+            rel_path = os.path.relpath(abs_path, base_assets_dir).replace("\\", "/")
             if rel_path not in tracked:
                 file_count += 1
                 try:
@@ -845,13 +845,13 @@ def scan_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requi
 def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(require_admin)):
     """Delete all asset files not referenced in the database."""
     tracked = _build_tracked_paths(db)
-    assets_dir = os.getenv("ASSETS_DIR", "/assets")
+    base_assets_dir = assets_dir()
     deleted = 0
     freed_bytes = 0
-    for root, _dirs, files in os.walk(assets_dir):
+    for root, _dirs, files in os.walk(base_assets_dir):
         for fname in files:
             abs_path = os.path.join(root, fname)
-            rel_path = os.path.relpath(abs_path, assets_dir).replace("\\", "/")
+            rel_path = os.path.relpath(abs_path, base_assets_dir).replace("\\", "/")
             if rel_path not in tracked:
                 try:
                     freed_bytes += os.path.getsize(abs_path)
@@ -860,8 +860,8 @@ def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requ
                 except OSError:
                     pass
     # Remove newly empty subdirectories (best-effort).
-    for root, _dirs, _files in os.walk(assets_dir, topdown=False):
-        if root == assets_dir:
+    for root, _dirs, _files in os.walk(base_assets_dir, topdown=False):
+        if root == base_assets_dir:
             continue
         try:
             if not os.listdir(root):
