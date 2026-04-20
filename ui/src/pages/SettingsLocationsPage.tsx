@@ -6,6 +6,7 @@ import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
+import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 interface LocationRecord {
   id: string;
@@ -83,6 +84,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       editForm.photo_path !== null,
     [editForm, initialEditForm]
   );
+  useBeforeUnload(!embedded && Boolean(editingId) && isEditDirty);
 
   // Expose dirty state and save function when embedded
   useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
@@ -97,16 +99,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     const timeout = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(timeout);
   }, [notice]);
-
-  useEffect(() => {
-    if (embedded || !editingId || !isEditDirty) return;
-    const handler = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [embedded, editingId, isEditDirty]);
 
   async function loadLocations(options?: { background?: boolean }) {
     const background = options?.background ?? false;

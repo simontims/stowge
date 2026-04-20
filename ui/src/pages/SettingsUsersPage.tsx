@@ -5,6 +5,7 @@ import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { apiRequest } from "../lib/api";
 import { useCurrentUser } from "../lib/UserContext";
+import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 interface UserRecord {
   id: string;
@@ -105,6 +106,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       editForm.password !== "",
     [editForm, initialEditForm]
   );
+  useBeforeUnload(!embedded && Boolean(editingId) && isEditDirty);
 
   // Expose dirty state and save function when embedded
   useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
@@ -122,16 +124,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   useEffect(() => {
     void loadUsers();
   }, []);
-
-  useEffect(() => {
-    if (embedded || !editingId || !isEditDirty) return;
-    const handler = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [embedded, editingId, isEditDirty]);
 
   async function loadUsers(options?: { background?: boolean }) {
     const background = options?.background ?? false;

@@ -7,6 +7,7 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
 import { apiRequest } from "../lib/api";
+import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
 
@@ -186,6 +187,7 @@ export function ItemsPage() {
     () => selectedPartId !== null && !isSameForm(editForm, initialEditForm),
     [editForm, initialEditForm, selectedPartId]
   );
+  useBeforeUnload(hasDirtyChanges);
 
   useEffect(() => {
     void loadParts();
@@ -210,16 +212,6 @@ export function ItemsPage() {
       source.close();
     };
   }, []);
-
-  useEffect(() => {
-    const handler = (event: BeforeUnloadEvent) => {
-      if (!hasDirtyChanges) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [hasDirtyChanges, selectedPartId]);
 
   async function loadParts(options?: { background?: boolean }) {
     const background = options?.background ?? false;

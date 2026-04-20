@@ -8,6 +8,7 @@ import { SettingsAiPage } from "./SettingsAiPage";
 import { SettingsImagesPage } from "./SettingsImagesPage";
 import { SettingsLocationsPage } from "./SettingsLocationsPage";
 import { SettingsUsersPage } from "./SettingsUsersPage";
+import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 type Tab = "status" | "collections" | "ai" | "images" | "locations" | "users";
 
@@ -53,6 +54,7 @@ export function SystemPage() {
   };
 
   const isDirty = dirtySection !== null;
+  useBeforeUnload(isDirty);
   const dialogOpen = pendingTab !== null;
 
   useEffect(() => {
@@ -72,15 +74,6 @@ export function SystemPage() {
     }
     setActiveTab(requestedTab);
   }, [requestedTab, activeTab, isDirty, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
 
   function navigateToTab(tab: Tab) {
     const next = new URLSearchParams(searchParams);
