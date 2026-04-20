@@ -22,7 +22,7 @@ from .auth import (
     SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
     _TIMING_DUMMY_HASH,
 )
-from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, ImageConfig, DEFAULT_IMAGE_CONFIG
+from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, cleanup_asset_paths, ImageConfig, DEFAULT_IMAGE_CONFIG
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -192,32 +192,6 @@ def _serialize_collection(collection: Collection, db: Session) -> dict:
         "created_at": _utc_iso(collection.created_at),
         "updated_at": _utc_iso(collection.updated_at),
     }
-
-
-def _cleanup_asset_paths(paths: list[str]):
-    assets_dir = os.getenv("ASSETS_DIR", "/assets")
-    rel_dirs: set[str] = set()
-    for rel in paths:
-        if not rel:
-            continue
-        abs_path = os.path.join(assets_dir, rel)
-        try:
-            if os.path.exists(abs_path):
-                os.remove(abs_path)
-            rel_dir = os.path.dirname(rel)
-            if rel_dir:
-                rel_dirs.add(rel_dir)
-        except Exception:
-            # Best-effort cleanup only.
-            pass
-
-    for rel_dir in rel_dirs:
-        abs_dir = os.path.join(assets_dir, rel_dir)
-        try:
-            if os.path.isdir(abs_dir) and not os.listdir(abs_dir):
-                os.rmdir(abs_dir)
-        except Exception:
-            pass
 
 
 def _mask_key(value: str | None) -> str | None:
@@ -725,7 +699,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     for (photo_path,) in location_photo_paths:
         # Each location photo may have a display variant stored; also check for
         # sibling thumb/original variants using the same naming convention that
-        # _cleanup_asset_paths uses.
+        # cleanup_asset_paths uses.
         for rel_path in _location_photo_variant_paths(photo_path):
             abs_path = os.path.join(assets_dir, rel_path)
             try:
@@ -1190,7 +1164,7 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
     db.refresh(location)
 
     if "photo_path" in payload and old_photo_path and old_photo_path != location.photo_path:
-        _cleanup_asset_paths(list(_location_photo_variant_paths(old_photo_path)))
+        cleanup_asset_paths(list(_location_photo_variant_paths(old_photo_path)))
 
     return _serialize_location(location, db)
 
@@ -1207,7 +1181,7 @@ def delete_location(location_id: str, db: Session = Depends(get_db), me: User = 
     db.commit()
 
     if photo_path:
-        _cleanup_asset_paths(list(_location_photo_variant_paths(photo_path)))
+        cleanup_asset_paths(list(_location_photo_variant_paths(photo_path)))
 
     return {"ok": True}
 
@@ -1916,39 +1890,18 @@ def delete_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(
 
     # Capture image paths before ORM delete so we can remove on-disk assets.
     image_paths = []
-    image_dirs = set()
     for img in p.images:
         if img.path_thumb:
             image_paths.append(img.path_thumb)
-            image_dirs.add(os.path.dirname(img.path_thumb))
         if img.path_display:
             image_paths.append(img.path_display)
-            image_dirs.add(os.path.dirname(img.path_display))
         if img.path_original:
             image_paths.append(img.path_original)
-            image_dirs.add(os.path.dirname(img.path_original))
 
     db.delete(p)
     db.commit()
 
-    assets_dir = os.getenv("ASSETS_DIR", "/assets")
-    for rel in image_paths:
-        abs_path = os.path.join(assets_dir, rel)
-        try:
-            if os.path.exists(abs_path):
-                os.remove(abs_path)
-        except Exception:
-            # Best-effort cleanup: DB delete has already completed.
-            pass
-
-    # Remove now-empty per-image directories if possible.
-    for rel_dir in image_dirs:
-        abs_dir = os.path.join(assets_dir, rel_dir)
-        try:
-            if os.path.isdir(abs_dir) and not os.listdir(abs_dir):
-                os.rmdir(abs_dir)
-        except Exception:
-            pass
+    cleanup_asset_paths(image_paths)
 
     _publish_inventory_change("deleted", part_id)
     return {"ok": True}

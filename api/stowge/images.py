@@ -1,7 +1,6 @@
 import base64
 import io
 import os
-import shutil
 import uuid
 from dataclasses import dataclass
 from typing import Tuple, List, Dict
@@ -9,7 +8,8 @@ from typing import Tuple, List, Dict
 from fastapi import UploadFile, HTTPException
 from PIL import Image
 
-ASSETS_DIR = os.getenv("ASSETS_DIR", "/assets")
+def _assets_dir() -> str:
+    return os.getenv("ASSETS_DIR", "/assets")
 
 # AI identify settings — fixed, optimised for token efficiency.
 # Always JPEG; sized to match client-side pre-resize so the backend
@@ -33,7 +33,7 @@ class ImageConfig:
 DEFAULT_IMAGE_CONFIG = ImageConfig()
 
 def ensure_assets_dir():
-    os.makedirs(ASSETS_DIR, exist_ok=True)
+    os.makedirs(_assets_dir(), exist_ok=True)
 
 def _mime_ext(output_format: str) -> Tuple[str, str]:
     if output_format == "webp":
@@ -56,7 +56,7 @@ def _save_variant(img: Image.Image, max_edge: int, quality: int, folder: str, fi
 
     out.seek(0)
     rel_path = os.path.join(folder, f"{filename}.{ext}")
-    abs_path = os.path.join(ASSETS_DIR, rel_path)
+    abs_path = os.path.join(_assets_dir(), rel_path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     with open(abs_path, "wb") as f:
         f.write(out.read())
@@ -137,20 +137,76 @@ def process_for_identify(files: List[UploadFile]) -> List[str]:
     return b64_images
 
 def resolve_path(rel_path: str) -> str:
-    abs_path = os.path.join(ASSETS_DIR, rel_path)
+    abs_path = os.path.join(_assets_dir(), rel_path)
     if not os.path.exists(abs_path):
         raise HTTPException(status_code=404, detail="File missing")
     return abs_path
 
 
+def cleanup_asset_paths(paths: List[str]) -> int:
+    """Best-effort cleanup for stored asset files and empty parent dirs.
+
+    Returns the number of files deleted.
+    """
+    ensure_assets_dir()
+    assets_dir = _assets_dir()
+    deleted_files = 0
+    rel_dirs = set()
+
+    for rel in paths:
+        if not rel:
+            continue
+
+        rel_path = str(rel)
+        abs_path = os.path.join(assets_dir, rel_path)
+        rel_dir = os.path.dirname(rel_path)
+        if rel_dir:
+            rel_dirs.add(rel_dir)
+
+        try:
+            if os.path.exists(abs_path):
+                os.remove(abs_path)
+                deleted_files += 1
+        except Exception:
+            # Best-effort cleanup only.
+            pass
+
+    for rel_dir in rel_dirs:
+        abs_dir = os.path.join(assets_dir, rel_dir)
+        try:
+            if os.path.isdir(abs_dir) and not os.listdir(abs_dir):
+                os.rmdir(abs_dir)
+        except Exception:
+            pass
+
+    return deleted_files
+
+
 def delete_stored_images(image_ids: List[str]) -> int:
     ensure_assets_dir()
+    assets_dir = _assets_dir()
     deleted = 0
 
     for image_id in set(image_ids):
-        folder = os.path.join(ASSETS_DIR, image_id)
-        if os.path.isdir(folder):
-            shutil.rmtree(folder, ignore_errors=True)
-            deleted += 1
+        folder = os.path.join(assets_dir, image_id)
+        if not os.path.isdir(folder):
+            continue
+
+        rel_paths: List[str] = []
+        for root, _dirs, files in os.walk(folder):
+            for fname in files:
+                abs_path = os.path.join(root, fname)
+                rel_path = os.path.relpath(abs_path, assets_dir).replace("\\", "/")
+                rel_paths.append(rel_path)
+
+        cleanup_asset_paths(rel_paths)
+
+        try:
+            if os.path.isdir(folder) and not os.listdir(folder):
+                os.rmdir(folder)
+        except Exception:
+            pass
+
+        deleted += 1
 
     return deleted
