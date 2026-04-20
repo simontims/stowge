@@ -1,0 +1,7 @@
+# Reproducibility constraints for transitive dependencies pulled by LiteLLM.
+# Keep these aligned with a tested environment when bumping litellm.
+click==8.1.8
+importlib-metadata==8.5.0
+jsonschema==4.23.0
+openai==2.24.0
+python-dotenv==1.0.1

@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Python deps first (layer caching)
 COPY api/requirements.txt /app/requirements.txt
+COPY api/constraints.txt /app/constraints.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # App code

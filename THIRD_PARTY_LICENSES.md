@@ -64,7 +64,7 @@ license file.
 
 ### litellm
 
-- Version used: `==1.82.6`
+- Version used: `==1.83.10`
 - License: MIT (with repository-specific carve-out for `enterprise/` directory)
 - Copyright notice: Copyright (c) 2023 Berri AI
 - Official source: https://pypi.org/project/litellm/
