@@ -32,11 +32,6 @@ interface ModelOptionGroups {
   all: string[];
 }
 
-interface RecommendedModelDescriptor {
-  model: string;
-  aliases?: string[];
-}
-
 interface ProvidersCatalogResponse {
   providers: ProviderOption[];
 }
@@ -63,125 +58,12 @@ interface EditConfigForm {
 
 type AiSortKey = "name" | "provider" | "model" | "evidence";
 
-const FALLBACK_PROVIDERS: ProviderOption[] = [
-  {
-    value: "openai",
-    label: "OpenAI",
-    api_base: "https://api.openai.com/v1",
-    models: ["openai/gpt-4o-mini", "openai/gpt-4.1-mini", "openai/gpt-4.1"],
-  },
-  {
-    value: "anthropic",
-    label: "Anthropic",
-    api_base: "https://api.anthropic.com",
-    models: [
-      "anthropic/claude-3-5-sonnet-latest",
-      "anthropic/claude-3-5-haiku-latest",
-      "anthropic/claude-3-opus-latest",
-    ],
-  },
-  {
-    value: "gemini",
-    label: "Google Gemini",
-    api_base: "https://generativelanguage.googleapis.com",
-    models: ["gemini/gemini-1.5-pro", "gemini/gemini-1.5-flash", "gemini/gemini-2.0-flash"],
-  },
-  {
-    value: "azure",
-    label: "Azure OpenAI",
-    api_base: "https://YOUR_RESOURCE_NAME.openai.azure.com",
-    models: ["azure/YOUR_DEPLOYMENT_NAME", "azure/gpt-4o-mini", "azure/gpt-4.1-mini"],
-  },
-  {
-    value: "groq",
-    label: "Groq",
-    api_base: "https://api.groq.com/openai/v1",
-    models: ["groq/llama-3.1-70b-versatile", "groq/llama-3.1-8b-instant", "groq/mixtral-8x7b-32768"],
-  },
-  {
-    value: "mistral",
-    label: "Mistral",
-    api_base: "https://api.mistral.ai/v1",
-    models: ["mistral/mistral-large-latest", "mistral/mistral-small-latest", "mistral/open-mixtral-8x22b"],
-  },
-  {
-    value: "xai",
-    label: "xAI",
-    api_base: "https://api.x.ai/v1",
-    models: ["xai/grok-2-latest", "xai/grok-beta", "xai/grok-2-mini"],
-  },
-  {
-    value: "openrouter",
-    label: "OpenRouter",
-    api_base: "https://openrouter.ai/api/v1",
-    models: [
-      "openrouter/openai/gpt-4o-mini",
-      "openrouter/anthropic/claude-3.5-sonnet",
-      "openrouter/google/gemini-1.5-pro",
-    ],
-  },
-];
-
-const RECOMMENDED_MODELS_BY_PROVIDER: Record<string, RecommendedModelDescriptor[]> = {
-  // Prioritize models suitable for identifying objects from photos with optional hint text.
-  openai: [
-    { model: "openai/gpt-4.1" },
-    { model: "openai/gpt-4.1-mini" },
-    { model: "openai/gpt-4o-mini" },
-  ],
-  anthropic: [
-    {
-      model: "anthropic/claude-3-5-sonnet-latest",
-      aliases: [
-        "claude-3-5-sonnet",
-        "claude-3.5-sonnet",
-        "claude-3-7-sonnet",
-        "claude-sonnet-4",
-        "claude-sonnet",
-      ],
-    },
-    {
-      model: "anthropic/claude-3-5-haiku-latest",
-      aliases: ["claude-3-5-haiku", "claude-3.5-haiku", "claude-haiku"],
-    },
-  ],
-  gemini: [
-    { model: "gemini/gemini-1.5-pro" },
-    { model: "gemini/gemini-2.0-flash" },
-    { model: "gemini/gemini-1.5-flash" },
-  ],
-  azure: [
-    { model: "azure/gpt-4.1-mini" },
-    { model: "azure/gpt-4o-mini" },
-    { model: "azure/YOUR_DEPLOYMENT_NAME" },
-  ],
-  groq: [
-    {
-      model: "groq/llama-3.1-70b-versatile",
-      aliases: [
-        "llama-3.3-70b-versatile",
-        "llama3-70b-8192",
-        "llama-3.1-8b-instant",
-        "llama3-8b-8192",
-        "mixtral-8x7b-32768",
-      ],
-    },
-  ],
-  mistral: [{ model: "mistral/mistral-large-latest" }],
-  xai: [{ model: "xai/grok-2-latest" }],
-  openrouter: [
-    { model: "openrouter/openai/gpt-4o-mini" },
-    { model: "openrouter/anthropic/claude-3.5-sonnet" },
-    { model: "openrouter/google/gemini-1.5-pro" },
-  ],
-};
-
 const EMPTY_FORM: NewConfigForm = {
   name: "",
-  provider: FALLBACK_PROVIDERS[0].value,
-  model: FALLBACK_PROVIDERS[0].models[0],
+  provider: "",
+  model: "",
   api_key: "",
-  api_base: FALLBACK_PROVIDERS[0].api_base,
+  api_base: "",
   is_default: false,
   evidence_enabled: false,
 };
@@ -197,7 +79,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const [providerOptions, setProviderOptions] = useState<ProviderOption[]>(FALLBACK_PROVIDERS);
+  const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
   const [configs, setConfigs] = useState<AiConfig[]>([]);
   const [defaultId, setDefaultId] = useState<string | null>(null);
 
@@ -219,19 +101,19 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [confirmDeleteConfig, setConfirmDeleteConfig] = useState<AiConfig | null>(null);
   const [editForm, setEditForm] = useState<EditConfigForm>({
     name: "",
-    provider: FALLBACK_PROVIDERS[0].value,
-    model: FALLBACK_PROVIDERS[0].models[0],
+    provider: "",
+    model: "",
     api_key: "",
-    api_base: FALLBACK_PROVIDERS[0].api_base,
+    api_base: "",
     is_default: false,
     evidence_enabled: false,
   });
   const [initialEditForm, setInitialEditForm] = useState<EditConfigForm>({
     name: "",
-    provider: FALLBACK_PROVIDERS[0].value,
-    model: FALLBACK_PROVIDERS[0].models[0],
+    provider: "",
+    model: "",
     api_key: "",
-    api_base: FALLBACK_PROVIDERS[0].api_base,
+    api_base: "",
     is_default: false,
     evidence_enabled: false,
   });
@@ -307,58 +189,29 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     void loadConfigs();
   }, []);
 
-  function getProviderOption(provider: string): ProviderOption {
-    return (
-      providerOptions.find((p) => p.value === provider) ||
-      FALLBACK_PROVIDERS.find((p) => p.value === provider) ||
-      FALLBACK_PROVIDERS[0]
-    );
+  function getProviderOption(provider: string): ProviderOption | null {
+    const exact = providerOptions.find((p) => p.value === provider);
+    if (exact) return exact;
+    if (!provider) return providerOptions[0] ?? null;
+    return {
+      value: provider,
+      label: provider,
+      api_base: "",
+      models: [],
+    };
   }
 
   function getProviderModels(provider: string): string[] {
-    const models = getProviderOption(provider).models || [];
-    return models.length > 0 ? models : ["openai/gpt-4o-mini"];
-  }
-
-  function normalizeModelNameForProvider(model: string, provider: string): string {
-    const trimmed = model.trim().toLowerCase();
-    const prefix = `${provider.toLowerCase()}/`;
-    return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
-  }
-
-  function matchesRecommendedModel(
-    provider: string,
-    candidate: string,
-    recommendation: RecommendedModelDescriptor
-  ): boolean {
-    const candidateKey = normalizeModelNameForProvider(candidate, provider);
-    const expected = [recommendation.model, ...(recommendation.aliases || [])].map((value) =>
-      normalizeModelNameForProvider(value, provider)
-    );
-    return expected.some((key) => candidateKey === key || candidateKey.startsWith(`${key}-`));
+    const selectedProvider = getProviderOption(provider);
+    if (!selectedProvider) return [];
+    return selectedProvider.models || [];
   }
 
   function getModelOptionGroups(provider: string): ModelOptionGroups {
     const allModels = getProviderModels(provider);
-    const recommendedForProvider = RECOMMENDED_MODELS_BY_PROVIDER[provider] || [];
-    const used = new Set<string>();
-    const recommended: string[] = [];
-
-    for (const desiredModel of recommendedForProvider) {
-      const matched = allModels.find(
-        (candidate) =>
-          !used.has(candidate) &&
-          matchesRecommendedModel(provider, candidate, desiredModel)
-      );
-      if (matched) {
-        used.add(matched);
-        recommended.push(matched);
-      }
-    }
-
     return {
-      recommended,
-      all: allModels.filter((model) => !used.has(model)),
+      recommended: [],
+      all: allModels,
     };
   }
 
@@ -372,9 +225,17 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       const data = await apiRequest<ProvidersCatalogResponse>("/api/admin/settings/ai/providers");
       if (data.providers?.length) {
         setProviderOptions(data.providers);
+        const firstProvider = data.providers[0];
+        const firstModel = firstProvider.models[0] || "";
+        setForm((current) => ({
+          ...current,
+          provider: current.provider || firstProvider.value,
+          model: current.model || firstModel,
+          api_base: current.api_base || firstProvider.api_base,
+        }));
       }
     } catch {
-      // Keep fallback list.
+      // Keep current state empty if providers endpoint is unavailable.
     }
   }
 
@@ -501,9 +362,14 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   }
 
   function startEdit(config: AiConfig) {
-    const provider = getProviderOption(config.provider);
+    const provider = getProviderOption(config.provider) ?? {
+      value: config.provider,
+      label: config.provider,
+      api_base: (config.api_base || "").trim(),
+      models: config.model ? [config.model] : [],
+    };
     const models = getProviderModels(provider.value);
-    const model = models.includes(config.model) ? config.model : models[0];
+    const model = models.includes(config.model) ? config.model : (models[0] || config.model);
 
     const snapshot: EditConfigForm = {
       name: config.name,
@@ -603,8 +469,10 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <span className="text-xs uppercase tracking-wide text-neutral-500">Provider</span>
               <select
                 value={form.provider}
+                disabled={providerOptions.length === 0}
                 onChange={(e) => {
                   const nextProvider = getProviderOption(e.target.value);
+                  if (!nextProvider) return;
                   const nextDefaultModel = getDefaultModelForProvider(nextProvider.value);
                   setForm((v) => ({
                     ...v,
@@ -615,6 +483,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
+                {providerOptions.length === 0 && <option value="">No providers available</option>}
                 {providerOptions.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
@@ -915,8 +784,10 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <span className="text-xs uppercase tracking-wide text-neutral-500">Provider</span>
               <select
                 value={editForm.provider}
+                disabled={providerOptions.length === 0}
                 onChange={(e) => {
                   const nextProvider = getProviderOption(e.target.value);
+                  if (!nextProvider) return;
                   const nextDefaultModel = getDefaultModelForProvider(nextProvider.value);
                   setEditForm((v) => ({
                     ...v,
@@ -927,6 +798,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
+                {providerOptions.length === 0 && <option value="">No providers available</option>}
                 {providerOptions.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
