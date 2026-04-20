@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Tag, Plus, Save, X, HelpCircle, Settings } from "lucide-react";
+import { Plus, Save, X, HelpCircle, Settings } from "lucide-react";
 import type { TablerEntry } from "../lib/tablerIconCatalogue";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -7,6 +7,7 @@ import { ListToolbar } from "../components/ui/ListToolbar";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton } from "../components/ui/DeleteControls";
+import { TablerIcon } from "../components/ui/TablerIcon";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
 import Sketch from "@uiw/react-color-sketch";
@@ -39,29 +40,6 @@ function loadCatalogue(): Promise<TablerEntry[]> {
     });
   }
   return _cataloguePromise;
-}
-
-/** Renders a Tabler icon by stored name. Falls back to the Lucide Tag icon while
- *  the catalogue chunk loads (first use only; cached thereafter). */
-function TablerIcon({ name, size = 15, color }: { name?: string | null; size?: number; color?: string | null }) {
-  const [entry, setEntry] = useState<TablerEntry | null>(() =>
-    name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
-  );
-  useEffect(() => {
-    if (!name) return;
-    if (_catalogue) {
-      setEntry(_catalogue.find((e) => e.name === name) ?? null);
-      return;
-    }
-    let cancelled = false;
-    loadCatalogue().then((cat) => {
-      if (!cancelled) setEntry(cat.find((e) => e.name === name) ?? null);
-    });
-    return () => { cancelled = true; };
-  }, [name]);
-  if (!name || !entry) return <Tag size={size} />;
-  const C = entry.component;
-  return <C size={size} stroke={1.5} color={color || undefined} />;
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────

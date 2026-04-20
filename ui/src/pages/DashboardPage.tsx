@@ -1,38 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tag } from "lucide-react";
-import type { TablerEntry } from "../lib/tablerIconCatalogue";
 import { PageHeader } from "../components/ui/PageHeader";
+import { TablerIcon } from "../components/ui/TablerIcon";
 import { apiRequest } from "../lib/api";
-
-// ── Tabler icon catalogue (module-level cache shared with other pages) ────────
-let _catalogue: TablerEntry[] | null = null;
-let _cataloguePromise: Promise<TablerEntry[]> | null = null;
-function loadCatalogue(): Promise<TablerEntry[]> {
-  if (_catalogue) return Promise.resolve(_catalogue);
-  if (!_cataloguePromise) {
-    _cataloguePromise = import("../lib/tablerIconCatalogue").then((m) => {
-      _catalogue = m.TABLER_CATALOGUE;
-      return _catalogue;
-    });
-  }
-  return _cataloguePromise;
-}
-function TablerIcon({ name, size = 15, color }: { name?: string | null; size?: number; color?: string | null }) {
-  const [entry, setEntry] = useState<TablerEntry | null>(() =>
-    name && _catalogue ? (_catalogue.find((e) => e.name === name) ?? null) : null
-  );
-  useEffect(() => {
-    if (!name) return;
-    if (_catalogue) { setEntry(_catalogue.find((e) => e.name === name) ?? null); return; }
-    let cancelled = false;
-    loadCatalogue().then((cat) => { if (!cancelled) setEntry(cat.find((e) => e.name === name) ?? null); });
-    return () => { cancelled = true; };
-  }, [name]);
-  if (!name || !entry) return <Tag size={size} />;
-  const C = entry.component;
-  return <C size={size} stroke={1.5} color={color || undefined} />;
-}
 
 interface CollectionStatusRow {
   id: string;
