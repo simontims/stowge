@@ -6,19 +6,9 @@ Covers:
   - DELETE /api/items/{id} removes stored image variants
   - POST /api/images/discard removes only unlinked image assets
 """
-
-from pathlib import Path
-
-from fastapi.testclient import TestClient
-
-from stowge.auth import SESSION_COOKIE_NAME
 from stowge.images import cleanup_asset_paths
-from stowge.main import app
-from stowge.models import User
 from conftest import (
     client,
-    make_db,
-    get_or_create_user,
     auth_cookies,
     write_asset,
 )

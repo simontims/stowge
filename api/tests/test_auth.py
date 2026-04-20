@@ -17,9 +17,6 @@ directly, so they never hit the rate-limiter on /api/login.
 """
 from datetime import datetime, timedelta, timezone
 
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-
 from stowge.main import app
 from stowge.auth import (
     SESSION_COOKIE_NAME,
