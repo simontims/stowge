@@ -45,6 +45,7 @@ jobs:
           versionSpec: '6.x'
 
       - name: GitVersion
+        id: gitversion
         uses: gittools/actions/gitversion/execute@v4
         with:
           disableNormalization: true
@@ -76,5 +77,6 @@ jobs:
           platforms: ${{ inputs.multiarch == true && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: ${{ steps.docker-metadata.outputs.tags }}
           labels: ${{ steps.docker-metadata.outputs.labels }}
+          build-args: APP_VERSION=${{ steps.gitversion.outputs.semVer }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

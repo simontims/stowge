@@ -12,9 +12,13 @@ RUN npx tsc && npx vite build --outDir dist
 
 FROM python:3.12-slim
 
+# Build argument for application version (set by CI/CD, defaults to 0.1.0 for local builds)
+ARG APP_VERSION=0.1.0
+
 # Prevent Python buffering + speed up installs
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV APP_VERSION=${APP_VERSION}
 
 WORKDIR /app
 
