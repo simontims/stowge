@@ -243,38 +243,42 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
             <p className="text-xs text-neutral-500">
               Asset files on disk no longer referenced by any item. These accumulate from incomplete cleanup operations.
             </p>
-            {purgeResult ? (
-              <p className="text-xs text-emerald-300">
-                Deleted {purgeResult.deleted} file{purgeResult.deleted !== 1 ? "s" : ""}, freed {formatBytes(purgeResult.freed_bytes)}.
-              </p>
-            ) : orphanScan ? (
-              orphanScan.file_count === 0 ? (
-                <p className="text-xs text-neutral-500">No orphaned files found.</p>
-              ) : (
-                <p className="text-xs text-neutral-400">
-                  Found {orphanScan.file_count} orphaned file{orphanScan.file_count !== 1 ? "s" : ""} ({formatBytes(orphanScan.disk_bytes)}).
-                </p>
-              )
-            ) : null}
-            <div className="flex gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={handleScanOrphans}
-                disabled={scanning || purging}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {scanning ? "Scanning…" : "Scan"}
-              </button>
-              {orphanScan && orphanScan.file_count > 0 && !purgeResult && (
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                {purgeResult ? (
+                  <p className="text-xs text-emerald-300">
+                    Deleted {purgeResult.deleted} file{purgeResult.deleted !== 1 ? "s" : ""}, freed {formatBytes(purgeResult.freed_bytes)}.
+                  </p>
+                ) : orphanScan ? (
+                  orphanScan.file_count === 0 ? (
+                    <p className="text-xs text-neutral-500">No orphaned files found.</p>
+                  ) : (
+                    <p className="text-xs text-neutral-400">
+                      Found {orphanScan.file_count} orphaned file{orphanScan.file_count !== 1 ? "s" : ""} ({formatBytes(orphanScan.disk_bytes)}).
+                    </p>
+                  )
+                ) : null}
+              </div>
+              <div className="flex gap-2 flex-wrap md:flex-nowrap md:flex-shrink-0">
                 <button
                   type="button"
-                  onClick={handlePurgeOrphans}
-                  disabled={purging || scanning}
-                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 hover:text-red-200 hover:bg-red-900/30 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={handleScanOrphans}
+                  disabled={scanning || purging}
+                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {purging ? "Deleting…" : `Delete ${orphanScan.file_count} file${orphanScan.file_count !== 1 ? "s" : ""}`}
+                  {scanning ? "Scanning…" : "Scan"}
                 </button>
-              )}
+                {orphanScan && orphanScan.file_count > 0 && !purgeResult && (
+                  <button
+                    type="button"
+                    onClick={handlePurgeOrphans}
+                    disabled={purging || scanning}
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 hover:text-red-200 hover:bg-red-900/30 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {purging ? "Deleting…" : `Delete ${orphanScan.file_count} file${orphanScan.file_count !== 1 ? "s" : ""}`}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -284,21 +288,27 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
             <p className="text-xs text-neutral-500">
               Reclaims space from deleted records (VACUUM), updates query statistics (ANALYZE), and runs PRAGMA optimize.
             </p>
-            {vacuumResult && (
-              <p className="text-xs text-emerald-300">
-                {vacuumResult.freed_bytes > 0
-                  ? `Freed ${formatBytes(vacuumResult.freed_bytes)} (${formatBytes(vacuumResult.size_before)} → ${formatBytes(vacuumResult.size_after)}).`
-                  : `Database already compact (${formatBytes(vacuumResult.size_after)}).`}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleVacuum}
-              disabled={vacuuming}
-              className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {vacuuming ? "Optimising…" : "Optimise"}
-            </button>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                {vacuumResult && (
+                  <p className="text-xs text-emerald-300">
+                    {vacuumResult.freed_bytes > 0
+                      ? `Freed ${formatBytes(vacuumResult.freed_bytes)} (${formatBytes(vacuumResult.size_before)} → ${formatBytes(vacuumResult.size_after)}).`
+                      : `Database already compact (${formatBytes(vacuumResult.size_after)}).`}
+                  </p>
+                )}
+              </div>
+              <div className="md:flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleVacuum}
+                  disabled={vacuuming}
+                  className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {vacuuming ? "Optimising…" : "Optimise"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
