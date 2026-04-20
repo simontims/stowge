@@ -7,6 +7,14 @@ from typing import Tuple, List, Dict
 
 from fastapi import UploadFile, HTTPException
 from PIL import Image
+from .image_defaults import (
+    IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
+    IMAGE_DISPLAY_QUALITY_DEFAULT,
+    IMAGE_OUTPUT_FORMAT_DEFAULT,
+    IMAGE_STORE_ORIGINAL_DEFAULT,
+    IMAGE_THUMB_MAX_EDGE_DEFAULT,
+    IMAGE_THUMB_QUALITY_DEFAULT,
+)
 
 def _assets_dir() -> str:
     return os.getenv("ASSETS_DIR", "/assets")
@@ -22,12 +30,12 @@ _AI_QUALITY  = 85
 class ImageConfig:
     """Settings that control how uploaded photos are stored. Sourced from the
     image_settings DB table at request time (see main._get_image_config)."""
-    store_original: bool = False
-    output_format: str = "webp"    # webp | jpg
-    display_max_edge: int = 2048
-    display_quality: int = 82
-    thumb_max_edge: int = 360
-    thumb_quality: int = 70
+    store_original: bool = IMAGE_STORE_ORIGINAL_DEFAULT
+    output_format: str = IMAGE_OUTPUT_FORMAT_DEFAULT    # webp | jpg
+    display_max_edge: int = IMAGE_DISPLAY_MAX_EDGE_DEFAULT
+    display_quality: int = IMAGE_DISPLAY_QUALITY_DEFAULT
+    thumb_max_edge: int = IMAGE_THUMB_MAX_EDGE_DEFAULT
+    thumb_quality: int = IMAGE_THUMB_QUALITY_DEFAULT
 
 
 DEFAULT_IMAGE_CONFIG = ImageConfig()

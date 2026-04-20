@@ -3,6 +3,14 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .db import Base
+from .image_defaults import (
+    IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
+    IMAGE_DISPLAY_QUALITY_DEFAULT,
+    IMAGE_OUTPUT_FORMAT_DEFAULT,
+    IMAGE_STORE_ORIGINAL_DEFAULT,
+    IMAGE_THUMB_MAX_EDGE_DEFAULT,
+    IMAGE_THUMB_QUALITY_DEFAULT,
+)
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -104,12 +112,12 @@ class ImageSettings(Base):
     __tablename__ = "image_settings"
 
     id = Column(String, primary_key=True, default="singleton")
-    store_original = Column(Integer, nullable=False, default=0)       # 0|1
-    output_format = Column(String, nullable=False, default="webp")    # webp|jpg
-    display_max_edge = Column(Integer, nullable=False, default=2048)
-    display_quality = Column(Integer, nullable=False, default=82)
-    thumb_max_edge = Column(Integer, nullable=False, default=360)
-    thumb_quality = Column(Integer, nullable=False, default=70)
+    store_original = Column(Integer, nullable=False, default=(1 if IMAGE_STORE_ORIGINAL_DEFAULT else 0))       # 0|1
+    output_format = Column(String, nullable=False, default=IMAGE_OUTPUT_FORMAT_DEFAULT)    # webp|jpg
+    display_max_edge = Column(Integer, nullable=False, default=IMAGE_DISPLAY_MAX_EDGE_DEFAULT)
+    display_quality = Column(Integer, nullable=False, default=IMAGE_DISPLAY_QUALITY_DEFAULT)
+    thumb_max_edge = Column(Integer, nullable=False, default=IMAGE_THUMB_MAX_EDGE_DEFAULT)
+    thumb_quality = Column(Integer, nullable=False, default=IMAGE_THUMB_QUALITY_DEFAULT)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
 

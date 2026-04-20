@@ -1560,11 +1560,11 @@ def _get_image_config(db: Session) -> ImageConfig:
     else:
         _image_config_cache = ImageConfig(
             store_original=bool(row.store_original),
-            output_format=row.output_format or "webp",
-            display_max_edge=row.display_max_edge or 2048,
-            display_quality=row.display_quality or 82,
-            thumb_max_edge=row.thumb_max_edge or 360,
-            thumb_quality=row.thumb_quality or 70,
+            output_format=row.output_format or DEFAULT_IMAGE_CONFIG.output_format,
+            display_max_edge=row.display_max_edge or DEFAULT_IMAGE_CONFIG.display_max_edge,
+            display_quality=row.display_quality or DEFAULT_IMAGE_CONFIG.display_quality,
+            thumb_max_edge=row.thumb_max_edge or DEFAULT_IMAGE_CONFIG.thumb_max_edge,
+            thumb_quality=row.thumb_quality or DEFAULT_IMAGE_CONFIG.thumb_quality,
         )
     return _image_config_cache
 
