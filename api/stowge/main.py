@@ -157,6 +157,15 @@ def _location_photo_url(location_id: str) -> str:
     return f"/api/locations/{location_id}/photo"
 
 
+def _location_photo_variant_paths(photo_path: str | None) -> tuple[str, str, str] | tuple[()]:
+    if not photo_path:
+        return ()
+    display_path = str(photo_path)
+    thumb_path = display_path.replace("/display.", "/thumb.")
+    original_path = display_path.replace("/display.", "/original.")
+    return (display_path, thumb_path, original_path)
+
+
 def _serialize_location(location: Location, db: Session) -> dict:
     item_count = db.query(Part).filter(Part.location_id == location.id).count()
     return {
@@ -714,16 +723,10 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     location_photo_bytes = 0
     location_photo_paths = db.query(Location.photo_path).filter(Location.photo_path.isnot(None)).all()
     for (photo_path,) in location_photo_paths:
-        if not photo_path:
-            continue
         # Each location photo may have a display variant stored; also check for
         # sibling thumb/original variants using the same naming convention that
         # _cleanup_asset_paths uses.
-        for rel_path in (
-            photo_path,
-            photo_path.replace("/display.", "/thumb."),
-            photo_path.replace("/display.", "/original."),
-        ):
+        for rel_path in _location_photo_variant_paths(photo_path):
             abs_path = os.path.join(assets_dir, rel_path)
             try:
                 location_photo_bytes += os.path.getsize(abs_path)
@@ -798,10 +801,8 @@ def _build_tracked_paths(db: Session) -> set[str]:
     for (photo_path,) in db.query(Location.photo_path).filter(
         Location.photo_path.isnot(None)
     ).all():
-        if photo_path:
-            tracked.add(str(photo_path))
-            tracked.add(str(photo_path).replace("/display.", "/thumb."))
-            tracked.add(str(photo_path).replace("/display.", "/original."))
+        for variant_path in _location_photo_variant_paths(photo_path):
+            tracked.add(variant_path)
     return tracked
 
 
@@ -1189,9 +1190,7 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
     db.refresh(location)
 
     if "photo_path" in payload and old_photo_path and old_photo_path != location.photo_path:
-        old_thumb = old_photo_path.replace("/display.", "/thumb.")
-        old_original = old_photo_path.replace("/display.", "/original.")
-        _cleanup_asset_paths([old_photo_path, old_thumb, old_original])
+        _cleanup_asset_paths(list(_location_photo_variant_paths(old_photo_path)))
 
     return _serialize_location(location, db)
 
@@ -1208,9 +1207,7 @@ def delete_location(location_id: str, db: Session = Depends(get_db), me: User = 
     db.commit()
 
     if photo_path:
-        old_thumb = photo_path.replace("/display.", "/thumb.")
-        old_original = photo_path.replace("/display.", "/original.")
-        _cleanup_asset_paths([photo_path, old_thumb, old_original])
+        _cleanup_asset_paths(list(_location_photo_variant_paths(photo_path)))
 
     return {"ok": True}
 
