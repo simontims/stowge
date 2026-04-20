@@ -1,51 +1,20 @@
 """Tests for shared image default configuration behavior."""
 
-from fastapi.testclient import TestClient
-
-from stowge.auth import SESSION_COOKIE_NAME, create_session, hash_password
-from stowge.db import get_db
 from stowge.images import DEFAULT_IMAGE_CONFIG
-from stowge.main import app
-from stowge.models import ImageSettings, User
-
-
-client = TestClient(app, raise_server_exceptions=True)
-
-
-def _make_db():
-    return next(get_db())
-
-
-def _get_or_create_admin(username: str = "image_defaults_admin@example.com") -> User:
-    db = _make_db()
-    user = db.query(User).filter(User.username == username).first()
-    if not user:
-        user = User(
-            username=username,
-            first_name="Image",
-            last_name="Defaults",
-            password_hash=hash_password("Secret123!"),
-            role="admin",
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    return user
-
-
-def _auth_cookies() -> dict:
-    user = _get_or_create_admin()
-    db = _make_db()
-    token = create_session(user, db)
-    return {SESSION_COOKIE_NAME: token}
+from stowge.models import ImageSettings
+from conftest import (
+    client,
+    make_db,
+    auth_cookies,
+)
 
 
 def test_image_settings_get_uses_shared_defaults_when_row_missing():
-    db = _make_db()
+    db = make_db()
     db.query(ImageSettings).filter(ImageSettings.id == "singleton").delete()
     db.commit()
 
-    response = client.get("/api/admin/settings/images", cookies=_auth_cookies())
+    response = client.get("/api/admin/settings/images", cookies=auth_cookies("img_defaults@example.com", role="admin"))
     assert response.status_code == 200, response.text
 
     assert response.json() == {

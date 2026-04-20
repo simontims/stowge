@@ -13,46 +13,19 @@ Covers:
 """
 from fastapi.testclient import TestClient
 
-from stowge.auth import SESSION_COOKIE_NAME, create_session
-from stowge.db import get_db
-from stowge.main import app
+from stowge.auth import SESSION_COOKIE_NAME
 from stowge.models import User
-from stowge.auth import hash_password
-
-client = TestClient(app, raise_server_exceptions=True)
+from conftest import (
+    client,
+    make_db,
+    get_or_create_user,
+    auth_cookies,
+)
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _make_db():
-    return next(get_db())
-
-
-def _get_or_create_admin(username="qty_test_admin@example.com") -> User:
-    db = _make_db()
-    user = db.query(User).filter(User.username == username).first()
-    if not user:
-        user = User(
-            username=username,
-            first_name="Qty",
-            last_name="Admin",
-            password_hash=hash_password("Secret123!"),
-            role="admin",
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    return user
-
-
-def _auth_cookies() -> dict:
-    user = _get_or_create_admin()
-    db = _make_db()
-    token = create_session(user, db)
-    return {SESSION_COOKIE_NAME: token}
-
 
 def _create_item(cookies: dict, **overrides) -> dict:
     """Create an item and return its full detail response."""
@@ -71,7 +44,7 @@ def _create_item(cookies: dict, **overrides) -> dict:
 
 class TestQuantityCreate:
     def setup_method(self):
-        self.cookies = _auth_cookies()
+        self.cookies = auth_cookies("qty_test@example.com", role="admin")
 
     def test_default_quantity_is_one(self):
         item = _create_item(self.cookies)
@@ -92,7 +65,7 @@ class TestQuantityCreate:
 
 class TestQuantityRead:
     def setup_method(self):
-        self.cookies = _auth_cookies()
+        self.cookies = auth_cookies("qty_test_read@example.com", role="admin")
 
     def test_quantity_in_list_response(self):
         _create_item(self.cookies, name="List Qty Widget", quantity=7)
@@ -112,7 +85,7 @@ class TestQuantityRead:
 
 class TestQuantityUpdate:
     def setup_method(self):
-        self.cookies = _auth_cookies()
+        self.cookies = auth_cookies("qty_test_update@example.com", role="admin")
 
     def test_patch_updates_quantity(self):
         item = _create_item(self.cookies, quantity=1)
