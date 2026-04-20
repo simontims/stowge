@@ -100,6 +100,27 @@ AI_PROVIDER_RECOMMENDED_PATTERNS: dict[str, list[str]] = {
     "openrouter": ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-1.5-pro", "gpt-4o-mini", "claude-3.5-sonnet", "gemini-1.5-pro"],
 }
 
+# Keep model catalogs relevant to photo identification workflows.
+AI_IDENTIFY_ALLOWED_MODES = {"chat", "completion"}
+AI_IDENTIFY_EXCLUDED_MODES = {
+    "embedding",
+    "image_generation",
+    "audio_transcription",
+    "audio_speech",
+    "moderation",
+    "rerank",
+    "search",
+}
+AI_IDENTIFY_BLOCKLIST_SUBSTRINGS = (
+    "dall-e",
+    "whisper",
+    "tts",
+    "embedding",
+    "moderation",
+    "rerank",
+    "search",
+)
+
 
 def _is_valid_email(value: str) -> bool:
     return bool(EMAIL_RE.match(value))
@@ -231,7 +252,7 @@ def _default_api_base_for_provider(provider: str) -> str | None:
 
 
 def _litellm_models_by_provider() -> dict[str, list[str]]:
-    providers = {k: set() for k in AI_PROVIDER_META.keys()}
+    providers: dict[str, list[tuple[str, dict]]] = {k: [] for k in AI_PROVIDER_META.keys()}
     try:
         import litellm
 
@@ -242,15 +263,50 @@ def _litellm_models_by_provider() -> dict[str, list[str]]:
 
             provider = str(metadata.get("litellm_provider") or "").strip().lower()
             if provider in providers:
-                providers[provider].add(model_name)
+                providers[provider].append((model_name, metadata))
     except Exception:
         pass
 
+    def is_blocked_model_name(model_name: str) -> bool:
+        key = model_name.strip().lower()
+        return any(token in key for token in AI_IDENTIFY_BLOCKLIST_SUBSTRINGS)
+
+    def is_identify_mode(metadata: dict) -> bool:
+        mode = str(metadata.get("mode") or "").strip().lower()
+        if mode in AI_IDENTIFY_EXCLUDED_MODES:
+            return False
+        if mode and mode not in AI_IDENTIFY_ALLOWED_MODES:
+            return False
+        return True
+
+    def is_vision_capable(metadata: dict) -> bool:
+        return bool(metadata.get("supports_vision") is True)
+
     output: dict[str, list[str]] = {}
     for provider in AI_PROVIDER_META.keys():
-        models = sorted(providers.get(provider) or set())
+        entries = providers.get(provider) or []
+        identify_candidates = [
+            model_name
+            for model_name, metadata in entries
+            if not is_blocked_model_name(model_name) and is_identify_mode(metadata)
+        ]
+        vision_candidates = [
+            model_name
+            for model_name, metadata in entries
+            if not is_blocked_model_name(model_name)
+            and is_identify_mode(metadata)
+            and is_vision_capable(metadata)
+        ]
+
+        # Prefer explicit vision-capable matches when metadata is available.
+        models = sorted(set(vision_candidates or identify_candidates))
         if not models:
-            models = sorted(set(AI_PROVIDER_FALLBACK_MODELS.get(provider, [])))
+            fallback_models = [
+                model_name
+                for model_name in AI_PROVIDER_FALLBACK_MODELS.get(provider, [])
+                if not is_blocked_model_name(model_name)
+            ]
+            models = sorted(set(fallback_models))
         output[provider] = models
     return output
 
