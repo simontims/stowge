@@ -40,9 +40,10 @@ def _location_variants(display_path: str) -> tuple[str, str, str]:
 # ---------------------------------------------------------------------------
 
 
-def test_patch_location_photo_cleans_old_variant_paths(tmp_path, monkeypatch):
+def test_patch_location_photo_cleans_old_variant_paths(tmp_path, monkeypatch, isolated_db, isolated_client):
     monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
-    cookies = auth_cookies("loc_patch@example.com", role="admin")
+    from conftest import auth_cookies_isolated
+    cookies = auth_cookies_isolated(isolated_db, "loc_patch@example.com", role="admin")
 
     old_display = "loc-old/display.jpg"
     new_display = "loc-new/display.jpg"
@@ -55,7 +56,7 @@ def test_patch_location_photo_cleans_old_variant_paths(tmp_path, monkeypatch):
     for rel_path in new_variants:
         write_asset(tmp_path, rel_path)
 
-    create_response = client.post(
+    create_response = isolated_client.post(
         "/api/locations",
         json={"name": "Location Patch Cleanup", "photo_path": old_display},
         cookies=cookies,
@@ -63,7 +64,7 @@ def test_patch_location_photo_cleans_old_variant_paths(tmp_path, monkeypatch):
     assert create_response.status_code == 200, create_response.text
     location_id = create_response.json()["id"]
 
-    patch_response = client.patch(
+    patch_response = isolated_client.patch(
         f"/api/locations/{location_id}",
         json={"photo_path": new_display},
         cookies=cookies,
@@ -100,9 +101,10 @@ def test_delete_location_cleans_all_variant_paths(tmp_path, monkeypatch):
         assert not (tmp_path / rel_path).exists()
 
 
-def test_orphan_scan_ignores_location_photo_sibling_variants(tmp_path, monkeypatch):
+def test_orphan_scan_ignores_location_photo_sibling_variants(tmp_path, monkeypatch, isolated_db, isolated_client):
     monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
-    cookies = auth_cookies("loc_orphan@example.com", role="admin")
+    from conftest import auth_cookies_isolated
+    cookies = auth_cookies_isolated(isolated_db, "loc_orphan@example.com", role="admin")
 
     display_path = "loc-track/display.jpg"
     variants = _location_variants(display_path)
@@ -113,14 +115,14 @@ def test_orphan_scan_ignores_location_photo_sibling_variants(tmp_path, monkeypat
     orphan_bytes = b"orphan-file"
     write_asset(tmp_path, orphan_rel_path, orphan_bytes)
 
-    create_response = client.post(
+    create_response = isolated_client.post(
         "/api/locations",
         json={"name": "Location Orphan Scan", "photo_path": display_path},
         cookies=cookies,
     )
     assert create_response.status_code == 200, create_response.text
 
-    scan_response = client.get("/api/admin/maintenance/orphaned-images", cookies=cookies)
+    scan_response = isolated_client.get("/api/admin/maintenance/orphaned-images", cookies=cookies)
     assert scan_response.status_code == 200, scan_response.text
     payload = scan_response.json()
 

@@ -84,9 +84,10 @@ def test_delete_item_uses_shared_asset_cleanup_for_variants(tmp_path, monkeypatc
     assert not (tmp_path / "part-cleanup-1").exists()
 
 
-def test_discard_images_removes_unlinked_only(tmp_path, monkeypatch):
+def test_discard_images_removes_unlinked_only(tmp_path, monkeypatch, isolated_db, isolated_client):
     monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
-    cookies = auth_cookies("asset_discard@example.com", role="admin")
+    from conftest import auth_cookies_isolated
+    cookies = auth_cookies_isolated(isolated_db, "asset_discard@example.com", role="admin")
 
     deletable = _stored_image_payload("discard-me")
     linked = _stored_image_payload("keep-linked")
@@ -96,14 +97,14 @@ def test_discard_images_removes_unlinked_only(tmp_path, monkeypatch):
     for rel_path in (linked["path_thumb"], linked["path_display"], linked["path_original"]):
         write_asset(tmp_path, rel_path)
 
-    create_response = client.post(
+    create_response = isolated_client.post(
         "/api/items",
         json={"name": "Linked Item", "stored_images": [linked]},
         cookies=cookies,
     )
     assert create_response.status_code == 200, create_response.text
 
-    discard_response = client.post(
+    discard_response = isolated_client.post(
         "/api/images/discard",
         json={"image_ids": ["discard-me", "keep-linked", "missing-id"]},
         cookies=cookies,
