@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { type CurrentUser } from "../lib/api";
+import { apiRequest, type CurrentUser } from "../lib/api";
 
 interface LoginPageProps {
   onLogin: (user: CurrentUser) => void;
@@ -25,8 +25,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   useEffect(() => {
     async function checkStatus() {
       try {
-        const res = await fetch("/api/status");
-        const data = (await res.json()) as { needs_setup?: boolean };
+        const data = await apiRequest<{ needs_setup?: boolean }>("/api/status");
         setMode(data.needs_setup ? "setup" : "login");
       } catch {
         setMode("login");
@@ -63,26 +62,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           ? { email, username: email, firstname, lastname, password }
           : { username: email, email, password };
 
-      const res = await fetch(endpoint, {
+      const data = await apiRequest<CurrentUser>(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(body),
       });
 
-      const data = (await res.json()) as {
-        detail?: string;
-        id?: string;
-      };
-
-      if (!res.ok) {
-        setError(data.detail ?? `HTTP ${res.status}`);
-        return;
-      }
-
-      onLogin(data as CurrentUser);
-    } catch {
-      setError("Network error. Please try again.");
+      onLogin(data);
+    } catch (err) {
+      setError((err as Error).message || "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
