@@ -35,7 +35,7 @@ class Part(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    collection = Column(String, nullable=True)
+    collection = Column(String, nullable=True, index=True)
     status = Column(String, nullable=False, default="draft")  # draft|confirmed
     quantity = Column(Integer, nullable=False, default=1)
     location_id = Column(String, ForeignKey("locations.id"), nullable=True, index=True)
@@ -129,7 +129,7 @@ class UserSession(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     last_seen_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
 
 
 class ExternalIdentity(Base):
