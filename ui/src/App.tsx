@@ -8,7 +8,8 @@ import { AddPage } from "./pages/AddPage";
 import { SystemPage } from "./pages/SystemPage";
 import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
 import { LoginPage } from "./pages/LoginPage";
-import { type CurrentUser, UNAUTHORIZED_EVENT, OFFLINE_EVENT } from "./lib/api";
+import { UNAUTHORIZED_EVENT, OFFLINE_EVENT } from "./lib/api";
+import { type CurrentUser } from "./lib/types";
 import { UserContext } from "./lib/UserContext";
 import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
 

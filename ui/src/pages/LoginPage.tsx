@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { apiRequest, type CurrentUser } from "../lib/api";
+import { apiRequest } from "../lib/api";
+import { type CurrentUser } from "../lib/types";
 
 interface LoginPageProps {
   onLogin: (user: CurrentUser) => void;

@@ -1,22 +1,11 @@
+import type { CurrentUser } from "./types";
+
 /** Custom DOM event fired whenever a request returns 401. App.tsx listens to
  *  this to clear user state and show the LoginPage. */
 export const UNAUTHORIZED_EVENT = "stowge:unauthorized";
 export const OFFLINE_EVENT = "stowge:offline";
 
-/** Shape of the current-user object returned by GET /api/me and POST /api/login. */
-export interface CurrentUser {
-  id: string;
-  email: string;
-  firstname: string;
-  lastname: string;
-  role: string;
-  theme: string;
-  preferred_add_collection_id: string | null;
-  preferred_add_location_id: string | null;
-  last_open_collection: string | null;
-  created_at: string | null;
-  last_login_at: string | null;
-}
+export type { CurrentUser };
 
 function isNetworkFailure(err: unknown): boolean {
   if (err instanceof TypeError) {
