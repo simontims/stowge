@@ -166,21 +166,23 @@ def _location_photo_variant_paths(photo_path: str | None) -> tuple[str, str, str
     return (display_path, thumb_path, original_path)
 
 
-def _serialize_location(location: Location, db: Session) -> dict:
-    item_count = db.query(Part).filter(Part.location_id == location.id).count()
+def _serialize_location(location: Location, db: Session, item_count: int | None = None) -> dict:
+    if item_count is None:
+        item_count = db.query(Part).filter(Part.location_id == location.id).count()
     return {
         "id": location.id,
         "name": location.name,
         "description": location.description,
-        "item_count": item_count,
+        "item_count": int(item_count),
         "photo_url": (_location_photo_url(location.id) if location.photo_path else None),
         "created_at": _utc_iso(location.created_at),
         "updated_at": _utc_iso(location.updated_at),
     }
 
 
-def _serialize_collection(collection: Collection, db: Session) -> dict:
-    item_count = db.query(Part).filter(Part.collection == collection.name).count()
+def _serialize_collection(collection: Collection, db: Session, item_count: int | None = None) -> dict:
+    if item_count is None:
+        item_count = db.query(Part).filter(Part.collection == collection.name).count()
     return {
         "id": collection.id,
         "name": collection.name,
@@ -188,9 +190,48 @@ def _serialize_collection(collection: Collection, db: Session) -> dict:
         "color": collection.color,
         "description": collection.description,
         "ai_hint": collection.ai_hint,
-        "item_count": item_count,
+        "item_count": int(item_count),
         "created_at": _utc_iso(collection.created_at),
         "updated_at": _utc_iso(collection.updated_at),
+    }
+
+
+def _serialize_part_list(part: Part, location_name: str | None = None) -> dict:
+    primary_image = next((img for img in part.images if img.is_primary), part.images[0]) if part.images else None
+    return {
+        "id": part.id,
+        "name": part.name,
+        "collection": part.collection,
+        "location": location_name,
+        "status": part.status,
+        "quantity": part.quantity if part.quantity is not None else 1,
+        "created_at": part.created_at.isoformat(),
+        "thumb": (_signed_image_url(primary_image.id, "thumb") if primary_image else None),
+    }
+
+
+def _serialize_part_detail(part: Part, location_name: str | None = None) -> dict:
+    return {
+        "id": part.id,
+        "name": part.name,
+        "description": part.description,
+        "collection": part.collection,
+        "location_id": part.location_id,
+        "location": location_name,
+        "status": part.status,
+        "quantity": part.quantity if part.quantity is not None else 1,
+        "created_at": part.created_at.isoformat(),
+        "updated_at": part.updated_at.isoformat(),
+        "images": [{
+            "id": img.id,
+            "thumb_url": _signed_image_url(img.id, "thumb"),
+            "display_url": _signed_image_url(img.id, "display"),
+            "original_url": (_signed_image_url(img.id, "original") if img.path_original else None),
+            "is_primary": bool(img.is_primary),
+        } for img in part.images],
+        "ai_primary": part.ai_primary,
+        "ai_alternatives": part.ai_alternatives,
+        "ai_chosen_index": part.ai_chosen_index,
     }
 
 
@@ -1093,18 +1134,7 @@ def list_locations(db: Session = Depends(get_db), me: User = Depends(current_use
         .group_by(Part.location_id)
         .all()
     )
-    return [
-        {
-            "id": loc.id,
-            "name": loc.name,
-            "description": loc.description,
-            "item_count": int(counts.get(loc.id, 0)),
-            "photo_url": (_location_photo_url(loc.id) if loc.photo_path else None),
-            "created_at": _utc_iso(loc.created_at),
-            "updated_at": _utc_iso(loc.updated_at),
-        }
-        for loc in locations
-    ]
+    return [_serialize_location(loc, db, item_count=int(counts.get(loc.id, 0))) for loc in locations]
 
 
 @app.post("/api/locations")
@@ -1209,20 +1239,7 @@ def list_collections(db: Session = Depends(get_db), me: User = Depends(current_u
         .group_by(Part.collection)
         .all()
     )
-    return [
-        {
-            "id": col.id,
-            "name": col.name,
-            "icon": col.icon,
-            "color": col.color,
-            "description": col.description,
-            "ai_hint": col.ai_hint,
-            "item_count": int(counts.get(col.name, 0)),
-            "created_at": _utc_iso(col.created_at),
-            "updated_at": _utc_iso(col.updated_at),
-        }
-        for col in collections
-    ]
+    return [_serialize_collection(col, db, item_count=int(counts.get(col.name, 0))) for col in collections]
 
 
 @app.post("/api/collections")
@@ -1789,19 +1806,7 @@ def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User 
         location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
         location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
 
-    return [{
-        "id": p.id,
-        "name": p.name,
-        "collection": p.collection,
-        "location": (location_names.get(p.location_id) if p.location_id else None),
-        "status": p.status,
-        "quantity": p.quantity if p.quantity is not None else 1,
-        "created_at": p.created_at.isoformat(),
-        "thumb": (_signed_image_url(
-            next((img for img in p.images if img.is_primary), p.images[0]).id,
-            "thumb",
-        ) if p.images else None),
-    } for p in parts]
+    return [_serialize_part_list(p, location_name=(location_names.get(p.location_id) if p.location_id else None)) for p in parts]
 
 @app.get("/api/parts/{part_id}")
 @app.get("/api/items/{part_id}")
@@ -1816,28 +1821,7 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
         if location:
             location_name = location.name
 
-    return {
-        "id": p.id,
-        "name": p.name,
-        "description": p.description,
-        "collection": p.collection,
-        "location_id": p.location_id,
-        "location": location_name,
-        "status": p.status,
-        "quantity": p.quantity if p.quantity is not None else 1,
-        "created_at": p.created_at.isoformat(),
-        "updated_at": p.updated_at.isoformat(),
-        "images": [{
-            "id": img.id,
-            "thumb_url": _signed_image_url(img.id, "thumb"),
-            "display_url": _signed_image_url(img.id, "display"),
-            "original_url": (_signed_image_url(img.id, "original") if img.path_original else None),
-            "is_primary": bool(img.is_primary),
-        } for img in p.images],
-        "ai_primary": p.ai_primary,
-        "ai_alternatives": p.ai_alternatives,
-        "ai_chosen_index": p.ai_chosen_index,
-    }
+    return _serialize_part_detail(p, location_name=location_name)
 
 @app.patch("/api/parts/{part_id}")
 @app.patch("/api/items/{part_id}")
