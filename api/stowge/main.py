@@ -88,6 +88,18 @@ AI_PROVIDER_FALLBACK_MODELS: dict[str, list[str]] = {
     ],
 }
 
+# Pattern-based recommendations so suggested models survive LiteLLM catalog updates.
+AI_PROVIDER_RECOMMENDED_PATTERNS: dict[str, list[str]] = {
+    "openai": ["gpt-4.1", "gpt-4o-mini", "gpt-4.1-mini"],
+    "anthropic": ["claude-3-5-sonnet", "claude-3.5-sonnet", "claude-sonnet", "claude-3-5-haiku", "claude-3.5-haiku", "claude-haiku"],
+    "gemini": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    "azure": ["gpt-4.1-mini", "gpt-4o-mini"],
+    "groq": ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b", "mixtral-8x7b"],
+    "mistral": ["mistral-large", "mistral-small"],
+    "xai": ["grok-2", "grok"],
+    "openrouter": ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-1.5-pro", "gpt-4o-mini", "claude-3.5-sonnet", "gemini-1.5-pro"],
+}
+
 
 def _is_valid_email(value: str) -> bool:
     return bool(EMAIL_RE.match(value))
@@ -241,6 +253,36 @@ def _litellm_models_by_provider() -> dict[str, list[str]]:
             models = sorted(set(AI_PROVIDER_FALLBACK_MODELS.get(provider, [])))
         output[provider] = models
     return output
+
+
+def _normalize_model_key(provider: str, model_name: str) -> str:
+    key = (model_name or "").strip().lower()
+    prefix = f"{provider.lower()}/"
+    if key.startswith(prefix):
+        return key[len(prefix):]
+    return key
+
+
+def _recommended_models_for_provider(provider: str, models: list[str]) -> list[str]:
+    patterns = AI_PROVIDER_RECOMMENDED_PATTERNS.get(provider, [])
+    if not patterns or not models:
+        return []
+
+    recommended: list[str] = []
+    used: set[str] = set()
+
+    for pattern in patterns:
+        pattern_key = _normalize_model_key(provider, pattern)
+        for candidate in models:
+            if candidate in used:
+                continue
+            candidate_key = _normalize_model_key(provider, candidate)
+            if pattern_key in candidate_key:
+                recommended.append(candidate)
+                used.add(candidate)
+                break
+
+    return recommended
 
 
 def _resolve_llm_config(db: Session, selected_id: str | None = None) -> LLMConfig | None:
@@ -1274,12 +1316,15 @@ def list_ai_providers_catalog(me: User = Depends(require_admin)):
     models_by_provider = _litellm_models_by_provider()
     providers = []
     for provider, meta in AI_PROVIDER_META.items():
+        models = models_by_provider.get(provider, [])
+        recommended_models = _recommended_models_for_provider(provider, models)
         providers.append(
             {
                 "value": provider,
                 "label": meta["label"],
                 "api_base": meta["api_base"],
-                "models": models_by_provider.get(provider, []),
+                "models": models,
+                "recommended_models": recommended_models,
             }
         )
     return {"providers": providers}

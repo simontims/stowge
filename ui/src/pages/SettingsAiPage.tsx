@@ -25,6 +25,7 @@ interface ProviderOption {
   label: string;
   api_base: string;
   models: string[];
+  recommended_models?: string[];
 }
 
 interface ModelOptionGroups {
@@ -208,10 +209,13 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   }
 
   function getModelOptionGroups(provider: string): ModelOptionGroups {
+    const selectedProvider = getProviderOption(provider);
     const allModels = getProviderModels(provider);
+    const recommended = (selectedProvider?.recommended_models || []).filter((model) => allModels.includes(model));
+    const used = new Set(recommended);
     return {
-      recommended: [],
-      all: allModels,
+      recommended,
+      all: allModels.filter((model) => !used.has(model)),
     };
   }
 
