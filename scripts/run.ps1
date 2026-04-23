@@ -169,8 +169,10 @@ $pythonExe = Join-Path $venvDir "Scripts\python.exe"
 $requirementsFile = Join-Path $apiDir "requirements.txt"
 $uiSrcDir = Join-Path $repoRoot "ui"
 $uiOutDir = Join-Path $repoRoot "ui\dist"
-$assetsDir = Join-Path $repoRoot "assets"
-$dataDir = Join-Path $repoRoot "data"
+$defaultAssetsDir = Join-Path $repoRoot "assets"
+$defaultDataDir = Join-Path $repoRoot "data"
+$assetsDir = $defaultAssetsDir
+$dataDir = $defaultDataDir
 $dbFile = Join-Path $dataDir "stowge.db"
 $envFile = Join-Path $repoRoot ".env"
 $uiNodeModulesDir = Join-Path $uiSrcDir "node_modules"
@@ -205,6 +207,15 @@ if (
 
 Write-Step "Loading .env values"
 Import-DotEnv -Path $envFile
+
+# Respect pre-configured storage paths from .env when present.
+if ($env:ASSETS_DIR) {
+    $assetsDir = $env:ASSETS_DIR
+}
+if ($env:DATABASE_DIR) {
+    $dataDir = $env:DATABASE_DIR
+    $dbFile = Join-Path $dataDir "stowge.db"
+}
 
 Write-Step "Checking required tools"
 Ensure-Command -Name "npm" -InstallHint "Install Node.js (includes npm) from https://nodejs.org/"
@@ -272,7 +283,9 @@ $assetsDirUnix = $assetsDir.Replace("\", "/")
 $dbFileUnix = $dbFile.Replace("\", "/")
 
 [Environment]::SetEnvironmentVariable("UI_DIR", $uiDirUnix, "Process")
-[Environment]::SetEnvironmentVariable("ASSETS_DIR", $assetsDirUnix, "Process")
+if (-not $env:ASSETS_DIR) {
+    [Environment]::SetEnvironmentVariable("ASSETS_DIR", $assetsDirUnix, "Process")
+}
 if (-not $env:DATABASE_DIR -and -not $env:DATABASE_URL) {
     $dataDirUnix = $dataDir.Replace("\", "/")
     [Environment]::SetEnvironmentVariable("DATABASE_DIR", $dataDirUnix, "Process")
@@ -291,6 +304,13 @@ else {
 }
 
 Write-Step "Starting Stowge at http://localhost:18090"
+Write-Host "Using ASSETS_DIR=$($env:ASSETS_DIR)" -ForegroundColor DarkGray
+if ($env:DATABASE_DIR) {
+    Write-Host "Using DATABASE_DIR=$($env:DATABASE_DIR)" -ForegroundColor DarkGray
+}
+if ($env:DATABASE_URL) {
+    Write-Host "Using DATABASE_URL=$($env:DATABASE_URL)" -ForegroundColor DarkGray
+}
 
 Push-Location $apiDir
 try {

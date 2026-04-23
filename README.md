@@ -67,6 +67,27 @@ stowge admin create --email admin@example.com
 
 You will be prompted to enter and confirm the new password.
 
+### Backup and restore
+In `System > Status > Maintenance`, use `Backup / Restore` to:
+- create a backup archive in `/assets/backups`
+- optionally include only asset files referenced by the database
+- browse available backups and inspect manifest details
+- download a backup archive from the browser
+- test and run restore with validation and progress feedback
+
+Backups are written as:
+- `stowge_YYYY-MM-DD_HH-MM-SS-ffffff.tar.gz`
+
+Each archive includes:
+- `manifest.json`
+- `db/stowge.db`
+- optional `assets/` files when selected at backup time
+
+Restore safety notes:
+- current data is overwritten
+- existing assets are deleted before restore
+- all active sessions are invalidated at completion (users are logged out)
+
 ### 5) Configure AI models in app (optional)
 Go to `System > AI` and add one or more LLM providers/models,
 set API keys, and choose a default model for `Add`.

@@ -192,8 +192,10 @@ python_exe="$venv_dir/bin/python"
 requirements_file="$api_dir/requirements.txt"
 ui_src_dir="$repo_root/ui"
 ui_out_dir="$repo_root/ui/dist"
-assets_dir="$repo_root/assets"
-data_dir="$repo_root/data"
+default_assets_dir="$repo_root/assets"
+default_data_dir="$repo_root/data"
+assets_dir="$default_assets_dir"
+data_dir="$default_data_dir"
 db_file="$data_dir/stowge.db"
 env_file="$repo_root/.env"
 ui_node_modules_dir="$ui_src_dir/node_modules"
@@ -223,6 +225,15 @@ set -a
 # shellcheck disable=SC1090
 source "$env_file"
 set +a
+
+# Respect pre-configured storage paths from .env when present.
+if [[ -n "${ASSETS_DIR:-}" ]]; then
+  assets_dir="$ASSETS_DIR"
+fi
+if [[ -n "${DATABASE_DIR:-}" ]]; then
+  data_dir="$DATABASE_DIR"
+  db_file="$data_dir/stowge.db"
+fi
 
 step "Checking required tools"
 require_cmd npm "Install Node.js (includes npm) from https://nodejs.org/"
@@ -291,7 +302,9 @@ if [[ $FRESH_SETUP -eq 1 && -f "$db_file" ]]; then
 fi
 
 export UI_DIR="$ui_out_dir"
-export ASSETS_DIR="$assets_dir"
+if [[ -z "${ASSETS_DIR:-}" ]]; then
+  export ASSETS_DIR="$assets_dir"
+fi
 if [[ -z "${DATABASE_DIR:-}" && -z "${DATABASE_URL:-}" ]]; then
   export DATABASE_DIR="$data_dir"
 fi
@@ -308,6 +321,13 @@ else
 fi
 
 step "Starting Stowge at http://localhost:18090"
+echo "Using ASSETS_DIR=${ASSETS_DIR:-$assets_dir}"
+if [[ -n "${DATABASE_DIR:-}" ]]; then
+  echo "Using DATABASE_DIR=$DATABASE_DIR"
+fi
+if [[ -n "${DATABASE_URL:-}" ]]; then
+  echo "Using DATABASE_URL=$DATABASE_URL"
+fi
 pushd "$api_dir" >/dev/null
 
 uvicorn_args=("-m" "uvicorn" "stowge.main:app" "--host" "0.0.0.0" "--port" "18090" "--access-log")

@@ -3,6 +3,8 @@ import time
 import json
 import asyncio
 import re
+import threading
+import uuid
 from threading import Lock
 from datetime import datetime, timezone
 from typing import Optional, Literal, List
@@ -14,15 +16,26 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect, text, func
 
-from .db import engine, Base, get_db, DATABASE_FILE
+from .db import engine, Base, get_db, DATABASE_FILE, SessionLocal
 from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
 from .auth import (
     hash_password, verify_password, create_session, delete_session,
+    delete_all_sessions,
     current_user, require_admin,
     SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
     _TIMING_DUMMY_HASH,
 )
 from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, cleanup_asset_paths, assets_dir, ImageConfig, DEFAULT_IMAGE_CONFIG
+from .backup_restore import (
+    BackupError,
+    create_backup_archive,
+    ensure_backups_dir,
+    list_backups,
+    read_manifest_from_archive,
+    start_restore_validation,
+    restore_from_validation,
+    remove_tmp_dir,
+)
 from .openai_id import identify as openai_identify
 from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -510,6 +523,12 @@ _PARTS_EVENTS_SEQ = 0
 _PARTS_EVENTS_LOG: list[dict] = []
 _PARTS_EVENTS_MAX = 256
 
+_BACKUP_OPS_LOCK = Lock()
+_BACKUP_OPS: dict[str, dict] = {}
+_ACTIVE_BACKUP_OP_ID: str | None = None
+_RESTORE_VALIDATIONS_LOCK = Lock()
+_RESTORE_VALIDATIONS: dict[str, dict] = {}
+
 # Serve Vite-built hashed bundles from /app/ui/assets.
 app.mount(
     "/assets",
@@ -577,6 +596,101 @@ def _publish_inventory_change(action: str, part_id: str):
 def _parts_events_since(last_seq: int) -> list[dict]:
     with _PARTS_EVENTS_LOCK:
         return [e for e in _PARTS_EVENTS_LOG if int(e.get("seq", 0)) > last_seq]
+
+
+def _new_backup_operation(op_type: str) -> str:
+    global _ACTIVE_BACKUP_OP_ID
+    with _BACKUP_OPS_LOCK:
+        if _ACTIVE_BACKUP_OP_ID:
+            active = _BACKUP_OPS.get(_ACTIVE_BACKUP_OP_ID)
+            if active and active.get("status") == "running":
+                raise HTTPException(status_code=409, detail="Another backup/restore operation is already in progress")
+
+        op_id = str(uuid.uuid4())
+        _BACKUP_OPS[op_id] = {
+            "id": op_id,
+            "type": op_type,
+            "status": "running",
+            "stage": "starting",
+            "progress": 0,
+            "message": "Starting",
+            "error": None,
+            "result": None,
+            "updated_at": _utc_iso(datetime.now(timezone.utc)),
+        }
+        _ACTIVE_BACKUP_OP_ID = op_id
+        return op_id
+
+
+def _update_backup_operation(op_id: str, *, stage: str, progress: int, message: str):
+    with _BACKUP_OPS_LOCK:
+        op = _BACKUP_OPS.get(op_id)
+        if not op:
+            return
+        op["stage"] = stage
+        op["progress"] = max(0, min(100, int(progress)))
+        op["message"] = message
+        op["updated_at"] = _utc_iso(datetime.now(timezone.utc))
+
+
+def _finish_backup_operation(op_id: str, *, status: str, result: dict | None = None, error: str | None = None):
+    global _ACTIVE_BACKUP_OP_ID
+    with _BACKUP_OPS_LOCK:
+        op = _BACKUP_OPS.get(op_id)
+        if not op:
+            return
+        op["status"] = status
+        op["result"] = result
+        op["error"] = error
+        if status == "completed":
+            op["progress"] = 100
+            op["stage"] = "complete"
+        op["updated_at"] = _utc_iso(datetime.now(timezone.utc))
+        if _ACTIVE_BACKUP_OP_ID == op_id:
+            _ACTIVE_BACKUP_OP_ID = None
+
+
+def _resolve_backup_path(filename: str) -> str:
+    safe_name = os.path.basename(filename)
+    if safe_name != filename or not safe_name.endswith(".tar.gz"):
+        raise HTTPException(status_code=400, detail="Invalid backup filename")
+    path = os.path.join(ensure_backups_dir(assets_dir()), safe_name)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Backup not found")
+    return path
+
+
+def _purge_orphaned_images_once(db: Session) -> dict:
+    tracked = _build_tracked_paths(db)
+    base_assets_dir = assets_dir()
+    deleted = 0
+    freed_bytes = 0
+    for root, _dirs, files in os.walk(base_assets_dir):
+        if os.path.basename(root) == "backups":
+            continue
+        for fname in files:
+            abs_path = os.path.join(root, fname)
+            rel_path = os.path.relpath(abs_path, base_assets_dir).replace("\\", "/")
+            if rel_path.startswith("backups/"):
+                continue
+            if rel_path not in tracked:
+                try:
+                    freed_bytes += os.path.getsize(abs_path)
+                    os.remove(abs_path)
+                    deleted += 1
+                except OSError:
+                    pass
+    for root, _dirs, _files in os.walk(base_assets_dir, topdown=False):
+        if root == base_assets_dir:
+            continue
+        if os.path.basename(root) == "backups":
+            continue
+        try:
+            if not os.listdir(root):
+                os.rmdir(root)
+        except OSError:
+            pass
+    return {"deleted": deleted, "freed_bytes": freed_bytes}
 
 # ---------------- UI (PWA) ----------------
 @app.get("/", response_class=HTMLResponse)
@@ -807,17 +921,21 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
 def _build_tracked_paths(db: Session) -> set[str]:
     """Return the set of all asset relative paths referenced in the database."""
     tracked: set[str] = set()
+
+    def _norm_rel(path_value: str) -> str:
+        return str(path_value).replace("\\", "/")
+
     for (pt, pd, po) in db.query(
         PartImage.path_thumb, PartImage.path_display, PartImage.path_original
     ).all():
         for p in (pt, pd, po):
             if p:
-                tracked.add(str(p))
+                tracked.add(_norm_rel(str(p)))
     for (photo_path,) in db.query(Location.photo_path).filter(
         Location.photo_path.isnot(None)
     ).all():
         for variant_path in _location_photo_variant_paths(photo_path):
-            tracked.add(variant_path)
+            tracked.add(_norm_rel(variant_path))
     return tracked
 
 
@@ -896,6 +1014,222 @@ def vacuum_database(me: User = Depends(require_admin)):
         "size_after": size_after,
         "freed_bytes": max(0, size_before - size_after),
     }
+
+
+@app.post("/api/admin/backups/create")
+def create_backup(payload: dict, me: User = Depends(require_admin)):
+    include_assets = bool(payload.get("include_assets", False))
+    backup_name = str(payload.get("backup_name") or "").strip() or None
+    op_id = _new_backup_operation("backup-create")
+
+    def run_backup():
+        db = SessionLocal()
+        try:
+            result = create_backup_archive(
+                db=db,
+                db_file=DATABASE_FILE,
+                assets_root=assets_dir(),
+                include_assets=include_assets,
+                backup_name=backup_name,
+                app_version=APP_VERSION,
+                progress_callback=lambda **kwargs: _update_backup_operation(op_id, **kwargs),
+            )
+            _finish_backup_operation(op_id, status="completed", result={
+                "filename": result["filename"],
+                "archive_bytes": result["archive_bytes"],
+                "manifest": result["manifest"],
+            })
+        except Exception as exc:
+            _finish_backup_operation(op_id, status="failed", error=str(exc))
+        finally:
+            db.close()
+
+    thread = threading.Thread(target=run_backup, daemon=True)
+    thread.start()
+    return {"operation_id": op_id}
+
+
+@app.get("/api/admin/backups/operations/{operation_id}")
+def get_backup_operation(operation_id: str, me: User = Depends(require_admin)):
+    with _BACKUP_OPS_LOCK:
+        op = _BACKUP_OPS.get(operation_id)
+        if not op:
+            raise HTTPException(status_code=404, detail="Operation not found")
+        return op
+
+
+@app.get("/api/admin/backups")
+def get_backups(me: User = Depends(require_admin)):
+    return {"backups": list_backups(assets_dir())}
+
+
+@app.get("/api/admin/backups/{filename}")
+def get_backup_details(filename: str, me: User = Depends(require_admin)):
+    backup_path = _resolve_backup_path(filename)
+    try:
+        manifest = read_manifest_from_archive(backup_path)
+    except BackupError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    stat = os.stat(backup_path)
+    return {
+        "filename": filename,
+        "size_bytes": int(stat.st_size),
+        "modified_at": _utc_iso(datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)),
+        "manifest": manifest,
+    }
+
+
+@app.get("/api/admin/backups/{filename}/download")
+def download_backup(filename: str, me: User = Depends(require_admin)):
+    backup_path = _resolve_backup_path(filename)
+    return FileResponse(backup_path, media_type="application/gzip", filename=filename)
+
+
+@app.delete("/api/admin/backups/{filename}")
+def delete_backup(filename: str, me: User = Depends(require_admin)):
+    backup_path = _resolve_backup_path(filename)
+    try:
+        os.remove(backup_path)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to delete backup: {exc}")
+    return {"ok": True}
+
+
+@app.post("/api/admin/backups/{filename}/restore-test")
+def restore_test_backup(filename: str, me: User = Depends(require_admin)):
+    backup_path = _resolve_backup_path(filename)
+    op_id = _new_backup_operation("restore-test")
+
+    def run_restore_test():
+        tmp_dir: str | None = None
+        try:
+            result = start_restore_validation(
+                backup_path=backup_path,
+                assets_root=assets_dir(),
+                progress_callback=lambda **kwargs: _update_backup_operation(op_id, **kwargs),
+            )
+            tmp_dir = result["tmp_dir"]
+            validation_id = str(uuid.uuid4())
+            with _RESTORE_VALIDATIONS_LOCK:
+                _RESTORE_VALIDATIONS[validation_id] = {
+                    "tmp_dir": tmp_dir,
+                    "manifest": result["manifest"],
+                    "includes_assets": result["includes_assets"],
+                    "assets_count": result["assets_count"],
+                    "created_at": _utc_iso(datetime.now(timezone.utc)),
+                }
+            _finish_backup_operation(
+                op_id,
+                status="completed",
+                result={
+                    "validation_id": validation_id,
+                    "manifest": result["manifest"],
+                    "includes_assets": result["includes_assets"],
+                    "assets_count": result["assets_count"],
+                    "required_bytes_estimate": result["required_bytes_estimate"],
+                    "free_bytes": result["free_bytes"],
+                },
+            )
+        except BackupError as exc:
+            if tmp_dir:
+                remove_tmp_dir(tmp_dir)
+            _finish_backup_operation(
+                op_id,
+                status="failed",
+                error=str(exc),
+                result={
+                    "preflight_failure": {
+                        "code": getattr(exc, "code", "backup_error"),
+                        "message": str(exc),
+                    }
+                },
+            )
+        except Exception as exc:
+            if tmp_dir:
+                remove_tmp_dir(tmp_dir)
+            _finish_backup_operation(
+                op_id,
+                status="failed",
+                error=str(exc),
+                result={
+                    "preflight_failure": {
+                        "code": "unexpected_error",
+                        "message": str(exc),
+                    }
+                },
+            )
+
+    thread = threading.Thread(target=run_restore_test, daemon=True)
+    thread.start()
+    return {"operation_id": op_id}
+
+
+@app.post("/api/admin/backups/restore/cancel")
+def restore_cancel(payload: dict, me: User = Depends(require_admin)):
+    validation_id = str(payload.get("validation_id") or "").strip()
+    if not validation_id:
+        raise HTTPException(status_code=400, detail="validation_id is required")
+    with _RESTORE_VALIDATIONS_LOCK:
+        ctx = _RESTORE_VALIDATIONS.pop(validation_id, None)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Restore validation not found")
+    remove_tmp_dir(str(ctx.get("tmp_dir") or ""))
+    return {"ok": True}
+
+
+@app.post("/api/admin/backups/restore/apply")
+def restore_apply(payload: dict, me: User = Depends(require_admin)):
+    validation_id = str(payload.get("validation_id") or "").strip()
+    if not validation_id:
+        raise HTTPException(status_code=400, detail="validation_id is required")
+
+    op_id = _new_backup_operation("restore-apply")
+
+    with _RESTORE_VALIDATIONS_LOCK:
+        ctx = _RESTORE_VALIDATIONS.pop(validation_id, None)
+    if not ctx:
+        _finish_backup_operation(op_id, status="failed", error="Restore validation not found")
+        raise HTTPException(status_code=404, detail="Restore validation not found")
+
+    def run_restore_apply():
+        tmp_dir = str(ctx.get("tmp_dir") or "")
+        try:
+            restore_result = restore_from_validation(
+                validation_tmp_dir=tmp_dir,
+                db_file=DATABASE_FILE,
+                assets_root=assets_dir(),
+                includes_assets=bool(ctx.get("includes_assets")),
+                progress_callback=lambda **kwargs: _update_backup_operation(op_id, **kwargs),
+            )
+
+            db = SessionLocal()
+            try:
+                _update_backup_operation(op_id, stage="cleanup_orphans", progress=96, message="Cleaning orphan asset files")
+                orphan_cleanup = _purge_orphaned_images_once(db)
+
+                _update_backup_operation(op_id, stage="logout", progress=99, message="Invalidating sessions")
+                invalidated = delete_all_sessions(db)
+            finally:
+                db.close()
+
+            _finish_backup_operation(
+                op_id,
+                status="completed",
+                result={
+                    "manifest": restore_result.get("manifest"),
+                    "orphan_cleanup": orphan_cleanup,
+                    "sessions_invalidated": invalidated,
+                    "logout_required": True,
+                },
+            )
+        except Exception as exc:
+            _finish_backup_operation(op_id, status="failed", error=str(exc))
+        finally:
+            remove_tmp_dir(tmp_dir)
+
+    thread = threading.Thread(target=run_restore_apply, daemon=True)
+    thread.start()
+    return {"operation_id": op_id}
 
 
 @app.post("/api/setup/first-admin")

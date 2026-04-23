@@ -66,6 +66,13 @@ def delete_session(session_id: str, db: Session) -> None:
     db.commit()
 
 
+def delete_all_sessions(db: Session) -> int:
+    """Delete all active sessions and return the number removed."""
+    deleted = db.query(UserSession).delete(synchronize_session=False)
+    db.commit()
+    return int(deleted or 0)
+
+
 def current_user(
     request: Request,
     db: Session = Depends(get_db),
