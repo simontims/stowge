@@ -52,6 +52,7 @@ Visit the UI; on first run you'll be asked to create an admin user and password.
 If you lose access to your admin account, use the `stowge` CLI. You can run it directly from the host (replace `{container-name}` with the name from your compose file):
 
 ```bash
+docker exec -it {container-name} stowge users list
 docker exec -it {container-name} stowge reset-password --email admin@example.com
 docker exec -it {container-name} stowge admin create --email admin@example.com
 ```
@@ -59,6 +60,7 @@ docker exec -it {container-name} stowge admin create --email admin@example.com
 Or from a shell inside the container (`docker exec -it {container-name} bash`):
 
 ```bash
+stowge users list
 stowge reset-password --email admin@example.com
 stowge admin create --email admin@example.com
 ```

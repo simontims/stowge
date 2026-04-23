@@ -27,6 +27,9 @@ def cmd_help(_args=None):
         "\n"
         "  stowge reset-password --email <email>\n"
         "      Set a new password for an existing user.\n"
+        "\n"
+        "  stowge users list\n"
+        "      List all users.\n"
     )
 
 
@@ -97,6 +100,22 @@ def cmd_reset_password(args):
         db.close()
 
 
+def cmd_users_list(_args):
+    from stowge.models import User  # noqa: PLC0415
+
+    db = _get_db()
+    try:
+        users = db.query(User).order_by(User.username.asc()).all()
+        if not users:
+            print("No users found.")
+            return
+
+        for user in users:
+            print(f"{user.username} ({user.role})")
+    finally:
+        db.close()
+
+
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main():
@@ -115,6 +134,10 @@ def main():
     reset_parser.add_argument("--email", required=True, metavar="EMAIL",
                               help="Email address of the user")
 
+    users_parser = subparsers.add_parser("users", help="User management commands")
+    users_sub = users_parser.add_subparsers(dest="users_command")
+    users_sub.add_parser("list", help="List all users")
+
     args = parser.parse_args()
 
     if args.command == "help" or args.command is None:
@@ -126,6 +149,11 @@ def main():
             admin_parser.print_help()
     elif args.command == "reset-password":
         cmd_reset_password(args)
+    elif args.command == "users":
+        if args.users_command == "list":
+            cmd_users_list(args)
+        else:
+            users_parser.print_help()
 
 
 if __name__ == "__main__":
