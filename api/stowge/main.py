@@ -1361,8 +1361,8 @@ def create_user(payload: dict, db: Session = Depends(get_db), me: User = Depends
 
     if not _is_valid_email(username):
         raise HTTPException(status_code=400, detail="Valid email required")
-    if len(password) < 8:
-        raise HTTPException(status_code=400, detail="Password >= 8 chars")
+    if password == "":
+        raise HTTPException(status_code=400, detail="Password required")
     if db.query(User).filter(User.username == username).first():
         raise HTTPException(status_code=400, detail="Email already exists")
 
@@ -1412,8 +1412,6 @@ def update_user(user_id: str, payload: dict, db: Session = Depends(get_db), me: 
 
     if "password" in payload:
         password = str(payload.get("password") or "")
-        if password and len(password) < 8:
-            raise HTTPException(status_code=400, detail="Password >= 8 chars")
         if password:
             u.password_hash = hash_password(password)
 

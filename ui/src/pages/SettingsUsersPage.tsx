@@ -154,8 +154,8 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       setError("Email is required.");
       return;
     }
-    if (newUser.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (!newUser.password) {
+      setError("Password is required.");
       return;
     }
 
@@ -219,10 +219,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
 
     if (!editForm.email.trim()) {
       setError("Email is required.");
-      return;
-    }
-    if (editForm.password && editForm.password.length < 8) {
-      setError("Password must be at least 8 characters.");
       return;
     }
 

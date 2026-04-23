@@ -32,6 +32,7 @@ from conftest import (
     make_db,
     create_user,
     get_or_create_user,
+    auth_cookies_isolated,
     valid_session_cookie,
 )
 
@@ -263,6 +264,58 @@ class TestRequireAdmin:
     def test_unauthenticated_gets_401_on_users_list(self):
         r = client.get("/api/users")
         assert r.status_code == 401
+
+
+class TestUsersApiPasswords:
+    def test_create_user_accepts_short_non_empty_password(self, isolated_client, isolated_db):
+        cookies = auth_cookies_isolated(isolated_db, "admin-users@example.com", password="admin", role="admin")
+
+        r = isolated_client.post(
+            "/api/users",
+            json={
+                "email": "shortpass@example.com",
+                "password": "a",
+                "firstname": "Short",
+                "lastname": "Pass",
+            },
+            cookies=cookies,
+        )
+
+        assert r.status_code == 200
+        body = r.json()
+        assert body["email"] == "shortpass@example.com"
+
+    def test_create_user_rejects_empty_password(self, isolated_client, isolated_db):
+        cookies = auth_cookies_isolated(isolated_db, "admin-empty@example.com", password="admin", role="admin")
+
+        r = isolated_client.post(
+            "/api/users",
+            json={
+                "email": "emptypass@example.com",
+                "password": "",
+            },
+            cookies=cookies,
+        )
+
+        assert r.status_code == 400
+        assert r.json()["detail"] == "Password required"
+
+    def test_update_user_accepts_short_non_empty_password(self, isolated_client, isolated_db):
+        cookies = auth_cookies_isolated(isolated_db, "admin-update@example.com", password="admin", role="admin")
+        db = isolated_db()
+        try:
+            user = create_user(db, username="editable@example.com", password="Original123!", role="admin")
+            user_id = user.id
+        finally:
+            db.close()
+
+        r = isolated_client.patch(
+            f"/api/users/{user_id}",
+            json={"password": "x"},
+            cookies=cookies,
+        )
+
+        assert r.status_code == 200
 
 
 # ---------------------------------------------------------------------------
