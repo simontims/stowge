@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tag } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -157,10 +157,12 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [backupsLoading, setBackupsLoading] = useState(false);
   const [backupsError, setBackupsError] = useState("");
   const [selectedBackupFilename, setSelectedBackupFilename] = useState<string | null>(null);
+  const [focusBackupFilename, setFocusBackupFilename] = useState<string | null>(null);
   const [selectedBackupDetails, setSelectedBackupDetails] = useState<BackupDetails | null>(null);
   const [backupDetailsLoading, setBackupDetailsLoading] = useState(false);
   const [deleteBackupTarget, setDeleteBackupTarget] = useState<string | null>(null);
   const [deletingBackup, setDeletingBackup] = useState(false);
+  const backupRowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Backup create modal
   const [backupModalOpen, setBackupModalOpen] = useState(false);
@@ -191,7 +193,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
     }
   }
 
-  async function loadBackups(preferSelected = false) {
+  async function loadBackups(preferSelected = false, preferredFilename: string | null = null) {
     setBackupsLoading(true);
     try {
       const data = await apiRequest<{ backups: BackupListRow[] }>("/api/admin/backups");
@@ -200,21 +202,37 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
       if (data.backups.length === 0) {
         setSelectedBackupFilename(null);
+        setFocusBackupFilename(null);
         setSelectedBackupDetails(null);
         return;
       }
 
+      const preferred = preferredFilename
+        ? data.backups.find((b) => b.filename === preferredFilename)
+        : null;
       const selected = preferSelected && selectedBackupFilename
         ? data.backups.find((b) => b.filename === selectedBackupFilename)
         : null;
-      const next = selected?.filename ?? data.backups[0].filename;
+      const next = preferred?.filename ?? selected?.filename ?? data.backups[0].filename;
       setSelectedBackupFilename(next);
+      if (preferred?.filename) {
+        setFocusBackupFilename(preferred.filename);
+      }
     } catch (err) {
       setBackupsError((err as Error).message || "Failed to load backups.");
     } finally {
       setBackupsLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!focusBackupFilename) return;
+    const target = backupRowRefs.current[focusBackupFilename];
+    if (!target) return;
+    target.focus();
+    target.scrollIntoView({ block: "nearest" });
+    setFocusBackupFilename(null);
+  }, [backups, focusBackupFilename]);
 
   useEffect(() => {
     void loadMetrics();
@@ -327,7 +345,8 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       });
       const done = await pollOperation(started.operation_id, setBackupOp);
       if (done.status === "completed") {
-        await loadBackups(true);
+        const createdFilename = String(done.result?.filename || "").trim() || null;
+        await loadBackups(Boolean(createdFilename), createdFilename);
       }
     } catch (err) {
       setBackupOp({
@@ -707,6 +726,9 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 return (
                   <button
                     key={backup.filename}
+                    ref={(el) => {
+                      backupRowRefs.current[backup.filename] = el;
+                    }}
                     type="button"
                     onClick={() => setSelectedBackupFilename(backup.filename)}
                     className={[
