@@ -165,19 +165,27 @@ export function ItemsPage() {
     [collectionFilter, collectionOptions]
   );
 
+  // Debounced collection filter — reduces write traffic on PATCH /api/me
+  const [debouncedCollectionFilter, setDebouncedCollectionFilter] = useState(collectionFilter);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedCollectionFilter(collectionFilter), 300);
+    return () => clearTimeout(t);
+  }, [collectionFilter]);
+
   const collectionFilterSavedRef = useRef<string | null>(null);
   useEffect(() => {
     if (collectionFilterSavedRef.current === null) {
-      collectionFilterSavedRef.current = collectionFilter;
+      collectionFilterSavedRef.current = debouncedCollectionFilter;
       return;
     }
-    if (collectionFilter === collectionFilterSavedRef.current) return;
-    collectionFilterSavedRef.current = collectionFilter;
+    if (debouncedCollectionFilter === collectionFilterSavedRef.current) return;
+    collectionFilterSavedRef.current = debouncedCollectionFilter;
+    const debouncedIsUncollected = debouncedCollectionFilter === "__none";
     void apiRequest("/api/me", {
       method: "PATCH",
-      body: JSON.stringify({ last_open_collection: isUncollectedFilter ? null : (collectionFilter || null) }),
+      body: JSON.stringify({ last_open_collection: debouncedIsUncollected ? null : (debouncedCollectionFilter || null) }),
     }).catch(() => {});
-  }, [collectionFilter]);
+  }, [debouncedCollectionFilter]);
 
   const hasDirtyChanges = useMemo(
     () => selectedPartId !== null && !isSameForm(editForm, initialEditForm),
