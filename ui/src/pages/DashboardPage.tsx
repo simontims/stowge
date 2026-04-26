@@ -164,7 +164,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
   // Backup create modal
   const [backupModalOpen, setBackupModalOpen] = useState(false);
-  const [backupIncludeAssets, setBackupIncludeAssets] = useState(false);
+  const [backupIncludeAssets, setBackupIncludeAssets] = useState(true);
   const [backupName, setBackupName] = useState("");
   const [backupOp, setBackupOp] = useState<BackupOperation | null>(null);
 
@@ -669,9 +669,9 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
           </div>
 
           <div className="rounded-md border border-neutral-800 p-3 space-y-2">
-            <p className="text-sm font-medium text-neutral-200">Backup / Restore</p>
+            <p className="text-sm font-medium text-neutral-200">Backup</p>
             <p className="text-xs text-neutral-500">
-              Create compressed backups and restore from archive with validation.
+              Create a backup
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -683,7 +683,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 }}
                 className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium"
               >
-                Backup / Restore
+                Backup
               </button>
               <button
                 type="button"
@@ -777,7 +777,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       {backupModalOpen && (
         <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-neutral-100">Create backup</h3>
+            <h3 className="text-sm font-semibold text-neutral-100">Create a backup</h3>
             {!backupOp && (
               <>
                 <label className="flex items-start gap-2 text-sm text-neutral-300">
@@ -816,7 +816,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     onClick={() => void startBackup()}
                     className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-200 text-xs"
                   >
-                    Start backup
+                    Backup Now
                   </button>
                 </div>
               </>
