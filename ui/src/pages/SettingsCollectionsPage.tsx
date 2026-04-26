@@ -57,6 +57,16 @@ interface CollectionRecord {
   actions?: never;
 }
 
+interface CollectionListRow extends CollectionRecord {
+  isSynthetic?: boolean;
+}
+
+interface CollectionsStatusResponse {
+  uncollected?: {
+    item_count?: number;
+  };
+}
+
 interface CollectionForm {
   name: string;
   icon: string;
@@ -546,6 +556,7 @@ interface CollectionsSectionProps {
 export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: CollectionsSectionProps = {}) {
   const navigate = useNavigate();
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
+  const [uncollectedItemCount, setUncollectedItemCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
@@ -609,8 +620,16 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
     try {
       const data = await apiRequest<CollectionRecord[]>("/api/collections");
       setCollections(data);
+
+      try {
+        const status = await apiRequest<CollectionsStatusResponse>("/api/status/collections");
+        setUncollectedItemCount(status.uncollected?.item_count ?? 0);
+      } catch {
+        setUncollectedItemCount(0);
+      }
     } catch (err) {
       setCollections([]);
+      setUncollectedItemCount(0);
       setLoadError((err as Error).message || "Unable to load collections right now.");
     } finally {
       if (!background) {
@@ -758,23 +777,47 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
     setSortDirection("asc");
   }
 
-  function openCollectionItems(collection: CollectionRecord) {
+  function openCollectionItems(collection: CollectionListRow) {
     if (deletingId === collection.id) return;
     navigate({
       pathname: "/items",
-      search: new URLSearchParams({ collection: collection.name }).toString(),
+      search: new URLSearchParams({
+        collection: collection.isSynthetic ? "__none" : collection.name,
+      }).toString(),
     });
   }
 
+  const listRows = useMemo<CollectionListRow[]>(() => {
+    if (uncollectedItemCount <= 0) {
+      return collections;
+    }
+
+    return [
+      ...collections,
+      {
+        id: "__none__",
+        name: "No Collection",
+        icon: null,
+        color: null,
+        description: "Items not assigned to any collection",
+        ai_hint: null,
+        item_count: uncollectedItemCount,
+        created_at: null,
+        updated_at: null,
+        isSynthetic: true,
+      },
+    ];
+  }, [collections, uncollectedItemCount]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return collections;
-    return collections.filter(
+    if (!term) return listRows;
+    return listRows.filter(
       (c) =>
         c.name.toLowerCase().includes(term) ||
         (c.description || "").toLowerCase().includes(term)
     );
-  }, [collections, search]);
+  }, [listRows, search]);
 
   const sorted = useMemo(() => {
     const dir = sortDirection === "asc" ? 1 : -1;
@@ -790,7 +833,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
     return rows;
   }, [filtered, sortKey, sortDirection]);
 
-  const columns = useMemo<Column<CollectionRecord>[]>(
+  const columns = useMemo<Column<CollectionListRow>[]>(
     () => [
       {
         key: "icon",
@@ -798,7 +841,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         className: "w-14",
         render: (row) => (
           <span className="flex items-center justify-center w-8 h-8 rounded border border-neutral-800 bg-neutral-900 text-neutral-400">
-            <TablerIcon name={row.icon} size={15} color={row.color} />
+            {row.isSynthetic ? <span className="text-xs text-neutral-500">-</span> : <TablerIcon name={row.icon} size={15} color={row.color} />}
           </span>
         ),
       },
@@ -832,24 +875,28 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         header: "ACTIONS",
         className: "w-32 text-right",
         headerClassName: "w-32 text-right",
-        render: (row: CollectionRecord) => (
+        render: (row: CollectionListRow) => (
           <div
             className="inline-flex items-center gap-2 justify-end w-full"
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              onClick={() => startEdit(row)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-            >
-              Edit
-            </button>
-            <DeleteActionButton
-              onClick={() => openDeleteModal(row)}
-              isDeleting={deletingId === row.id}
-            />
+            {!row.isSynthetic && (
+              <>
+                <button
+                  onClick={() => startEdit(row)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                >
+                  Edit
+                </button>
+                <DeleteActionButton
+                  onClick={() => openDeleteModal(row)}
+                  isDeleting={deletingId === row.id}
+                />
+              </>
+            )}
           </div>
         ),
-      } as Column<CollectionRecord>] : []),
+      } as Column<CollectionListRow>] : []),
     ],
     [deletingId, embedded]
   );
