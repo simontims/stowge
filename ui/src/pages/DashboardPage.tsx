@@ -4,6 +4,7 @@ import { Tag } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { apiRequest, UNAUTHORIZED_EVENT } from "../lib/api";
+import { stageLabel, preflightTitle, restoreStepState } from "../lib/statusMappings";
 
 interface CollectionStatusRow {
   id: string;
@@ -105,29 +106,6 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function stageLabel(op: BackupOperation | null): string {
-  if (!op) return "Working";
-  const labels: Record<string, string> = {
-    starting: "Starting",
-    space_check: "Checking available space",
-    db_snapshot: "Creating database backup",
-    manifest: "Preparing backup manifest",
-    archive: "Creating compressed archive",
-    extract: "Unpacking backup archive",
-    validate_sql: "Validating SQL backup",
-    ready: "Backup ready to restore",
-    restore_db: "Restoring SQL backup",
-    restore_assets: "Unpacking assets",
-    db_maintenance: "Running DB maintenance",
-    cleanup_orphans: "Cleaning orphan asset files",
-    cleanup: "Deleting temporary files",
-    logout: "Logging out users",
-    complete: "Completed",
-    failed: "Failed",
-  };
-  return labels[op.stage] || op.message || "Working";
-}
-
 function getPreflightFailure(op: BackupOperation | null): PreflightFailure | null {
   const value = op?.result?.preflight_failure;
   if (!value || typeof value !== "object") return null;
@@ -135,36 +113,6 @@ function getPreflightFailure(op: BackupOperation | null): PreflightFailure | nul
   const message = String((value as { message?: unknown }).message || "").trim();
   if (!code && !message) return null;
   return { code: code || "backup_error", message };
-}
-
-function preflightTitle(code: string): string {
-  const labels: Record<string, string> = {
-    manifest_version_mismatch: "Backup version is not supported",
-    manifest_missing_keys: "Backup manifest is incomplete",
-    manifest_invalid_format: "Backup manifest format is invalid",
-    manifest_invalid_db_relative_path: "Backup manifest has an invalid database path",
-    sql_schema_missing_tables: "Backup database schema is incomplete",
-    sql_integrity_failed: "Backup database integrity check failed",
-    sql_backup_missing: "Backup SQL snapshot is missing",
-    disk_space_insufficient_restore: "Not enough disk space for restore",
-    archive_invalid_path: "Backup archive contains invalid paths",
-    archive_links_not_allowed: "Backup archive contains unsupported links",
-    backup_not_found: "Backup file was not found",
-    backup_assets_incomplete: "Backup assets are incomplete",
-  };
-  return labels[code] || "Backup validation failed";
-}
-
-function restoreStepState(op: BackupOperation | null, stageNames: string[]): "pending" | "active" | "done" {
-  if (!op) return "pending";
-  const idx = stageNames.indexOf(op.stage);
-  if (idx >= 0) return "active";
-
-  const order = ["starting", "restore_db", "restore_assets", "db_maintenance", "cleanup_orphans", "logout", "complete"];
-  const currentIdx = order.indexOf(op.stage);
-  const maxStageIdx = Math.max(...stageNames.map((name) => order.indexOf(name)).filter((n) => n >= 0));
-  if (currentIdx > maxStageIdx || op.status === "completed") return "done";
-  return "pending";
 }
 
 async function pollOperation(
