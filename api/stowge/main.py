@@ -210,6 +210,41 @@ def _serialize_collection(collection: Collection, db: Session, item_count: int |
     }
 
 
+def _list_locations_payload(db: Session) -> list[dict]:
+    locations = db.query(Location).order_by(Location.created_at.asc()).all()
+    if not locations:
+        return []
+    counts: dict[str, int] = dict(
+        db.query(Part.location_id, func.count(Part.id))
+        .filter(Part.location_id.in_([loc.id for loc in locations]))
+        .group_by(Part.location_id)
+        .all()
+    )
+    return [_serialize_location(loc, db, item_count=int(counts.get(loc.id, 0))) for loc in locations]
+
+
+def _list_collections_payload(db: Session) -> list[dict]:
+    collections = db.query(Collection).order_by(Collection.created_at.asc()).all()
+    if not collections:
+        return []
+    counts: dict[str, int] = dict(
+        db.query(Part.collection, func.count(Part.id))
+        .filter(Part.collection.in_([col.name for col in collections]))
+        .group_by(Part.collection)
+        .all()
+    )
+    return [_serialize_collection(col, db, item_count=int(counts.get(col.name, 0))) for col in collections]
+
+
+def _list_public_ai_settings_payload(db: Session) -> dict:
+    configs = db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).all()
+    active = _resolve_llm_config(db)
+    return {
+        "default_llm_id": active.id if active else None,
+        "configs": [_serialize_llm_public(c) for c in configs],
+    }
+
+
 def _serialize_part_list(part: Part, location_name: str | None = None) -> dict:
     primary_image = next((img for img in part.images if img.is_primary), part.images[0]) if part.images else None
     return {
@@ -1464,16 +1499,7 @@ def upload_location_photo(
 
 @app.get("/api/locations")
 def list_locations(db: Session = Depends(get_db), me: User = Depends(current_user)):
-    locations = db.query(Location).order_by(Location.created_at.asc()).all()
-    if not locations:
-        return []
-    counts: dict[str, int] = dict(
-        db.query(Part.location_id, func.count(Part.id))
-        .filter(Part.location_id.in_([loc.id for loc in locations]))
-        .group_by(Part.location_id)
-        .all()
-    )
-    return [_serialize_location(loc, db, item_count=int(counts.get(loc.id, 0))) for loc in locations]
+    return _list_locations_payload(db)
 
 
 @app.post("/api/locations")
@@ -1564,16 +1590,16 @@ def get_location_photo(location_id: str, db: Session = Depends(get_db), me: User
 # ---------------- Collections ----------------
 @app.get("/api/collections")
 def list_collections(db: Session = Depends(get_db), me: User = Depends(current_user)):
-    collections = db.query(Collection).order_by(Collection.created_at.asc()).all()
-    if not collections:
-        return []
-    counts: dict[str, int] = dict(
-        db.query(Part.collection, func.count(Part.id))
-        .filter(Part.collection.in_([col.name for col in collections]))
-        .group_by(Part.collection)
-        .all()
-    )
-    return [_serialize_collection(col, db, item_count=int(counts.get(col.name, 0))) for col in collections]
+    return _list_collections_payload(db)
+
+
+@app.get("/api/items/bootstrap")
+def get_items_bootstrap(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    return {
+        "collections": _list_collections_payload(db),
+        "locations": _list_locations_payload(db),
+        "ai_settings": _list_public_ai_settings_payload(db),
+    }
 
 
 @app.post("/api/collections")
@@ -1666,12 +1692,7 @@ def delete_collection(
 # ---------------- AI Settings (LLM configs) ----------------
 @app.get("/api/settings/ai")
 def list_ai_settings(db: Session = Depends(get_db), me: User = Depends(current_user)):
-    configs = db.query(LLMConfig).order_by(LLMConfig.created_at.asc()).all()
-    active = _resolve_llm_config(db)
-    return {
-        "default_llm_id": active.id if active else None,
-        "configs": [_serialize_llm_public(c) for c in configs],
-    }
+    return _list_public_ai_settings_payload(db)
 
 
 @app.get("/api/admin/settings/ai")

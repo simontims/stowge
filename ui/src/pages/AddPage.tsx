@@ -60,6 +60,12 @@ interface AiSettingsResponse {
   configs: LlmOption[];
 }
 
+interface AddPageBootstrapResponse {
+  collections: CollectionOption[];
+  locations: LocationOption[];
+  ai_settings: AiSettingsResponse;
+}
+
 interface CollectionOption {
   id: string;
   name: string;
@@ -220,8 +226,7 @@ export function AddPage() {
   }, [notice]);
 
   useEffect(() => {
-    void loadAiSettings();
-    void loadAddPreferences({ background: false });
+    void loadAddBootstrapData();
   }, []);
 
   useEffect(() => {
@@ -271,16 +276,23 @@ export function AddPage() {
     setSubmitErrorCopied(false);
   }
 
-  async function loadAddPreferences(_opts?: { background?: boolean }) {
+  async function loadAddBootstrapData() {
     try {
-      const [collectionData, locationData] = await Promise.all([
-        apiRequest<CollectionOption[]>("/api/collections"),
-        apiRequest<LocationOption[]>("/api/locations"),
-      ]);
+      const data = await apiRequest<AddPageBootstrapResponse>("/api/items/bootstrap");
+
+      const collectionData = data.collections || [];
+      const locationData = data.locations || [];
+      const aiSettings = data.ai_settings || { default_llm_id: null, configs: [] };
 
       const collectionOptions = collectionData || [];
       setCollections(collectionOptions);
       setLocations(locationData || []);
+
+      const options = aiSettings.configs || [];
+      setLlmOptions(options);
+
+      const defaultId = aiSettings.default_llm_id || options.find((o) => o.is_default)?.id || options[0]?.id || "";
+      setSelectedLlmId(defaultId);
 
       const preferred = currentUser.preferred_add_collection_id || "";
       const validPreferred = collectionOptions.some((cat) => cat.id === preferred)
@@ -307,18 +319,6 @@ export function AddPage() {
     } catch {
       setCollections([]);
       setLocations([]);
-    }
-  }
-
-  async function loadAiSettings() {
-    try {
-      const data = await apiRequest<AiSettingsResponse>("/api/settings/ai");
-      const options = data.configs || [];
-      setLlmOptions(options);
-
-      const defaultId = data.default_llm_id || options.find((o) => o.is_default)?.id || options[0]?.id || "";
-      setSelectedLlmId(defaultId);
-    } catch (err) {
       setLlmOptions([]);
       setSelectedLlmId("");
     } finally {

@@ -116,6 +116,7 @@ stowge/
 	- POST /api/logout             → deletes session, clears cookie
 	- GET /api/me
 	- GET /api/items
+	- GET /api/items/bootstrap
 	- POST /api/items
 	- GET /api/items/{id}
 	- PATCH /api/items/{id}
