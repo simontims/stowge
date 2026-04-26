@@ -16,6 +16,7 @@ test classes obtain a valid session cookie by calling create_session()
 directly, so they never hit the rate-limiter on /api/login.
 """
 from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm.exc import StaleDataError
 
 from stowge.main import app
 from stowge.auth import (
@@ -244,6 +245,18 @@ class TestGetMe:
         body = client.get("/api/me", cookies={SESSION_COOKIE_NAME: token}).json()
         assert "password_hash" not in body
         assert "password" not in body
+
+    def test_me_returns_401_when_session_row_deleted_during_last_seen_update(self, monkeypatch):
+        token = valid_session_cookie("me-stale@example.com", password="MePass123!")
+
+        def _raise_stale(*_args, **_kwargs):
+            raise StaleDataError("stale session row")
+
+        monkeypatch.setattr("stowge.auth.Session.commit", _raise_stale)
+
+        r = client.get("/api/me", cookies={SESSION_COOKIE_NAME: token})
+        assert r.status_code == 401
+        assert r.json().get("detail") == "Session expired or invalid"
 
 
 # ---------------------------------------------------------------------------

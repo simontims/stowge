@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, Depends, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from .models import User, UserSession
 from .db import get_db
@@ -99,7 +100,13 @@ def current_user(
 
     # Refresh last_seen_at to track session activity.
     sess.last_seen_at = now
-    db.commit()
+    try:
+        db.commit()
+    except StaleDataError:
+        # Session row can be concurrently deleted (for example during restore apply
+        # global logout). Treat this as an expired/invalid session instead of 500.
+        db.rollback()
+        raise HTTPException(status_code=401, detail="Session expired or invalid")
 
     return user
 
