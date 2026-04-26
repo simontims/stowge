@@ -6,6 +6,7 @@ import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
+import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 interface LocationRecord {
@@ -187,8 +188,8 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         photo_path: newForm.photo_path,
       };
 
-      if (payload.name.length < 2) {
-        setError("Location name must be at least 2 characters.");
+      if (payload.name.length < MIN_NAME_LENGTH) {
+        setError(minimumLengthMessage("Location name"));
         return;
       }
 
@@ -227,8 +228,8 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         payload.photo_path = editForm.photo_path;
       }
 
-      if (payload.name.length < 2) {
-        setError("Location name must be at least 2 characters.");
+      if (payload.name.length < MIN_NAME_LENGTH) {
+        setError(minimumLengthMessage("Location name"));
         return;
       }
 

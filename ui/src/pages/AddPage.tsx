@@ -10,6 +10,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
+import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useCurrentUser } from "../lib/UserContext";
 
 interface IdentifyCandidate {
@@ -534,8 +535,8 @@ export function AddPage() {
     let storedImages = identifyData?.stored_images ?? [];
     let pendingStoredImageIds: string[] = [];
 
-    if (!draft.name.trim()) {
-      setSaveError("Part name is required.");
+    if (draft.name.trim().length < MIN_NAME_LENGTH) {
+      setSaveError(minimumLengthMessage("Part name"));
       return;
     }
 

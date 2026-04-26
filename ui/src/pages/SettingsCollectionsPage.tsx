@@ -10,6 +10,7 @@ import { DeleteActionButton } from "../components/ui/DeleteControls";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
+import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import Sketch from "@uiw/react-color-sketch";
 
 // ── Tabler icon catalogue (lazy-loaded) ─────────────────────────────────────
@@ -645,8 +646,8 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
 
   async function createCollection() {
     setError("");
-    if (newForm.name.trim().length < 2) {
-      setError("Collection name must be at least 2 characters.");
+    if (newForm.name.trim().length < MIN_NAME_LENGTH) {
+      setError(minimumLengthMessage("Collection name"));
       return;
     }
     setIsCreating(true);
@@ -675,8 +676,8 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   async function saveEdit() {
     if (!editingId) return;
     setError("");
-    if (editForm.name.trim().length < 2) {
-      setError("Collection name must be at least 2 characters.");
+    if (editForm.name.trim().length < MIN_NAME_LENGTH) {
+      setError(minimumLengthMessage("Collection name"));
       return;
     }
     setIsSavingEdit(true);

@@ -18,6 +18,7 @@ from sqlalchemy import inspect, text, func, or_
 
 from .db import engine, Base, get_db, DATABASE_FILE, SessionLocal
 from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
+from .constraints import MIN_NAME_LENGTH, require_name
 from .auth import (
     hash_password, verify_password, create_session, delete_session,
     delete_all_sessions,
@@ -1477,12 +1478,9 @@ def list_locations(db: Session = Depends(get_db), me: User = Depends(current_use
 
 @app.post("/api/locations")
 def create_location(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    name = str(payload.get("name") or "").strip()
+    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
     description = str(payload.get("description") or "").strip() or None
     photo_path = str(payload.get("photo_path") or "").strip() or None
-
-    if len(name) < 2:
-        raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
 
     existing = db.query(Location).filter(Location.name == name).first()
     if existing:
@@ -1508,9 +1506,7 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
     old_photo_path = location.photo_path
 
     if "name" in payload:
-        name = str(payload.get("name") or "").strip()
-        if len(name) < 2:
-            raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
+        name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
         existing = (
             db.query(Location)
             .filter(Location.name == name, Location.id != location_id)
@@ -1582,14 +1578,11 @@ def list_collections(db: Session = Depends(get_db), me: User = Depends(current_u
 
 @app.post("/api/collections")
 def create_collection(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    name = str(payload.get("name") or "").strip()
+    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
     icon = str(payload.get("icon") or "").strip() or None
     color = str(payload.get("color") or "").strip() or None
     description = str(payload.get("description") or "").strip() or None
     ai_hint = str(payload.get("ai_hint") or "").strip() or None
-
-    if len(name) < 2:
-        raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
 
     existing = db.query(Collection).filter(Collection.name == name).first()
     if existing:
@@ -1609,9 +1602,7 @@ def update_collection(collection_id: str, payload: dict, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Collection not found")
 
     if "name" in payload:
-        name = str(payload.get("name") or "").strip()
-        if len(name) < 2:
-            raise HTTPException(status_code=400, detail="name required (>= 2 chars)")
+        name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
         existing = db.query(Collection).filter(Collection.name == name, Collection.id != collection_id).first()
         if existing:
             raise HTTPException(status_code=400, detail="Collection name already exists")
@@ -2091,15 +2082,13 @@ def identify(
 @app.post("/api/parts")
 @app.post("/api/items")
 def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    name = (payload.get("name") or "").strip()
+    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
     description = (payload.get("description") or "").strip()
     collection = (payload.get("collection") or "").strip() or None
     location_id = payload.get("location_id")
     status = payload.get("status") or "draft"
     if status not in ("draft", "confirmed"):
         raise HTTPException(status_code=400, detail="status must be draft|confirmed")
-    if len(name) < 2:
-        raise HTTPException(status_code=400, detail="name required")
     if collection:
         exists = db.query(Collection.id).filter(Collection.name == collection).first()
         if not exists:
@@ -2231,7 +2220,10 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
-    for field in ("name", "description", "status"):
+    if "name" in payload:
+        p.name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+
+    for field in ("description", "status"):
         if field in payload:
             setattr(p, field, payload[field])
 

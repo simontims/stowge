@@ -7,6 +7,7 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
 import { apiRequest } from "../lib/api";
+import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
@@ -332,8 +333,8 @@ export function ItemsPage() {
     if (!hasDirtyChanges) return true;
 
     const trimmedName = editForm.name.trim();
-    if (trimmedName.length < 2) {
-      setDetailError("Name must be at least 2 characters.");
+    if (trimmedName.length < MIN_NAME_LENGTH) {
+      setDetailError(minimumLengthMessage("Name"));
       return false;
     }
 

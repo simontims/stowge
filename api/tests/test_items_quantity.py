@@ -133,3 +133,38 @@ class TestQuantityUpdate:
         assert r.status_code == 200
         r2 = client.get(f"/api/items/{item['id']}", cookies=self.cookies)
         assert r2.json()["quantity"] == 4
+
+
+class TestItemNameValidation:
+    def setup_method(self):
+        self.cookies = auth_cookies("qty_test_name_validation@example.com", role="admin")
+
+    def test_create_rejects_single_character_name(self):
+        r = client.post("/api/items", json={"name": "a"}, cookies=self.cookies)
+        assert r.status_code == 400
+        assert r.json()["detail"] == "name required (>= 2 chars)"
+
+    def test_create_rejects_whitespace_only_name(self):
+        r = client.post("/api/items", json={"name": "   "}, cookies=self.cookies)
+        assert r.status_code == 400
+        assert r.json()["detail"] == "name required (>= 2 chars)"
+
+    def test_patch_rejects_single_character_name(self):
+        item = _create_item(self.cookies, name="Valid Name")
+        r = client.patch(
+            f"/api/items/{item['id']}",
+            json={"name": "a"},
+            cookies=self.cookies,
+        )
+        assert r.status_code == 400
+        assert r.json()["detail"] == "name required (>= 2 chars)"
+
+    def test_patch_rejects_whitespace_only_name(self):
+        item = _create_item(self.cookies, name="Valid Name")
+        r = client.patch(
+            f"/api/items/{item['id']}",
+            json={"name": "   "},
+            cookies=self.cookies,
+        )
+        assert r.status_code == 400
+        assert r.json()["detail"] == "name required (>= 2 chars)"
