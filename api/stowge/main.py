@@ -2057,14 +2057,15 @@ def identify(
     if len(images) < 1 or len(images) > 5:
         raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
 
+    cfg = _resolve_llm_config(db, llm_id)
+    if not cfg:
+        raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
+
     b64s = process_for_identify(
         images,
         max_edge=cfg.ai_max_edge if cfg.ai_max_edge is not None else 1600,
         quality=cfg.ai_quality if cfg.ai_quality is not None else 85,
     )
-    cfg = _resolve_llm_config(db, llm_id)
-    if not cfg:
-        raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
 
     collection_context: Optional[str] = None
     if collection_id:
