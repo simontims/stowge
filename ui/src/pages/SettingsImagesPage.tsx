@@ -100,131 +100,135 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
       {error && <p className="text-sm text-red-400">{error}</p>}
       {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
-      {/* ── Format & Storage ── */}
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-5">
+      {/* ── Image Storage Settings ── */}
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-6">
         <div>
-          <h2 className="text-sm font-semibold text-neutral-100">Format &amp; Storage</h2>
+          <h2 className="text-sm font-semibold text-neutral-100">Image Storage</h2>
           <p className="mt-1 text-xs text-neutral-500">
-            Controls how photos are encoded when saved to the item catalogue.
-            Changing these settings does not re-process existing images.
+            Controls how images are encoded and stored when uploaded. Changes apply to future uploads only.
           </p>
         </div>
 
-        {/* Image format */}
-        <fieldset className="space-y-1">
-          <legend className="text-xs uppercase tracking-wide text-neutral-500">Image Format</legend>
-          <div className="flex gap-5 mt-1">
-            {(["webp", "jpg"] as const).map((fmt) => (
-              <label key={fmt} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="output_format"
-                  value={fmt}
-                  checked={form.output_format === fmt}
-                  onChange={() => field("output_format", fmt)}
-                  className="accent-neutral-400"
-                />
-                <span className="text-sm text-neutral-300">{fmt === "jpg" ? "JPG" : "WebP"}</span>
-              </label>
-            ))}
+        {/* Format row */}
+        <div className="flex items-start gap-6 flex-wrap">
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-xs uppercase tracking-wide text-neutral-500 mb-2">Format</p>
+            <div className="flex gap-4">
+              {(["webp", "jpg"] as const).map((fmt) => (
+                <label key={fmt} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="output_format"
+                    value={fmt}
+                    checked={form.output_format === fmt}
+                    onChange={() => field("output_format", fmt)}
+                    className="accent-neutral-400"
+                  />
+                  <span className="text-sm text-neutral-300">{fmt === "jpg" ? "JPG" : "WebP"}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-neutral-600">WebP produces smaller files; JPG has broader compatibility.</p>
           </div>
-          <p className="text-xs text-neutral-600">WebP produces smaller files; JPG has broader compatibility.</p>
-        </fieldset>
 
-        {/* Store original */}
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.store_original}
-            onChange={(e) => field("store_original", e.target.checked)}
-            className="accent-neutral-400 w-4 h-4 mt-0.5 shrink-0"
-          />
-          <span className="text-sm text-neutral-300">
-            Store original
-            <span className="block mt-0.5 text-xs text-neutral-500">
-              Keeps the original full-resolution image in addition to processed versions (uses significantly more storage).
+          <label className="flex items-start gap-3 cursor-pointer flex-1 min-w-[200px]">
+            <input
+              type="checkbox"
+              checked={form.store_original}
+              onChange={(e) => field("store_original", e.target.checked)}
+              className="accent-neutral-400 w-4 h-4 mt-0.5 shrink-0"
+            />
+            <span className="text-sm text-neutral-300">
+              Keep full-resolution copy
+              <span className="block mt-0.5 text-xs text-neutral-500">
+                Stores an extra full-size variant alongside the processed versions. Uses significantly more disk space.
+              </span>
             </span>
-          </span>
-        </label>
-      </section>
-
-      {/* ── Display Image ── */}
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-5">
-        <h2 className="text-sm font-semibold text-neutral-100">Display Image</h2>
-
-        {/* Display max dimension */}
-        <label className="block">
-          <span className="text-xs uppercase tracking-wide text-neutral-500">Max dimension (px)</span>
-          <input
-            type="number"
-            min={256}
-            max={8192}
-            step={1}
-            value={form.display_max_edge}
-            onChange={(e) => field("display_max_edge", Math.max(256, Math.min(8192, parseInt(e.target.value, 10) || 2048)))}
-            className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-          />
-          <p className="mt-1 text-xs text-neutral-600">Longest edge of the display image. 256–8192.</p>
-        </label>
-
-        {/* Image quality */}
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wide text-neutral-500">Image quality</span>
-            <span className="text-sm text-neutral-200 tabular-nums">{form.display_quality}</span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={100}
-            value={form.display_quality}
-            onChange={(e) => field("display_quality", parseInt(e.target.value, 10))}
-            className="mt-1 w-full accent-neutral-400"
-          />
-          <div className="mt-1 flex justify-between text-xs text-neutral-600">
-            <span>Applies to both WebP and JPG compression.</span>
-            <span>Smaller files ←→ Higher quality</span>
-          </div>
+          </label>
         </div>
-      </section>
 
-      {/* ── Thumbnail ── */}
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-5">
-        <h2 className="text-sm font-semibold text-neutral-100">Thumbnail</h2>
+        {/* Divider */}
+        <div className="border-t border-neutral-800" />
 
-        {/* Thumbnail max dimension */}
-        <label className="block">
-          <span className="text-xs uppercase tracking-wide text-neutral-500">Max dimension (px)</span>
-          <input
-            type="number"
-            min={64}
-            max={1024}
-            step={1}
-            value={form.thumb_max_edge}
-            onChange={(e) => field("thumb_max_edge", Math.max(64, Math.min(1024, parseInt(e.target.value, 10) || 360)))}
-            className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-          />
-          <p className="mt-1 text-xs text-neutral-600">Longest edge of the thumbnail. 64–1024.</p>
-        </label>
+        {/* Size & quality — side-by-side for image vs thumbnail */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-        {/* Thumbnail quality */}
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wide text-neutral-500">Thumbnail quality</span>
-            <span className="text-sm text-neutral-200 tabular-nums">{form.thumb_quality}</span>
+          {/* Image variant */}
+          <div className="space-y-4">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Image</p>
+
+            <label className="block">
+              <span className="text-xs text-neutral-400">Max dimension (px)</span>
+              <input
+                type="number"
+                min={256}
+                max={8192}
+                step={1}
+                value={form.display_max_edge}
+                onChange={(e) => field("display_max_edge", Math.max(256, Math.min(8192, parseInt(e.target.value, 10) || 2048)))}
+                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+              />
+              <p className="mt-1 text-xs text-neutral-600">Longest edge, 256–8192 px.</p>
+            </label>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-neutral-400">Quality</span>
+                <span className="text-sm text-neutral-200 tabular-nums">{form.display_quality}</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={100}
+                value={form.display_quality}
+                onChange={(e) => field("display_quality", parseInt(e.target.value, 10))}
+                className="mt-1 w-full accent-neutral-400"
+              />
+              <div className="mt-1 flex justify-between text-xs text-neutral-600">
+                <span>Lower</span>
+                <span>Higher</span>
+              </div>
+            </div>
           </div>
-          <input
-            type="range"
-            min={1}
-            max={100}
-            value={form.thumb_quality}
-            onChange={(e) => field("thumb_quality", parseInt(e.target.value, 10))}
-            className="mt-1 w-full accent-neutral-400"
-          />
-          <div className="mt-1 flex justify-between text-xs text-neutral-600">
-            <span>Applies to both WebP and JPG compression.</span>
-            <span>Smaller files ←→ Higher quality</span>
+
+          {/* Thumbnail variant */}
+          <div className="space-y-4">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Thumbnail</p>
+
+            <label className="block">
+              <span className="text-xs text-neutral-400">Max dimension (px)</span>
+              <input
+                type="number"
+                min={64}
+                max={1024}
+                step={1}
+                value={form.thumb_max_edge}
+                onChange={(e) => field("thumb_max_edge", Math.max(64, Math.min(1024, parseInt(e.target.value, 10) || 360)))}
+                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+              />
+              <p className="mt-1 text-xs text-neutral-600">Longest edge, 64–1024 px.</p>
+            </label>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-neutral-400">Quality</span>
+                <span className="text-sm text-neutral-200 tabular-nums">{form.thumb_quality}</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={100}
+                value={form.thumb_quality}
+                onChange={(e) => field("thumb_quality", parseInt(e.target.value, 10))}
+                className="mt-1 w-full accent-neutral-400"
+              />
+              <div className="mt-1 flex justify-between text-xs text-neutral-600">
+                <span>Lower</span>
+                <span>Higher</span>
+              </div>
+            </div>
           </div>
+
         </div>
       </section>
 

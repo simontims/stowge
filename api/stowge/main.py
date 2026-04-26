@@ -265,6 +265,8 @@ def _serialize_llm_public(cfg: LLMConfig) -> dict:
         "api_base": cfg.api_base,
         "is_default": bool(cfg.is_default),
         "evidence_enabled": bool(cfg.evidence_enabled),
+        "ai_max_edge": cfg.ai_max_edge if cfg.ai_max_edge is not None else 1600,
+        "ai_quality": cfg.ai_quality if cfg.ai_quality is not None else 85,
     }
 
 
@@ -467,6 +469,10 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0"))
             if "evidence_enabled" not in llm_columns:
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN evidence_enabled INTEGER NOT NULL DEFAULT 0"))
+            if "ai_max_edge" not in llm_columns:
+                conn.execute(text("ALTER TABLE llm_configs ADD COLUMN ai_max_edge INTEGER NOT NULL DEFAULT 1600"))
+            if "ai_quality" not in llm_columns:
+                conn.execute(text("ALTER TABLE llm_configs ADD COLUMN ai_quality INTEGER NOT NULL DEFAULT 85"))
 
         # Backfill legacy configs so API base is always present.
         with Session(bind=engine) as db:
@@ -1737,6 +1743,8 @@ def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = D
         api_base=api_base,
         is_default=1 if is_default else 0,
         evidence_enabled=1 if evidence_enabled else 0,
+        ai_max_edge=int(payload.get("ai_max_edge") or 1600),
+        ai_quality=int(payload.get("ai_quality") or 85),
         updated_at=datetime.now(timezone.utc),
     )
     db.add(cfg)
@@ -1799,6 +1807,18 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
 
     if "evidence_enabled" in payload:
         cfg.evidence_enabled = 1 if bool(payload.get("evidence_enabled")) else 0
+
+    if "ai_max_edge" in payload:
+        v = int(payload["ai_max_edge"] or 1600)
+        if not (64 <= v <= 4096):
+            raise HTTPException(status_code=400, detail="ai_max_edge must be 64-4096")
+        cfg.ai_max_edge = v
+
+    if "ai_quality" in payload:
+        v = int(payload["ai_quality"] or 85)
+        if not (1 <= v <= 100):
+            raise HTTPException(status_code=400, detail="ai_quality must be 1-100")
+        cfg.ai_quality = v
 
     cfg.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -2025,7 +2045,11 @@ def identify(
     if len(images) < 1 or len(images) > 5:
         raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
 
-    b64s = process_for_identify(images)
+    b64s = process_for_identify(
+        images,
+        max_edge=cfg.ai_max_edge if cfg.ai_max_edge is not None else 1600,
+        quality=cfg.ai_quality if cfg.ai_quality is not None else 85,
+    )
     cfg = _resolve_llm_config(db, llm_id)
     if not cfg:
         raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")

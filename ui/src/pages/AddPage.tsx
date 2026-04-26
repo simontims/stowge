@@ -50,6 +50,8 @@ interface LlmOption {
   provider: string;
   model: string;
   is_default: boolean;
+  ai_max_edge: number;
+  ai_quality: number;
 }
 
 interface AiSettingsResponse {
@@ -455,7 +457,13 @@ export function AddPage() {
     setIsSubmitting(true);
 
     try {
-      const toUpload = await Promise.all(photos.slice(0, MAX_PHOTOS).map(resizeImage));
+      const selectedLlm = llmOptions.find((opt) => opt.id === selectedLlmId);
+      const maxEdge = selectedLlm?.ai_max_edge ?? 1600;
+      const quality = Math.max(1, Math.min(100, selectedLlm?.ai_quality ?? 85)) / 100;
+
+      const toUpload = await Promise.all(
+        photos.slice(0, MAX_PHOTOS).map((photo) => resizeImage(photo, maxEdge, quality))
+      );
       const fd = new FormData();
       toUpload.forEach((file, idx) => {
         fd.append("images", file, `photo${idx + 1}.jpg`);
@@ -534,10 +542,11 @@ export function AddPage() {
     setIsSaving(true);
     try {
       if (photos.length > 0) {
-        const toUpload = await Promise.all(photos.slice(0, MAX_PHOTOS).map(resizeImage));
+        // Upload originals for storage so server-side image settings remain authoritative.
+        const toUpload = photos.slice(0, MAX_PHOTOS);
         const fd = new FormData();
         toUpload.forEach((file, idx) => {
-          fd.append("images", file, `photo${idx + 1}.jpg`);
+          fd.append("images", file, file.name || `photo${idx + 1}`);
         });
         const stored = await apiRequest<StoreImagesResponse>("/api/images/store", {
           method: "POST",
@@ -820,17 +829,17 @@ export function AddPage() {
   );
 }
 
-const RESIZE_MAX_PX = 1600;
-const RESIZE_QUALITY = 0.85;
-
-function resizeImage(file: File): Promise<File> {
+// AI identify upload pre-resize. Storage uploads are intentionally not pre-resized.
+function resizeImage(file: File, maxEdge: number, quality: number): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
       const { naturalWidth: w, naturalHeight: h } = img;
-      const scale = Math.min(1, RESIZE_MAX_PX / Math.max(w, h));
+      const safeMaxEdge = Math.max(64, Math.min(4096, maxEdge || 1600));
+      const safeQuality = Math.max(0.01, Math.min(1, quality || 0.85));
+      const scale = Math.min(1, safeMaxEdge / Math.max(w, h));
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(w * scale);
       canvas.height = Math.round(h * scale);
@@ -842,7 +851,7 @@ function resizeImage(file: File): Promise<File> {
           resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
         },
         "image/jpeg",
-        RESIZE_QUALITY
+        safeQuality
       );
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };

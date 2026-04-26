@@ -113,9 +113,9 @@ def process_and_store(files: List[UploadFile], config: ImageConfig = DEFAULT_IMA
     return stored
 
 
-def process_for_identify(files: List[UploadFile]) -> List[str]:
-    """Produce AI-optimised JPEG base64 strings. Always uses fixed AI constants
-    regardless of storage quality settings, to minimise token usage."""
+def process_for_identify(files: List[UploadFile], max_edge: int = _AI_MAX_EDGE, quality: int = _AI_QUALITY) -> List[str]:
+    """Produce AI-optimised JPEG base64 strings. Uses per-model AI constants
+    (defaults match _AI_MAX_EDGE/_AI_QUALITY) to minimise token usage."""
     b64_images: List[str] = []
 
     for f in files:
@@ -130,12 +130,12 @@ def process_for_identify(files: List[UploadFile]) -> List[str]:
             raise HTTPException(status_code=400, detail=f"Invalid image: {f.filename}")
 
         img2 = img.copy()
-        img2.thumbnail((_AI_MAX_EDGE, _AI_MAX_EDGE))
+        img2.thumbnail((max_edge, max_edge))
         if img2.mode in ("RGBA", "P"):
             img2 = img2.convert("RGB")
 
         out = io.BytesIO()
-        img2.save(out, format="JPEG", quality=_AI_QUALITY, optimize=True)
+        img2.save(out, format="JPEG", quality=quality, optimize=True)
         out.seek(0)
         b64_images.append(base64.b64encode(out.read()).decode("ascii"))
 

@@ -13,6 +13,8 @@ interface AiConfig {
   api_base: string | null;
   is_default: boolean;
   evidence_enabled: boolean;
+  ai_max_edge: number;
+  ai_quality: number;
 }
 
 interface AiAdminResponse {
@@ -45,6 +47,8 @@ interface NewConfigForm {
   api_base: string;
   is_default: boolean;
   evidence_enabled: boolean;
+  ai_max_edge: number;
+  ai_quality: number;
 }
 
 interface EditConfigForm {
@@ -55,6 +59,8 @@ interface EditConfigForm {
   api_base: string;
   is_default: boolean;
   evidence_enabled: boolean;
+  ai_max_edge: number;
+  ai_quality: number;
 }
 
 type AiSortKey = "name" | "provider" | "model" | "evidence";
@@ -67,6 +73,8 @@ const EMPTY_FORM: NewConfigForm = {
   api_base: "",
   is_default: false,
   evidence_enabled: false,
+  ai_max_edge: 1600,
+  ai_quality: 85,
 };
 
 interface AiSectionProps {
@@ -91,6 +99,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [sortKey, setSortKey] = useState<AiSortKey>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+  const [advancedAddOpen, setAdvancedAddOpen] = useState(false);
+  const [advancedEditOpen, setAdvancedEditOpen] = useState(false);
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
@@ -108,6 +119,8 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     api_base: "",
     is_default: false,
     evidence_enabled: false,
+    ai_max_edge: 1600,
+    ai_quality: 85,
   });
   const [initialEditForm, setInitialEditForm] = useState<EditConfigForm>({
     name: "",
@@ -117,6 +130,8 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     api_base: "",
     is_default: false,
     evidence_enabled: false,
+    ai_max_edge: 1600,
+    ai_quality: 85,
   });
 
   const filteredConfigs = useMemo(() => {
@@ -167,7 +182,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       editForm.api_key !== "" ||
       editForm.api_base !== initialEditForm.api_base ||
       editForm.is_default !== initialEditForm.is_default ||
-      editForm.evidence_enabled !== initialEditForm.evidence_enabled,
+      editForm.evidence_enabled !== initialEditForm.evidence_enabled ||
+      editForm.ai_max_edge !== initialEditForm.ai_max_edge ||
+      editForm.ai_quality !== initialEditForm.ai_quality,
     [editForm, initialEditForm]
   );
 
@@ -299,6 +316,8 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           api_base: form.api_base.trim(),
           is_default: form.is_default,
           evidence_enabled: form.evidence_enabled,
+          ai_max_edge: form.ai_max_edge,
+          ai_quality: form.ai_quality,
         }),
       });
       setForm(EMPTY_FORM);
@@ -383,6 +402,8 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       api_base: (config.api_base || "").trim() || provider.api_base,
       is_default: config.id === defaultId,
       evidence_enabled: !!config.evidence_enabled,
+      ai_max_edge: config.ai_max_edge ?? 1600,
+      ai_quality: config.ai_quality ?? 85,
     };
     setEditingId(config.id);
     setInitialEditForm(snapshot);
@@ -433,6 +454,8 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           api_key: editForm.api_key.trim() || undefined,
           is_default: editForm.is_default,
           evidence_enabled: editForm.evidence_enabled,
+          ai_max_edge: editForm.ai_max_edge,
+          ai_quality: editForm.ai_quality,
         }),
       });
       cancelEdit();
@@ -459,6 +482,16 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           <h2 className="text-sm font-semibold text-neutral-100">Add AI Model</h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
+            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-neutral-300">
+              <input
+                type="checkbox"
+                checked={form.is_default}
+                onChange={(e) => setForm((v) => ({ ...v, is_default: e.target.checked }))}
+                className="rounded border-neutral-700 bg-neutral-950"
+              />
+              Set as default model
+            </label>
+
             <label className="block">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Display Name</span>
               <input
@@ -544,30 +577,68 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               />
             </label>
 
-            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-neutral-300">
-              <input
-                type="checkbox"
-                checked={form.is_default}
-                onChange={(e) => setForm((v) => ({ ...v, is_default: e.target.checked }))}
-                className="rounded border-neutral-700 bg-neutral-950"
-              />
-              Set as default model
-            </label>
+            {/* Advanced */}
+            <div className="sm:col-span-2 border-t border-neutral-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setAdvancedAddOpen((v) => !v)}
+                className="text-xs text-neutral-500 hover:text-neutral-300 flex items-center gap-1"
+              >
+                <span className={`transition-transform ${advancedAddOpen ? "rotate-90" : ""}`}>▶</span>
+                Advanced
+              </button>
+              {advancedAddOpen && (
+                <div className="mt-3 space-y-3">
+                  <label className="block">
+                    <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={form.evidence_enabled}
+                        onChange={(e) => setForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
+                        className="rounded border-neutral-700 bg-neutral-950"
+                      />
+                      Include identification evidence
+                    </span>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Report AI reasoning alongside item suggestions. Increases token usage and cost.
+                    </p>
+                  </label>
 
-            <label className="block sm:col-span-2 rounded-md border border-neutral-800 bg-neutral-950/60 px-3 py-2">
-              <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={form.evidence_enabled}
-                  onChange={(e) => setForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
-                  className="rounded border-neutral-700 bg-neutral-950"
-                />
-                Include identiticaton evidence
-              </span>
-              <p className="mt-1 text-xs text-neutral-500">
-                Turning this on will report evidence for AI item identification in the Add Item flow. This increases token usage and AI cost.
-              </p>
-            </label>
+                  <div className="border-t border-neutral-800/70" />
+
+                  <p className="text-xs text-neutral-500">
+                    These settings control how photos are resized before they are sent to the AI for identification. The defaults (1600px and quality 85) usually give the best balance of detail, speed, and token cost.
+                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image max edge (px)</span>
+                      <input
+                        type="number"
+                        min={64}
+                        max={4096}
+                        value={form.ai_max_edge}
+                        onChange={(e) => setForm((v) => ({ ...v, ai_max_edge: Math.max(64, Math.min(4096, parseInt(e.target.value, 10) || 1600)) }))}
+                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      />
+                      <p className="mt-1 text-xs text-neutral-600">Max pixel edge sent to AI. Recommended: 1600.</p>
+                    </label>
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image quality</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={form.ai_quality}
+                        onChange={(e) => setForm((v) => ({ ...v, ai_quality: Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 85)) }))}
+                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      />
+                      <p className="mt-1 text-xs text-neutral-600">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -770,11 +841,19 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
 
       {editingConfig && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">Edit AI Model</h2>
-
-          <p className="text-sm text-neutral-500">Editing {editingConfig.name}</p>
+          <h2 className="text-sm font-semibold text-neutral-100">Edit {editingConfig.name}</h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
+            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-neutral-300">
+              <input
+                type="checkbox"
+                checked={editForm.is_default}
+                onChange={(e) => setEditForm((v) => ({ ...v, is_default: e.target.checked }))}
+                className="rounded border-neutral-700 bg-neutral-950"
+              />
+              Set as default model
+            </label>
+
             <label className="block">
               <span className="text-xs uppercase tracking-wide text-neutral-500">Display Name</span>
               <input
@@ -858,30 +937,68 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               />
             </label>
 
-            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-neutral-300">
-              <input
-                type="checkbox"
-                checked={editForm.is_default}
-                onChange={(e) => setEditForm((v) => ({ ...v, is_default: e.target.checked }))}
-                className="rounded border-neutral-700 bg-neutral-950"
-              />
-              Set as default model
-            </label>
+            {/* Advanced */}
+            <div className="sm:col-span-2 border-t border-neutral-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setAdvancedEditOpen((v) => !v)}
+                className="text-xs text-neutral-500 hover:text-neutral-300 flex items-center gap-1"
+              >
+                <span className={`transition-transform ${advancedEditOpen ? "rotate-90" : ""}`}>▶</span>
+                Advanced
+              </button>
+              {advancedEditOpen && (
+                <div className="mt-3 space-y-3">
+                  <label className="block">
+                    <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={editForm.evidence_enabled}
+                        onChange={(e) => setEditForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
+                        className="rounded border-neutral-700 bg-neutral-950"
+                      />
+                      Include identification evidence
+                    </span>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Report AI reasoning alongside item suggestions. Increases token usage and cost.
+                    </p>
+                  </label>
 
-            <label className="block sm:col-span-2 rounded-md border border-neutral-800 bg-neutral-950/60 px-3 py-2">
-              <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={editForm.evidence_enabled}
-                  onChange={(e) => setEditForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
-                  className="rounded border-neutral-700 bg-neutral-950"
-                />
-                Include identiticaton evidence
-              </span>
-              <p className="mt-1 text-xs text-neutral-500">
-                Turning this on will report evidence for AI item identification in the Add Item flow. This increases token usage and AI cost.
-              </p>
-            </label>
+                  <div className="border-t border-neutral-800/70" />
+
+                  <p className="text-xs text-neutral-500">
+                    These settings control how photos are resized before they are sent to the AI for identification. The defaults (1600px and quality 85) usually give the best balance of detail, speed, and token cost.
+                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image max edge (px)</span>
+                      <input
+                        type="number"
+                        min={64}
+                        max={4096}
+                        value={editForm.ai_max_edge}
+                        onChange={(e) => setEditForm((v) => ({ ...v, ai_max_edge: Math.max(64, Math.min(4096, parseInt(e.target.value, 10) || 1600)) }))}
+                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      />
+                      <p className="mt-1 text-xs text-neutral-600">Max pixel edge sent to AI. Recommended: 1600.</p>
+                    </label>
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image quality</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={editForm.ai_quality}
+                        onChange={(e) => setEditForm((v) => ({ ...v, ai_quality: Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 85)) }))}
+                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      />
+                      <p className="mt-1 text-xs text-neutral-600">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <SettingsSaveBar
