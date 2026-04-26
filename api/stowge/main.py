@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSO
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import inspect, text, func
+from sqlalchemy import inspect, text, func, or_
 
 from .db import engine, Base, get_db, DATABASE_FILE, SessionLocal
 from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
@@ -2126,10 +2126,55 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
 
 @app.get("/api/parts")
 @app.get("/api/items")
-def list_parts(q: Optional[str] = None, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    query = db.query(Part).order_by(Part.created_at.desc())
+def list_parts(
+    q: Optional[str] = None,
+    collection: Optional[str] = None,
+    location: Optional[str] = None,
+    status: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_dir: Optional[str] = None,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    query = db.query(Part).outerjoin(Location, Part.location_id == Location.id)
+
     if q:
-        query = query.filter(Part.name.ilike(f"%{q.strip()}%"))
+        term = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Part.name.ilike(term),
+                Part.collection.ilike(term),
+                Location.name.ilike(term),
+                Part.status.ilike(term),
+            )
+        )
+
+    if collection == "__none":
+        query = query.filter(Part.collection.is_(None))
+    elif collection:
+        query = query.filter(Part.collection.ilike(collection))
+
+    if location:
+        query = query.filter(Location.name.ilike(location))
+
+    if status:
+        query = query.filter(Part.status == status)
+
+    _valid_sort_keys = {"name", "collection", "location", "status"}
+    sort_key = sort_by if sort_by in _valid_sort_keys else "name"
+    descending = sort_dir == "desc"
+
+    if sort_key == "name":
+        sort_col = Part.name
+    elif sort_key == "collection":
+        sort_col = Part.collection
+    elif sort_key == "location":
+        sort_col = Location.name
+    else:  # status
+        sort_col = Part.status
+
+    query = query.order_by(sort_col.desc() if descending else sort_col.asc())
+
     parts = query.limit(200).all()
 
     location_ids = {p.location_id for p in parts if p.location_id}

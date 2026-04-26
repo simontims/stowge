@@ -121,6 +121,13 @@ export function ItemsPage() {
   const [sortKey, setSortKey] = useState<ItemSortKey>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+  // Debounced search value — used when building API requests
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [selectedPart, setSelectedPart] = useState<PartDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -130,8 +137,6 @@ export function ItemsPage() {
   const [savingDetail, setSavingDetail] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
-
-  const [collectionsLoaded, setCollectionsLoaded] = useState(false);
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
@@ -159,16 +164,6 @@ export function ItemsPage() {
     [collectionFilter, collectionOptions]
   );
 
-  // Redirect to /collections if the ?collection= param doesn't match any known collection.
-  // __none is a valid virtual filter (uncollected items) and is exempt.
-  useEffect(() => {
-    if (!collectionsLoaded) return;
-    if (!collectionFilter || collectionFilter === "__none") return;
-    if (activeCollectionOption === null) {
-      navigate("/collections");
-    }
-  }, [collectionsLoaded, collectionFilter, activeCollectionOption, navigate]);
-
   const collectionFilterSavedRef = useRef<string | null>(null);
   useEffect(() => {
     if (collectionFilterSavedRef.current === null) {
@@ -190,16 +185,24 @@ export function ItemsPage() {
   useBeforeUnload(hasDirtyChanges);
 
   useEffect(() => {
-    void loadParts();
     void loadLocations();
     void loadCollectionOptions();
   }, []);
+
+  // Reload items whenever debounced search, collection filter, or sort changes
+  useEffect(() => {
+    void loadParts({ q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection });
+  }, [debouncedSearch, collectionFilter, sortKey, sortDirection]);
+
+  // Keep a ref to current load params so the SSE handler always uses fresh values
+  const loadParamsRef = useRef({ q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection });
+  loadParamsRef.current = { q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection };
 
   useEffect(() => {
     const source = new EventSource("/api/events/items");
 
     const onItemsChanged = () => {
-      void loadParts();
+      void loadParts({ ...loadParamsRef.current, background: true });
     };
 
     source.addEventListener("items_changed", onItemsChanged);
@@ -213,15 +216,21 @@ export function ItemsPage() {
     };
   }, []);
 
-  async function loadParts(options?: { background?: boolean }) {
-    const background = options?.background ?? false;
+  async function loadParts(params?: { q?: string; collection?: string; sortKey?: ItemSortKey; sortDir?: "asc" | "desc"; background?: boolean }) {
+    const background = params?.background ?? false;
 
     if (!background) {
       setLoading(true);
       setError("");
     }
     try {
-      const data = await apiRequest<Part[]>("/api/items");
+      const qs = new URLSearchParams();
+      if (params?.q?.trim()) qs.set("q", params.q.trim());
+      if (params?.collection) qs.set("collection", params.collection);
+      if (params?.sortKey) qs.set("sort_by", params.sortKey);
+      if (params?.sortDir) qs.set("sort_dir", params.sortDir);
+      const url = `/api/items${qs.size ? `?${qs.toString()}` : ""}`;
+      const data = await apiRequest<Part[]>(url);
       setParts(data);
     } catch (err) {
       setError((err as Error).message || "Failed to load parts.");
@@ -248,8 +257,6 @@ export function ItemsPage() {
       setCollectionOptions(data || []);
     } catch {
       setCollectionOptions([]);
-    } finally {
-      setCollectionsLoaded(true);
     }
   }
 
@@ -406,46 +413,6 @@ export function ItemsPage() {
     setSortDirection("asc");
   }
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const normalizedCollectionFilter = collectionFilter.toLowerCase();
-
-    return parts.filter((part) => {
-      const collection = (part.collection || "").toLowerCase();
-
-      if (isUncollectedFilter) {
-        if (collection !== "") return false;
-      } else if (normalizedCollectionFilter && collection !== normalizedCollectionFilter) {
-        return false;
-      }
-
-      if (!term) {
-        return true;
-      }
-
-      const name = part.name.toLowerCase();
-      const location = (part.location || "").toLowerCase();
-      const status = part.status.toLowerCase();
-      return (
-        name.includes(term) ||
-        collection.includes(term) ||
-        location.includes(term) ||
-        status.includes(term)
-      );
-    });
-  }, [collectionFilter, parts, search]);
-
-  const sorted = useMemo(() => {
-    const dir = sortDirection === "asc" ? 1 : -1;
-    const rows = [...filtered];
-    rows.sort((a, b) => {
-      const left = (a[sortKey] || "").toLowerCase();
-      const right = (b[sortKey] || "").toLowerCase();
-      return left.localeCompare(right) * dir;
-    });
-    return rows;
-  }, [filtered, sortKey, sortDirection]);
-
   useEffect(() => {
     if (isMobile) return;
     const handler = (e: KeyboardEvent) => {
@@ -454,7 +421,7 @@ export function ItemsPage() {
 
       if (e.key === "Delete" || e.key === "Backspace") {
         if (!selectedPartId) return;
-        const row = sorted.find((r) => r.id === selectedPartId);
+        const row = parts.find((r) => r.id === selectedPartId);
         if (!row || deletingId === row.id) return;
         e.preventDefault();
         setConfirmDeletePart(row);
@@ -463,15 +430,15 @@ export function ItemsPage() {
 
       if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
       e.preventDefault();
-      if (sorted.length === 0) return;
-      const currentIdx = selectedPartId ? sorted.findIndex((r) => r.id === selectedPartId) : -1;
+      if (parts.length === 0) return;
+      const currentIdx = selectedPartId ? parts.findIndex((r) => r.id === selectedPartId) : -1;
       let nextIdx: number;
       if (e.key === "ArrowDown") {
-        nextIdx = currentIdx < sorted.length - 1 ? currentIdx + 1 : 0;
+        nextIdx = currentIdx < parts.length - 1 ? currentIdx + 1 : 0;
       } else {
-        nextIdx = currentIdx > 0 ? currentIdx - 1 : sorted.length - 1;
+        nextIdx = currentIdx > 0 ? currentIdx - 1 : parts.length - 1;
       }
-      const nextRow = sorted[nextIdx];
+      const nextRow = parts[nextIdx];
       if (!nextRow || deletingId === nextRow.id) return;
       void openPartModal(nextRow.id);
       requestAnimationFrame(() => {
@@ -481,7 +448,7 @@ export function ItemsPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isMobile, sorted, selectedPartId, deletingId]);
+  }, [isMobile, parts, selectedPartId, deletingId]);
 
   const columnWidths = useMemo(
     () => ({
@@ -661,13 +628,13 @@ export function ItemsPage() {
             <div className="flex-1 min-h-0 overflow-y-auto">
               {isMobile ? (
                 <div className="pr-1">
-                  {sorted.length === 0 ? (
+                  {parts.length === 0 ? (
                     <div className="border border-neutral-800 rounded-lg p-6 text-sm text-neutral-500 text-center">
                       {emptyMessage}
                     </div>
                   ) : (
                     <div className="space-y-2 pb-2">
-                      {sorted.map((row) => {
+                      {parts.map((row) => {
                         const isDeleting = deletingId === row.id;
                         return (
                           <article
@@ -726,7 +693,7 @@ export function ItemsPage() {
                 <>
                   <DataTable
                     columns={columns}
-                    rows={sorted}
+                    rows={parts}
                     keyField="id"
                     emptyMessage={emptyMessage}
                     sortKey={sortKey}
@@ -740,7 +707,7 @@ export function ItemsPage() {
                     }}
                   />
                   <p className="text-xs text-neutral-600 text-right pt-1">
-                    {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
+                    {loading ? "Loading…" : `${parts.length} item${parts.length !== 1 ? "s" : ""}`}
                   </p>
                 </>
               )}
