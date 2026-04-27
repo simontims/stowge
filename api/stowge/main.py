@@ -250,6 +250,7 @@ def _serialize_part_list(part: Part, location_name: str | None = None) -> dict:
     return {
         "id": part.id,
         "name": part.name,
+        "description": part.description,
         "collection": part.collection,
         "location": location_name,
         "status": part.status,
@@ -2178,6 +2179,7 @@ def list_parts(
         query = query.filter(
             or_(
                 Part.name.ilike(term),
+                Part.description.ilike(term),
                 Part.collection.ilike(term),
                 Location.name.ilike(term),
                 Part.status.ilike(term),

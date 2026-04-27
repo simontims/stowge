@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -8,6 +8,7 @@ import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/Delete
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
+import { buildCenteredExcerpt, splitMatchSegments } from "../lib/itemSearch";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
@@ -15,6 +16,7 @@ const MOBILE_BREAKPOINT = 1024; // lg breakpoint
 interface Part {
   id: string;
   name: string;
+  description: string | null;
   collection: string | null;
   location: string | null;
   status: string;
@@ -103,6 +105,53 @@ function getColumnWidth(values: Array<string | null | undefined>, minimum: numbe
   }, 0);
   const target = Math.min(maximum, Math.max(minimum, longest + 4));
   return `${target}ch`;
+}
+
+function renderHighlightedText(value: string, query: string, keyPrefix: string): ReactNode {
+  const segments = splitMatchSegments(value, query);
+  return (
+    <>
+      {segments.map((segment, index) =>
+        segment.matched ? (
+          <mark
+            key={`${keyPrefix}-${index}`}
+            className="rounded-sm bg-amber-300/15 px-0.5 text-amber-100"
+          >
+            {segment.text}
+          </mark>
+        ) : (
+          <span key={`${keyPrefix}-${index}`}>{segment.text}</span>
+        )
+      )}
+    </>
+  );
+}
+
+function renderItemNameContent(row: Part, query: string, excerptLength: number, keyPrefix: string): ReactNode {
+  const descriptionExcerpt = buildCenteredExcerpt(row.description, query, excerptLength);
+
+  if (!descriptionExcerpt) {
+    return (
+      <div className="flex min-h-[2.5rem] items-center">
+        <div className="break-words font-medium text-neutral-200">
+          {renderHighlightedText(row.name, query, `${keyPrefix}-name`)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-w-0 space-y-1">
+      <div className="break-words font-medium text-neutral-200">
+        {renderHighlightedText(row.name, query, `${keyPrefix}-name`)}
+      </div>
+      {descriptionExcerpt ? (
+        <div className="break-words text-xs leading-5 text-neutral-500">
+          {renderHighlightedText(descriptionExcerpt, query, `${keyPrefix}-description`)}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function ItemsPage() {
@@ -469,6 +518,14 @@ export function ItemsPage() {
     [parts]
   );
 
+  const desktopDescriptionExcerptLength = useMemo(() => {
+    const widthChars = Number.parseInt(columnWidths.name, 10);
+    return Number.isFinite(widthChars) ? Math.max(42, widthChars * 2) : 56;
+  }, [columnWidths.name]);
+
+  const mobileDescriptionExcerptLength = 44;
+  const activeResultQuery = debouncedSearch;
+
   const columns = useMemo<Column<Part>[]>(
     () => [
       {
@@ -492,9 +549,7 @@ export function ItemsPage() {
         header: "Name",
         sortable: true,
         width: columnWidths.name,
-        render: (row) => (
-          <span className="font-medium text-neutral-200">{row.name}</span>
-        ),
+        render: (row) => renderItemNameContent(row, activeResultQuery, desktopDescriptionExcerptLength, `desktop-${row.id}`),
       },
       {
         key: "collection",
@@ -559,7 +614,7 @@ export function ItemsPage() {
         },
       },
     ],
-    [columnWidths, deletingId]
+    [activeResultQuery, columnWidths, deletingId, desktopDescriptionExcerptLength]
   );
 
   const emptyMessage = useMemo(() => {
@@ -602,7 +657,7 @@ export function ItemsPage() {
             <ListToolbar
               search={search}
               onSearchChange={setSearch}
-              placeholder={collectionFilter ? "Search within Collection" : "Search items, locations, collections…"}
+              placeholder={collectionFilter ? "Search by name and description" : "Search items, locations, collections…"}
               loading={loading}
               action={
                 <button
@@ -671,7 +726,11 @@ export function ItemsPage() {
                                   </div>
                                 )}
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-semibold text-neutral-100">{row.name}</p>
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-semibold text-neutral-100">
+                                      {renderItemNameContent(row, activeResultQuery, mobileDescriptionExcerptLength, `mobile-${row.id}`)}
+                                    </div>
+                                  </div>
                                   <div className="mt-1 flex flex-wrap gap-1.5">
                                     <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
                                       {row.collection || "No collection"}

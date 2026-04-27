@@ -25,3 +25,6 @@ api/venv/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Local-only scripts
+scripts/import_pihut_collection.py
