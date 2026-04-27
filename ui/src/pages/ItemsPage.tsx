@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
-import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
+import { DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
@@ -592,29 +592,8 @@ export function ItemsPage() {
           <span className="text-sm text-neutral-300">{row.quantity}</span>
         ),
       },
-      {
-        key: "actions",
-        header: "ACTIONS",
-        className: "w-40 text-right",
-        headerClassName: "w-40 text-right",
-        width: "10rem",
-        render: (row) => {
-          const isDeleting = deletingId === row.id;
-          return (
-            <div
-              className="inline-flex items-center justify-end w-full"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <DeleteActionButton
-                onClick={() => setConfirmDeletePart(row)}
-                isDeleting={isDeleting}
-              />
-            </div>
-          );
-        },
-      },
     ],
-    [activeResultQuery, columnWidths, deletingId, desktopDescriptionExcerptLength]
+    [activeResultQuery, columnWidths, desktopDescriptionExcerptLength]
   );
 
   const emptyMessage = useMemo(() => {
@@ -742,14 +721,7 @@ export function ItemsPage() {
                                   <p className="mt-1 text-[11px] text-neutral-500">Status: {row.status}</p>
                                 </div>
                               </button>
-                              <div className="shrink-0" onClick={(event) => event.stopPropagation()}>
-                                <DeleteActionButton
-                                  onClick={() => setConfirmDeletePart(row)}
-                                  isDeleting={isDeleting}
-                                  label=""
-                                  className="px-2 py-1.5"
-                                />
-                              </div>
+
                             </div>
                           </article>
                         );

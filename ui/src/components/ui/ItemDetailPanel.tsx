@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, Trash2, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Save, Trash2, X, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import type { PartDetail, PartEditForm, LocationOption, CollectionOption } from "../../pages/ItemsPage";
 
 interface ItemDetailPanelProps {
@@ -74,15 +74,27 @@ export function ItemDetailPanel({
             </p>
           </div>
         </div>
-        {!isMobile && (
-          <button
-            onClick={onClose}
-            className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600 flex-shrink-0"
-            title="Close"
-          >
-            <ChevronLeft size={14} />
-          </button>
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {selectedPart && (
+            <button
+              onClick={() => setConfirmDeletePartOpen(true)}
+              disabled={savingDetail || deletingPartFromModal}
+              className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-400 hover:border-red-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              title="Delete item"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+          {!isMobile && (
+            <button
+              onClick={onClose}
+              className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600 flex-shrink-0"
+              title="Close"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -272,7 +284,7 @@ export function ItemDetailPanel({
           </div>
 
           {/* Footer Actions - Sticky */}
-          <div className="border-t border-neutral-800 p-4 space-y-3 bg-neutral-950 sticky bottom-0">
+          <div className="border-t border-neutral-800 p-4 bg-neutral-950 sticky bottom-0">
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
@@ -294,14 +306,6 @@ export function ItemDetailPanel({
                 {savingDetail ? "Saving..." : "Save"}
               </button>
             </div>
-            <button
-              onClick={() => setConfirmDeletePartOpen(true)}
-              disabled={savingDetail || deletingPartFromModal}
-              className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border border-neutral-800 text-neutral-500 hover:text-red-300 hover:border-red-500/60 disabled:opacity-60 disabled:cursor-not-allowed text-xs"
-            >
-              <Trash2 size={13} />
-              Delete item
-            </button>
           </div>
         </div>
       )}
