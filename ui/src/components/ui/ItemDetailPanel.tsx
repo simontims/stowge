@@ -69,9 +69,6 @@ export function ItemDetailPanel({
           )}
           <div className="min-w-0">
             <h3 className="text-base font-semibold text-neutral-100 truncate">Item Details</h3>
-            <p className={`text-xs text-neutral-500 truncate ${selectedPart ? "" : "invisible"}`}>
-              ID: {selectedPart?.id ?? "—"}
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -276,9 +273,19 @@ export function ItemDetailPanel({
                 />
               </label>
 
-              <div className="text-xs text-neutral-500">
-                <div>Created: {new Date(selectedPart.created_at).toLocaleString()}</div>
-                <div>Updated: {new Date(selectedPart.updated_at).toLocaleString()}</div>
+              <div className="text-xs text-neutral-500 space-y-1">
+                <div>
+                  <span className="uppercase tracking-wide text-neutral-600">ID</span>
+                  <div className="text-neutral-400 break-all">{selectedPart.id}</div>
+                </div>
+                <div>
+                  <span className="uppercase tracking-wide text-neutral-600">Created</span>
+                  <div>{new Date(selectedPart.created_at).toLocaleString()}</div>
+                </div>
+                <div>
+                  <span className="uppercase tracking-wide text-neutral-600">Updated</span>
+                  <div>{new Date(selectedPart.updated_at).toLocaleString()}</div>
+                </div>
               </div>
             </div>
           </div>
