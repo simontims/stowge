@@ -152,6 +152,15 @@ def _utc_iso(dt: datetime | None) -> str | None:
 
 
 def _serialize_user(user: User) -> dict:
+    parsed_collection_nav_order: list[str] = []
+    if user.collection_nav_order:
+        try:
+            raw_order = json.loads(user.collection_nav_order)
+            if isinstance(raw_order, list):
+                parsed_collection_nav_order = [str(item).strip() for item in raw_order if str(item).strip()]
+        except Exception:
+            parsed_collection_nav_order = []
+
     return {
         "id": user.id,
         "email": user.username,
@@ -162,6 +171,7 @@ def _serialize_user(user: User) -> dict:
         "preferred_add_collection_id": user.preferred_add_collection_id,
         "preferred_add_location_id": user.preferred_add_location_id,
         "last_open_collection": user.last_open_collection,
+        "collection_nav_order": parsed_collection_nav_order,
         "created_at": _utc_iso(user.created_at),
         "last_login_at": _utc_iso(user.last_login_at),
     }
@@ -477,6 +487,9 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE users ADD COLUMN last_open_collection VARCHAR NULL"))
             if "preferred_add_location_id" not in user_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN preferred_add_location_id VARCHAR NULL"))
+            user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
+            if "collection_nav_order" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN collection_nav_order TEXT NULL"))
 
     tables = set(inspect(engine).get_table_names())
 
@@ -1420,6 +1433,22 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
     if "last_open_collection" in payload:
         val = payload.get("last_open_collection")
         u.last_open_collection = str(val).strip() if val else None
+    if "collection_nav_order" in payload:
+        raw_order = payload.get("collection_nav_order")
+        if raw_order is None:
+            u.collection_nav_order = None
+        elif isinstance(raw_order, list):
+            seen: set[str] = set()
+            normalized: list[str] = []
+            for entry in raw_order:
+                value = str(entry).strip()
+                if not value or value in seen:
+                    continue
+                seen.add(value)
+                normalized.append(value)
+            u.collection_nav_order = json.dumps(normalized) if normalized else None
+        else:
+            raise HTTPException(status_code=400, detail="collection_nav_order must be an array of collection ids or null")
     db.commit()
     db.refresh(u)
     return _serialize_user(u)

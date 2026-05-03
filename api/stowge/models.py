@@ -27,6 +27,7 @@ class User(Base):
     preferred_add_collection_id = Column(String, nullable=True)
     preferred_add_location_id = Column(String, nullable=True)
     last_open_collection = Column(String, nullable=True)
+    collection_nav_order = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
 

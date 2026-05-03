@@ -8,6 +8,7 @@ export interface CurrentUser {
   preferred_add_collection_id: string | null;
   preferred_add_location_id: string | null;
   last_open_collection: string | null;
+  collection_nav_order: string[];
   created_at: string | null;
   last_login_at: string | null;
 }

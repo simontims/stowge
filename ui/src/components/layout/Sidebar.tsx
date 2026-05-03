@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { COLLECTIONS_NAV_UPDATED_EVENT, navItems, topNavItems } from "../../config/nav";
 import { apiRequest } from "../../lib/api";
 import { TablerIcon } from "../ui/TablerIcon";
+import type { CurrentUser } from "../../lib/types";
 
 interface CollectionNavItem {
   id: string;
@@ -21,15 +22,85 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
   const [collections, setCollections] = useState<CollectionNavItem[]>([]);
+  const [collectionNavOrder, setCollectionNavOrder] = useState<string[]>([]);
+  const [draggingCollectionId, setDraggingCollectionId] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ targetId: string; position: "before" | "after" } | null>(null);
 
   const activeCollectionFilter = useMemo(
     () => new URLSearchParams(location.search).get("collection")?.trim() || "",
     [location.search]
   );
 
+  const END_DROP_ZONE_ID = "__end_drop_zone__";
+
   function isNavItemActive(route: string): boolean {
     const [path] = route.split("?");
     return location.pathname === path;
+  }
+
+  const orderedCollections = useMemo(() => {
+    if (!collections.length) return [];
+
+    const byId = new Map(collections.map((collection) => [collection.id, collection]));
+    const ordered: CollectionNavItem[] = [];
+    const seen = new Set<string>();
+
+    for (const id of collectionNavOrder) {
+      const entry = byId.get(id);
+      if (!entry || seen.has(id)) continue;
+      ordered.push(entry);
+      seen.add(id);
+    }
+
+    for (const collection of collections) {
+      if (!seen.has(collection.id)) {
+        ordered.push(collection);
+      }
+    }
+
+    return ordered;
+  }, [collectionNavOrder, collections]);
+
+  async function persistCollectionNavOrder(nextOrder: string[]) {
+    try {
+      await apiRequest("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({ collection_nav_order: nextOrder }),
+      });
+    } catch {
+      // Keep local ordering even if persistence fails; it can be retried by the next drag.
+    }
+  }
+
+  function applyCollectionReorder(sourceId: string, targetId: string, position: "before" | "after") {
+    const currentOrder = orderedCollections.map((entry) => entry.id);
+    const sourceIdx = currentOrder.indexOf(sourceId);
+    if (sourceIdx < 0) return;
+
+    const nextOrder = [...currentOrder];
+    nextOrder.splice(sourceIdx, 1);
+
+    if (targetId === END_DROP_ZONE_ID) {
+      nextOrder.push(sourceId);
+      setCollectionNavOrder(nextOrder);
+      void persistCollectionNavOrder(nextOrder);
+      return;
+    }
+
+    const targetIdx = currentOrder.indexOf(targetId);
+    if (targetIdx < 0) return;
+
+    let insertIdx = targetIdx;
+    if (sourceIdx < targetIdx) {
+      insertIdx -= 1;
+    }
+    if (position === "after") {
+      insertIdx += 1;
+    }
+
+    nextOrder.splice(Math.max(0, Math.min(insertIdx, nextOrder.length)), 0, sourceId);
+    setCollectionNavOrder(nextOrder);
+    void persistCollectionNavOrder(nextOrder);
   }
 
   useEffect(() => {
@@ -37,9 +108,13 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
     async function loadCollections() {
       try {
-        const data = await apiRequest<CollectionNavItem[]>("/api/collections");
+        const [data, me] = await Promise.all([
+          apiRequest<CollectionNavItem[]>("/api/collections"),
+          apiRequest<CurrentUser>("/api/me"),
+        ]);
         if (active) {
           setCollections(data || []);
+          setCollectionNavOrder(Array.isArray(me.collection_nav_order) ? me.collection_nav_order : []);
         }
       } catch {
         if (active) {
@@ -116,29 +191,104 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
                   {!collapsed && item.route === "/collections" && collections.length > 0 && (
                     <div className="mt-1 space-y-0.5 px-2">
-                      {collections.map((collection) => {
+                      {orderedCollections.map((collection) => {
                         const isActive =
                           location.pathname === "/items" && activeCollectionFilter === collection.name;
 
                         return (
-                          <NavLink
+                          <div
                             key={collection.id}
-                            to={{
-                              pathname: "/items",
-                              search: new URLSearchParams({ collection: collection.name }).toString(),
+                            draggable
+                            onDragStart={(event) => {
+                              setDraggingCollectionId(collection.id);
+                              setDropIndicator(null);
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", collection.id);
+                            }}
+                            onDragEnd={() => {
+                              setDraggingCollectionId(null);
+                              setDropIndicator(null);
+                            }}
+                            onDragOver={(event) => {
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = "move";
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+                              setDropIndicator({ targetId: collection.id, position });
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const sourceId = draggingCollectionId || event.dataTransfer.getData("text/plain");
+                              const targetId = collection.id;
+                              const insertPosition =
+                                dropIndicator?.targetId === targetId ? dropIndicator.position : "before";
+                              if (!sourceId || sourceId === targetId) {
+                                setDraggingCollectionId(null);
+                                setDropIndicator(null);
+                                return;
+                              }
+
+                              applyCollectionReorder(sourceId, targetId, insertPosition);
+                              setDraggingCollectionId(null);
+                              setDropIndicator(null);
                             }}
                             className={clsx(
-                              "ml-5 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                              "relative ml-5 rounded-md",
+                              draggingCollectionId === collection.id ? "opacity-60" : "opacity-100"
+                            )}
+                          >
+                            {dropIndicator?.targetId === collection.id && dropIndicator.position === "before" && (
+                              <div className="absolute -top-0.5 left-0 right-0 h-0.5 rounded bg-blue-400" />
+                            )}
+                            <NavLink
+                              to={{
+                                pathname: "/items",
+                                search: new URLSearchParams({ collection: collection.name }).toString(),
+                              }}
+                              className={clsx(
+                                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
                               isActive
                                 ? "bg-neutral-800/80 text-neutral-100"
                                 : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
+                              )}
+                            >
+                              <TablerIcon name={collection.icon} size={14} color={collection.color} />
+                              {collection.name}
+                            </NavLink>
+                            {dropIndicator?.targetId === collection.id && dropIndicator.position === "after" && (
+                              <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded bg-blue-400" />
                             )}
-                          >
-                            <TablerIcon name={collection.icon} size={14} color={collection.color} />
-                            {collection.name}
-                          </NavLink>
+                          </div>
                         );
                       })}
+
+                      {draggingCollectionId && (
+                        <div
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = "move";
+                            setDropIndicator({ targetId: END_DROP_ZONE_ID, position: "after" });
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const sourceId = draggingCollectionId || event.dataTransfer.getData("text/plain");
+                            if (!sourceId) {
+                              setDraggingCollectionId(null);
+                              setDropIndicator(null);
+                              return;
+                            }
+
+                            applyCollectionReorder(sourceId, END_DROP_ZONE_ID, "after");
+                            setDraggingCollectionId(null);
+                            setDropIndicator(null);
+                          }}
+                          className="ml-5 h-3 rounded-md"
+                        >
+                          {dropIndicator?.targetId === END_DROP_ZONE_ID && (
+                            <div className="mt-1 h-0.5 rounded bg-blue-400" />
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
