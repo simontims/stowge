@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
@@ -34,6 +34,7 @@ interface DraftImage extends PartImage {
 
 interface PartDetail {
   id: string;
+  is_deleted: boolean;
   name: string;
   description: string | null;
   collection: string | null;
@@ -251,7 +252,18 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
 // ---------------------------------------------------------------------------
 export function EditPage() {
   const { itemId } = useParams<{ itemId: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
+  const restoreOnSave = Boolean((location.state as { restoreOnSave?: boolean } | null)?.restoreOnSave);
+  const returnToRecycleBin = Boolean((location.state as { returnToRecycleBin?: boolean } | null)?.returnToRecycleBin);
+
+  function navigateAfterEditExit() {
+    if (returnToRecycleBin) {
+      navigate("/collections", { state: { openRecycleBin: true } });
+      return;
+    }
+    navigate(-1);
+  }
 
   const [part, setPart] = useState<PartDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -301,7 +313,9 @@ export function EditPage() {
 
   const hasFormDirtyChanges = part !== null && !isSameForm(form, initialForm);
   const hasImageDirtyChanges = part !== null && imageStateSignature(images) !== initialImageSignature;
-  const hasDirtyChanges = hasFormDirtyChanges || hasImageDirtyChanges;
+  const hasPendingRestore = part !== null && part.is_deleted && restoreOnSave;
+  const hasDirtyChanges = hasFormDirtyChanges || hasImageDirtyChanges || hasPendingRestore;
+  const primaryActionLabel = hasPendingRestore ? "Restore" : "Save changes";
   useBeforeUnload(hasDirtyChanges);
 
   // Load on mount
@@ -309,7 +323,7 @@ export function EditPage() {
     if (!itemId) return;
     void loadAll(itemId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemId]);
+  }, [itemId, restoreOnSave]);
 
   useEffect(() => {
     return () => {
@@ -345,7 +359,7 @@ export function EditPage() {
     setLoadError("");
     try {
       const [partData, locs, colls] = await Promise.all([
-        apiRequest<PartDetail>(`/api/items/${id}`),
+        apiRequest<PartDetail>(`/api/items/${id}${restoreOnSave ? "?include_deleted=true" : ""}`),
         apiRequest<LocationOption[]>("/api/locations"),
         apiRequest<CollectionOption[]>("/api/collections"),
       ]);
@@ -354,7 +368,21 @@ export function EditPage() {
       setInitialImages(partData.images);
       setInitialImageSignature(imageStateSignature(partData.images));
       const mapped = toEditForm(partData);
-      setForm(mapped);
+      const normalized = { ...mapped };
+
+      if (restoreOnSave && partData.is_deleted) {
+        const hasCollection = normalized.collection && colls.some((c) => c.name === normalized.collection);
+        const hasLocation = normalized.location_id && locs.some((l) => l.id === normalized.location_id);
+
+        if (!hasCollection) {
+          normalized.collection = "";
+        }
+        if (!hasLocation) {
+          normalized.location_id = "";
+        }
+      }
+
+      setForm(normalized);
       setInitialForm(mapped);
       setLocations(locs || []);
       setCollectionOptions(colls || []);
@@ -380,6 +408,10 @@ export function EditPage() {
     setSaving(true);
     setSaveError("");
     try {
+      if (hasPendingRestore) {
+        await apiRequest(`/api/items/${itemId}/restore`, { method: "POST" });
+      }
+
       if (hasFormDirtyChanges) {
         await apiRequest(`/api/items/${itemId}`, {
           method: "PATCH",
@@ -458,7 +490,7 @@ export function EditPage() {
         setInitialImageSignature(imageStateSignature(refreshedAfterImageOps.images));
         setForm(refreshedForm);
         setInitialForm(refreshedForm);
-        navigate(-1);
+        navigateAfterEditExit();
         return true;
       }
 
@@ -470,7 +502,7 @@ export function EditPage() {
       setInitialImageSignature(imageStateSignature(refreshed.images));
       setForm(refreshedForm);
       setInitialForm(refreshedForm);
-      navigate(-1);
+      navigateAfterEditExit();
       return true;
     } catch (err) {
       setSaveError((err as Error).message || "Failed to save.");
@@ -499,12 +531,12 @@ export function EditPage() {
       setUnsavedPromptOpen(true);
       return;
     }
-    navigate(-1);
+    navigateAfterEditExit();
   }
 
   function handleUnsavedDiscard() {
     setUnsavedPromptOpen(false);
-    navigate(-1);
+    navigateAfterEditExit();
   }
 
   function handleUnsavedCancel() {
@@ -605,7 +637,9 @@ export function EditPage() {
     setCandidates([]);
     setShowDiff(false);
     try {
-      const result = await apiRequest<{ mode: string; ai: { candidates?: AiCandidate[] } | AiCandidate }>(`/api/items/${itemId}/rescan`, {
+      const query = new URLSearchParams({ mode: "one" });
+      if (restoreOnSave) query.set("include_deleted", "true");
+      const result = await apiRequest<{ mode: string; ai: { candidates?: AiCandidate[] } | AiCandidate }>(`/api/items/${itemId}/rescan?${query.toString()}`, {
         method: "POST",
       });
       // mode=three returns { candidates: [...] }, mode=one returns candidate directly
@@ -620,11 +654,11 @@ export function EditPage() {
         setRescanError("No suggestions returned. Try again.");
         return;
       }
-      setCandidates(found);
+      setCandidates(found.slice(0, 1));
       setSelectedCandidateIdx(0);
       setShowDiff(true);
     } catch (err) {
-      setRescanError((err as Error).message || "Re-scan failed.");
+      setRescanError((err as Error).message || "Scan failed.");
     } finally {
       setRescanning(false);
     }
@@ -780,18 +814,18 @@ export function EditPage() {
                 onClick={() => void handleRescan()}
                 disabled={rescanning || images.length === 0}
                 className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                title={images.length === 0 ? "Item needs images to re-scan" : "Re-scan with AI using current saved images"}
+                title={images.length === 0 ? "Item needs images to scan" : "Scan with AI using current saved images"}
               >
                 {rescanning ? (
                   <><Loader2 size={13} className="animate-spin" /> Identifying…</>
                 ) : (
-                  <><Brain size={13} /> Re-scan with AI</>
+                  <><Brain size={13} /> Scan with AI</>
                 )}
               </button>
             </div>
 
             {images.length === 0 && (
-              <p className="text-xs text-neutral-600">Add images first to re-scan.</p>
+              <p className="text-xs text-neutral-600">Add images first to scan.</p>
             )}
             {rescanError && <p className="text-xs text-red-400">{rescanError}</p>}
 
@@ -918,7 +952,7 @@ export function EditPage() {
             ].join(" ")}
           >
             <Save size={14} />
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? (hasPendingRestore ? "Restoring…" : "Saving…") : primaryActionLabel}
           </button>
         </div>
       </div>

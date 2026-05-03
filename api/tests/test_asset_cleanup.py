@@ -113,3 +113,44 @@ def test_discard_images_removes_unlinked_only(tmp_path, monkeypatch, isolated_db
 
     for rel_path in (linked["path_thumb"], linked["path_display"], linked["path_original"]):
         assert (tmp_path / rel_path).exists()
+
+
+def test_orphan_maintenance_keeps_assets_for_soft_deleted_items(tmp_path, monkeypatch, isolated_db, isolated_client):
+    monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+    from conftest import auth_cookies_isolated
+    cookies = auth_cookies_isolated(isolated_db, "asset_orphan_soft_delete@example.com", role="admin")
+
+    soft_deleted = _stored_image_payload(f"soft-deleted-{uuid4()}")
+    for rel_path in (soft_deleted["path_thumb"], soft_deleted["path_display"], soft_deleted["path_original"]):
+      write_asset(tmp_path, rel_path, b"tracked-soft-delete")
+
+    orphan_rel_path = "orphan/untracked.jpg"
+    orphan_bytes = b"orphan"
+    write_asset(tmp_path, orphan_rel_path, orphan_bytes)
+
+    create_response = isolated_client.post(
+        "/api/items",
+        json={"name": "Soft Delete Orphan Guard", "stored_images": [soft_deleted]},
+        cookies=cookies,
+    )
+    assert create_response.status_code == 200, create_response.text
+    item_id = create_response.json()["id"]
+
+    delete_response = isolated_client.delete(f"/api/items/{item_id}", cookies=cookies)
+    assert delete_response.status_code == 200, delete_response.text
+
+    scan_response = isolated_client.get("/api/admin/maintenance/orphaned-images", cookies=cookies)
+    assert scan_response.status_code == 200, scan_response.text
+    scan_payload = scan_response.json()
+    assert scan_payload["file_count"] == 1
+    assert scan_payload["disk_bytes"] == len(orphan_bytes)
+
+    purge_response = isolated_client.delete("/api/admin/maintenance/orphaned-images", cookies=cookies)
+    assert purge_response.status_code == 200, purge_response.text
+    purge_payload = purge_response.json()
+    assert purge_payload["deleted"] == 1
+    assert purge_payload["freed_bytes"] == len(orphan_bytes)
+
+    for rel_path in (soft_deleted["path_thumb"], soft_deleted["path_display"], soft_deleted["path_original"]):
+        assert (tmp_path / rel_path).exists()
+    assert not (tmp_path / orphan_rel_path).exists()

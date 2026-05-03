@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Edit3, Plus, Save, Trash2, Upload, X } from "lucide-react";
+import { Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
+import { DeleteTransferModal } from "../components/ui/DeleteTransferModal";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
@@ -62,6 +63,9 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteStep, setDeleteStep] = useState<"confirm" | "progress" | "done">("confirm");
+  const [deleteProgress, setDeleteProgress] = useState<string[]>([]);
+  const [deleteMoveToId, setDeleteMoveToId] = useState<string>("");
 
   const [uploadingTarget, setUploadingTarget] = useState<"new" | "edit" | null>(null);
   const newPhotoInputRef = useRef<HTMLInputElement>(null);
@@ -249,23 +253,51 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     }
   }
 
-  async function deleteLocation(locationId: string) {
+  async function deleteLocation(location: LocationRecord) {
     setError("");
     setNotice("");
-    setDeletingId(locationId);
+    setDeletingId(location.id);
+    setDeleteStep("progress");
+    setDeleteProgress([]);
+
+    const targetLocation = deleteMoveToId
+      ? locations.find((loc) => loc.id === deleteMoveToId) ?? null
+      : null;
 
     try {
-      await apiRequest(`/api/locations/${locationId}`, {
+      setDeleteProgress([`Moving items to ${targetLocation ? `"${targetLocation.name}"` : "no location"}…`]);
+      const url = deleteMoveToId
+        ? `/api/locations/${location.id}?move_to_location_id=${deleteMoveToId}`
+        : `/api/locations/${location.id}`;
+      setDeleteProgress((current) => [...current, `Deleting location "${location.name}"…`]);
+      await apiRequest(url, {
         method: "DELETE",
       });
-      setConfirmDeleteId(null);
+      setDeleteProgress((current) => [...current, "Complete."]);
+      setDeleteStep("done");
       setNotice("Location deleted.");
       await loadLocations();
     } catch (err) {
       setError((err as Error).message || "Failed to delete location.");
+      setConfirmDeleteId(null);
+      setDeleteStep("confirm");
     } finally {
       setDeletingId(null);
     }
+  }
+
+  function openDeleteModal(location: LocationRecord) {
+    setDeleteStep("confirm");
+    setDeleteProgress([]);
+    setDeleteMoveToId("");
+    setConfirmDeleteId(location.id);
+  }
+
+  function closeDeleteModal() {
+    setConfirmDeleteId(null);
+    setDeleteStep("confirm");
+    setDeleteProgress([]);
+    setDeleteMoveToId("");
   }
 
   function handleSort(nextKey: LocationSortKey) {
@@ -365,7 +397,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               <button
                 onClick={() => {
                   if (isDeleting) return;
-                  setConfirmDeleteId(row.id);
+                  openDeleteModal(row);
                 }}
                 disabled={isDeleting}
                 className={[
@@ -547,7 +579,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             saving={isSavingEdit}
             onSave={() => void saveEdit()}
             onCancel={cancelEdit}
-            onDelete={() => setConfirmDeleteId(editingId)}
+            onDelete={() => editingLocation && openDeleteModal(editingLocation)}
             deleteDisabled={isSavingEdit}
           />
         </section>
@@ -600,54 +632,28 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         onSave={() => void handleUnsavedSave()}
       />
 
-      {confirmDeleteLocation && (        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-neutral-100">Delete Location</h3>
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
-                title="Close"
-              >
-                <X size={13} />
-              </button>
-            </div>
-
-            <p className="text-sm text-neutral-300">
-              Delete location <span className="font-medium text-neutral-100">{confirmDeleteLocation.name}</span>?
-            </p>
-
-            {confirmDeleteLocation.item_count > 0 && (
-              <p className="text-xs text-amber-300">
-                {confirmDeleteLocation.item_count} item
-                {confirmDeleteLocation.item_count !== 1 ? "s" : ""} currently in this location will have their location removed.
-              </p>
-            )}
-
-            <div className="pt-1 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                disabled={deletingId === confirmDeleteLocation.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void deleteLocation(confirmDeleteLocation.id)}
-                disabled={deletingId === confirmDeleteLocation.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
-              >
-                <Trash2 size={13} />
-                {deletingId === confirmDeleteLocation.id ? "Deleting..." : "Confirm Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteTransferModal
+        open={Boolean(confirmDeleteLocation)}
+        title="Delete Location"
+        entityKindLabel="Location"
+        entityName={confirmDeleteLocation?.name || ""}
+        itemCount={confirmDeleteLocation?.item_count || 0}
+        moveToLabel="Move items to"
+        noneOptionLabel="No location"
+        moveOptions={locations
+          .filter((location) => location.id !== confirmDeleteLocation?.id)
+          .map((location) => ({ id: location.id, name: location.name }))}
+        moveToId={deleteMoveToId}
+        onMoveToIdChange={setDeleteMoveToId}
+        step={deleteStep}
+        progressMessages={deleteProgress}
+        onCancel={closeDeleteModal}
+        onConfirm={() => {
+          if (!confirmDeleteLocation) return;
+          void deleteLocation(confirmDeleteLocation);
+        }}
+        onDone={closeDeleteModal}
+      />
 
 
     </div>

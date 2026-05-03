@@ -523,6 +523,17 @@ export function ItemsPage() {
 
       const refreshed = await apiRequest<PartDetail>(`/api/items/${selectedPartId}`);
       const refreshedForm = toEditForm(refreshed);
+
+      const noLongerMatchesCollectionFilter =
+        (isUncollectedFilter && !!refreshed.collection) ||
+        (!isUncollectedFilter && !!collectionFilter && refreshed.collection !== collectionFilter);
+
+      if (noLongerMatchesCollectionFilter) {
+        setParts((current) => current.filter((p) => p.id !== refreshed.id));
+        closeModalNow();
+        return true;
+      }
+
       setSelectedPart(refreshed);
       setDraftImages(refreshed.images);
       setInitialImageSignature(imageStateSignature(refreshed.images));

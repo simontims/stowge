@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Save, X, HelpCircle, Settings } from "lucide-react";
 import type { TablerEntry } from "../lib/tablerIconCatalogue";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton } from "../components/ui/DeleteControls";
+import { DeleteTransferModal } from "../components/ui/DeleteTransferModal";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
@@ -59,6 +60,20 @@ interface CollectionRecord {
 
 interface CollectionListRow extends CollectionRecord {
   isSynthetic?: boolean;
+  syntheticKind?: "none" | "recycle-bin";
+}
+
+interface DeletedItemRow {
+  id: string;
+  name: string;
+  description: string | null;
+  collection: string | null;
+  location: string | null;
+  status: string;
+  quantity: number;
+  created_at: string;
+  thumb: string | null;
+  actions?: never;
 }
 
 interface CollectionsStatusResponse {
@@ -554,11 +569,13 @@ interface CollectionsSectionProps {
 }
 
 export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: CollectionsSectionProps = {}) {
+  const location = useLocation();
   const navigate = useNavigate();
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [uncollectedItemCount, setUncollectedItemCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [deletedLoadError, setDeletedLoadError] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -581,6 +598,10 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   const [deleteStep, setDeleteStep] = useState<"confirm" | "progress" | "done">("confirm");
   const [deleteProgress, setDeleteProgress] = useState<string[]>([]);
   const [deleteMoveToId, setDeleteMoveToId] = useState<string>("");
+  const [deletedItems, setDeletedItems] = useState<DeletedItemRow[]>([]);
+  const [emptyRecycleBinOpen, setEmptyRecycleBinOpen] = useState(false);
+  const [emptyingRecycleBin, setEmptyingRecycleBin] = useState(false);
+  const [recycleBinOpen, setRecycleBinOpen] = useState(false);
 
   const editingCollection = useMemo(
     () => collections.find((c) => c.id === editingId) || null,
@@ -605,6 +626,14 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   useEffect(() => { void loadCollections(); }, []);
 
   useEffect(() => {
+    const shouldOpenRecycleBin = Boolean((location.state as { openRecycleBin?: boolean } | null)?.openRecycleBin);
+    if (!shouldOpenRecycleBin) return;
+
+    setRecycleBinOpen(true);
+    navigate({ pathname: "/collections", search: location.search }, { replace: true, state: null });
+  }, [location.search, location.state, navigate]);
+
+  useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(t);
@@ -627,9 +656,20 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
       } catch {
         setUncollectedItemCount(0);
       }
+
+      try {
+        const deleted = await apiRequest<DeletedItemRow[]>("/api/items/deleted");
+        setDeletedItems(deleted || []);
+        setDeletedLoadError("");
+      } catch (deletedErr) {
+        setDeletedItems([]);
+        setDeletedLoadError((deletedErr as Error).message || "Unable to load recycle bin items.");
+      }
     } catch (err) {
       setCollections([]);
       setUncollectedItemCount(0);
+      setDeletedItems([]);
+      setDeletedLoadError("");
       setLoadError((err as Error).message || "Unable to load collections right now.");
     } finally {
       if (!background) {
@@ -778,23 +818,43 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   }
 
   function openCollectionItems(collection: CollectionListRow) {
+    if (collection.syntheticKind === "recycle-bin") {
+      setRecycleBinOpen(true);
+      return;
+    }
+    setRecycleBinOpen(false);
     if (deletingId === collection.id) return;
     navigate({
       pathname: "/items",
       search: new URLSearchParams({
-        collection: collection.isSynthetic ? "__none" : collection.name,
+        collection: collection.syntheticKind === "none" ? "__none" : collection.name,
       }).toString(),
     });
   }
 
-  const listRows = useMemo<CollectionListRow[]>(() => {
-    if (uncollectedItemCount <= 0) {
-      return collections;
-    }
+  function openDeletedItemForRestore(itemId: string) {
+    navigate(`/items/${itemId}/edit`, { state: { restoreOnSave: true, returnToRecycleBin: true } });
+  }
 
-    return [
-      ...collections,
-      {
+  async function emptyRecycleBin() {
+    setError("");
+    setEmptyingRecycleBin(true);
+    try {
+      await apiRequest<{ deleted: number }>("/api/items/deleted/purge", { method: "POST" });
+      setEmptyRecycleBinOpen(false);
+      await loadCollections({ background: true });
+    } catch (err) {
+      setError((err as Error).message || "Failed to empty recycle bin.");
+    } finally {
+      setEmptyingRecycleBin(false);
+    }
+  }
+
+  const listRows = useMemo<CollectionListRow[]>(() => {
+    const rows: CollectionListRow[] = [...collections];
+
+    if (uncollectedItemCount > 0) {
+      rows.push({
         id: "__none__",
         name: "No Collection",
         icon: null,
@@ -805,9 +865,38 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         created_at: null,
         updated_at: null,
         isSynthetic: true,
-      },
-    ];
-  }, [collections, uncollectedItemCount]);
+        syntheticKind: "none",
+      });
+    }
+
+    rows.push({
+      id: "__recycle_bin__",
+      name: "Recycle Bin",
+      icon: null,
+      color: null,
+      description: "Deleted items can be restored",
+      ai_hint: null,
+      item_count: deletedItems.length,
+      created_at: null,
+      updated_at: null,
+      isSynthetic: true,
+      syntheticKind: "recycle-bin",
+    });
+
+    return rows;
+  }, [collections, uncollectedItemCount, deletedItems.length]);
+
+  const filteredDeletedItems = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return deletedItems;
+    return deletedItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(term) ||
+        (item.description || "").toLowerCase().includes(term) ||
+        (item.collection || "").toLowerCase().includes(term) ||
+        (item.location || "").toLowerCase().includes(term)
+    );
+  }, [deletedItems, search]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -894,11 +983,60 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
                 />
               </>
             )}
+            {row.syntheticKind === "recycle-bin" && (
+              <button
+                onClick={() => setEmptyRecycleBinOpen(true)}
+                disabled={deletedItems.length === 0}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Empty
+              </button>
+            )}
           </div>
         ),
       } as Column<CollectionListRow>] : []),
     ],
-    [deletingId, embedded]
+    [deletingId, deletedItems.length, embedded]
+  );
+
+  const recycleBinColumns = useMemo<Column<DeletedItemRow>[]>(
+    () => [
+      {
+        key: "name",
+        header: "Name",
+        render: (row) => <span className="font-medium text-neutral-200">{row.name}</span>,
+      },
+      {
+        key: "collection",
+        header: "Collection",
+        render: (row) => <span className="text-neutral-400">{row.collection || "-"}</span>,
+      },
+      {
+        key: "location",
+        header: "Location",
+        render: (row) => <span className="text-neutral-400">{row.location || "-"}</span>,
+      },
+      {
+        key: "actions",
+        header: "ACTIONS",
+        className: "w-28 text-right",
+        headerClassName: "w-28 text-right",
+        render: (row) => (
+          <div
+            className="inline-flex items-center gap-2 justify-end w-full"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              onClick={() => openDeletedItemForRestore(row.id)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 hover:bg-emerald-900/30 text-xs"
+            >
+              Restore
+            </button>
+          </div>
+        ),
+      },
+    ],
+    []
   );
 
   const emptyMessage = useMemo(() => {
@@ -981,7 +1119,14 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
             placeholder="Search collections…"
             loading={loading}
             action={
-              embedded ? (
+              recycleBinOpen ? (
+                <button
+                  onClick={() => setRecycleBinOpen(false)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium transition-colors"
+                >
+                  Back to Collections
+                </button>
+              ) : embedded ? (
                 <button
                   onClick={() => { setAddingOpen(true); setError(""); }}
                   className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
@@ -992,20 +1137,46 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
               ) : null
             }
           />
-          <DataTable
-            columns={columns}
-            rows={sorted}
-            keyField="id"
-            emptyMessage={emptyMessage}
-            sortKey={sortKey}
-            sortDirection={sortDirection}
-            onSort={(key) => handleSort(key as CollectionSortKey)}
-            onRowClick={openCollectionItems}
-          />
-          {!loadError && (
-            <p className="text-xs text-neutral-600 text-right">
-              {loading ? "Loading…" : `${filtered.length} collection${filtered.length !== 1 ? "s" : ""}`}
-            </p>
+          {!recycleBinOpen && (
+            <>
+              <DataTable
+                columns={columns}
+                rows={sorted}
+                keyField="id"
+                emptyMessage={emptyMessage}
+                sortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={(key) => handleSort(key as CollectionSortKey)}
+                onRowClick={openCollectionItems}
+              />
+              {!loadError && (
+                <p className="text-xs text-neutral-600 text-right">
+                  {loading ? "Loading…" : `${filtered.length} collection${filtered.length !== 1 ? "s" : ""}`}
+                </p>
+              )}
+            </>
+          )}
+
+          {recycleBinOpen && (
+            <section className="space-y-2 pt-0">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-neutral-100">Recycle Bin</h3>
+                <span className="text-xs text-neutral-500">
+                  {filteredDeletedItems.length} item{filteredDeletedItems.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+
+              {deletedLoadError ? (
+                <p className="text-sm text-red-400">{deletedLoadError}</p>
+              ) : (
+                <DataTable
+                  columns={recycleBinColumns}
+                  rows={filteredDeletedItems}
+                  keyField="id"
+                  emptyMessage="Recycle bin is empty."
+                />
+              )}
+            </section>
           )}
         </>
       )}
@@ -1043,101 +1214,54 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         </div>
       )}
 
-      {/* Delete collection modal */}
-      {confirmDeleteCollection && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-neutral-100">Delete Collection</h3>
+      <DeleteTransferModal
+        open={Boolean(confirmDeleteCollection)}
+        title="Delete Collection"
+        entityKindLabel="Collection"
+        entityName={confirmDeleteCollection?.name || ""}
+        itemCount={confirmDeleteCollection?.item_count || 0}
+        moveToLabel="Move items to"
+        noneOptionLabel="No collection"
+        moveOptions={collections
+          .filter((c) => c.id !== confirmDeleteCollection?.id)
+          .map((c) => ({ id: c.id, name: c.name }))}
+        moveToId={deleteMoveToId}
+        onMoveToIdChange={setDeleteMoveToId}
+        step={deleteStep}
+        progressMessages={deleteProgress}
+        onCancel={closeDeleteModal}
+        onConfirm={() => {
+          if (!confirmDeleteCollection) return;
+          void deleteCollection(confirmDeleteCollection);
+        }}
+        onDone={closeDeleteModal}
+      />
 
-            {deleteStep === "confirm" && (
-              <>
-                <p className="text-sm text-neutral-300">
-                  Permanently delete collection{" "}
-                  <span className="font-medium text-neutral-100">{confirmDeleteCollection.name}</span>?{" "}
-                  {confirmDeleteCollection.item_count > 0 ? (
-                    <>
-                      The{" "}
-                      <span className="font-medium text-neutral-100">
-                        {confirmDeleteCollection.item_count} item{confirmDeleteCollection.item_count !== 1 ? "s" : ""}
-                      </span>{" "}
-                      in this collection will be moved to:
-                    </>
-                  ) : (
-                    "This collection has no items. It will be permanently removed."
-                  )}
-                </p>
-
-                {confirmDeleteCollection.item_count > 0 && (
-                  <div>
-                    <label className="text-xs uppercase tracking-wide text-neutral-500">Move items to</label>
-                    <select
-                      value={deleteMoveToId}
-                      onChange={(e) => setDeleteMoveToId(e.target.value)}
-                      className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    >
-                      <option value="">No collection</option>
-                      {collections
-                        .filter((c) => c.id !== confirmDeleteCollection.id)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="pt-1 flex items-center justify-end gap-2">
-                  <button
-                    onClick={closeDeleteModal}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => void deleteCollection(confirmDeleteCollection)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 text-sm"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </>
-            )}
-
-            {deleteStep === "progress" && (
-              <div className="space-y-3">
-                {deleteProgress.map((msg, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-neutral-300">
-                    {i === deleteProgress.length - 1 ? (
-                      <span className="w-4 h-4 rounded-full border-2 border-neutral-500 border-t-transparent animate-spin shrink-0" />
-                    ) : (
-                      <span className="w-4 h-4 rounded-full bg-emerald-600/80 shrink-0" />
-                    )}
-                    {msg}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {deleteStep === "done" && (
-              <div className="space-y-3">
-                {deleteProgress.map((msg, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-neutral-300">
-                    <span className="w-4 h-4 rounded-full bg-emerald-600/80 shrink-0" />
-                    {msg}
-                  </div>
-                ))}
-                <div className="pt-1 flex justify-end">
-                  <button
-                    onClick={closeDeleteModal}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-sm"
-                  >
-                    OK
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <DeleteTransferModal
+        open={emptyRecycleBinOpen}
+        title="Empty Recycle Bin"
+        entityKindLabel="Recycle Bin"
+        entityName="Recycle Bin"
+        itemCount={deletedItems.length}
+        moveToLabel="Move items to"
+        noneOptionLabel="No collection"
+        moveOptions={[]}
+        moveToId=""
+        onMoveToIdChange={() => {}}
+        step="confirm"
+        progressMessages={[]}
+        showMoveSelector={false}
+        confirmDescription={(
+          <>
+            Permanently delete {deletedItems.length} {deletedItems.length === 1 ? "item" : "items"} in the recycle bin?
+          </>
+        )}
+        confirmButtonLabel={emptyingRecycleBin ? "Deleting..." : "Permanently Delete"}
+        confirmDisabled={emptyingRecycleBin || deletedItems.length === 0}
+        onCancel={() => setEmptyRecycleBinOpen(false)}
+        onConfirm={() => void emptyRecycleBin()}
+        onDone={() => setEmptyRecycleBinOpen(false)}
+      />
     </div>
   );
 }

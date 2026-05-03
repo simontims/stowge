@@ -118,3 +118,45 @@ def test_orphan_scan_ignores_location_photo_sibling_variants(tmp_path, monkeypat
 
     assert payload["file_count"] == 1
     assert payload["disk_bytes"] == len(orphan_bytes)
+
+
+def test_delete_location_moves_items_to_target_location(isolated_db, isolated_client):
+    from conftest import auth_cookies_isolated
+
+    cookies = auth_cookies_isolated(isolated_db, "loc_move_delete@example.com", role="admin")
+
+    source_response = isolated_client.post(
+        "/api/locations",
+        json={"name": "Delete Source Location"},
+        cookies=cookies,
+    )
+    assert source_response.status_code == 200, source_response.text
+    source_location_id = source_response.json()["id"]
+
+    target_response = isolated_client.post(
+        "/api/locations",
+        json={"name": "Delete Target Location"},
+        cookies=cookies,
+    )
+    assert target_response.status_code == 200, target_response.text
+    target_location_id = target_response.json()["id"]
+
+    item_response = isolated_client.post(
+        "/api/items",
+        json={"name": "Location Move Item", "location_id": source_location_id},
+        cookies=cookies,
+    )
+    assert item_response.status_code == 200, item_response.text
+    item_id = item_response.json()["id"]
+
+    delete_response = isolated_client.delete(
+        f"/api/locations/{source_location_id}?move_to_location_id={target_location_id}",
+        cookies=cookies,
+    )
+    assert delete_response.status_code == 200, delete_response.text
+
+    detail_response = isolated_client.get(f"/api/items/{item_id}", cookies=cookies)
+    assert detail_response.status_code == 200, detail_response.text
+    detail = detail_response.json()
+
+    assert detail["location_id"] == target_location_id

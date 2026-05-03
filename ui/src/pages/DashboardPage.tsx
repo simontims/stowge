@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Tag } from "lucide-react";
+import { Tag, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { apiRequest, UNAUTHORIZED_EVENT } from "../lib/api";
@@ -25,6 +25,11 @@ interface UncollectedStats {
 interface StatusMetrics {
   server: "ok";
   collections: CollectionStatusRow[];
+  recycle_bin: {
+    item_count: number;
+    asset_count: number;
+    disk_bytes: number;
+  };
   uncollected: UncollectedStats;
   totals: {
     item_count: number;
@@ -178,6 +183,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [restoreSummaryManifest, setRestoreSummaryManifest] = useState<BackupManifest | null>(null);
 
   const rows = useMemo(() => metrics?.collections ?? [], [metrics]);
+  const recycleBin = metrics?.recycle_bin;
   const uncollected = metrics?.uncollected;
 
   async function loadMetrics() {
@@ -581,7 +587,23 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 <td className="px-4 py-3 tabular-nums">{formatBytes(uncollected.disk_bytes)}</td>
               </tr>
             )}
-            {!metricsLoading && rows.length === 0 && !loadError && (
+            {recycleBin && recycleBin.item_count > 0 && (
+              <tr
+                className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
+                onClick={() => navigate("/collections", { state: { openRecycleBin: true } })}
+              >
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-2">
+                    <Trash2 size={15} />
+                    Recycle Bin
+                  </span>
+                </td>
+                <td className="px-4 py-3 tabular-nums">{recycleBin.item_count}</td>
+                <td className="px-4 py-3 tabular-nums">{recycleBin.asset_count}</td>
+                <td className="px-4 py-3 tabular-nums">{formatBytes(recycleBin.disk_bytes)}</td>
+              </tr>
+            )}
+            {!metricsLoading && rows.length === 0 && (!uncollected || uncollected.item_count === 0) && (!recycleBin || recycleBin.item_count === 0) && !loadError && (
               <tr>
                 <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">
                   No collections found.

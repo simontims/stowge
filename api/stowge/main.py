@@ -263,6 +263,7 @@ def _serialize_part_list(part: Part, location_name: str | None = None) -> dict:
 def _serialize_part_detail(part: Part, location_name: str | None = None) -> dict:
     return {
         "id": part.id,
+        "is_deleted": bool(part.is_deleted),
         "name": part.name,
         "description": part.description,
         "collection": part.collection,
@@ -838,6 +839,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     item_count_rows = (
         db.query(Part.collection, func.count(Part.id))
         .filter(Part.collection.isnot(None))
+        .filter(Part.is_deleted == 0)
         .group_by(Part.collection)
         .all()
     )
@@ -851,6 +853,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
         db.query(Part.collection, func.count(PartImage.id))
         .join(Part, Part.id == PartImage.part_id)
         .filter(Part.collection.isnot(None))
+        .filter(Part.is_deleted == 0)
         .group_by(Part.collection)
         .all()
     )
@@ -861,15 +864,16 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     }
 
     asset_size_rows = (
-        db.query(Part.collection, PartImage.path_thumb, PartImage.path_display, PartImage.path_original)
+        db.query(Part.collection, Part.is_deleted, PartImage.path_thumb, PartImage.path_display, PartImage.path_original)
         .join(Part, Part.id == PartImage.part_id)
         .all()
     )
     base_assets_dir = assets_dir()
     disk_bytes: dict[str, int] = {}
     uncollected_bytes = 0  # images from items with no collection — counted in total only
+    recycle_bin_bytes = 0
     seen_paths: set[str] = set()
-    for collection_name, path_thumb, path_display, path_original in asset_size_rows:
+    for collection_name, is_deleted, path_thumb, path_display, path_original in asset_size_rows:
         for rel_path in (path_thumb, path_display, path_original):
             if not rel_path:
                 continue
@@ -884,6 +888,10 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
                 size = int(os.path.getsize(abs_path))
             except OSError:
                 size = 0
+
+            if int(is_deleted or 0) == 1:
+                recycle_bin_bytes += size
+                continue
 
             if collection_name:
                 key = str(collection_name)
@@ -910,7 +918,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
     rows = []
     total_items = 0
     total_assets = 0
-    total_disk_bytes = location_photo_bytes + uncollected_bytes
+    total_disk_bytes = location_photo_bytes + uncollected_bytes + recycle_bin_bytes
 
     for collection in collections:
         name = collection.name
@@ -936,26 +944,45 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
 
     # Counts for items with no collection assigned (disk bytes already in uncollected_bytes)
     uncollected_item_count = int(
-        db.query(func.count(Part.id)).filter(Part.collection.is_(None)).scalar() or 0
+        db.query(func.count(Part.id))
+        .filter(Part.collection.is_(None))
+        .filter(Part.is_deleted == 0)
+        .scalar() or 0
     )
     uncollected_asset_count = int(
         db.query(func.count(PartImage.id))
         .join(Part, Part.id == PartImage.part_id)
         .filter(Part.collection.is_(None))
+        .filter(Part.is_deleted == 0)
+        .scalar() or 0
+    )
+
+    recycle_bin_item_count = int(
+        db.query(func.count(Part.id)).filter(Part.is_deleted == 1).scalar() or 0
+    )
+    recycle_bin_asset_count = int(
+        db.query(func.count(PartImage.id))
+        .join(Part, Part.id == PartImage.part_id)
+        .filter(Part.is_deleted == 1)
         .scalar() or 0
     )
 
     return {
         "server": "ok",
         "collections": rows,
+        "recycle_bin": {
+            "item_count": recycle_bin_item_count,
+            "asset_count": recycle_bin_asset_count,
+            "disk_bytes": recycle_bin_bytes,
+        },
         "uncollected": {
             "item_count": uncollected_item_count,
             "asset_count": uncollected_asset_count,
             "disk_bytes": uncollected_bytes,
         },
         "totals": {
-            "item_count": total_items + uncollected_item_count,
-            "asset_count": total_assets + uncollected_asset_count,
+            "item_count": total_items + uncollected_item_count + recycle_bin_item_count,
+            "asset_count": total_assets + uncollected_asset_count + recycle_bin_asset_count,
             "disk_bytes": total_disk_bytes,
         },
     }
@@ -973,6 +1000,8 @@ def _build_tracked_paths(db: Session) -> set[str]:
     for (pt, pd, po) in db.query(
         PartImage.path_thumb, PartImage.path_display, PartImage.path_original
     ).all():
+        # Keep paths for soft-deleted items tracked as well so recycle-bin restore
+        # never loses image assets during orphan scan/purge maintenance.
         for p in (pt, pd, po):
             if p:
                 tracked.add(_norm_rel(str(p)))
@@ -1563,13 +1592,27 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
 
 
 @app.delete("/api/locations/{location_id}")
-def delete_location(location_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+def delete_location(
+    location_id: str,
+    move_to_location_id: str | None = None,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
     location = db.query(Location).filter(Location.id == location_id).first()
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
 
+    target_location_id: str | None = None
+    if move_to_location_id:
+        target = db.query(Location).filter(Location.id == move_to_location_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="Target location not found")
+        if target.id == location.id:
+            raise HTTPException(status_code=400, detail="Cannot move items to the same location")
+        target_location_id = target.id
+
     photo_path = location.photo_path
-    db.query(Part).filter(Part.location_id == location_id).update({"location_id": None})
+    db.query(Part).filter(Part.location_id == location_id).update({"location_id": target_location_id})
     db.delete(location)
     db.commit()
 
@@ -2224,10 +2267,79 @@ def list_parts(
 
     return [_serialize_part_list(p, location_name=(location_names.get(p.location_id) if p.location_id else None)) for p in parts]
 
+
+@app.get("/api/items/deleted")
+def list_deleted_items(
+    q: Optional[str] = None,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    query = db.query(Part).outerjoin(Location, Part.location_id == Location.id).filter(Part.is_deleted == 1)
+
+    if q:
+        term = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Part.name.ilike(term),
+                Part.description.ilike(term),
+                Part.collection.ilike(term),
+                Location.name.ilike(term),
+                Part.status.ilike(term),
+            )
+        )
+
+    parts = query.order_by(Part.updated_at.desc()).limit(500).all()
+
+    location_ids = {p.location_id for p in parts if p.location_id}
+    location_names: dict[str, str] = {}
+    if location_ids:
+        location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
+        location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
+
+    return [_serialize_part_list(p, location_name=(location_names.get(p.location_id) if p.location_id else None)) for p in parts]
+
+
+@app.post("/api/items/deleted/purge")
+def purge_deleted_items(
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    deleted_parts = db.query(Part).filter(Part.is_deleted == 1).all()
+    if not deleted_parts:
+        return {"deleted": 0}
+
+    cleanup_paths: set[str] = set()
+    for part in deleted_parts:
+        for img in part.images:
+            if img.path_thumb:
+                cleanup_paths.add(str(img.path_thumb))
+            if img.path_display:
+                cleanup_paths.add(str(img.path_display))
+            if img.path_original:
+                cleanup_paths.add(str(img.path_original))
+
+    deleted_count = len(deleted_parts)
+    for part in deleted_parts:
+        db.delete(part)
+
+    db.commit()
+    if cleanup_paths:
+        cleanup_asset_paths(list(cleanup_paths))
+
+    return {"deleted": deleted_count}
+
 @app.get("/api/parts/{part_id}")
 @app.get("/api/items/{part_id}")
-def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 0).first()
+def get_part(
+    part_id: str,
+    include_deleted: bool = Query(False),
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    query = db.query(Part).filter(Part.id == part_id)
+    if not include_deleted:
+        query = query.filter(Part.is_deleted == 0)
+    p = query.first()
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -2318,11 +2430,15 @@ def rescan_part(
     part_id: str,
     mode: Literal["one", "three", "five"] = "three",
     llm_id: Optional[str] = Query(default=None),
+    include_deleted: bool = Query(False),
     db: Session = Depends(get_db),
     me: User = Depends(current_user),
 ):
     """Re-identify an existing item using its currently stored images."""
-    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 0).first()
+    query = db.query(Part).filter(Part.id == part_id)
+    if not include_deleted:
+        query = query.filter(Part.is_deleted == 0)
+    p = query.first()
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
