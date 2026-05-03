@@ -27,6 +27,11 @@ interface PartImage {
   is_primary: boolean;
 }
 
+interface DraftImage extends PartImage {
+  is_local?: boolean;
+  local_file?: File;
+}
+
 interface PartDetail {
   id: string;
   name: string;
@@ -63,10 +68,14 @@ interface EditForm {
 interface AiCandidate {
   name?: string;
   description?: string;
-  collection?: string;
   confidence?: number;
   unknown?: boolean;
   evidence?: string;
+}
+
+interface AiProposedValues {
+  name: string;
+  description: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +103,10 @@ function isSameForm(a: EditForm, b: EditForm): boolean {
   );
 }
 
+function imageStateSignature(images: Array<{ id: string; is_primary: boolean }>): string {
+  return images.map((img) => `${img.id}:${img.is_primary ? "1" : "0"}`).join("|");
+}
+
 // ---------------------------------------------------------------------------
 // AI Diff Panel
 // ---------------------------------------------------------------------------
@@ -102,7 +115,7 @@ interface DiffPanelProps {
   candidates: AiCandidate[];
   selectedIdx: number;
   onSelectIdx: (idx: number) => void;
-  onAccept: () => void;
+  onAccept: (proposed: AiProposedValues) => void;
   onDismiss: () => void;
 }
 
@@ -110,10 +123,21 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
   const candidate = candidates[selectedIdx];
   if (!candidate) return null;
 
-  const fields: Array<{ label: string; currentVal: string; proposedVal: string }> = [
-    { label: "Name", currentVal: current.name, proposedVal: candidate.name ?? "" },
-    { label: "Description", currentVal: current.description, proposedVal: candidate.description ?? "" },
-    { label: "Collection", currentVal: current.collection, proposedVal: candidate.collection ?? "" },
+  const [proposed, setProposed] = useState<AiProposedValues>({
+    name: candidate.name ?? "",
+    description: candidate.description ?? "",
+  });
+
+  useEffect(() => {
+    setProposed({
+      name: candidate.name ?? "",
+      description: candidate.description ?? "",
+    });
+  }, [candidate]);
+
+  const fields: Array<{ key: keyof AiProposedValues; label: string; currentVal: string; proposedVal: string }> = [
+    { key: "name", label: "Name", currentVal: current.name, proposedVal: proposed.name },
+    { key: "description", label: "Description", currentVal: current.description, proposedVal: proposed.description },
   ];
 
   return (
@@ -168,10 +192,37 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
                   <div className="text-neutral-300 break-words">{f.currentVal || <span className="italic text-neutral-600">empty</span>}</div>
                 </div>
                 <div className={`rounded p-2 text-xs ${changed ? "bg-amber-950/40 border border-amber-500/40" : "bg-neutral-900/50 border border-neutral-800"}`}>
-                  <div className="text-neutral-500 text-[10px] uppercase tracking-wide mb-1">Proposed</div>
-                  <div className={`break-words ${changed ? "text-amber-200" : "text-neutral-400"}`}>
-                    {f.proposedVal || <span className="italic text-neutral-600">empty</span>}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="text-neutral-500 text-[10px] uppercase tracking-wide">Proposed</div>
+                    <button
+                      onClick={() => setProposed((prev) => ({ ...prev, [f.key]: f.currentVal }))}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600"
+                      title={`Revert ${f.label.toLowerCase()} to current value`}
+                    >
+                      Revert
+                    </button>
                   </div>
+                  {f.key === "description" ? (
+                    <textarea
+                      value={f.proposedVal}
+                      onChange={(event) => setProposed((prev) => ({ ...prev, description: event.target.value }))}
+                      rows={3}
+                      className={`w-full rounded border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 resize-y ${changed ? "border-amber-500/50 bg-amber-900/20 text-amber-100 focus:ring-amber-600" : "border-neutral-700 bg-neutral-900 text-neutral-300 focus:ring-neutral-600"}`}
+                      placeholder="Proposed description"
+                    />
+                  ) : (
+                    <input
+                      value={f.proposedVal}
+                      onChange={(event) =>
+                        setProposed((prev) => ({
+                          ...prev,
+                          [f.key]: event.target.value,
+                        }))
+                      }
+                      className={`w-full rounded border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 ${changed ? "border-amber-500/50 bg-amber-900/20 text-amber-100 focus:ring-amber-600" : "border-neutral-700 bg-neutral-900 text-neutral-300 focus:ring-neutral-600"}`}
+                      placeholder={`Proposed ${f.label.toLowerCase()}`}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -186,7 +237,7 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
       </div>
 
       <button
-        onClick={onAccept}
+        onClick={() => onAccept(proposed)}
         className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-amber-500/70 bg-amber-600/20 text-amber-200 hover:bg-amber-600/30 text-sm font-medium transition-colors"
       >
         Apply selected suggestion to form
@@ -219,13 +270,17 @@ export function EditPage() {
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
   // Image state
-  const [images, setImages] = useState<PartImage[]>([]);
+  const [images, setImages] = useState<DraftImage[]>([]);
+  const [initialImages, setInitialImages] = useState<PartImage[]>([]);
+  const [initialImageSignature, setInitialImageSignature] = useState("");
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [imageError, setImageError] = useState("");
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const localImageUrlsRef = useRef<Set<string>>(new Set());
 
   // AI rescan state
   const [rescanning, setRescanning] = useState(false);
@@ -234,7 +289,19 @@ export function EditPage() {
   const [selectedCandidateIdx, setSelectedCandidateIdx] = useState(0);
   const [showDiff, setShowDiff] = useState(false);
 
-  const hasDirtyChanges = part !== null && !isSameForm(form, initialForm);
+  function goPrevImage() {
+    if (images.length <= 1) return;
+    setActiveImageIdx((i) => (i - 1 + images.length) % images.length);
+  }
+
+  function goNextImage() {
+    if (images.length <= 1) return;
+    setActiveImageIdx((i) => (i + 1) % images.length);
+  }
+
+  const hasFormDirtyChanges = part !== null && !isSameForm(form, initialForm);
+  const hasImageDirtyChanges = part !== null && imageStateSignature(images) !== initialImageSignature;
+  const hasDirtyChanges = hasFormDirtyChanges || hasImageDirtyChanges;
   useBeforeUnload(hasDirtyChanges);
 
   // Load on mount
@@ -243,6 +310,35 @@ export function EditPage() {
     void loadAll(itemId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
+
+  useEffect(() => {
+    return () => {
+      for (const url of localImageUrlsRef.current) {
+        URL.revokeObjectURL(url);
+      }
+      localImageUrlsRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setLightboxOpen(false);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goPrevImage();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goNextImage();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [lightboxOpen, images.length]);
 
   async function loadAll(id: string) {
     setLoading(true);
@@ -255,6 +351,8 @@ export function EditPage() {
       ]);
       setPart(partData);
       setImages(partData.images);
+      setInitialImages(partData.images);
+      setInitialImageSignature(imageStateSignature(partData.images));
       const mapped = toEditForm(partData);
       setForm(mapped);
       setInitialForm(mapped);
@@ -272,29 +370,104 @@ export function EditPage() {
 
   async function handleSave(): Promise<boolean> {
     if (!itemId || !hasDirtyChanges) return true;
+
     const trimmedName = form.name.trim();
-    if (trimmedName.length < MIN_NAME_LENGTH) {
+    if (hasFormDirtyChanges && trimmedName.length < MIN_NAME_LENGTH) {
       setSaveError(minimumLengthMessage("Name"));
       return false;
     }
+
     setSaving(true);
     setSaveError("");
     try {
-      await apiRequest(`/api/items/${itemId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: trimmedName,
-          description: form.description.trim() || null,
-          collection: form.collection.trim() || null,
-          location_id: form.location_id || null,
-          status: form.status,
-          quantity: form.quantity,
-        }),
-      });
+      if (hasFormDirtyChanges) {
+        await apiRequest(`/api/items/${itemId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: trimmedName,
+            description: form.description.trim() || null,
+            collection: form.collection.trim() || null,
+            location_id: form.location_id || null,
+            status: form.status,
+            quantity: form.quantity,
+          }),
+        });
+      }
+
+      if (hasImageDirtyChanges) {
+        const removedImageIds = initialImages
+          .filter((img) => !images.some((current) => !current.is_local && current.id === img.id))
+          .map((img) => img.id);
+
+        const localImages = images.filter((img): img is DraftImage & { is_local: true; local_file: File } =>
+          img.is_local === true && !!img.local_file
+        );
+
+        const localIdToPersistedId = new Map<string, string>();
+
+        for (let index = 0; index < localImages.length; index += 5) {
+          const chunk = localImages.slice(index, index + 5);
+          const fd = new FormData();
+          chunk.forEach((img, chunkIdx) => {
+            fd.append("images", img.local_file, img.local_file.name || `photo${chunkIdx + 1}`);
+          });
+
+          const uploadResult = await apiRequest<{ images: PartImage[] }>(`/api/items/${itemId}/images`, {
+            method: "POST",
+            body: fd,
+          });
+
+          const uploaded = uploadResult.images ?? [];
+          chunk.forEach((img, chunkIdx) => {
+            const persisted = uploaded[chunkIdx];
+            if (persisted) {
+              localIdToPersistedId.set(img.id, persisted.id);
+            }
+          });
+        }
+
+        for (const imageId of removedImageIds) {
+          await apiRequest(`/api/images/${imageId}`, { method: "DELETE" });
+        }
+
+        const desiredPrimaryDraftId = images.find((img) => img.is_primary)?.id;
+        const desiredPrimaryId = desiredPrimaryDraftId
+          ? (localIdToPersistedId.get(desiredPrimaryDraftId) || desiredPrimaryDraftId)
+          : null;
+
+        let refreshedAfterImageOps = await apiRequest<PartDetail>(`/api/items/${itemId}`);
+
+        if (desiredPrimaryId) {
+          const currentPrimaryId = refreshedAfterImageOps.images.find((img) => img.is_primary)?.id;
+          const primaryExists = refreshedAfterImageOps.images.some((img) => img.id === desiredPrimaryId);
+          if (primaryExists && currentPrimaryId !== desiredPrimaryId) {
+            await apiRequest(`/api/images/${desiredPrimaryId}/set-primary`, { method: "POST" });
+            refreshedAfterImageOps = await apiRequest<PartDetail>(`/api/items/${itemId}`);
+          }
+        }
+
+        for (const url of localImageUrlsRef.current) {
+          URL.revokeObjectURL(url);
+        }
+        localImageUrlsRef.current.clear();
+
+        const refreshedForm = toEditForm(refreshedAfterImageOps);
+        setPart(refreshedAfterImageOps);
+        setImages(refreshedAfterImageOps.images);
+        setInitialImages(refreshedAfterImageOps.images);
+        setInitialImageSignature(imageStateSignature(refreshedAfterImageOps.images));
+        setForm(refreshedForm);
+        setInitialForm(refreshedForm);
+        navigate(-1);
+        return true;
+      }
+
       const refreshed = await apiRequest<PartDetail>(`/api/items/${itemId}`);
       const refreshedForm = toEditForm(refreshed);
       setPart(refreshed);
       setImages(refreshed.images);
+      setInitialImages(refreshed.images);
+      setInitialImageSignature(imageStateSignature(refreshed.images));
       setForm(refreshedForm);
       setInitialForm(refreshedForm);
       navigate(-1);
@@ -349,11 +522,26 @@ export function EditPage() {
     setDeletingImageId(imageId);
     setImageError("");
     try {
-      await apiRequest(`/api/images/${imageId}`, { method: "DELETE" });
+      const localImg = images.find((img) => img.id === imageId);
+      if (localImg?.is_local) {
+        localImageUrlsRef.current.delete(localImg.display_url);
+        URL.revokeObjectURL(localImg.display_url);
+      }
+
       setImages((prev) => {
-        const updated = prev.filter((img) => img.id !== imageId);
-        // If we removed the active image, clamp index
-        setActiveImageIdx((idx) => Math.min(idx, Math.max(0, updated.length - 1)));
+        let updated = prev.filter((img) => img.id !== imageId);
+
+        if (updated.length > 0 && !updated.some((img) => img.is_primary)) {
+          updated = updated.map((img, idx) => ({ ...img, is_primary: idx === 0 }));
+        }
+
+        if (updated.length === 0) {
+          setActiveImageIdx(0);
+          setLightboxOpen(false);
+          return updated;
+        }
+        // If we removed the active image, clamp index.
+        setActiveImageIdx((idx) => Math.min(idx, updated.length - 1));
         return updated;
       });
     } catch (err) {
@@ -366,7 +554,6 @@ export function EditPage() {
   async function handleSetPrimary(imageId: string) {
     setSettingPrimaryId(imageId);
     try {
-      await apiRequest(`/api/images/${imageId}/set-primary`, { method: "POST" });
       setImages((prev) => prev.map((img) => ({ ...img, is_primary: img.id === imageId })));
     } catch (err) {
       setImageError((err as Error).message || "Failed to set primary.");
@@ -376,21 +563,35 @@ export function EditPage() {
   }
 
   async function handleImageUpload(files: FileList | null) {
-    if (!files || files.length === 0 || !itemId) return;
+    if (!files || files.length === 0) return;
     setUploadingImages(true);
     setImageError("");
     try {
-      const fd = new FormData();
-      Array.from(files).slice(0, 5).forEach((f, idx) => {
-        fd.append("images", f, f.name || `photo${idx + 1}`);
+      const selectedFiles = Array.from(files).slice(0, 5);
+      setImages((prev) => {
+        const hasPrimary = prev.some((img) => img.is_primary);
+        const added: DraftImage[] = selectedFiles.map((file, idx) => {
+          const objectUrl = URL.createObjectURL(file);
+          localImageUrlsRef.current.add(objectUrl);
+          return {
+            id: `local-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+            thumb_url: objectUrl,
+            display_url: objectUrl,
+            original_url: null,
+            is_primary: false,
+            is_local: true,
+            local_file: file,
+          };
+        });
+
+        if (!hasPrimary && added.length > 0) {
+          added[0].is_primary = true;
+        }
+
+        return [...prev, ...added];
       });
-      const result = await apiRequest<{ images: PartImage[] }>(`/api/items/${itemId}/images`, {
-        method: "POST",
-        body: fd,
-      });
-      setImages((prev) => [...prev, ...(result.images ?? [])]);
     } catch (err) {
-      setImageError((err as Error).message || "Failed to upload images.");
+      setImageError((err as Error).message || "Failed to add images.");
     } finally {
       setUploadingImages(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -429,14 +630,11 @@ export function EditPage() {
     }
   }
 
-  function handleApplyCandidate() {
-    const candidate = candidates[selectedCandidateIdx];
-    if (!candidate) return;
+  function handleApplyCandidate(proposed: AiProposedValues) {
     setForm((prev) => ({
       ...prev,
-      name: candidate.name?.trim() ? candidate.name.trim() : prev.name,
-      description: candidate.description?.trim() ? candidate.description.trim() : prev.description,
-      collection: candidate.collection?.trim() ? candidate.collection.trim() : prev.collection,
+      name: proposed.name.trim() ? proposed.name.trim() : prev.name,
+      description: proposed.description,
     }));
     setShowDiff(false);
   }
@@ -464,7 +662,7 @@ export function EditPage() {
   }
 
   return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto w-full">
+    <div className="flex flex-col h-full w-full pb-[calc(1rem+env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-neutral-800 flex-none">
         <button
@@ -495,81 +693,58 @@ export function EditPage() {
             <h2 className="text-xs text-neutral-500 uppercase tracking-wide font-medium">Images</h2>
 
             {images.length > 0 ? (
-              <div className="relative group h-64 rounded-md border border-neutral-800 overflow-hidden bg-neutral-900">
-                <img
-                  src={images[activeImageIdx]?.display_url}
-                  alt={part.name}
-                  className="w-full h-full object-cover"
-                />
-
-                {/* Primary badge / button */}
-                {images[activeImageIdx]?.is_primary ? (
-                  <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/90 text-white text-xs font-medium pointer-events-none">
-                    <Star size={10} fill="currentColor" />
-                    Primary
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      const id = images[activeImageIdx]?.id;
-                      if (id && !settingPrimaryId) void handleSetPrimary(id);
-                    }}
-                    disabled={!!settingPrimaryId}
-                    className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                {images.map((img, idx) => (
+                  <div
+                    key={img.id}
+                    className="relative group rounded-md border border-neutral-800 overflow-hidden bg-neutral-900"
                   >
-                    <Star size={10} />
-                    {settingPrimaryId === images[activeImageIdx]?.id ? "Setting…" : "Make primary"}
-                  </button>
-                )}
-
-                {/* Delete image button */}
-                <button
-                  onClick={() => {
-                    const id = images[activeImageIdx]?.id;
-                    if (id && !deletingImageId) void handleDeleteImage(id);
-                  }}
-                  disabled={!!deletingImageId}
-                  className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-xs font-medium hover:bg-red-600/80 disabled:opacity-60 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Remove this image"
-                >
-                  <Trash2 size={10} />
-                  {deletingImageId === images[activeImageIdx]?.id ? "Removing…" : "Remove"}
-                </button>
-
-                {/* Prev/next arrows */}
-                {images.length > 1 && (
-                  <>
                     <button
-                      onClick={() => setActiveImageIdx((i) => (i - 1 + images.length) % images.length)}
-                      className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                      aria-label="Previous image"
+                      onClick={() => {
+                        setActiveImageIdx(idx);
+                        setLightboxOpen(true);
+                      }}
+                      className="block w-full aspect-square"
+                      title="View full size"
                     >
-                      <ChevronLeft size={18} />
-                    </button>
-                    <button
-                      onClick={() => setActiveImageIdx((i) => (i + 1) % images.length)}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                      aria-label="Next image"
-                    >
-                      <ChevronRight size={18} />
+                      <img
+                        src={img.thumb_url || img.display_url}
+                        alt={`${part.name} ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
 
-                    {/* Dots */}
-                    <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                      {images.map((_, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => setActiveImageIdx(idx)}
-                          className={[
-                            "w-1.5 h-1.5 rounded-full transition-colors",
-                            idx === activeImageIdx ? "bg-white" : "bg-white/40 hover:bg-white/70",
-                          ].join(" ")}
-                          aria-label={`Image ${idx + 1}`}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
+                    {img.is_primary ? (
+                      <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/90 text-white text-[10px] font-medium pointer-events-none">
+                        <Star size={9} fill="currentColor" />
+                        Primary
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (!settingPrimaryId) void handleSetPrimary(img.id);
+                        }}
+                        disabled={!!settingPrimaryId}
+                        className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
+                      >
+                        <Star size={9} />
+                        {settingPrimaryId === img.id ? "Setting…" : "Make primary"}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        if (!deletingImageId) void handleDeleteImage(img.id);
+                      }}
+                      disabled={!!deletingImageId}
+                      className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-medium hover:bg-red-600/80 disabled:opacity-60 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Remove this image"
+                    >
+                      <Trash2 size={9} />
+                      {deletingImageId === img.id ? "Removing…" : "Remove"}
+                    </button>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="h-40 rounded-md border border-dashed border-neutral-700 flex items-center justify-center text-sm text-neutral-500">
@@ -579,8 +754,8 @@ export function EditPage() {
 
             {imageError && <p className="text-xs text-red-400">{imageError}</p>}
 
-            {/* Add images */}
-            <div>
+            {/* Add images + AI rescan */}
+            <div className="flex items-center gap-2 flex-wrap">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -595,12 +770,41 @@ export function EditPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 text-sm transition-colors"
               >
                 {uploadingImages ? (
-                  <><Loader2 size={13} className="animate-spin" /> Uploading…</>
+                  <><Loader2 size={13} className="animate-spin" /> Adding…</>
                 ) : (
                   <><Plus size={13} /> Add images</>
                 )}
               </button>
+
+              <button
+                onClick={() => void handleRescan()}
+                disabled={rescanning || images.length === 0}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                title={images.length === 0 ? "Item needs images to re-scan" : "Re-scan with AI using current saved images"}
+              >
+                {rescanning ? (
+                  <><Loader2 size={13} className="animate-spin" /> Identifying…</>
+                ) : (
+                  <><Brain size={13} /> Re-scan with AI</>
+                )}
+              </button>
             </div>
+
+            {images.length === 0 && (
+              <p className="text-xs text-neutral-600">Add images first to re-scan.</p>
+            )}
+            {rescanError && <p className="text-xs text-red-400">{rescanError}</p>}
+
+            {showDiff && candidates.length > 0 && (
+              <DiffPanel
+                current={form}
+                candidates={candidates}
+                selectedIdx={selectedCandidateIdx}
+                onSelectIdx={setSelectedCandidateIdx}
+                onAccept={handleApplyCandidate}
+                onDismiss={() => setShowDiff(false)}
+              />
+            )}
           </section>
 
           {/* ---- Fields section ---- */}
@@ -688,43 +892,6 @@ export function EditPage() {
             </div>
           </section>
 
-          {/* ---- AI Rescan section ---- */}
-          <section className="space-y-3">
-            <h2 className="text-xs text-neutral-500 uppercase tracking-wide font-medium">AI</h2>
-
-            {!showDiff && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => void handleRescan()}
-                  disabled={rescanning || images.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 text-sm transition-colors"
-                  title={images.length === 0 ? "Item needs images to re-scan" : "Re-scan with AI using current saved images"}
-                >
-                  {rescanning ? (
-                    <><Loader2 size={13} className="animate-spin" /> Scanning…</>
-                  ) : (
-                    <><Brain size={13} /> Re-scan with AI</>
-                  )}
-                </button>
-                {images.length === 0 && (
-                  <p className="text-xs text-neutral-600">Add images first to re-scan.</p>
-                )}
-                {rescanError && <p className="text-xs text-red-400">{rescanError}</p>}
-              </div>
-            )}
-
-            {showDiff && candidates.length > 0 && (
-              <DiffPanel
-                current={form}
-                candidates={candidates}
-                selectedIdx={selectedCandidateIdx}
-                onSelectIdx={setSelectedCandidateIdx}
-                onAccept={handleApplyCandidate}
-                onDismiss={() => setShowDiff(false)}
-              />
-            )}
-          </section>
-
           {saveError && (
             <p className="text-sm text-red-400 px-1">{saveError}</p>
           )}
@@ -788,6 +955,82 @@ export function EditPage() {
                 {saving ? "Saving..." : "Save"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {lightboxOpen && images.length > 0 && images[activeImageIdx] && (
+        <div className="fixed inset-0 z-[80] bg-black/90 p-2 sm:p-4 flex items-center justify-center">
+          <div className="relative w-full h-full max-w-6xl max-h-[92vh] rounded-lg border border-neutral-800 bg-black overflow-hidden group">
+            <img
+              src={images[activeImageIdx].display_url || images[activeImageIdx].original_url || images[activeImageIdx].thumb_url}
+              alt={`${part.name} full view`}
+              className="w-full h-full object-contain"
+            />
+
+            {images[activeImageIdx].is_primary ? (
+              <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-amber-500/90 text-white text-xs font-medium pointer-events-none">
+                <Star size={11} fill="currentColor" />
+                Primary
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  const id = images[activeImageIdx]?.id;
+                  if (id && !settingPrimaryId) void handleSetPrimary(id);
+                }}
+                disabled={!!settingPrimaryId}
+                className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
+              >
+                <Star size={11} />
+                {settingPrimaryId === images[activeImageIdx].id ? "Setting…" : "Make primary"}
+              </button>
+            )}
+
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const id = images[activeImageIdx]?.id;
+                  if (id && !deletingImageId) void handleDeleteImage(id);
+                }}
+                disabled={!!deletingImageId}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-red-600/80 disabled:opacity-60 transition-colors"
+                title="Remove this image"
+              >
+                <Trash2 size={11} />
+                {deletingImageId === images[activeImageIdx].id ? "Removing…" : "Remove"}
+              </button>
+              <button
+                onClick={() => setLightboxOpen(false)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 transition-colors"
+                title="Close"
+              >
+                <X size={11} />
+                Close
+              </button>
+            </div>
+
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={goPrevImage}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={goNextImage}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  aria-label="Next image"
+                >
+                  <ChevronRight size={20} />
+                </button>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-black/60 text-white text-xs">
+                  {activeImageIdx + 1} / {images.length}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

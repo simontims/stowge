@@ -5,6 +5,7 @@ import type { PartDetail, PartEditForm, LocationOption, CollectionOption } from 
 
 interface ItemDetailPanelProps {
   selectedPart: PartDetail | null;
+  images: PartDetail["images"];
   editForm: PartEditForm;
   detailLoading: boolean;
   detailError: string;
@@ -23,6 +24,7 @@ interface ItemDetailPanelProps {
 
 export function ItemDetailPanel({
   selectedPart,
+  images,
   editForm,
   detailLoading,
   detailError,
@@ -44,9 +46,9 @@ export function ItemDetailPanel({
 
   // Reset to primary image whenever a different item is selected
   useEffect(() => {
-    const primaryIdx = selectedPart?.images.findIndex((img) => img.is_primary) ?? -1;
+    const primaryIdx = images.findIndex((img) => img.is_primary);
     setActiveImageIdx(primaryIdx >= 0 ? primaryIdx : 0);
-  }, [selectedPart?.id]);
+  }, [selectedPart?.id, images]);
   return (
     <div
       className={`flex flex-col h-full w-full border-l border-neutral-800 bg-neutral-950 ${
@@ -119,16 +121,16 @@ export function ItemDetailPanel({
       {!detailLoading && selectedPart && (
         <div className="flex flex-col min-h-full">
           <div className="flex-1 p-4 space-y-4">
-            {selectedPart.images.length > 0 && (
+            {images.length > 0 && (
               <div className="relative group h-64 rounded-md border border-neutral-800 overflow-hidden bg-neutral-900">
                 <img
-                  src={selectedPart.images[activeImageIdx]?.display_url}
+                  src={images[activeImageIdx]?.display_url}
                   alt={selectedPart.name}
                   className="w-full h-full object-cover"
                 />
-                {selectedPart.images.length > 1 && (
+                {images.length > 1 && (
                   <>
-                    {selectedPart.images[activeImageIdx]?.is_primary ? (
+                    {images[activeImageIdx]?.is_primary ? (
                       <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/90 text-white text-xs font-medium pointer-events-none">
                         <Star size={10} fill="currentColor" />
                         Primary
@@ -136,7 +138,7 @@ export function ItemDetailPanel({
                     ) : (
                       <button
                         onClick={async () => {
-                          const imgId = selectedPart.images[activeImageIdx]?.id;
+                          const imgId = images[activeImageIdx]?.id;
                           if (!imgId || !onSetPrimaryImage || settingPrimary) return;
                           setSettingPrimary(true);
                           try {
@@ -153,21 +155,21 @@ export function ItemDetailPanel({
                       </button>
                     )}
                     <button
-                      onClick={() => setActiveImageIdx((i) => (i - 1 + selectedPart.images.length) % selectedPart.images.length)}
+                      onClick={() => setActiveImageIdx((i) => (i - 1 + images.length) % images.length)}
                       className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                       aria-label="Previous image"
                     >
                       <ChevronLeft size={18} />
                     </button>
                     <button
-                      onClick={() => setActiveImageIdx((i) => (i + 1) % selectedPart.images.length)}
+                      onClick={() => setActiveImageIdx((i) => (i + 1) % images.length)}
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                       aria-label="Next image"
                     >
                       <ChevronRight size={18} />
                     </button>
                     <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                      {selectedPart.images.map((_, idx) => (
+                      {images.map((_, idx) => (
                         <button
                           key={idx}
                           onClick={() => setActiveImageIdx(idx)}

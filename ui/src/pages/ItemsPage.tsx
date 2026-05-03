@@ -11,6 +11,7 @@ import { buildCenteredExcerpt, splitMatchSegments } from "../lib/itemSearch";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
+const DELETE_TOAST_TIMEOUT_MS = 5000;
 
 interface Part {
   id: string;
@@ -93,6 +94,10 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
     a.status === b.status &&
     a.quantity === b.quantity
   );
+}
+
+function imageStateSignature(images: Array<{ id: string; is_primary: boolean }>): string {
+  return images.map((img) => `${img.id}:${img.is_primary ? "1" : "0"}`).join("|");
 }
 
 type ItemSortKey = "name" | "collection" | "location" | "status";
@@ -183,6 +188,8 @@ export function ItemsPage() {
   const [detailError, setDetailError] = useState("");
   const [editForm, setEditForm] = useState<PartEditForm>(EMPTY_EDIT_FORM);
   const [initialEditForm, setInitialEditForm] = useState<PartEditForm>(EMPTY_EDIT_FORM);
+  const [draftImages, setDraftImages] = useState<PartDetail["images"]>([]);
+  const [initialImageSignature, setInitialImageSignature] = useState("");
   const [savingDetail, setSavingDetail] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
@@ -192,6 +199,8 @@ export function ItemsPage() {
   const [deletedToast, setDeletedToast] = useState<{ id: string; name: string } | null>(null);
   const [undoingDelete, setUndoingDelete] = useState(false);
   const undoToastTimerRef = useRef<number | null>(null);
+  const undoToastDeadlineRef = useRef<number | null>(null);
+  const undoToastRemainingMsRef = useRef<number>(DELETE_TOAST_TIMEOUT_MS);
 
   const tableRef = useRef<HTMLTableElement>(null);
 
@@ -237,10 +246,12 @@ export function ItemsPage() {
     }).catch(() => {});
   }, [debouncedCollectionFilter]);
 
-  const hasDirtyChanges = useMemo(
-    () => selectedPartId !== null && !isSameForm(editForm, initialEditForm),
-    [editForm, initialEditForm, selectedPartId]
-  );
+  const hasDirtyChanges = useMemo(() => {
+    if (selectedPartId === null) return false;
+    const formDirty = !isSameForm(editForm, initialEditForm);
+    const imageDirty = imageStateSignature(draftImages) !== initialImageSignature;
+    return formDirty || imageDirty;
+  }, [draftImages, editForm, initialEditForm, initialImageSignature, selectedPartId]);
   useBeforeUnload(hasDirtyChanges);
 
   useEffect(() => {
@@ -264,13 +275,44 @@ export function ItemsPage() {
     }
   }
 
-  function showDeletedToast(id: string, name: string) {
+  function startUndoToastTimer(durationMs: number) {
     clearUndoToastTimer();
-    setDeletedToast({ id, name });
+    const remaining = Math.max(0, durationMs);
+    undoToastRemainingMsRef.current = remaining;
+
+    if (remaining === 0) {
+      setDeletedToast(null);
+      undoToastDeadlineRef.current = null;
+      undoToastRemainingMsRef.current = DELETE_TOAST_TIMEOUT_MS;
+      return;
+    }
+
+    undoToastDeadlineRef.current = Date.now() + remaining;
     undoToastTimerRef.current = window.setTimeout(() => {
       setDeletedToast(null);
       undoToastTimerRef.current = null;
-    }, 5000);
+      undoToastDeadlineRef.current = null;
+      undoToastRemainingMsRef.current = DELETE_TOAST_TIMEOUT_MS;
+    }, remaining);
+  }
+
+  function showDeletedToast(id: string, name: string) {
+    setDeletedToast({ id, name });
+    startUndoToastTimer(DELETE_TOAST_TIMEOUT_MS);
+  }
+
+  function handleToastMouseEnter() {
+    if (!deletedToast) return;
+    if (undoToastDeadlineRef.current !== null) {
+      undoToastRemainingMsRef.current = Math.max(0, undoToastDeadlineRef.current - Date.now());
+    }
+    clearUndoToastTimer();
+    undoToastDeadlineRef.current = null;
+  }
+
+  function handleToastMouseLeave() {
+    if (!deletedToast) return;
+    startUndoToastTimer(undoToastRemainingMsRef.current);
   }
 
   useEffect(() => {
@@ -391,6 +433,8 @@ export function ItemsPage() {
       await apiRequest(`/api/items/${deletedToast.id}/restore`, { method: "POST" });
       setDeletedToast(null);
       clearUndoToastTimer();
+      undoToastDeadlineRef.current = null;
+      undoToastRemainingMsRef.current = DELETE_TOAST_TIMEOUT_MS;
       await loadParts({ ...loadParamsRef.current, background: true });
     } catch (err) {
       setDeleteError((err as Error).message || "Failed to restore item.");
@@ -410,6 +454,8 @@ export function ItemsPage() {
       setSelectedPart(detail);
       setEditForm(mapped);
       setInitialEditForm(mapped);
+      setDraftImages(detail.images);
+      setInitialImageSignature(imageStateSignature(detail.images));
     } catch (err) {
       setDetailError((err as Error).message || "Failed to load part details.");
     } finally {
@@ -425,6 +471,8 @@ export function ItemsPage() {
     setSavingDetail(false);
     setEditForm(EMPTY_EDIT_FORM);
     setInitialEditForm(EMPTY_EDIT_FORM);
+    setDraftImages([]);
+    setInitialImageSignature("");
     setUnsavedPromptOpen(false);
   }
 
@@ -440,8 +488,11 @@ export function ItemsPage() {
     if (!selectedPartId || !selectedPart) return false;
     if (!hasDirtyChanges) return true;
 
+    const formDirty = !isSameForm(editForm, initialEditForm);
+    const imageDirty = imageStateSignature(draftImages) !== initialImageSignature;
+
     const trimmedName = editForm.name.trim();
-    if (trimmedName.length < MIN_NAME_LENGTH) {
+    if (formDirty && trimmedName.length < MIN_NAME_LENGTH) {
       setDetailError(minimumLengthMessage("Name"));
       return false;
     }
@@ -449,21 +500,32 @@ export function ItemsPage() {
     setSavingDetail(true);
     setDetailError("");
     try {
-      await apiRequest(`/api/items/${selectedPartId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: trimmedName,
-          description: editForm.description.trim() || null,
-          collection: editForm.collection.trim() || null,
-          location_id: editForm.location_id || null,
-          status: editForm.status,
-          quantity: editForm.quantity,
-        }),
-      });
+      if (formDirty) {
+        await apiRequest(`/api/items/${selectedPartId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: trimmedName,
+            description: editForm.description.trim() || null,
+            collection: editForm.collection.trim() || null,
+            location_id: editForm.location_id || null,
+            status: editForm.status,
+            quantity: editForm.quantity,
+          }),
+        });
+      }
+
+      if (imageDirty) {
+        const desiredPrimary = draftImages.find((img) => img.is_primary)?.id || null;
+        if (desiredPrimary) {
+          await apiRequest(`/api/images/${desiredPrimary}/set-primary`, { method: "POST" });
+        }
+      }
 
       const refreshed = await apiRequest<PartDetail>(`/api/items/${selectedPartId}`);
       const refreshedForm = toEditForm(refreshed);
       setSelectedPart(refreshed);
+      setDraftImages(refreshed.images);
+      setInitialImageSignature(imageStateSignature(refreshed.images));
       setEditForm(refreshedForm);
       setInitialEditForm(refreshedForm);
       setParts((current) =>
@@ -498,10 +560,7 @@ export function ItemsPage() {
   }
 
   async function handleSetPrimaryImage(imageId: string) {
-    if (!selectedPartId) return;
-    await apiRequest(`/api/images/${imageId}/set-primary`, { method: "POST" });
-    const refreshed = await apiRequest<PartDetail>(`/api/items/${selectedPartId}`);
-    setSelectedPart(refreshed);
+    setDraftImages((prev) => prev.map((img) => ({ ...img, is_primary: img.id === imageId })));
   }
 
   function handleUnsavedDiscard() {
@@ -818,6 +877,7 @@ export function ItemsPage() {
           >
             <ItemDetailPanel
               selectedPart={selectedPart}
+              images={draftImages}
               editForm={editForm}
               detailLoading={detailLoading}
               detailError={detailError}
@@ -880,16 +940,20 @@ export function ItemsPage() {
       )}
 
       {deletedToast && (
-        <div className="fixed bottom-4 right-4 z-[80] rounded-lg border border-neutral-700 bg-neutral-900/95 backdrop-blur px-3 py-2.5 shadow-xl min-w-[220px]">
+        <div
+          className="fixed bottom-4 right-4 z-[80] rounded-lg border border-amber-500/50 bg-amber-950/95 backdrop-blur px-3 py-2.5 shadow-xl min-w-[220px]"
+          onMouseEnter={handleToastMouseEnter}
+          onMouseLeave={handleToastMouseLeave}
+        >
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-neutral-200 truncate">Item deleted</p>
-              <p className="text-xs text-neutral-500 truncate">{deletedToast.name}</p>
+              <p className="text-sm text-amber-100 truncate">Item deleted</p>
+              <p className="text-xs text-amber-300/80 truncate">{deletedToast.name}</p>
             </div>
             <button
               onClick={() => void undoDelete()}
               disabled={undoingDelete}
-              className="text-xs px-2 py-1 rounded border border-neutral-600 text-neutral-200 hover:border-neutral-400 disabled:opacity-60"
+              className="text-xs px-2 py-1 rounded border border-amber-300/70 text-amber-100 hover:border-amber-200 disabled:opacity-60"
             >
               {undoingDelete ? "Undoing..." : "Undo"}
             </button>
