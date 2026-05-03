@@ -3,10 +3,11 @@ Asset cleanup centralization tests.
 
 Covers:
   - cleanup_asset_paths removes files and empty parent dirs
-  - DELETE /api/items/{id} removes stored image variants
+    - DELETE /api/items/{id} soft-deletes item and preserves stored image variants
   - POST /api/images/discard removes only unlinked image assets
 """
 from stowge.images import cleanup_asset_paths
+from uuid import uuid4
 from conftest import (
     client,
     auth_cookies,
@@ -50,11 +51,12 @@ def test_cleanup_asset_paths_removes_files_and_empty_parent_dir(tmp_path, monkey
     assert not (tmp_path / "cleanup-a").exists()
 
 
-def test_delete_item_uses_shared_asset_cleanup_for_variants(tmp_path, monkeypatch):
+def test_delete_item_soft_delete_preserves_assets_for_undo(tmp_path, monkeypatch):
     monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
     cookies = auth_cookies("asset_cleanup@example.com", role="admin")
 
-    stored = _stored_image_payload("part-cleanup-1")
+    image_id = f"part-cleanup-{uuid4()}"
+    stored = _stored_image_payload(image_id)
     for rel_path in (stored["path_thumb"], stored["path_display"], stored["path_original"]):
         write_asset(tmp_path, rel_path)
 
@@ -70,8 +72,8 @@ def test_delete_item_uses_shared_asset_cleanup_for_variants(tmp_path, monkeypatc
     assert delete_response.status_code == 200, delete_response.text
 
     for rel_path in (stored["path_thumb"], stored["path_display"], stored["path_original"]):
-        assert not (tmp_path / rel_path).exists()
-    assert not (tmp_path / "part-cleanup-1").exists()
+        assert (tmp_path / rel_path).exists()
+    assert (tmp_path / image_id).exists()
 
 
 def test_discard_images_removes_unlinked_only(tmp_path, monkeypatch, isolated_db, isolated_client):

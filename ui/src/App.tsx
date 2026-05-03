@@ -5,6 +5,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { ItemsPage } from "./pages/ItemsPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { AddPage } from "./pages/AddPage";
+import { EditPage } from "./pages/EditPage";
 import { SystemPage } from "./pages/SystemPage";
 import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -152,7 +153,9 @@ export default function App() {
           <Route path="/items"      element={<ItemsPage />} />
           <Route path="/parts"      element={<ItemsPage />} />
           <Route path="/items/new"  element={<AddPage />} />
+          <Route path="/items/:itemId/edit" element={<EditPage />} />
           <Route path="/parts/new"  element={<AddPage />} />
+          <Route path="/parts/:itemId/edit" element={<EditPage />} />
           <Route path="/collections" element={<SettingsCollectionsPage />} />
           <Route path="/add"        element={<AddPage />} />
           <Route path="/scan"       element={<Navigate to="/add" replace />} />

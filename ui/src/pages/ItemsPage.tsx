@@ -1,10 +1,9 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
-import { DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
@@ -156,6 +155,7 @@ function renderItemNameContent(row: Part, query: string, excerptLength: number, 
 
 export function ItemsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
 
@@ -167,7 +167,6 @@ export function ItemsPage() {
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDeletePart, setConfirmDeletePart] = useState<Part | null>(null);
   const [sortKey, setSortKey] = useState<ItemSortKey>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -189,8 +188,10 @@ export function ItemsPage() {
   const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
-  const [confirmDeletePartOpen, setConfirmDeletePartOpen] = useState(false);
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
+  const [deletedToast, setDeletedToast] = useState<{ id: string; name: string } | null>(null);
+  const [undoingDelete, setUndoingDelete] = useState(false);
+  const undoToastTimerRef = useRef<number | null>(null);
 
   const tableRef = useRef<HTMLTableElement>(null);
 
@@ -255,6 +256,38 @@ export function ItemsPage() {
   // Keep a ref to current load params so the SSE handler always uses fresh values
   const loadParamsRef = useRef({ q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection });
   loadParamsRef.current = { q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection };
+
+  function clearUndoToastTimer() {
+    if (undoToastTimerRef.current !== null) {
+      window.clearTimeout(undoToastTimerRef.current);
+      undoToastTimerRef.current = null;
+    }
+  }
+
+  function showDeletedToast(id: string, name: string) {
+    clearUndoToastTimer();
+    setDeletedToast({ id, name });
+    undoToastTimerRef.current = window.setTimeout(() => {
+      setDeletedToast(null);
+      undoToastTimerRef.current = null;
+    }, 5000);
+  }
+
+  useEffect(() => {
+    return () => {
+      clearUndoToastTimer();
+    };
+  }, []);
+
+  useEffect(() => {
+    const navState = location.state as { deletedItemId?: string; deletedItemName?: string } | null;
+    if (!navState?.deletedItemId) {
+      return;
+    }
+
+    showDeletedToast(navState.deletedItemId, navState.deletedItemName || "Item");
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null });
+  }, [location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     const source = new EventSource("/api/events/items");
@@ -321,10 +354,11 @@ export function ItemsPage() {
   async function deletePart(partId: string) {
     setDeleteError("");
     setDeletingId(partId);
+    const partName = parts.find((part) => part.id === partId)?.name ?? "Item";
     try {
       await apiRequest(`/api/items/${partId}`, { method: "DELETE" });
       setParts((current) => current.filter((part) => part.id !== partId));
-      setConfirmDeletePart(null);
+      showDeletedToast(partId, partName);
     } catch (err) {
       setDeleteError((err as Error).message || "Failed to delete part.");
     } finally {
@@ -334,16 +368,34 @@ export function ItemsPage() {
 
   async function deletePartFromModal() {
     if (!selectedPartId) return;
+    const partName = selectedPart?.name ?? "Item";
     setDeletingPartFromModal(true);
     try {
       await apiRequest(`/api/items/${selectedPartId}`, { method: "DELETE" });
       setParts((current) => current.filter((part) => part.id !== selectedPartId));
+      showDeletedToast(selectedPartId, partName);
       closeModalNow();
     } catch (err) {
       setDetailError((err as Error).message || "Failed to delete item.");
-      setConfirmDeletePartOpen(false);
     } finally {
       setDeletingPartFromModal(false);
+    }
+  }
+
+  async function undoDelete() {
+    if (!deletedToast || undoingDelete) return;
+
+    setUndoingDelete(true);
+    setDeleteError("");
+    try {
+      await apiRequest(`/api/items/${deletedToast.id}/restore`, { method: "POST" });
+      setDeletedToast(null);
+      clearUndoToastTimer();
+      await loadParts({ ...loadParamsRef.current, background: true });
+    } catch (err) {
+      setDeleteError((err as Error).message || "Failed to restore item.");
+    } finally {
+      setUndoingDelete(false);
     }
   }
 
@@ -374,7 +426,6 @@ export function ItemsPage() {
     setEditForm(EMPTY_EDIT_FORM);
     setInitialEditForm(EMPTY_EDIT_FORM);
     setUnsavedPromptOpen(false);
-    setConfirmDeletePartOpen(false);
   }
 
   function requestCloseModal() {
@@ -482,7 +533,7 @@ export function ItemsPage() {
         const row = parts.find((r) => r.id === selectedPartId);
         if (!row || deletingId === row.id) return;
         e.preventDefault();
-        setConfirmDeletePart(row);
+        void deletePart(row.id);
         return;
       }
 
@@ -754,25 +805,6 @@ export function ItemsPage() {
             </div>
 
           </div>
-
-          <DeleteConfirmDialog
-            open={Boolean(confirmDeletePart)}
-            title="Delete Item"
-            message={
-              confirmDeletePart ? (
-                <>
-                  Permanently delete <span className="font-medium text-neutral-100">{confirmDeletePart.name}</span>? This cannot be undone.
-                </>
-              ) : null
-            }
-            deleting={Boolean(confirmDeletePart && deletingId === confirmDeletePart.id)}
-            onCancel={() => setConfirmDeletePart(null)}
-            onConfirm={() => {
-              if (confirmDeletePart) {
-                void deletePart(confirmDeletePart.id);
-              }
-            }}
-          />
         </div>
 
         {/* Right side: Detail panel (visible on desktop if selected, full-screen on mobile if selected) */}
@@ -803,8 +835,6 @@ export function ItemsPage() {
               }}
               onClose={requestCloseModal}
               onConfirmDelete={deletePartFromModal}
-              confirmDeletePartOpen={confirmDeletePartOpen}
-              setConfirmDeletePartOpen={setConfirmDeletePartOpen}
               isMobile={isMobile}
               onSetPrimaryImage={handleSetPrimaryImage}
             />
@@ -845,6 +875,24 @@ export function ItemsPage() {
                 Save
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {deletedToast && (
+        <div className="fixed bottom-4 right-4 z-[80] rounded-lg border border-neutral-700 bg-neutral-900/95 backdrop-blur px-3 py-2.5 shadow-xl min-w-[220px]">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-neutral-200 truncate">Item deleted</p>
+              <p className="text-xs text-neutral-500 truncate">{deletedToast.name}</p>
+            </div>
+            <button
+              onClick={() => void undoDelete()}
+              disabled={undoingDelete}
+              className="text-xs px-2 py-1 rounded border border-neutral-600 text-neutral-200 hover:border-neutral-400 disabled:opacity-60"
+            >
+              {undoingDelete ? "Undoing..." : "Undo"}
+            </button>
           </div>
         </div>
       )}

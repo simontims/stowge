@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Save, Trash2, X, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Save, Trash2, X, ChevronLeft, ChevronRight, Star, Pencil } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { PartDetail, PartEditForm, LocationOption, CollectionOption } from "../../pages/ItemsPage";
 
 interface ItemDetailPanelProps {
@@ -16,8 +17,6 @@ interface ItemDetailPanelProps {
   onSave: () => Promise<void>;
   onClose: () => void;
   onConfirmDelete: () => void;
-  confirmDeletePartOpen: boolean;
-  setConfirmDeletePartOpen: (open: boolean) => void;
   isMobile?: boolean;
   onSetPrimaryImage?: (imageId: string) => Promise<void>;
 }
@@ -36,11 +35,10 @@ export function ItemDetailPanel({
   onSave,
   onClose,
   onConfirmDelete,
-  confirmDeletePartOpen,
-  setConfirmDeletePartOpen,
   isMobile = false,
   onSetPrimaryImage,
 }: ItemDetailPanelProps) {
+  const navigate = useNavigate();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [settingPrimary, setSettingPrimary] = useState(false);
 
@@ -74,7 +72,17 @@ export function ItemDetailPanel({
         <div className="flex items-center gap-1 flex-shrink-0">
           {selectedPart && (
             <button
-              onClick={() => setConfirmDeletePartOpen(true)}
+              onClick={() => navigate(`/items/${selectedPart.id}/edit`)}
+              disabled={savingDetail || deletingPartFromModal}
+              className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              title="Open full-page edit"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+          {selectedPart && (
+            <button
+              onClick={onConfirmDelete}
               disabled={savingDetail || deletingPartFromModal}
               className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-400 hover:border-red-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
               title="Delete item"
@@ -317,39 +325,6 @@ export function ItemDetailPanel({
         </div>
       )}
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {confirmDeletePartOpen && selectedPart && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
-          >
-            <h3 className="text-sm font-semibold text-neutral-100">Delete Item</h3>
-            <p className="text-sm text-neutral-300">
-              Permanently delete <span className="font-medium text-neutral-100">{selectedPart.name}</span>? This cannot be undone.
-            </p>
-            <div className="pt-1 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setConfirmDeletePartOpen(false)}
-                disabled={deletingPartFromModal}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onConfirmDelete}
-                disabled={deletingPartFromModal}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60 text-sm"
-              >
-                <Trash2 size={14} />
-                {deletingPartFromModal ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

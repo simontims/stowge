@@ -46,6 +46,8 @@ class Part(Base):
     ai_alternatives = Column(JSON, nullable=True)
     ai_chosen_index = Column(Integer, nullable=True)
 
+    is_deleted = Column(Integer, nullable=False, default=0)  # 0|1 soft-delete flag
+
     images = relationship("PartImage", back_populates="part", cascade="all, delete-orphan")
 
 class PartImage(Base):

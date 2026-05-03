@@ -144,6 +144,37 @@ def process_for_identify(files: List[UploadFile], max_edge: int = _AI_MAX_EDGE, 
 
     return b64_images
 
+def b64_from_stored_paths(rel_paths: List[str], max_edge: int = _AI_MAX_EDGE, quality: int = _AI_QUALITY) -> List[str]:
+    """Read stored image files by relative path, resize and return as JPEG base64 strings."""
+    b64_images: List[str] = []
+    base = assets_dir()
+
+    for rel in rel_paths:
+        if not rel:
+            continue
+        abs_path = os.path.join(base, rel)
+        if not os.path.exists(abs_path):
+            continue
+        try:
+            with open(abs_path, "rb") as fh:
+                raw = fh.read()
+            img = Image.open(io.BytesIO(raw))
+            img.load()
+        except Exception:
+            continue
+
+        img2 = img.copy()
+        img2.thumbnail((max_edge, max_edge))
+        if img2.mode in ("RGBA", "P"):
+            img2 = img2.convert("RGB")
+
+        out = io.BytesIO()
+        img2.save(out, format="JPEG", quality=quality, optimize=True)
+        out.seek(0)
+        b64_images.append(base64.b64encode(out.read()).decode("ascii"))
+
+    return b64_images
+
 def resolve_path(rel_path: str) -> str:
     abs_path = os.path.join(assets_dir(), rel_path)
     if not os.path.exists(abs_path):

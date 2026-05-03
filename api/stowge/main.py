@@ -26,7 +26,7 @@ from .auth import (
     SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
     _TIMING_DUMMY_HASH,
 )
-from .images import process_and_store, process_for_identify, resolve_path, delete_stored_images, cleanup_asset_paths, assets_dir, ImageConfig, DEFAULT_IMAGE_CONFIG
+from .images import process_and_store, process_for_identify, b64_from_stored_paths, resolve_path, delete_stored_images, cleanup_asset_paths, assets_dir, ImageConfig, DEFAULT_IMAGE_CONFIG
 from .backup_restore import (
     BackupError,
     create_backup_archive,
@@ -453,6 +453,8 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE parts ADD COLUMN location_id VARCHAR NULL"))
             if "quantity" not in parts_columns:
                 conn.execute(text("ALTER TABLE parts ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1"))
+            if "is_deleted" not in parts_columns:
+                conn.execute(text("ALTER TABLE parts ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"))
 
         if "users" in set(inspect(engine).get_table_names()):
             user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
@@ -2172,7 +2174,7 @@ def list_parts(
     db: Session = Depends(get_db),
     me: User = Depends(current_user),
 ):
-    query = db.query(Part).outerjoin(Location, Part.location_id == Location.id)
+    query = db.query(Part).outerjoin(Location, Part.location_id == Location.id).filter(Part.is_deleted == 0)
 
     if q:
         term = f"%{q.strip()}%"
@@ -2225,7 +2227,7 @@ def list_parts(
 @app.get("/api/parts/{part_id}")
 @app.get("/api/items/{part_id}")
 def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    p = db.query(Part).filter(Part.id == part_id).first()
+    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 0).first()
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -2240,7 +2242,7 @@ def get_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(cur
 @app.patch("/api/parts/{part_id}")
 @app.patch("/api/items/{part_id}")
 def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    p = db.query(Part).filter(Part.id == part_id).first()
+    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 0).first()
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -2285,27 +2287,87 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
 @app.delete("/api/parts/{part_id}")
 @app.delete("/api/items/{part_id}")
 def delete_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    p = db.query(Part).filter(Part.id == part_id).first()
+    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 0).first()
     if not p:
         raise HTTPException(status_code=404, detail="Not found")
 
-    # Capture image paths before ORM delete so we can remove on-disk assets.
-    image_paths = []
-    for img in p.images:
-        if img.path_thumb:
-            image_paths.append(img.path_thumb)
-        if img.path_display:
-            image_paths.append(img.path_display)
-        if img.path_original:
-            image_paths.append(img.path_original)
-
-    db.delete(p)
+    p.is_deleted = 1
+    p.updated_at = datetime.now(timezone.utc)
     db.commit()
-
-    cleanup_asset_paths(image_paths)
 
     _publish_inventory_change("deleted", part_id)
     return {"ok": True}
+
+@app.post("/api/parts/{part_id}/restore")
+@app.post("/api/items/{part_id}/restore")
+def restore_part(part_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 1).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    p.is_deleted = 0
+    p.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    _publish_inventory_change("created", part_id)
+    return {"ok": True}
+
+@app.post("/api/parts/{part_id}/rescan")
+@app.post("/api/items/{part_id}/rescan")
+def rescan_part(
+    part_id: str,
+    mode: Literal["one", "three", "five"] = "three",
+    llm_id: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    """Re-identify an existing item using its currently stored images."""
+    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 0).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if not p.images:
+        raise HTTPException(status_code=400, detail="Item has no images to scan")
+
+    cfg = _resolve_llm_config(db, llm_id)
+    if not cfg:
+        raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
+
+    # Use display images (already sized well for AI); fall back to thumb.
+    rel_paths = [img.path_display or img.path_thumb for img in p.images if img.path_display or img.path_thumb]
+    max_edge = cfg.ai_max_edge if cfg.ai_max_edge is not None else 1600
+    quality = cfg.ai_quality if cfg.ai_quality is not None else 85
+
+    b64s = b64_from_stored_paths(rel_paths, max_edge=max_edge, quality=quality)
+    if not b64s:
+        raise HTTPException(status_code=400, detail="Could not read item images")
+
+    collection_context: Optional[str] = None
+    if p.collection:
+        coll = db.query(Collection).filter(Collection.name == p.collection).first()
+        if coll:
+            context_parts = [f"Collection name: {coll.name}"]
+            if (coll.ai_hint or "").strip():
+                context_parts.append(f"Collection hint: {coll.ai_hint.strip()}")
+            collection_context = "\n".join(context_parts)
+
+    ai_mode = mode if mode in ("one", "three", "five") else "three"
+    ai = openai_identify(
+        b64s,
+        llm_config={
+            "model": cfg.model,
+            "api_key": cfg.api_key,
+            "api_base": cfg.api_base,
+        },
+        mode=ai_mode,
+        include_evidence=bool(cfg.evidence_enabled),
+        collection_context=collection_context,
+    )
+
+    return {
+        "mode": ai_mode,
+        "ai": ai,
+    }
 
 @app.get("/api/events/parts")
 @app.get("/api/events/items")
@@ -2355,6 +2417,54 @@ async def parts_events(
 
 # ---------------- Images ----------------
 
+@app.post("/api/parts/{part_id}/images")
+@app.post("/api/items/{part_id}/images")
+def add_images_to_part(
+    part_id: str,
+    images: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    p = db.query(Part).filter(Part.id == part_id, Part.is_deleted == 0).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if len(images) < 1 or len(images) > 5:
+        raise HTTPException(status_code=400, detail="Provide 1 to 5 images")
+
+    stored = process_and_store(images, _get_image_config(db))
+    existing_count = db.query(PartImage).filter(PartImage.part_id == part_id).count()
+
+    for idx, s in enumerate(stored):
+        img = PartImage(
+            id=s["id"],
+            part_id=part_id,
+            path_thumb=s["path_thumb"],
+            path_display=s["path_display"],
+            path_original=s.get("path_original"),
+            mime=s.get("mime") or "image/webp",
+            width=s.get("width"),
+            height=s.get("height"),
+            is_primary=1 if existing_count == 0 and idx == 0 else 0,
+        )
+        db.add(img)
+
+    p.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(p)
+    _publish_inventory_change("updated", part_id)
+
+    return {
+        "added": len(stored),
+        "images": [{
+            "id": s["id"],
+            "thumb_url": _signed_image_url(s["id"], "thumb"),
+            "display_url": _signed_image_url(s["id"], "display"),
+            "original_url": (_signed_image_url(s["id"], "original") if s.get("path_original") else None),
+            "is_primary": existing_count == 0 and i == 0,
+        } for i, s in enumerate(stored)],
+    }
+
 @app.post("/api/images/{image_id}/set-primary")
 def set_primary_image(
     image_id: str,
@@ -2369,6 +2479,34 @@ def set_primary_image(
     img.is_primary = 1
     db.commit()
     _publish_inventory_change("updated", img.part_id)
+    return {"ok": True}
+
+@app.delete("/api/images/{image_id}")
+def delete_image(
+    image_id: str,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    img = db.query(PartImage).filter(PartImage.id == image_id).first()
+    if not img:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    part_id = img.part_id
+    was_primary = bool(img.is_primary)
+
+    paths = [p for p in [img.path_thumb, img.path_display, img.path_original] if p]
+    db.delete(img)
+    db.flush()
+
+    # If the deleted image was primary, promote the earliest remaining image.
+    if was_primary:
+        remaining = db.query(PartImage).filter(PartImage.part_id == part_id).order_by(PartImage.created_at.asc()).first()
+        if remaining:
+            remaining.is_primary = 1
+
+    db.commit()
+    cleanup_asset_paths(paths)
+    _publish_inventory_change("updated", part_id)
     return {"ok": True}
 
 @app.get("/api/images/{image_id}/signed")
