@@ -1055,26 +1055,28 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
           </span>
         ),
       },
-      {
-        key: "asset_count",
-        header: "Assets",
-        sortable: true,
-        className: "w-24",
-        render: (row) => (
-          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
-            {row.asset_count}
-          </span>
-        ),
-      },
-      {
-        key: "disk_bytes",
-        header: "Disk space",
-        sortable: true,
-        className: "w-28 tabular-nums",
-        render: (row) => (
-          <span className="text-neutral-300">{formatBytes(row.disk_bytes)}</span>
-        ),
-      },
+      ...(embedded ? [
+        {
+          key: "asset_count",
+          header: "Assets",
+          sortable: true,
+          className: "w-24",
+          render: (row: CollectionListRow) => (
+            <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
+              {row.asset_count}
+            </span>
+          ),
+        },
+        {
+          key: "disk_bytes",
+          header: "Disk space",
+          sortable: true,
+          className: "w-28 tabular-nums",
+          render: (row: CollectionListRow) => (
+            <span className="text-neutral-300">{formatBytes(row.disk_bytes)}</span>
+          ),
+        },
+      ] as Column<CollectionListRow>[] : []),
       ...(embedded ? [{
         key: "actions",
         header: "ACTIONS",
@@ -1264,15 +1266,15 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
                 sortDirection={sortDirection}
                 onSort={(key) => handleSort(key as CollectionSortKey)}
                 onRowClick={openCollectionItems}
-                footer={(
+                footer={embedded ? (
                   <tr className="bg-neutral-900/60 text-neutral-100">
                     <td className="px-4 py-2.5 font-semibold" colSpan={3}>Total</td>
                     <td className="px-4 py-2.5 font-semibold tabular-nums">{totals.item_count}</td>
                     <td className="px-4 py-2.5 font-semibold tabular-nums">{totals.asset_count}</td>
                     <td className="px-4 py-2.5 font-semibold tabular-nums">{formatBytes(totals.disk_bytes)}</td>
-                    {embedded && <td className="px-4 py-2.5" />}
+                    <td className="px-4 py-2.5" />
                   </tr>
-                )}
+                ) : undefined}
               />
               {!loadError && (
                 <p className="text-xs text-neutral-600 text-right">
