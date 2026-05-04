@@ -9,6 +9,7 @@ import { SettingsImagesPage } from "./SettingsImagesPage";
 import { SettingsLocationsPage } from "./SettingsLocationsPage";
 import { SettingsUsersPage } from "./SettingsUsersPage";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
+import { apiRequest } from "../lib/api";
 
 type Tab = "status" | "collections" | "ai" | "images" | "locations" | "users";
 
@@ -28,6 +29,69 @@ type SaveRef = { current: (() => Promise<void>) | null };
 function parseTab(raw: string | null): Tab {
   const match = TABS.find((tab) => tab.id === raw);
   return match?.id ?? DEFAULT_TAB;
+}
+
+interface SystemStatusSummaryResponse {
+  collections: unknown[];
+  totals?: {
+    item_count?: number;
+    disk_bytes?: number;
+  };
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const precision = unitIndex === 0 ? 0 : value >= 100 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+function SystemStatusSummary() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [collectionCount, setCollectionCount] = useState(0);
+  const [itemCount, setItemCount] = useState(0);
+  const [diskBytes, setDiskBytes] = useState(0);
+
+  useEffect(() => {
+    async function loadSummary() {
+      setLoading(true);
+      setError("");
+      try {
+        const status = await apiRequest<SystemStatusSummaryResponse>("/api/status/collections");
+        setCollectionCount(status.collections?.length ?? 0);
+        setItemCount(status.totals?.item_count ?? 0);
+        setDiskBytes(status.totals?.disk_bytes ?? 0);
+      } catch (err) {
+        setCollectionCount(0);
+        setItemCount(0);
+        setDiskBytes(0);
+        setError((err as Error).message || "Unable to load system status.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadSummary();
+  }, []);
+
+  return (
+    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+      {error && !loading && <p className="text-sm text-red-400 mb-3">{error}</p>}
+      <div className="space-y-2 text-sm text-neutral-300">
+        <p>Collections: <span className="tabular-nums text-neutral-100">{collectionCount}</span></p>
+        <p>Items: <span className="tabular-nums text-neutral-100">{itemCount}</span></p>
+        <p>Disk space: <span className="tabular-nums text-neutral-100">{formatBytes(diskBytes)}</span></p>
+      </div>
+      {loading && <p className="mt-3 text-xs text-neutral-500">Loading system status...</p>}
+    </section>
+  );
 }
 
 export function SystemPage() {
@@ -162,7 +226,12 @@ export function SystemPage() {
         })}
       </div>
 
-      {activeTab === "status" && <DashboardPage embedded />}
+      {activeTab === "status" && (
+        <>
+          <SystemStatusSummary />
+          <DashboardPage embedded hideMetricsTable />
+        </>
+      )}
       {activeTab === "collections" && (
         <SettingsCollectionsPage
           embedded

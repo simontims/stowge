@@ -17,6 +17,7 @@ interface DataTableProps<T extends object> {
   rows: T[];
   keyField: keyof T & string;
   emptyMessage?: string;
+  footer?: React.ReactNode;
   onRowClick?: (row: T) => void;
   sortKey?: string;
   sortDirection?: "asc" | "desc";
@@ -30,6 +31,7 @@ export function DataTable<T extends object>({
   rows,
   keyField,
   emptyMessage = "No items found.",
+  footer,
   onRowClick,
   sortKey,
   sortDirection,
@@ -121,6 +123,11 @@ export function DataTable<T extends object>({
               })
             )}
           </tbody>
+          {footer && (
+            <tfoot className="border-t border-neutral-800">
+              {footer}
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

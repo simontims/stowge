@@ -59,6 +59,8 @@ interface CollectionRecord {
 }
 
 interface CollectionListRow extends CollectionRecord {
+  asset_count: number;
+  disk_bytes: number;
   isSynthetic?: boolean;
   syntheticKind?: "none" | "recycle-bin";
 }
@@ -76,10 +78,23 @@ interface DeletedItemRow {
   actions?: never;
 }
 
+interface CollectionStatusMetrics {
+  item_count?: number;
+  asset_count?: number;
+  disk_bytes?: number;
+}
+
 interface CollectionsStatusResponse {
-  uncollected?: {
-    item_count?: number;
-  };
+  collections?: Array<{
+    id: string;
+    name: string;
+    item_count: number;
+    asset_count: number;
+    disk_bytes: number;
+  }>;
+  uncollected?: CollectionStatusMetrics;
+  recycle_bin?: CollectionStatusMetrics;
+  totals?: CollectionStatusMetrics;
 }
 
 interface CollectionForm {
@@ -91,6 +106,19 @@ interface CollectionForm {
 }
 
 const EMPTY_FORM: CollectionForm = { name: "", icon: "", color: "", description: "", ai_hint: "" };
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const precision = unitIndex === 0 ? 0 : value >= 100 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
 
 // ── AI Hint help examples ────────────────────────────────────────────────────
 const AI_HINT_EXAMPLES: { label: string; hint: string }[] = [
@@ -560,7 +588,7 @@ function CollectionFormFields({
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-type CollectionSortKey = "name" | "description" | "item_count";
+type CollectionSortKey = "name" | "description" | "item_count" | "asset_count" | "disk_bytes";
 
 interface CollectionsSectionProps {
   embedded?: boolean;
@@ -573,6 +601,16 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   const navigate = useNavigate();
   const [collections, setCollections] = useState<CollectionRecord[]>([]);
   const [uncollectedItemCount, setUncollectedItemCount] = useState(0);
+  const [uncollectedAssetCount, setUncollectedAssetCount] = useState(0);
+  const [uncollectedDiskBytes, setUncollectedDiskBytes] = useState(0);
+  const [recycleBinAssetCount, setRecycleBinAssetCount] = useState(0);
+  const [recycleBinDiskBytes, setRecycleBinDiskBytes] = useState(0);
+  const [totals, setTotals] = useState<{ item_count: number; asset_count: number; disk_bytes: number }>({
+    item_count: 0,
+    asset_count: 0,
+    disk_bytes: 0,
+  });
+  const [collectionStatsByName, setCollectionStatsByName] = useState<Record<string, { asset_count: number; disk_bytes: number }>>({});
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [deletedLoadError, setDeletedLoadError] = useState("");
@@ -652,9 +690,32 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
 
       try {
         const status = await apiRequest<CollectionsStatusResponse>("/api/status/collections");
+        const nextStatsByName: Record<string, { asset_count: number; disk_bytes: number }> = {};
+        for (const row of status.collections || []) {
+          nextStatsByName[row.name] = {
+            asset_count: row.asset_count ?? 0,
+            disk_bytes: row.disk_bytes ?? 0,
+          };
+        }
+        setCollectionStatsByName(nextStatsByName);
         setUncollectedItemCount(status.uncollected?.item_count ?? 0);
+        setUncollectedAssetCount(status.uncollected?.asset_count ?? 0);
+        setUncollectedDiskBytes(status.uncollected?.disk_bytes ?? 0);
+        setRecycleBinAssetCount(status.recycle_bin?.asset_count ?? 0);
+        setRecycleBinDiskBytes(status.recycle_bin?.disk_bytes ?? 0);
+        setTotals({
+          item_count: status.totals?.item_count ?? 0,
+          asset_count: status.totals?.asset_count ?? 0,
+          disk_bytes: status.totals?.disk_bytes ?? 0,
+        });
       } catch {
+        setCollectionStatsByName({});
         setUncollectedItemCount(0);
+        setUncollectedAssetCount(0);
+        setUncollectedDiskBytes(0);
+        setRecycleBinAssetCount(0);
+        setRecycleBinDiskBytes(0);
+        setTotals({ item_count: 0, asset_count: 0, disk_bytes: 0 });
       }
 
       try {
@@ -667,7 +728,13 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
       }
     } catch (err) {
       setCollections([]);
+      setCollectionStatsByName({});
       setUncollectedItemCount(0);
+      setUncollectedAssetCount(0);
+      setUncollectedDiskBytes(0);
+      setRecycleBinAssetCount(0);
+      setRecycleBinDiskBytes(0);
+      setTotals({ item_count: 0, asset_count: 0, disk_bytes: 0 });
       setDeletedItems([]);
       setDeletedLoadError("");
       setLoadError((err as Error).message || "Unable to load collections right now.");
@@ -851,7 +918,11 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   }
 
   const listRows = useMemo<CollectionListRow[]>(() => {
-    const rows: CollectionListRow[] = [...collections];
+    const rows: CollectionListRow[] = collections.map((collection) => ({
+      ...collection,
+      asset_count: collectionStatsByName[collection.name]?.asset_count ?? 0,
+      disk_bytes: collectionStatsByName[collection.name]?.disk_bytes ?? 0,
+    }));
 
     if (uncollectedItemCount > 0) {
       rows.push({
@@ -862,6 +933,8 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         description: "Items not assigned to any collection",
         ai_hint: null,
         item_count: uncollectedItemCount,
+        asset_count: uncollectedAssetCount,
+        disk_bytes: uncollectedDiskBytes,
         created_at: null,
         updated_at: null,
         isSynthetic: true,
@@ -877,6 +950,8 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
       description: "Deleted items can be restored",
       ai_hint: null,
       item_count: deletedItems.length,
+      asset_count: recycleBinAssetCount,
+      disk_bytes: recycleBinDiskBytes,
       created_at: null,
       updated_at: null,
       isSynthetic: true,
@@ -884,7 +959,16 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
     });
 
     return rows;
-  }, [collections, uncollectedItemCount, deletedItems.length]);
+  }, [
+    collections,
+    collectionStatsByName,
+    uncollectedItemCount,
+    uncollectedAssetCount,
+    uncollectedDiskBytes,
+    deletedItems.length,
+    recycleBinAssetCount,
+    recycleBinDiskBytes,
+  ]);
 
   const filteredDeletedItems = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -911,9 +995,21 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   const sorted = useMemo(() => {
     const dir = sortDirection === "asc" ? 1 : -1;
     const rows = [...filtered];
+
+    const specialTailRank = (row: CollectionListRow): number => {
+      if (row.syntheticKind === "none") return 1;
+      if (row.syntheticKind === "recycle-bin") return 2;
+      return 0;
+    };
+
     rows.sort((a, b) => {
-      if (sortKey === "item_count") {
-        return (a.item_count - b.item_count) * dir;
+      const rankDiff = specialTailRank(a) - specialTailRank(b);
+      if (rankDiff !== 0) {
+        return rankDiff;
+      }
+
+      if (sortKey === "item_count" || sortKey === "asset_count" || sortKey === "disk_bytes") {
+        return (a[sortKey] - b[sortKey]) * dir;
       }
       const left = (a[sortKey] || "").toLowerCase();
       const right = (b[sortKey] || "").toLowerCase();
@@ -957,6 +1053,26 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
             {row.item_count}
           </span>
+        ),
+      },
+      {
+        key: "asset_count",
+        header: "Assets",
+        sortable: true,
+        className: "w-24",
+        render: (row) => (
+          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
+            {row.asset_count}
+          </span>
+        ),
+      },
+      {
+        key: "disk_bytes",
+        header: "Disk space",
+        sortable: true,
+        className: "w-28 tabular-nums",
+        render: (row) => (
+          <span className="text-neutral-300">{formatBytes(row.disk_bytes)}</span>
         ),
       },
       ...(embedded ? [{
@@ -1148,6 +1264,15 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
                 sortDirection={sortDirection}
                 onSort={(key) => handleSort(key as CollectionSortKey)}
                 onRowClick={openCollectionItems}
+                footer={(
+                  <tr className="bg-neutral-900/60 text-neutral-100">
+                    <td className="px-4 py-2.5 font-semibold" colSpan={3}>Total</td>
+                    <td className="px-4 py-2.5 font-semibold tabular-nums">{totals.item_count}</td>
+                    <td className="px-4 py-2.5 font-semibold tabular-nums">{totals.asset_count}</td>
+                    <td className="px-4 py-2.5 font-semibold tabular-nums">{formatBytes(totals.disk_bytes)}</td>
+                    {embedded && <td className="px-4 py-2.5" />}
+                  </tr>
+                )}
               />
               {!loadError && (
                 <p className="text-xs text-neutral-600 text-right">
