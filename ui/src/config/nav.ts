@@ -8,6 +8,7 @@ export interface NavItem {
   label: string;
   route: string;
   icon: LucideIcon;
+  requiresAdmin?: boolean;
 }
 
 export const topNavItems: NavItem[] = [
@@ -15,7 +16,7 @@ export const topNavItems: NavItem[] = [
 ];
 
 export const navItems: NavItem[] = [
-  { label: "System", route: "/system", icon: Settings },
+  { label: "System", route: "/system", icon: Settings, requiresAdmin: true },
 ];
 
 export const COLLECTIONS_NAV_UPDATED_EVENT = "stowge:collections-nav-updated";

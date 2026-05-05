@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import { COLLECTIONS_NAV_UPDATED_EVENT, navItems, topNavItems } from "../../config/nav";
 import { apiRequest } from "../../lib/api";
+import { useCurrentUser } from "../../lib/UserContext";
 import { TablerIcon } from "../ui/TablerIcon";
 import type { CurrentUser } from "../../lib/types";
 
@@ -21,6 +22,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
+  const currentUser = useCurrentUser();
   const [collections, setCollections] = useState<CollectionNavItem[]>([]);
   const [collectionNavOrder, setCollectionNavOrder] = useState<string[]>([]);
   const [draggingCollectionId, setDraggingCollectionId] = useState<string | null>(null);
@@ -29,6 +31,16 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const activeCollectionFilter = useMemo(
     () => new URLSearchParams(location.search).get("collection")?.trim() || "",
     [location.search]
+  );
+
+  // Filter nav items based on user role
+  const visibleTopNavItems = useMemo(
+    () => topNavItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
+    [currentUser.role]
+  );
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
+    [currentUser.role]
   );
 
   const END_DROP_ZONE_ID = "__end_drop_zone__";
@@ -164,9 +176,9 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
       {/* Nav groups */}
       <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
-        {topNavItems.length > 0 && (
+        {visibleTopNavItems.length > 0 && (
           <div className="mb-4">
-            {topNavItems.map((item) => {
+            {visibleTopNavItems.map((item) => {
               const Icon = item.icon;
               return (
                 <div key={item.route}>
@@ -301,7 +313,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           {collapsed && (
             <div className="border-t border-neutral-800/60 mx-2 mb-1 mt-1" />
           )}
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <div key={item.route}>

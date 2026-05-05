@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import clsx from "clsx";
 import { COLLECTIONS_NAV_UPDATED_EVENT, navItems, topNavItems } from "../../config/nav";
 import { apiRequest } from "../../lib/api";
+import { useCurrentUser } from "../../lib/UserContext";
 
 interface CollectionNavItem {
   id: string;
@@ -17,11 +18,22 @@ interface MobileNavDrawerProps {
 
 export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
   const location = useLocation();
+  const currentUser = useCurrentUser();
   const [collections, setCollections] = useState<CollectionNavItem[]>([]);
 
   const activeCollectionFilter = useMemo(
     () => new URLSearchParams(location.search).get("collection")?.trim() || "",
     [location.search]
+  );
+
+  // Filter nav items based on user role
+  const visibleTopNavItems = useMemo(
+    () => topNavItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
+    [currentUser.role]
+  );
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
+    [currentUser.role]
   );
 
   function isNavItemActive(route: string): boolean {
@@ -115,9 +127,9 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
 
         {/* Nav groups */}
         <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
-          {topNavItems.length > 0 && (
+          {visibleTopNavItems.length > 0 && (
             <div className="mb-4">
-              {topNavItems.map((item) => {
+              {visibleTopNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <div key={item.route}>
@@ -170,7 +182,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
           )}
 
           <div className="mb-4">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               return (
                 <div key={item.route}>

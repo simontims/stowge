@@ -103,7 +103,8 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       editForm.email !== initialEditForm.email ||
       editForm.firstname !== initialEditForm.firstname ||
       editForm.lastname !== initialEditForm.lastname ||
-      editForm.password !== "",
+      editForm.password !== "" ||
+      editForm.role !== initialEditForm.role,
     [editForm, initialEditForm]
   );
   useBeforeUnload(!embedded && Boolean(editingId) && isEditDirty);
@@ -224,6 +225,13 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
 
     setIsSavingEdit(true);
     try {
+      // Prevent self-demotion from admin to user
+      if (editingId === currentUserId && initialEditForm.role === "admin" && editForm.role === "user") {
+        setError("You cannot demote your own admin role.");
+        setIsSavingEdit(false);
+        return;
+      }
+
       await apiRequest(`/api/users/${editingId}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -231,6 +239,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
           firstname: editForm.firstname.trim(),
           lastname: editForm.lastname.trim(),
           password: editForm.password || undefined,
+          role: editForm.role,
         }),
       });
       closeEditNow();
@@ -375,6 +384,22 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                 onChange={(e) => setEditForm((v) => ({ ...v, password: e.target.value }))}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
+            </label>
+            <label className="block">
+              <span className="text-xs uppercase tracking-wide text-neutral-500">Role</span>
+              <select
+                value={editForm.role}
+                onChange={(e) => setEditForm((v) => ({ ...v, role: e.target.value as "admin" | "user" }))}
+                disabled={editingId === currentUserId && editForm.role === "admin"}
+                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                title={editingId === currentUserId && editForm.role === "admin" ? "You cannot demote your own admin role" : ""}
+              >
+                <option value="admin">Admin</option>
+                <option value="user">User</option>
+              </select>
+              {editingId === currentUserId && editForm.role === "admin" && (
+                <p className="text-xs text-neutral-500 mt-1">You cannot change your own role</p>
+              )}
             </label>
           </div>
           <div className="flex items-center gap-2">

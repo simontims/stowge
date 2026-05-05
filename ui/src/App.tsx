@@ -159,8 +159,8 @@ export default function App() {
           <Route path="/collections" element={<SettingsCollectionsPage />} />
           <Route path="/add"        element={<AddPage />} />
           <Route path="/scan"       element={<Navigate to="/add" replace />} />
-          <Route path="/system"     element={<SystemPage />} />
-          <Route path="/locations"  element={<Navigate to="/system?tab=locations" replace />} />
+          <Route path="/system"     element={currentUser.role === "admin" ? <SystemPage /> : <Navigate to="/items" replace />} />
+          <Route path="/locations"  element={currentUser.role === "admin" ? <Navigate to="/system?tab=locations" replace /> : <Navigate to="/items" replace />} />
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
       </AppShell>

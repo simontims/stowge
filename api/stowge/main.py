@@ -1461,12 +1461,14 @@ def create_user(payload: dict, db: Session = Depends(get_db), me: User = Depends
     first_name = (payload.get("firstname") or payload.get("first_name") or "").strip()
     last_name = (payload.get("lastname") or payload.get("last_name") or payload.get("surname") or "").strip()
     password = payload.get("password") or ""
-    role = "admin"  # all users are admin until roles are introduced
+    role = str(payload.get("role") or "").strip().lower() or "user"
 
     if not _is_valid_email(username):
         raise HTTPException(status_code=400, detail="Valid email required")
     if password == "":
         raise HTTPException(status_code=400, detail="Password required")
+    if role not in ("admin", "user"):
+        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
     if db.query(User).filter(User.username == username).first():
         raise HTTPException(status_code=400, detail="Email already exists")
 
@@ -1512,7 +1514,21 @@ def update_user(user_id: str, payload: dict, db: Session = Depends(get_db), me: 
         u.last_name = str(payload.get("lastname") or payload.get("last_name") or payload.get("surname") or "").strip()
 
     if "role" in payload:
-        pass  # role changes are not supported yet; all users are admin
+        new_role = str(payload.get("role") or "").strip().lower()
+        if new_role not in ("admin", "user"):
+            raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
+        
+        # Prevent admin from demoting themselves
+        if u.id == me.id and u.role == "admin" and new_role == "user":
+            raise HTTPException(status_code=400, detail="You cannot demote your own admin role")
+        
+        # Prevent demoting the last admin
+        if u.role == "admin" and new_role == "user":
+            remaining_admins = db.query(User).filter(User.role == "admin", User.id != user_id).count()
+            if remaining_admins == 0:
+                raise HTTPException(status_code=400, detail="Cannot demote the last admin")
+        
+        u.role = new_role
 
     if "password" in payload:
         password = str(payload.get("password") or "")
