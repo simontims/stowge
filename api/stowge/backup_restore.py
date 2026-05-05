@@ -168,6 +168,7 @@ def create_backup_archive(
     include_assets: bool,
     backup_name: str | None,
     app_version: str,
+    created_by_user: str | None = None,
     progress_callback=None,
 ) -> dict:
     def _progress(stage: str, pct: int, message: str):
@@ -215,6 +216,7 @@ def create_backup_archive(
             "db_relative_path": "db/stowge.db",
             "assets_relative_root": "assets",
             "app_version": app_version,
+            "created_by_user": created_by_user or "unknown",
             "asset_referenced_count": len(tracked_assets),
             "asset_included_count": asset_found_count if include_assets else 0,
             "asset_missing_count": asset_missing_count if include_assets else 0,

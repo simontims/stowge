@@ -1119,6 +1119,7 @@ def create_backup(payload: dict, me: User = Depends(require_admin)):
                 include_assets=include_assets,
                 backup_name=backup_name,
                 app_version=APP_VERSION,
+                created_by_user=me.username,
                 progress_callback=lambda **kwargs: _update_backup_operation(op_id, **kwargs),
             )
             _finish_backup_operation(op_id, status="completed", result={

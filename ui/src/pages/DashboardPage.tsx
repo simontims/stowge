@@ -47,6 +47,7 @@ interface BackupManifest {
   db_bytes?: number;
   asset_bytes?: number;
   app_version?: string;
+  created_by_user?: string;
 }
 
 interface BackupListRow {
@@ -783,6 +784,7 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
               <>
                 <p className="text-xs text-neutral-400">Backup name: {displayBackupName(selectedBackupDetails.manifest)}</p>
                 <p className="text-xs text-neutral-400">Date: {formatDate(selectedBackupDetails.manifest.created_at || selectedBackupDetails.modified_at)}</p>
+                <p className="text-xs text-neutral-400">Created by: {selectedBackupDetails.manifest.created_by_user || "unknown"}</p>
                 <p className="text-xs text-neutral-400">Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
                 <p className="text-xs text-neutral-400">Assets: {selectedBackupDetails.manifest.includes_assets ? (selectedBackupDetails.manifest.asset_included_count ?? 0) : "Not included"}</p>
                 <p className="text-xs text-neutral-400">Archive size: {formatBytes(selectedBackupDetails.size_bytes)}</p>
