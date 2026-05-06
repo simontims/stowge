@@ -5,6 +5,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { buildCenteredExcerpt, splitMatchSegments } from "../lib/itemSearch";
@@ -779,7 +780,7 @@ export function ItemsPage() {
                       search: nextSearch.toString(),
                     });
                   }}
-                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                  className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
                 >
                   <Plus size={14} />
                   Add Item

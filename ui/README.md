@@ -2,6 +2,8 @@
 
 React + TypeScript + Tailwind CSS front-end for the Stowge inventory app.
 
+UI guidelines: see [UI_CONVENTIONS.md](UI_CONVENTIONS.md).
+
 ## Quick start
 
 ```bash

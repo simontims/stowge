@@ -1,4 +1,5 @@
 import { Save } from "lucide-react";
+import { outlinedActionButtonClasses } from "./buttonStyles";
 
 interface UnsavedChangesDialogProps {
   open: boolean;
@@ -31,20 +32,20 @@ export function UnsavedChangesDialog({
         <div className="pt-1 flex items-center justify-end gap-2">
           <button
             onClick={onCancel}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+            className={`${outlinedActionButtonClasses("neutral")} gap-1 px-2.5 py-1.5`}
           >
             Cancel
           </button>
           <button
             onClick={onDiscard}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30"
+            className={`${outlinedActionButtonClasses("danger")} gap-1 px-2.5 py-1.5`}
           >
             Discard
           </button>
           <button
             onClick={onSave}
             disabled={saving}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
+            className={`${outlinedActionButtonClasses("positive")} gap-1 px-2.5 py-1.5`}
           >
             <Save size={14} />
             Save

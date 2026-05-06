@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
@@ -813,7 +814,7 @@ export function EditPage() {
               <button
                 onClick={() => void handleRescan()}
                 disabled={rescanning || images.length === 0}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                className={`${solidActionButtonClasses("brand")} px-3 py-1.5`}
                 title={images.length === 0 ? "Item needs images to scan" : "Scan with AI using current saved images"}
               >
                 {rescanning ? (

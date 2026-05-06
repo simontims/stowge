@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useCurrentUser } from "../lib/UserContext";
@@ -663,7 +664,7 @@ export function AddPage() {
               <button
                 onClick={submitIdentify}
                 disabled={!canSubmitToAi || (!isSubmitting && photos.length === 0)}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                className={`${solidActionButtonClasses("brand")} flex-1 justify-center px-4 py-2`}
               >
                 {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
                 {isSubmitting ? "Identifying…" : "Identify"}

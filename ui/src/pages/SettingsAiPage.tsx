@@ -3,6 +3,7 @@ import { ArrowUpDown, CheckCircle2, Edit3, Plus, Save, Star, Trash2 } from "luci
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 
 interface AiConfig {
@@ -676,7 +677,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           action={
             <button
               onClick={() => setAddingOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
             >
               <Plus size={14} />
               Add Model

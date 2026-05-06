@@ -1,4 +1,5 @@
 import { Save, Trash2 } from "lucide-react";
+import { outlinedActionButtonClasses } from "./buttonStyles";
 
 interface SettingsSaveBarProps {
   isDirty: boolean;
@@ -25,7 +26,7 @@ export function SettingsSaveBar({
           type="button"
           onClick={onDelete}
           disabled={deleteDisabled ?? saving}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-300 hover:border-red-500/70 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+          className={`${outlinedActionButtonClasses("danger-hover")} gap-1.5 px-3 py-1.5 text-sm font-medium`}
         >
           <Trash2 size={14} />
           Delete
@@ -36,7 +37,7 @@ export function SettingsSaveBar({
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+          className={`${outlinedActionButtonClasses("neutral")} gap-1.5 px-3 py-1.5 text-sm font-medium`}
         >
           Cancel
         </button>
@@ -47,7 +48,7 @@ export function SettingsSaveBar({
           className={[
             "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
             isDirty
-              ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
+              ? outlinedActionButtonClasses("positive")
               : "border-neutral-700 text-neutral-500",
           ].join(" ")}
         >

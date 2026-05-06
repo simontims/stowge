@@ -163,3 +163,7 @@ The local run scripts automatically:
 
 Stowge is released under the [MIT License](LICENSE).
 Third-party library notices: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)
+
+## UI Conventions
+
+For frontend action-color and button-style conventions, see [ui/UI_CONVENTIONS.md](ui/UI_CONVENTIONS.md).

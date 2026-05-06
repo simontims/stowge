@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { type CurrentUser } from "../lib/types";
 
@@ -189,7 +190,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              className={`${solidActionButtonClasses("brand")} w-full mt-1 justify-center py-2`}
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
               {mode === "setup" ? "Create Account" : "Sign In"}

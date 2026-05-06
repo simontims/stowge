@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { outlinedActionButtonClasses } from "./buttonStyles";
 
 interface DeleteActionButtonProps {
   onClick: () => void;
@@ -21,9 +22,8 @@ export function DeleteActionButton({
       onClick={onClick}
       disabled={disabled || isDeleting}
       className={[
-        "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors",
-        "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
-        (disabled || isDeleting) ? "opacity-60 cursor-not-allowed" : "",
+        outlinedActionButtonClasses("danger-hover"),
+        "gap-1 px-2.5 py-1.5",
         className,
       ].join(" ")}
     >
@@ -65,7 +65,7 @@ export function DeleteConfirmDialog({
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+            className={`${outlinedActionButtonClasses("neutral")} gap-1 px-2.5 py-1.5`}
           >
             Cancel
           </button>
@@ -74,7 +74,7 @@ export function DeleteConfirmDialog({
             autoFocus
             onClick={onConfirm}
             disabled={deleting}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+            className={`${outlinedActionButtonClasses("danger")} gap-1 px-2.5 py-1.5`}
           >
             <Trash2 size={14} />
             {deleting ? "Deleting..." : confirmLabel}

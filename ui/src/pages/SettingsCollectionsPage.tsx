@@ -9,6 +9,7 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton } from "../components/ui/DeleteControls";
 import { DeleteTransferModal } from "../components/ui/DeleteTransferModal";
 import { TablerIcon } from "../components/ui/TablerIcon";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
@@ -1247,7 +1248,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
               ) : embedded ? (
                 <button
                   onClick={() => { setAddingOpen(true); setError(""); }}
-                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                  className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
                 >
                   <Plus size={14} />
                   Add Collection

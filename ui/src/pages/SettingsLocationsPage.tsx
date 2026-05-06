@@ -6,6 +6,7 @@ import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { DeleteTransferModal } from "../components/ui/DeleteTransferModal";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
@@ -598,7 +599,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             action={
               <button
                 onClick={() => { setAddingOpen(true); setError(""); setNotice(""); }}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
               >
                 <Plus size={14} />
                 Add Location

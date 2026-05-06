@@ -3,6 +3,7 @@ import { ArrowUpDown, Edit3, Plus, Save, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
+import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { useCurrentUser } from "../lib/UserContext";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
@@ -438,7 +439,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
           action={
             <button
               onClick={() => setAddingOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
             >
               <Plus size={14} />
               Add User
