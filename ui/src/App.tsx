@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
 import { AppShell } from "./components/layout/AppShell";
 import { ItemsPage } from "./pages/ItemsPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
@@ -26,6 +27,25 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [toastTheme, setToastTheme] = useState<"light" | "dark">(
+    () => (document.documentElement.dataset.theme === "light" ? "light" : "dark")
+  );
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const syncToastTheme = () => {
+      setToastTheme(root.dataset.theme === "light" ? "light" : "dark");
+    };
+
+    syncToastTheme();
+
+    const observer = new MutationObserver(syncToastTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   // Probe the session on mount to determine initial auth state.
   useEffect(() => {
@@ -164,6 +184,7 @@ export default function App() {
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
       </AppShell>
+      <Toaster position="bottom-right" theme={toastTheme} richColors />
       </BrowserRouter>
     </UserContext.Provider>
   );

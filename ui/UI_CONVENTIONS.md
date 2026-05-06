@@ -46,6 +46,15 @@ import { outlinedActionButtonClasses } from "./buttonStyles";
 <button className={`${outlinedActionButtonClasses("danger")} gap-1 px-2.5 py-1.5`}>Discard</button>
 ```
 
+## Toasts
+
+Use Sonner for toast alerts.
+
+- Global toaster mount: `src/App.tsx`
+- Toast API: `import { toast } from "sonner"`
+
+Avoid creating new page-local custom toast systems with manual timers/positioning unless there is a strong product requirement that Sonner cannot satisfy.
+
 ## Review Checklist
 
 When reviewing UI changes:

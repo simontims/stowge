@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
@@ -197,11 +198,6 @@ export function ItemsPage() {
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
-  const [deletedToast, setDeletedToast] = useState<{ id: string; name: string } | null>(null);
-  const [undoingDelete, setUndoingDelete] = useState(false);
-  const undoToastTimerRef = useRef<number | null>(null);
-  const undoToastDeadlineRef = useRef<number | null>(null);
-  const undoToastRemainingMsRef = useRef<number>(DELETE_TOAST_TIMEOUT_MS);
 
   const tableRef = useRef<HTMLTableElement>(null);
 
@@ -269,58 +265,18 @@ export function ItemsPage() {
   const loadParamsRef = useRef({ q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection });
   loadParamsRef.current = { q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection };
 
-  function clearUndoToastTimer() {
-    if (undoToastTimerRef.current !== null) {
-      window.clearTimeout(undoToastTimerRef.current);
-      undoToastTimerRef.current = null;
-    }
-  }
-
-  function startUndoToastTimer(durationMs: number) {
-    clearUndoToastTimer();
-    const remaining = Math.max(0, durationMs);
-    undoToastRemainingMsRef.current = remaining;
-
-    if (remaining === 0) {
-      setDeletedToast(null);
-      undoToastDeadlineRef.current = null;
-      undoToastRemainingMsRef.current = DELETE_TOAST_TIMEOUT_MS;
-      return;
-    }
-
-    undoToastDeadlineRef.current = Date.now() + remaining;
-    undoToastTimerRef.current = window.setTimeout(() => {
-      setDeletedToast(null);
-      undoToastTimerRef.current = null;
-      undoToastDeadlineRef.current = null;
-      undoToastRemainingMsRef.current = DELETE_TOAST_TIMEOUT_MS;
-    }, remaining);
-  }
-
   function showDeletedToast(id: string, name: string) {
-    setDeletedToast({ id, name });
-    startUndoToastTimer(DELETE_TOAST_TIMEOUT_MS);
+    toast("Item deleted", {
+      description: name,
+      duration: DELETE_TOAST_TIMEOUT_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          void undoDelete(id, name);
+        },
+      },
+    });
   }
-
-  function handleToastMouseEnter() {
-    if (!deletedToast) return;
-    if (undoToastDeadlineRef.current !== null) {
-      undoToastRemainingMsRef.current = Math.max(0, undoToastDeadlineRef.current - Date.now());
-    }
-    clearUndoToastTimer();
-    undoToastDeadlineRef.current = null;
-  }
-
-  function handleToastMouseLeave() {
-    if (!deletedToast) return;
-    startUndoToastTimer(undoToastRemainingMsRef.current);
-  }
-
-  useEffect(() => {
-    return () => {
-      clearUndoToastTimer();
-    };
-  }, []);
 
   useEffect(() => {
     const navState = location.state as { deletedItemId?: string; deletedItemName?: string } | null;
@@ -425,22 +381,15 @@ export function ItemsPage() {
     }
   }
 
-  async function undoDelete() {
-    if (!deletedToast || undoingDelete) return;
-
-    setUndoingDelete(true);
+  async function undoDelete(itemId: string, itemName: string) {
     setDeleteError("");
     try {
-      await apiRequest(`/api/items/${deletedToast.id}/restore`, { method: "POST" });
-      setDeletedToast(null);
-      clearUndoToastTimer();
-      undoToastDeadlineRef.current = null;
-      undoToastRemainingMsRef.current = DELETE_TOAST_TIMEOUT_MS;
+      await apiRequest(`/api/items/${itemId}/restore`, { method: "POST" });
+      toast.success("Item restored", { description: itemName });
       await loadParts({ ...loadParamsRef.current, background: true });
     } catch (err) {
       setDeleteError((err as Error).message || "Failed to restore item.");
-    } finally {
-      setUndoingDelete(false);
+      toast.error("Unable to restore item");
     }
   }
 
@@ -951,27 +900,6 @@ export function ItemsPage() {
         </div>
       )}
 
-      {deletedToast && (
-        <div
-          className="fixed bottom-4 right-4 z-[80] rounded-lg border border-amber-500/50 bg-amber-950/95 backdrop-blur px-3 py-2.5 shadow-xl min-w-[220px]"
-          onMouseEnter={handleToastMouseEnter}
-          onMouseLeave={handleToastMouseLeave}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-amber-100 truncate">Item deleted</p>
-              <p className="text-xs text-amber-300/80 truncate">{deletedToast.name}</p>
-            </div>
-            <button
-              onClick={() => void undoDelete()}
-              disabled={undoingDelete}
-              className="text-xs px-2 py-1 rounded border border-amber-300/70 text-amber-100 hover:border-amber-200 disabled:opacity-60"
-            >
-              {undoingDelete ? "Undoing..." : "Undo"}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
