@@ -1034,9 +1034,13 @@ def scan_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requi
     file_count = 0
     disk_bytes = 0
     for root, _dirs, files in os.walk(base_assets_dir):
+        if os.path.basename(root) == "backups":
+            continue
         for fname in files:
             abs_path = os.path.join(root, fname)
             rel_path = os.path.relpath(abs_path, base_assets_dir).replace("\\", "/")
+            if rel_path.startswith("backups/"):
+                continue
             if rel_path not in tracked:
                 file_count += 1
                 try:
@@ -1054,9 +1058,13 @@ def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requ
     deleted = 0
     freed_bytes = 0
     for root, _dirs, files in os.walk(base_assets_dir):
+        if os.path.basename(root) == "backups":
+            continue
         for fname in files:
             abs_path = os.path.join(root, fname)
             rel_path = os.path.relpath(abs_path, base_assets_dir).replace("\\", "/")
+            if rel_path.startswith("backups/"):
+                continue
             if rel_path not in tracked:
                 try:
                     freed_bytes += os.path.getsize(abs_path)
@@ -1067,6 +1075,8 @@ def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requ
     # Remove newly empty subdirectories (best-effort).
     for root, _dirs, _files in os.walk(base_assets_dir, topdown=False):
         if root == base_assets_dir:
+            continue
+        if os.path.basename(root) == "backups":
             continue
         try:
             if not os.listdir(root):

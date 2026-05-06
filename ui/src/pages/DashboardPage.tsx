@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Tag, Trash2, Package, HardDrive, Image, Database, RefreshCw } from "lucide-react";
+import { Tag, Package, HardDrive, Image, Database, RefreshCw } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
-import { TablerIcon } from "../components/ui/TablerIcon";
 import { apiRequest, UNAUTHORIZED_EVENT } from "../lib/api";
 import { stageLabel, preflightTitle, restoreStepState } from "../lib/statusMappings";
 
@@ -156,11 +154,9 @@ async function pollOperation(
 
 interface DashboardPageProps {
   embedded?: boolean;
-  hideMetricsTable?: boolean;
 }
 
-export function DashboardPage({ embedded = false, hideMetricsTable = false }: DashboardPageProps) {
-  const navigate = useNavigate();
+export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
   // Status
   const [metrics, setMetrics] = useState<StatusMetrics | null>(null);
@@ -202,8 +198,6 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
   const [restoreSummaryManifest, setRestoreSummaryManifest] = useState<BackupManifest | null>(null);
 
   const rows = useMemo(() => metrics?.collections ?? [], [metrics]);
-  const recycleBin = metrics?.recycle_bin;
-  const uncollected = metrics?.uncollected;
   const totalBackupBytes = useMemo(() => {
     return backups.reduce((sum, backup) => sum + backup.size_bytes, 0);
   }, [backups]);
@@ -603,99 +597,6 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
         </article>
       </section>
 
-      {hideMetricsTable ? null : (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold text-neutral-100">Collection breakdown</h2>
-              <p className="text-xs text-neutral-500">Collection-level distribution across items, assets, and storage.</p>
-            </div>
-          </div>
-          <div className="overflow-hidden rounded-lg border border-neutral-800">
-            <table className="min-w-full divide-y divide-neutral-800 text-sm">
-              <thead className="bg-neutral-950/50">
-                <tr className="text-left text-neutral-400">
-                  <th className="px-4 py-3 font-medium">Collection</th>
-                  <th className="px-4 py-3 font-medium">Items</th>
-                  <th className="px-4 py-3 font-medium">Assets (photos)</th>
-                  <th className="px-4 py-3 font-medium">Disk space</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-800">
-                {rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
-                    onClick={() => navigate(`/items?collection=${encodeURIComponent(row.name)}`)}
-                  >
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-2">
-                        <TablerIcon name={row.icon} size={15} color={row.color} />
-                        {row.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{row.item_count}</td>
-                    <td className="px-4 py-3 tabular-nums">{row.asset_count}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatBytes(row.disk_bytes)}</td>
-                  </tr>
-                ))}
-                {uncollected && uncollected.item_count > 0 && (
-                  <tr
-                    className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
-                    onClick={() => navigate("/items?collection=__none")}
-                  >
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-2">
-                        <Tag size={15} />
-                        No collection
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{uncollected.item_count}</td>
-                    <td className="px-4 py-3 tabular-nums">{uncollected.asset_count}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatBytes(uncollected.disk_bytes)}</td>
-                  </tr>
-                )}
-                {recycleBin && recycleBin.item_count > 0 && (
-                  <tr
-                    className="text-neutral-200 cursor-pointer hover:bg-neutral-800/40 transition-colors"
-                    onClick={() => navigate("/collections", { state: { openRecycleBin: true } })}
-                  >
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-2">
-                        <Trash2 size={15} />
-                        Recycle Bin
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{recycleBin.item_count}</td>
-                    <td className="px-4 py-3 tabular-nums">{recycleBin.asset_count}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatBytes(recycleBin.disk_bytes)}</td>
-                  </tr>
-                )}
-                {!metricsLoading && rows.length === 0 && (!uncollected || uncollected.item_count === 0) && (!recycleBin || recycleBin.item_count === 0) && !loadError && (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">
-                      No collections found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-              <tfoot className="bg-neutral-950/50 text-neutral-100">
-                <tr>
-                  <td className="px-4 py-3 font-semibold">Total</td>
-                  <td className="px-4 py-3 font-semibold tabular-nums">{metrics?.totals.item_count ?? "--"}</td>
-                  <td className="px-4 py-3 font-semibold tabular-nums">{metrics?.totals.asset_count ?? "--"}</td>
-                  <td className="px-4 py-3 font-semibold tabular-nums">
-                    {metrics ? formatBytes(metrics.totals.disk_bytes) : "--"}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {metricsLoading && <p className="text-xs text-neutral-500">Loading collection metrics…</p>}
-        </section>
-      )}
-
       <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-neutral-100">Maintenance</h2>
@@ -904,7 +805,6 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
                   <p>Backup name: {displayBackupName(selectedBackupDetails.manifest)}</p>
                   <p>Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
                   <p>Format: tar.gz · sha256-verified</p>
-                  <p>Retention: Keep until manually deleted</p>
                 </div>
                 {!!selectedBackupDetails.manifest.asset_missing_count && (
                   <p className="text-xs text-amber-300">
