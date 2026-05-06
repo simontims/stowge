@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
@@ -198,7 +199,6 @@ export function AddPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [notice, setNotice] = useState<string>("");
   const [mode, setMode] = useState<ScanFlowMode>("input");
 
   const [llmOptions, setLlmOptions] = useState<LlmOption[]>([]);
@@ -217,14 +217,6 @@ export function AddPage() {
 
   const selectedCandidate = candidates[selectedIndex];
   const canSubmitToAi = llmOptions.length > 0;
-
-  useEffect(() => {
-    if (!notice) return;
-    const timeout = window.setTimeout(() => {
-      setNotice("");
-    }, 5000);
-    return () => window.clearTimeout(timeout);
-  }, [notice]);
 
   useEffect(() => {
     void loadAddBootstrapData();
@@ -352,7 +344,6 @@ export function AddPage() {
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
     setSaveError("");
-    setNotice("");
     clearSession();
     setSelectedIndex(0);
     setDraft((current) => ({
@@ -433,7 +424,6 @@ export function AddPage() {
     setShowSubmitErrorDetail(false);
     setSubmitErrorCopied(false);
     setSaveError("");
-    setNotice("");
 
     if (isSubmitting && submitAbort) {
       submitAbort.abort();
@@ -531,7 +521,6 @@ export function AddPage() {
 
   async function savePart() {
     setSaveError("");
-    setNotice("");
 
     let storedImages = identifyData?.stored_images ?? [];
     let pendingStoredImageIds: string[] = [];
@@ -581,7 +570,9 @@ export function AddPage() {
       setPhotos([]);
       clearSession();
       setMode("input");
-      setNotice(`Saved "${payload.name}"`);
+      toast.success("Item saved", {
+        description: payload.name,
+      });
 
       const main = document.querySelector("main");
       if (main instanceof HTMLElement) {
@@ -648,8 +639,6 @@ export function AddPage() {
             onPickPhotos={() => fileInputRef.current?.click()}
             onRemovePhoto={removePhoto}
           />
-
-          {notice && <p className="text-sm text-emerald-400">{notice}</p>}
 
           {/* Sticky action bar */}
           <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur">

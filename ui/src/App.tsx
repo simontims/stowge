@@ -30,6 +30,9 @@ export default function App() {
   const [toastTheme, setToastTheme] = useState<"light" | "dark">(
     () => (document.documentElement.dataset.theme === "light" ? "light" : "dark")
   );
+  const [isMobileToastViewport, setIsMobileToastViewport] = useState<boolean>(
+    () => (typeof window !== "undefined" ? window.innerWidth < 768 : false)
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -45,6 +48,16 @@ export default function App() {
     return () => {
       observer.disconnect();
     };
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobileToastViewport(window.innerWidth < 768);
+    };
+
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   // Probe the session on mount to determine initial auth state.
@@ -184,7 +197,11 @@ export default function App() {
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
       </AppShell>
-      <Toaster position="bottom-right" theme={toastTheme} richColors />
+      <Toaster
+        position={isMobileToastViewport ? "top-center" : "bottom-right"}
+        theme={toastTheme}
+        richColors
+      />
       </BrowserRouter>
     </UserContext.Provider>
   );
