@@ -3,18 +3,18 @@ import io
 import os
 import uuid
 from dataclasses import dataclass
-from typing import Tuple, List, Dict
+from typing import Dict, List, Tuple
 
-from fastapi import UploadFile, HTTPException
+from fastapi import HTTPException, UploadFile
 from PIL import Image
-from .image_defaults import (
-    IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
-    IMAGE_DISPLAY_QUALITY_DEFAULT,
-    IMAGE_OUTPUT_FORMAT_DEFAULT,
-    IMAGE_STORE_ORIGINAL_DEFAULT,
-    IMAGE_THUMB_MAX_EDGE_DEFAULT,
-    IMAGE_THUMB_QUALITY_DEFAULT,
-)
+
+from .image_defaults import (IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
+                             IMAGE_DISPLAY_QUALITY_DEFAULT,
+                             IMAGE_OUTPUT_FORMAT_DEFAULT,
+                             IMAGE_STORE_ORIGINAL_DEFAULT,
+                             IMAGE_THUMB_MAX_EDGE_DEFAULT,
+                             IMAGE_THUMB_QUALITY_DEFAULT)
+
 
 def assets_dir() -> str:
     return os.getenv("ASSETS_DIR", "/assets")

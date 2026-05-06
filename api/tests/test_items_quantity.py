@@ -11,11 +11,7 @@ Covers:
   - PATCH /api/items/{id}  — quantity < 1 rejected with 400
   - PATCH /api/items/{id}  — non-integer quantity rejected with 400
 """
-from conftest import (
-    client,
-    auth_cookies,
-)
-
+from conftest import auth_cookies, client
 
 # ---------------------------------------------------------------------------
 # Helpers

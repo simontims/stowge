@@ -7,7 +7,7 @@ import sys
 
 def _get_db():
     """Return an open SQLAlchemy session using the same env config as the server."""
-    from stowge.db import SessionLocal, engine, Base  # noqa: PLC0415
+    from stowge.db import Base, SessionLocal, engine  # noqa: PLC0415
     Base.metadata.create_all(bind=engine)
     return SessionLocal()
 
@@ -34,8 +34,8 @@ def cmd_help(_args=None):
 
 
 def cmd_admin_create(args):
-    from stowge.models import User        # noqa: PLC0415
     from stowge.auth import hash_password  # noqa: PLC0415
+    from stowge.models import User  # noqa: PLC0415
 
     email = args.email.strip().lower()
 
@@ -72,8 +72,8 @@ def cmd_admin_create(args):
 
 
 def cmd_reset_password(args):
-    from stowge.models import User        # noqa: PLC0415
     from stowge.auth import hash_password  # noqa: PLC0415
+    from stowge.models import User  # noqa: PLC0415
 
     email = args.email.strip().lower()
 

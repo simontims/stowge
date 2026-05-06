@@ -6,6 +6,7 @@ Health endpoint tests.
 /health   — diagnostics: always 200, structured payload
 """
 from fastapi.testclient import TestClient
+
 from stowge.main import app
 
 client = TestClient(app)

@@ -12,15 +12,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from stowge.main import app
-from stowge.auth import (
-    SESSION_COOKIE_NAME,
-    create_session,
-    hash_password,
-)
+from stowge.auth import SESSION_COOKIE_NAME, create_session, hash_password
 from stowge.db import get_db
-from stowge.models import User, Base
-
+from stowge.main import app
+from stowge.models import Base, User
 
 _db_fd, _db_path = tempfile.mkstemp(suffix=".db")
 os.close(_db_fd)

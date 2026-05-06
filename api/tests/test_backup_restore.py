@@ -8,18 +8,18 @@ Covers:
   - session invalidation after restore apply
 """
 
-import time
-import tarfile
 import io
 import json
 import sqlite3
+import tarfile
+import time
 from pathlib import Path
 from uuid import uuid4
 
-from conftest import client, auth_cookies, make_db
+from conftest import auth_cookies, client, make_db
+
 from stowge.main import _purge_orphaned_images_once
 from stowge.models import Part, PartImage
-
 
 
 def _wait_for_operation_done(operation_id: str, cookies: dict, timeout_seconds: float = 8.0):

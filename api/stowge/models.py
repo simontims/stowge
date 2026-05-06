@@ -1,16 +1,18 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON, UniqueConstraint
+
+from sqlalchemy import (JSON, Column, DateTime, ForeignKey, Integer, String,
+                        Text, UniqueConstraint)
 from sqlalchemy.orm import relationship
+
 from .db import Base
-from .image_defaults import (
-    IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
-    IMAGE_DISPLAY_QUALITY_DEFAULT,
-    IMAGE_OUTPUT_FORMAT_DEFAULT,
-    IMAGE_STORE_ORIGINAL_DEFAULT,
-    IMAGE_THUMB_MAX_EDGE_DEFAULT,
-    IMAGE_THUMB_QUALITY_DEFAULT,
-)
+from .image_defaults import (IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
+                             IMAGE_DISPLAY_QUALITY_DEFAULT,
+                             IMAGE_OUTPUT_FORMAT_DEFAULT,
+                             IMAGE_STORE_ORIGINAL_DEFAULT,
+                             IMAGE_THUMB_MAX_EDGE_DEFAULT,
+                             IMAGE_THUMB_QUALITY_DEFAULT)
+
 
 def now_utc():
     return datetime.now(timezone.utc)

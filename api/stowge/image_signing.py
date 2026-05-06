@@ -1,7 +1,8 @@
-import hmac
 import hashlib
+import hmac
 import os
 import time
+
 
 def _secret() -> bytes:
     s = os.getenv("IMAGE_URL_SECRET", "")

@@ -1,6 +1,5 @@
 from fastapi import HTTPException
 
-
 MIN_NAME_LENGTH = 2
 
 

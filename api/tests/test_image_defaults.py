@@ -1,12 +1,9 @@
 """Tests for shared image default configuration behavior."""
 
+from conftest import auth_cookies, client, make_db
+
 from stowge.images import DEFAULT_IMAGE_CONFIG
 from stowge.models import ImageSettings
-from conftest import (
-    client,
-    make_db,
-    auth_cookies,
-)
 
 
 def test_image_settings_get_uses_shared_defaults_when_row_missing():

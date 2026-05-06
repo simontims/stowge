@@ -1,15 +1,15 @@
-import os
 import hashlib
+import os
 import secrets
-import bcrypt
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException, Depends, Request
+import bcrypt
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
-from .models import User, UserSession
 from .db import get_db
+from .models import User, UserSession
 
 SESSION_COOKIE_NAME = "stowge_session"
 SESSION_LIFETIME_MINUTES = int(os.getenv("SESSION_LIFETIME_MINUTES", "1440"))

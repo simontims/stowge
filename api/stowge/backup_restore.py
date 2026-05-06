@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from .models import PartImage, Location
+from .models import Location, PartImage
 
 BACKUP_MANIFEST_VERSION = 1
 REQUIRED_MANIFEST_KEYS = {

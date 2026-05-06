@@ -6,14 +6,11 @@ Covers:
     - DELETE /api/items/{id} soft-deletes item and preserves stored image variants
   - POST /api/images/discard removes only unlinked image assets
 """
-from stowge.images import cleanup_asset_paths
 from uuid import uuid4
-from conftest import (
-    client,
-    auth_cookies,
-    write_asset,
-)
 
+from conftest import auth_cookies, client, write_asset
+
+from stowge.images import cleanup_asset_paths
 
 # ---------------------------------------------------------------------------
 # Helpers

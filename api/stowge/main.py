@@ -1,47 +1,47 @@
-import os
-import time
-import json
 import asyncio
+import json
+import os
 import re
 import threading
+import time
 import uuid
-from threading import Lock
 from datetime import datetime, timezone
-from typing import Optional, Literal, List
+from threading import Lock
+from typing import List, Literal, Optional
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse
+from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
+                     UploadFile)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               StreamingResponse)
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
-from sqlalchemy import inspect, text, func, or_
-
-from .db import engine, Base, get_db, DATABASE_FILE, SessionLocal
-from .models import User, Part, PartImage, LLMConfig, Location, Collection, ImageSettings
-from .constraints import MIN_NAME_LENGTH, require_name
-from .auth import (
-    hash_password, verify_password, create_session, delete_session,
-    delete_all_sessions,
-    current_user, require_admin,
-    SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
-    _TIMING_DUMMY_HASH,
-)
-from .images import process_and_store, process_for_identify, b64_from_stored_paths, resolve_path, delete_stored_images, cleanup_asset_paths, assets_dir, ImageConfig, DEFAULT_IMAGE_CONFIG
-from .backup_restore import (
-    BackupError,
-    create_backup_archive,
-    ensure_backups_dir,
-    list_backups,
-    read_manifest_from_archive,
-    start_restore_validation,
-    restore_from_validation,
-    remove_tmp_dir,
-)
-from .openai_id import identify as openai_identify
-from .image_signing import sign as sign_image, verify as verify_image, ttl_seconds
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from sqlalchemy import func, inspect, or_, text
+from sqlalchemy.orm import Session
+
+from .auth import (_TIMING_DUMMY_HASH, SESSION_COOKIE_NAME,
+                   SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
+                   create_session, current_user, delete_all_sessions,
+                   delete_session, hash_password, require_admin,
+                   verify_password)
+from .backup_restore import (BackupError, create_backup_archive,
+                             ensure_backups_dir, list_backups,
+                             read_manifest_from_archive, remove_tmp_dir,
+                             restore_from_validation, start_restore_validation)
+from .constraints import MIN_NAME_LENGTH, require_name
+from .db import DATABASE_FILE, Base, SessionLocal, engine, get_db
+from .image_signing import sign as sign_image
+from .image_signing import ttl_seconds
+from .image_signing import verify as verify_image
+from .images import (DEFAULT_IMAGE_CONFIG, ImageConfig, assets_dir,
+                     b64_from_stored_paths, cleanup_asset_paths,
+                     delete_stored_images, process_and_store,
+                     process_for_identify, resolve_path)
+from .models import (Collection, ImageSettings, LLMConfig, Location, Part,
+                     PartImage, User)
+from .openai_id import identify as openai_identify
 
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()

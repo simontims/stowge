@@ -16,27 +16,16 @@ test classes obtain a valid session cookie by calling create_session()
 directly, so they never hit the rate-limiter on /api/login.
 """
 from datetime import datetime, timedelta, timezone
+
+from conftest import (auth_cookies_isolated, client, create_user,
+                      get_or_create_user, make_db, valid_session_cookie)
 from sqlalchemy.orm.exc import StaleDataError
 
-from stowge.main import app
-from stowge.auth import (
-    SESSION_COOKIE_NAME,
-    create_session,
-    delete_session,
-    hash_password,
-    verify_password,
-)
+from stowge.auth import (SESSION_COOKIE_NAME, create_session, delete_session,
+                         hash_password, verify_password)
 from stowge.db import get_db
+from stowge.main import app
 from stowge.models import User, UserSession
-from conftest import (
-    client,
-    make_db,
-    create_user,
-    get_or_create_user,
-    auth_cookies_isolated,
-    valid_session_cookie,
-)
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -353,6 +342,7 @@ class TestFirstAdminSetup:
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         from sqlalchemy.pool import StaticPool
+
         from stowge.models import Base
 
         engine = create_engine(
