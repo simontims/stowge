@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Tag, Trash2 } from "lucide-react";
+import { Tag, Trash2, Package, HardDrive, Image, Database, RefreshCw } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { apiRequest, UNAUTHORIZED_EVENT } from "../lib/api";
@@ -103,6 +103,23 @@ function formatDate(value: string | undefined): string {
   }).format(dt);
 }
 
+function formatRelativeAge(value: string | undefined): string {
+  if (!value) return "-";
+  const normalized = value.includes(" ") && !value.includes("T") ? value.replace(" ", "T") : value;
+  const dt = new Date(normalized);
+  if (Number.isNaN(dt.getTime())) return value;
+  const now = new Date();
+  const secondsAgo = Math.floor((now.getTime() - dt.getTime()) / 1000);
+  
+  if (secondsAgo < 60) return `${secondsAgo}s ago`;
+  const minutesAgo = Math.floor(secondsAgo / 60);
+  if (minutesAgo < 60) return `${minutesAgo}m ago`;
+  const hoursAgo = Math.floor(minutesAgo / 60);
+  if (hoursAgo < 24) return `${hoursAgo}h ago`;
+  const daysAgo = Math.floor(hoursAgo / 24);
+  return `${daysAgo}d ago`;
+}
+
 function displayBackupName(manifest: BackupManifest | null | undefined): string {
   const value = String(manifest?.backup_name || "").trim();
   return value || "Stowge Backup";
@@ -187,6 +204,9 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
   const rows = useMemo(() => metrics?.collections ?? [], [metrics]);
   const recycleBin = metrics?.recycle_bin;
   const uncollected = metrics?.uncollected;
+  const totalBackupBytes = useMemo(() => {
+    return backups.reduce((sum, backup) => sum + backup.size_bytes, 0);
+  }, [backups]);
 
   async function loadMetrics() {
     setMetricsLoading(true);
@@ -539,15 +559,59 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
     <div className="space-y-5">
       {!embedded && <PageHeader title="Status" />}
 
-      {!hideMetricsTable && (
-        <>
-          {loadError && !metricsLoading && (
-            <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-              {loadError}
-            </div>
-          )}
+      {loadError && !metricsLoading && (
+        <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+          {loadError}
+        </div>
+      )}
 
-          <div className="overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900/40">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
+          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+            <Package size={14} />
+            Collections
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : rows.length}</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Inventory groups configured</p>
+        </article>
+
+        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
+          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+            <Tag size={14} />
+            Items
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : (metrics?.totals.item_count ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Across all collections</p>
+        </article>
+
+        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
+          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+            <HardDrive size={14} />
+            Disk space
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.disk_bytes ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Used by indexed item data</p>
+        </article>
+
+        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
+          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+            <Image size={14} />
+            Assets
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : (metrics?.totals.asset_count ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Image files linked to items</p>
+        </article>
+      </section>
+
+      {hideMetricsTable ? null : (
+        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-neutral-100">Collection breakdown</h2>
+              <p className="text-xs text-neutral-500">Collection-level distribution across items, assets, and storage.</p>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-neutral-800">
             <table className="min-w-full divide-y divide-neutral-800 text-sm">
               <thead className="bg-neutral-950/50">
                 <tr className="text-left text-neutral-400">
@@ -629,22 +693,25 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
           </div>
 
           {metricsLoading && <p className="text-xs text-neutral-500">Loading collection metrics…</p>}
-        </>
+        </section>
       )}
 
       <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-neutral-100">Maintenance</h2>
-          <p className="mt-1 text-xs text-neutral-500">Database, storage, and backup tools.</p>
+          <p className="mt-1 text-xs text-neutral-500">Database and asset cleanup tools.</p>
         </div>
 
         {maintenanceError && (
           <p className="text-sm text-red-400">{maintenanceError}</p>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-md border border-neutral-800 p-3 space-y-2">
-            <p className="text-sm font-medium text-neutral-200">Orphaned images</p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-neutral-800 bg-neutral-950/35 p-4 space-y-2.5">
+            <p className="text-sm font-medium text-neutral-200 flex items-center gap-2">
+              <Image size={15} className="text-amber-300" />
+              Orphaned images
+            </p>
             <p className="text-xs text-neutral-500">
               Asset files on disk no longer referenced by any item. These accumulate from incomplete cleanup operations.
             </p>
@@ -687,8 +754,11 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
             </div>
           </div>
 
-          <div className="rounded-md border border-neutral-800 p-3 space-y-2">
-            <p className="text-sm font-medium text-neutral-200">Optimise database</p>
+          <div className="rounded-xl border border-neutral-800 bg-neutral-950/35 p-4 space-y-2.5">
+            <p className="text-sm font-medium text-neutral-200 flex items-center gap-2">
+              <Database size={15} className="text-sky-300" />
+              Optimise database
+            </p>
             <p className="text-xs text-neutral-500">
               Reclaims space from deleted records (VACUUM), updates query statistics (ANALYZE), and runs PRAGMA optimize.
             </p>
@@ -714,41 +784,46 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="rounded-md border border-neutral-800 p-3 space-y-2">
-            <p className="text-sm font-medium text-neutral-200">Backup</p>
-            <p className="text-xs text-neutral-500">
-              Create a backup
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-100">Backups</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              {backups.length} archive{backups.length !== 1 ? "s" : ""} · {formatBytes(totalBackupBytes)} total
             </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setBackupModalOpen(true);
-                  setBackupOp(null);
-                  setBackupName("");
-                }}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium"
-              >
-                Backup
-              </button>
-              <button
-                type="button"
-                onClick={() => void loadBackups(true)}
-                disabled={backupsLoading}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-800 text-neutral-400 hover:text-neutral-200 text-xs"
-              >
-                {backupsLoading ? "Refreshing…" : "Refresh list"}
-              </button>
-            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void loadBackups(true)}
+              disabled={backupsLoading}
+              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-neutral-500 hover:text-neutral-100 disabled:opacity-60"
+            >
+              <RefreshCw size={13} className={backupsLoading ? "animate-spin" : ""} />
+              {backupsLoading ? "Refreshing" : "Refresh"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBackupModalOpen(true);
+                setBackupOp(null);
+                setBackupName("");
+              }}
+              className="inline-flex items-center rounded-md border border-sky-500/70 bg-sky-950/40 px-3 py-1.5 text-xs font-medium text-sky-200 hover:bg-sky-900/40"
+            >
+              + New
+            </button>
           </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
           <div className="rounded-md border border-neutral-800 p-3">
-            <p className="text-sm font-medium text-neutral-200 mb-2">Backups</p>
+            <p className="mb-2 text-sm font-medium text-neutral-200">Backup archives</p>
             {backupsError && <p className="text-xs text-red-400 mb-2">{backupsError}</p>}
-            <div className="max-h-64 overflow-auto space-y-1 pr-1">
+            <div className="max-h-80 overflow-auto space-y-1 pr-1">
               {backups.map((backup) => {
                 const selected = backup.filename === selectedBackupFilename;
                 return (
@@ -760,14 +835,24 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
                     type="button"
                     onClick={() => setSelectedBackupFilename(backup.filename)}
                     className={[
-                      "w-full text-left rounded-md border px-2.5 py-2",
+                      "w-full text-left rounded-md border px-2.5 py-2.5",
                       selected
-                        ? "border-neutral-600 bg-neutral-800/50"
+                        ? "border-sky-500/60 bg-sky-950/20"
                         : "border-neutral-800 bg-neutral-900/20 hover:bg-neutral-800/30",
                     ].join(" ")}
                   >
-                    <p className="text-xs text-neutral-200 font-medium">{backup.filename}</p>
-                    <p className="text-[11px] text-neutral-500">{formatDate(backup.modified_at)} · {formatBytes(backup.size_bytes)}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-neutral-200">{backup.filename}</p>
+                        <p className="text-[11px] text-neutral-500">
+                          {formatDate(backup.modified_at)} · {formatRelativeAge(backup.modified_at)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs tabular-nums text-neutral-200">{formatBytes(backup.size_bytes)}</p>
+                        <p className="text-[10px] text-neutral-500">archive</p>
+                      </div>
+                    </div>
                   </button>
                 );
               })}
@@ -777,17 +862,50 @@ export function DashboardPage({ embedded = false, hideMetricsTable = false }: Da
             </div>
           </div>
 
-          <div className="rounded-md border border-neutral-800 p-3 space-y-2">
-            <p className="text-sm font-medium text-neutral-200">Backup details</p>
+          <div className="rounded-md border border-neutral-800 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-neutral-200">Backup details</p>
+              {selectedBackupDetails && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/50 bg-emerald-950/30 px-2 py-0.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                  Verified
+                </span>
+              )}
+            </div>
             {backupDetailsLoading && <p className="text-xs text-neutral-500">Loading details…</p>}
             {!backupDetailsLoading && selectedBackupDetails && (
               <>
-                <p className="text-xs text-neutral-400">Backup name: {displayBackupName(selectedBackupDetails.manifest)}</p>
-                <p className="text-xs text-neutral-400">Date: {formatDate(selectedBackupDetails.manifest.created_at || selectedBackupDetails.modified_at)}</p>
-                <p className="text-xs text-neutral-400">Created by: {selectedBackupDetails.manifest.created_by_user || "unknown"}</p>
-                <p className="text-xs text-neutral-400">Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
-                <p className="text-xs text-neutral-400">Assets: {selectedBackupDetails.manifest.includes_assets ? (selectedBackupDetails.manifest.asset_included_count ?? 0) : "Not included"}</p>
-                <p className="text-xs text-neutral-400">Archive size: {formatBytes(selectedBackupDetails.size_bytes)}</p>
+                <p className="text-xs text-neutral-300">{selectedBackupDetails.filename}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
+                    <p className="text-[10px] uppercase tracking-wide text-neutral-500">Size</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">{formatBytes(selectedBackupDetails.size_bytes)}</p>
+                  </div>
+                  <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
+                    <p className="text-[10px] uppercase tracking-wide text-neutral-500">Database</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
+                      {selectedBackupDetails.manifest.db_bytes ? formatBytes(selectedBackupDetails.manifest.db_bytes) : "--"}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
+                    <p className="text-[10px] uppercase tracking-wide text-neutral-500">Assets</p>
+                    <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
+                      {selectedBackupDetails.manifest.includes_assets
+                        ? (selectedBackupDetails.manifest.asset_bytes
+                          ? formatBytes(selectedBackupDetails.manifest.asset_bytes)
+                          : `${selectedBackupDetails.manifest.asset_included_count ?? 0} files`)
+                        : "No"}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-xs text-neutral-400">
+                  <p>Created: {formatDate(selectedBackupDetails.manifest.created_at || selectedBackupDetails.modified_at)}</p>
+                  <p>Created by: {selectedBackupDetails.manifest.created_by_user || "unknown"}</p>
+                  <p>Backup name: {displayBackupName(selectedBackupDetails.manifest)}</p>
+                  <p>Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
+                  <p>Format: tar.gz · sha256-verified</p>
+                  <p>Retention: Keep until manually deleted</p>
+                </div>
                 {!!selectedBackupDetails.manifest.asset_missing_count && (
                   <p className="text-xs text-amber-300">
                     Missing referenced files at backup time: {selectedBackupDetails.manifest.asset_missing_count}
