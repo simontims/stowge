@@ -28,3 +28,6 @@ __pycache__/
 
 # Local-only scripts
 scripts/import_pihut_collection.py
+
+# Local editor settings
+.vscode/settings.json
