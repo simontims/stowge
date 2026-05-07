@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Save, Trash2 } from "lucide-react";
 import { outlinedActionButtonClasses } from "./buttonStyles";
 
@@ -9,6 +10,7 @@ interface SettingsSaveBarProps {
   /** When provided, renders a Delete button on the left side of the bar. */
   onDelete?: () => void;
   deleteDisabled?: boolean;
+  extraActions?: ReactNode;
 }
 
 export function SettingsSaveBar({
@@ -18,6 +20,7 @@ export function SettingsSaveBar({
   onCancel,
   onDelete,
   deleteDisabled,
+  extraActions,
 }: SettingsSaveBarProps) {
   return (
     <div className={["flex items-center gap-2", onDelete ? "justify-between" : "justify-end"].join(" ")}>
@@ -33,6 +36,7 @@ export function SettingsSaveBar({
         </button>
       )}
       <div className="flex items-center gap-2">
+        {extraActions}
         <button
           type="button"
           onClick={onCancel}

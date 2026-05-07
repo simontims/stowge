@@ -84,6 +84,7 @@ class LLMConfig(Base):
     evidence_enabled = Column(Integer, nullable=False, default=0)  # 0|1, off by default
     ai_max_edge = Column(Integer, nullable=False, default=1600)  # max pixel edge for AI identify pre-resize
     ai_quality = Column(Integer, nullable=False, default=85)   # JPEG quality (1-100) for AI identify pre-resize
+    validated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 

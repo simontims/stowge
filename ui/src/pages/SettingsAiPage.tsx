@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, CheckCircle2, Edit3, Plus, Save, Star, Trash2 } from "lucide-react";
+import { ArrowUpDown, Brain, CheckCircle2, Circle, Copy, Edit3, Loader2, Plus, Save, Star, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
@@ -13,6 +14,8 @@ interface AiConfig {
   model: string;
   api_base: string | null;
   is_default: boolean;
+  is_validated: boolean;
+  validated_at: string | null;
   evidence_enabled: boolean;
   ai_max_edge: number;
   ai_quality: number;
@@ -64,7 +67,7 @@ interface EditConfigForm {
   ai_quality: number;
 }
 
-type AiSortKey = "name" | "provider" | "model" | "evidence";
+type AiSortKey = "name" | "provider" | "model" | "validated";
 
 const EMPTY_FORM: NewConfigForm = {
   name: "",
@@ -77,6 +80,47 @@ const EMPTY_FORM: NewConfigForm = {
   ai_max_edge: 1600,
   ai_quality: 85,
 };
+
+const PROVIDER_LOGO_URLS: Record<string, string> = {
+  openai: "https://cdn.simpleicons.org/openai/ffffff",
+  anthropic: "https://cdn.simpleicons.org/anthropic/ffffff",
+  google: "https://cdn.simpleicons.org/google/ffffff",
+  groq: "https://cdn.simpleicons.org/groq/ffffff",
+  mistral: "https://cdn.simpleicons.org/mistralai/ffffff",
+  openrouter: "https://cdn.simpleicons.org/openrouter/ffffff",
+};
+
+function formatRelativeTime(value: string | null): string {
+  if (!value) return "never";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "unknown";
+
+  const deltaSeconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (deltaSeconds < 10) return "just now";
+  if (deltaSeconds < 60) return `${deltaSeconds}s ago`;
+
+  const minutes = Math.floor(deltaSeconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+async function copyToClipboard(text: string) {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard");
+      return;
+    }
+  } catch {
+    // Fall through to unsupported message.
+  }
+  toast.error("Clipboard is unavailable in this browser context.");
+}
 
 interface AiSectionProps {
   embedded?: boolean;
@@ -106,7 +150,8 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
-  const [validationStateById, setValidationStateById] = useState<Record<string, "success" | "error" | undefined>>({});
+  const [validationErrorById, setValidationErrorById] = useState<Record<string, string | undefined>>({});
+  const [providerLogoFailedByProvider, setProviderLogoFailedByProvider] = useState<Record<string, boolean>>({});
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -151,8 +196,8 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     const rows = [...filteredConfigs];
     rows.sort((a, b) => {
       let comparison = 0;
-      if (sortKey === "evidence") {
-        comparison = Number(a.evidence_enabled) - Number(b.evidence_enabled);
+      if (sortKey === "validated") {
+        comparison = Number(a.is_validated) - Number(b.is_validated);
       } else {
         comparison = a[sortKey].localeCompare(b[sortKey], undefined, { sensitivity: "base" });
       }
@@ -163,6 +208,18 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const editingConfig = useMemo(
     () => configs.find((c) => c.id === editingId) || null,
     [configs, editingId]
+  );
+  const editingProviderLabel = useMemo(() => {
+    if (!editingConfig) return "";
+    return getProviderOption(editForm.provider || editingConfig.provider)?.label || editingConfig.provider;
+  }, [editingConfig, editForm.provider, providerOptions]);
+  const editingProviderKey = useMemo(
+    () => (editForm.provider || editingConfig?.provider || "").trim().toLowerCase(),
+    [editForm.provider, editingConfig?.provider]
+  );
+  const editingProviderLogoUrl = useMemo(
+    () => (editingProviderKey ? PROVIDER_LOGO_URLS[editingProviderKey] || "" : ""),
+    [editingProviderKey]
   );
   const showListView = !addingOpen && !editingId;
 
@@ -186,6 +243,15 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       editForm.evidence_enabled !== initialEditForm.evidence_enabled ||
       editForm.ai_max_edge !== initialEditForm.ai_max_edge ||
       editForm.ai_quality !== initialEditForm.ai_quality,
+    [editForm, initialEditForm]
+  );
+
+  const hasPendingValidationInputs = useMemo(
+    () =>
+      editForm.provider !== initialEditForm.provider ||
+      editForm.model !== initialEditForm.model ||
+      editForm.api_base !== initialEditForm.api_base ||
+      editForm.api_key !== "",
     [editForm, initialEditForm]
   );
 
@@ -352,7 +418,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
 
   async function validateConfig(config: AiConfig) {
     setValidatingId(config.id);
-    setValidationStateById((v) => ({ ...v, [config.id]: undefined }));
+    setValidationErrorById((current) => ({ ...current, [config.id]: undefined }));
     try {
       await apiRequest<{ ok: boolean; response_preview?: string }>(
         `/api/admin/settings/ai/${config.id}/validate`,
@@ -360,9 +426,55 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           method: "POST",
         }
       );
-      setValidationStateById((v) => ({ ...v, [config.id]: "success" }));
+      await loadConfigs({ background: true });
     } catch (err) {
-      setValidationStateById((v) => ({ ...v, [config.id]: "error" }));
+      const message = err instanceof Error ? err.message : "Validation failed.";
+      setValidationErrorById((current) => ({ ...current, [config.id]: message }));
+      const detailsText = `Validation failed for ${config.name}: ${message}`;
+      toast.error("Validation failed", {
+        description: (
+          <div className="inline-flex items-center gap-2">
+            <span>{config.name}</span>
+            <button
+              type="button"
+              onClick={() => void copyToClipboard(detailsText)}
+              className="inline-flex items-center justify-center rounded border border-red-500/50 bg-red-950/40 p-1 text-red-200 hover:text-red-100"
+              aria-label="Copy validation error"
+              title="Copy validation error"
+            >
+              <Copy size={12} />
+            </button>
+          </div>
+        ),
+        action: {
+          label: "More details",
+          onClick: () => {
+            toast("Validation details", {
+              description: (
+                <div className="inline-flex items-start gap-2">
+                  <span className="break-words">{message}</span>
+                  <button
+                    type="button"
+                    onClick={() => void copyToClipboard(detailsText)}
+                    className="inline-flex items-center justify-center rounded border border-slate-500/50 bg-slate-900/40 p-1 text-slate-200 hover:text-slate-100"
+                    aria-label="Copy validation details"
+                    title="Copy validation details"
+                  >
+                    <Copy size={12} />
+                  </button>
+                </div>
+              ),
+              duration: 12000,
+              action: {
+                label: "Copy",
+                onClick: () => {
+                  void copyToClipboard(detailsText);
+                },
+              },
+            });
+          },
+        },
+      });
     } finally {
       setValidatingId(null);
     }
@@ -725,11 +837,11 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   <button
                     type="button"
-                    onClick={() => handleSort("evidence")}
+                    onClick={() => handleSort("validated")}
                     className="inline-flex items-center gap-1 hover:text-neutral-300"
                   >
-                    Evidence
-                    <ArrowUpDown size={12} className={sortKey === "evidence" ? "text-neutral-300" : "text-neutral-600"} />
+                    Validated
+                    <ArrowUpDown size={12} className={sortKey === "validated" ? "text-neutral-300" : "text-neutral-600"} />
                   </button>
                 </th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
@@ -753,7 +865,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   const isDefault = cfg.id === defaultId;
                   const isDeleting = deletingId === cfg.id;
                   const isSettingDefault = settingDefaultId === cfg.id;
-                  const validationState = validationStateById[cfg.id];
+                  const isValidated = cfg.is_validated;
                   return (
                     <tr key={cfg.id} className="hover:bg-neutral-900/60 transition-colors">
                       <td className="px-4 py-2.5 text-neutral-200">
@@ -770,25 +882,22 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                       <td className="px-4 py-2.5 text-neutral-300">{cfg.provider}</td>
                       <td className="px-4 py-2.5 text-neutral-300">{cfg.model}</td>
                       <td className="px-4 py-2.5">
-                        <span
-                          className={[
-                            "inline-flex items-center px-2 py-0.5 rounded border text-xs",
-                            cfg.evidence_enabled
-                              ? "border-emerald-500/70 text-emerald-300 bg-emerald-950/30"
-                              : "border-neutral-700 text-neutral-400 bg-neutral-900",
-                          ].join(" ")}
-                        >
-                          {cfg.evidence_enabled ? "On" : "Off"}
-                        </span>
+                        {isValidated ? (
+                          <CheckCircle2
+                            size={16}
+                            className="text-emerald-400"
+                            aria-label="Validated"
+                          />
+                        ) : (
+                          <Circle
+                            size={16}
+                            className="text-neutral-500"
+                            aria-label="Not validated"
+                          />
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
-                          {validationState === "success" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 text-emerald-300 bg-emerald-950/30">
-                              <CheckCircle2 size={13} />
-                              Validated
-                            </span>
-                          )}
                           <button
                             onClick={() => startEdit(cfg)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
@@ -832,7 +941,58 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
 
       {editingConfig && (
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">Edit {editingConfig.name}</h2>
+          <div className="rounded-lg border border-neutral-800/80 bg-neutral-950/50 p-4 flex items-center justify-between gap-4">
+            <div className="min-w-0 flex items-center gap-3">
+              <div className="h-11 w-11 shrink-0 rounded-md border border-neutral-800 bg-neutral-900 flex items-center justify-center text-neutral-300">
+                {editingProviderLogoUrl && !providerLogoFailedByProvider[editingProviderKey] ? (
+                  <img
+                    src={editingProviderLogoUrl}
+                    alt={`${editingProviderLabel} logo`}
+                    className="h-5 w-5 object-contain"
+                    onError={() =>
+                      setProviderLogoFailedByProvider((state) => ({ ...state, [editingProviderKey]: true }))
+                    }
+                  />
+                ) : (
+                  <Brain size={18} />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-wider text-neutral-500">Edit Provider</div>
+                <div className="text-2xl leading-tight font-semibold text-neutral-100 truncate">{editingProviderLabel}</div>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-4">
+              <div className="text-right text-sm leading-tight">
+                <div className="text-neutral-400">
+                  {validatingId === editingConfig.id
+                    ? "Validating..."
+                    : `Last validated ${formatRelativeTime(editingConfig.validated_at)}`}
+                </div>
+                <div className="text-neutral-300 mt-1">Tested {editingConfig.model}</div>
+              </div>
+              {editingConfig.is_validated ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/70 text-emerald-300 bg-emerald-950/40 text-sm font-medium">
+                  <CheckCircle2 size={14} />
+                  Validated
+                </span>
+              ) : validatingId === editingConfig.id ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-500/70 text-blue-300 bg-blue-950/40 text-sm font-medium">
+                  <Loader2 size={14} className="animate-spin" />
+                  Validating...
+                </span>
+              ) : validationErrorById[editingConfig.id] ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-500/70 text-red-300 bg-red-950/40 text-sm font-medium">
+                  Validation failed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-700 text-neutral-300 bg-neutral-900 text-sm font-medium">
+                  Not validated
+                </span>
+              )}
+            </div>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-neutral-300">
@@ -999,11 +1159,16 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             onCancel={cancelEdit}
             onDelete={() => setConfirmDeleteConfig(editingConfig)}
             deleteDisabled={savingEdit}
-            secondaryActions={
+            extraActions={
               <button
                 onClick={() => void validateConfig(editingConfig)}
-                disabled={validatingId === editingConfig.id}
+                disabled={validatingId === editingConfig.id || hasPendingValidationInputs}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 text-blue-300 hover:text-blue-200 hover:bg-blue-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                title={
+                  hasPendingValidationInputs
+                    ? "Save provider/model/API changes before validating."
+                    : undefined
+                }
               >
                 <CheckCircle2 size={14} />
                 {validatingId === editingConfig.id ? "Validating..." : "Validate"}

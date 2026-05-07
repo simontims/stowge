@@ -312,6 +312,8 @@ def _serialize_llm_public(cfg: LLMConfig) -> dict:
         "model": cfg.model,
         "api_base": cfg.api_base,
         "is_default": bool(cfg.is_default),
+        "is_validated": bool(cfg.validated_at),
+        "validated_at": _utc_iso(cfg.validated_at),
         "evidence_enabled": bool(cfg.evidence_enabled),
         "ai_max_edge": cfg.ai_max_edge if cfg.ai_max_edge is not None else 1600,
         "ai_quality": cfg.ai_quality if cfg.ai_quality is not None else 85,
@@ -526,6 +528,8 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN ai_max_edge INTEGER NOT NULL DEFAULT 1600"))
             if "ai_quality" not in llm_columns:
                 conn.execute(text("ALTER TABLE llm_configs ADD COLUMN ai_quality INTEGER NOT NULL DEFAULT 85"))
+            if "validated_at" not in llm_columns:
+                conn.execute(text("ALTER TABLE llm_configs ADD COLUMN validated_at DATETIME NULL"))
 
         # Backfill legacy configs so API base is always present.
         with Session(bind=engine) as db:
@@ -1888,10 +1892,13 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
         cfg.name = next_name
 
     provider_updated = False
+    validation_needs_reset = False
     if "provider" in payload:
         next_provider = _normalize_provider(str(payload.get("provider") or ""))
         if not next_provider:
             raise HTTPException(status_code=400, detail="provider is required")
+        if cfg.provider != next_provider:
+            validation_needs_reset = True
         cfg.provider = next_provider
         provider_updated = True
 
@@ -1899,15 +1906,21 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
         next_model = _normalize_model(str(payload.get("model") or ""))
         if not next_model:
             raise HTTPException(status_code=400, detail="model is required")
+        if cfg.model != next_model:
+            validation_needs_reset = True
         cfg.model = next_model
 
     if "api_key" in payload:
         next_key = str(payload.get("api_key") or "").strip()
         if next_key:
+            validation_needs_reset = True
             cfg.api_key = next_key
 
     if "api_base" in payload:
-        cfg.api_base = str(payload.get("api_base") or "").strip() or None
+        next_api_base = str(payload.get("api_base") or "").strip() or None
+        if (cfg.api_base or "") != (next_api_base or ""):
+            validation_needs_reset = True
+        cfg.api_base = next_api_base
 
     if provider_updated and not (cfg.api_base or "").strip():
         cfg.api_base = _default_api_base_for_provider(cfg.provider)
@@ -1933,6 +1946,9 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
         if not (1 <= v <= 100):
             raise HTTPException(status_code=400, detail="ai_quality must be 1-100")
         cfg.ai_quality = v
+
+    if validation_needs_reset:
+        cfg.validated_at = None
 
     cfg.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -1983,6 +1999,10 @@ def validate_ai_setting(config_id: str, db: Session = Depends(get_db), me: User 
         except Exception:
             preview = ""
 
+        cfg.validated_at = datetime.now(timezone.utc)
+        cfg.updated_at = datetime.now(timezone.utc)
+        db.commit()
+
         return {
             "ok": True,
             "provider": cfg.provider,
@@ -1990,6 +2010,9 @@ def validate_ai_setting(config_id: str, db: Session = Depends(get_db), me: User 
             "response_preview": preview[:160],
         }
     except Exception as e:
+        cfg.validated_at = None
+        cfg.updated_at = datetime.now(timezone.utc)
+        db.commit()
         raise HTTPException(status_code=400, detail=f"Validation failed: {e}")
 
 
