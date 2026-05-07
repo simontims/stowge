@@ -753,7 +753,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   const isDefault = cfg.id === defaultId;
                   const isDeleting = deletingId === cfg.id;
                   const isSettingDefault = settingDefaultId === cfg.id;
-                  const isValidating = validatingId === cfg.id;
                   const validationState = validationStateById[cfg.id];
                   return (
                     <tr key={cfg.id} className="hover:bg-neutral-900/60 transition-colors">
@@ -784,27 +783,18 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
+                          {validationState === "success" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 text-emerald-300 bg-emerald-950/30">
+                              <CheckCircle2 size={13} />
+                              Validated
+                            </span>
+                          )}
                           <button
                             onClick={() => startEdit(cfg)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
                           >
                             <Edit3 size={13} />
                             Edit
-                          </button>
-                          <button
-                            onClick={() => void validateConfig(cfg)}
-                            disabled={isValidating}
-                            className={[
-                              "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border disabled:opacity-60 disabled:cursor-not-allowed",
-                              validationState === "success"
-                                ? "border-emerald-500/70 text-emerald-300 bg-emerald-950/30"
-                                : validationState === "error"
-                                  ? "border-red-500/70 text-red-300 bg-red-950/30"
-                                  : "border-neutral-700 text-neutral-300 hover:text-emerald-300 hover:border-emerald-500/70",
-                            ].join(" ")}
-                          >
-                            <CheckCircle2 size={13} />
-                            {isValidating ? "Validating..." : validationState === "success" ? "Passed" : validationState === "error" ? "Failed" : "Validate"}
                           </button>
                           <button
                             onClick={() => void setDefault(cfg)}
@@ -1009,6 +999,16 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             onCancel={cancelEdit}
             onDelete={() => setConfirmDeleteConfig(editingConfig)}
             deleteDisabled={savingEdit}
+            secondaryActions={
+              <button
+                onClick={() => void validateConfig(editingConfig)}
+                disabled={validatingId === editingConfig.id}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 text-blue-300 hover:text-blue-200 hover:bg-blue-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <CheckCircle2 size={14} />
+                {validatingId === editingConfig.id ? "Validating..." : "Validate"}
+              </button>
+            }
           />
         </section>
       )}

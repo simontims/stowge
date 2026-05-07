@@ -283,20 +283,6 @@ export function ItemDetailPanel({
                 />
               </label>
 
-              <div className="text-xs text-neutral-500 space-y-1">
-                <div>
-                  <span className="uppercase tracking-wide text-neutral-600">ID</span>
-                  <div className="text-neutral-400 break-all">{selectedPart.id}</div>
-                </div>
-                <div>
-                  <span className="uppercase tracking-wide text-neutral-600">Created</span>
-                  <div>{new Date(selectedPart.created_at).toLocaleString()}</div>
-                </div>
-                <div>
-                  <span className="uppercase tracking-wide text-neutral-600">Updated</span>
-                  <div>{new Date(selectedPart.updated_at).toLocaleString()}</div>
-                </div>
-              </div>
             </div>
           </div>
 

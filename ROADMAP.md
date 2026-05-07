@@ -7,8 +7,6 @@ Easy inventory with a brilliant user experience and AI-assist
 
 ## 🔜 Next
 
-- Backup and restore
-- Generic user roles
 - Maintainance automation
 - Backup automation
 - Basic Home Assistant integration (read-only)
