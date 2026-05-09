@@ -301,6 +301,7 @@ export function EditPage() {
   const [candidates, setCandidates] = useState<AiCandidate[]>([]);
   const [selectedCandidateIdx, setSelectedCandidateIdx] = useState(0);
   const [showDiff, setShowDiff] = useState(false);
+  const restoreActionButtonRef = useRef<HTMLButtonElement | null>(null);
 
   function goPrevImage() {
     if (images.length <= 1) return;
@@ -354,6 +355,13 @@ export function EditPage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [lightboxOpen, images.length]);
+
+  useEffect(() => {
+    if (!hasPendingRestore || loading || saving || unsavedPromptOpen || lightboxOpen) return;
+    requestAnimationFrame(() => {
+      restoreActionButtonRef.current?.focus();
+    });
+  }, [hasPendingRestore, loading, saving, unsavedPromptOpen, lightboxOpen, part?.id]);
 
   async function loadAll(id: string) {
     setLoading(true);
@@ -943,6 +951,7 @@ export function EditPage() {
             Cancel
           </button>
           <button
+            ref={restoreActionButtonRef}
             onClick={() => void handleSave()}
             disabled={!hasDirtyChanges || saving}
             className={[

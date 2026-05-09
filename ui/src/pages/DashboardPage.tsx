@@ -204,6 +204,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [restoreOp, setRestoreOp] = useState<BackupOperation | null>(null);
   const [restoreValidationId, setRestoreValidationId] = useState<string | null>(null);
   const [restoreSummaryManifest, setRestoreSummaryManifest] = useState<BackupManifest | null>(null);
+  const restoreApplyButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const rows = useMemo(() => metrics?.collections ?? [], [metrics]);
   const totalBackupBytes = useMemo(() => {
@@ -268,6 +269,11 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
     target.scrollIntoView({ block: "nearest" });
     setFocusBackupFilename(null);
   }, [backups, focusBackupFilename]);
+
+  useEffect(() => {
+    if (!restoreModalOpen || restoreStep !== "ready") return;
+    restoreApplyButtonRef.current?.focus();
+  }, [restoreModalOpen, restoreStep]);
 
   useEffect(() => {
     void loadMetrics();
@@ -1138,6 +1144,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                   </button>
                   <button
                     type="button"
+                    ref={restoreApplyButtonRef}
                     onClick={() => void handleRestoreApply()}
                     className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 text-xs"
                   >

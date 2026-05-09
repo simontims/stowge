@@ -350,7 +350,7 @@ export function ItemsPage() {
     }
   }
 
-  async function deletePart(partId: string) {
+  async function deletePart(partId: string): Promise<boolean> {
     setDeleteError("");
     setDeletingId(partId);
     const partName = parts.find((part) => part.id === partId)?.name ?? "Item";
@@ -358,8 +358,10 @@ export function ItemsPage() {
       await apiRequest(`/api/items/${partId}`, { method: "DELETE" });
       setParts((current) => current.filter((part) => part.id !== partId));
       showDeletedToast(partId, partName);
+      return true;
     } catch (err) {
       setDeleteError((err as Error).message || "Failed to delete part.");
+      return false;
     } finally {
       setDeletingId(null);
     }
@@ -550,10 +552,33 @@ export function ItemsPage() {
 
       if (e.key === "Delete" || e.key === "Backspace") {
         if (!selectedPartId) return;
-        const row = parts.find((r) => r.id === selectedPartId);
+        const currentIdx = parts.findIndex((r) => r.id === selectedPartId);
+        if (currentIdx < 0) return;
+        const row = parts[currentIdx];
         if (!row || deletingId === row.id) return;
+
+        let nextRowId: string | null = null;
+        if (parts.length > 1) {
+          const nextIdx = currentIdx < parts.length - 1 ? currentIdx + 1 : currentIdx - 1;
+          nextRowId = parts[nextIdx]?.id ?? null;
+        }
+
         e.preventDefault();
-        void deletePart(row.id);
+        void (async () => {
+          const deleted = await deletePart(row.id);
+          if (!deleted) return;
+
+          if (nextRowId) {
+            await openPartModal(nextRowId);
+            requestAnimationFrame(() => {
+              const el = tableRef.current?.querySelector<HTMLTableRowElement>(`[data-row-id="${nextRowId}"]`);
+              el?.scrollIntoView({ block: "nearest" });
+            });
+            return;
+          }
+
+          closeModalNow();
+        })();
         return;
       }
 

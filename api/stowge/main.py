@@ -193,7 +193,7 @@ def _location_photo_variant_paths(photo_path: str | None) -> tuple[str, str, str
 
 def _serialize_location(location: Location, db: Session, item_count: int | None = None) -> dict:
     if item_count is None:
-        item_count = db.query(Part).filter(Part.location_id == location.id).count()
+        item_count = db.query(Part).filter(Part.location_id == location.id, Part.is_deleted == 0).count()
     return {
         "id": location.id,
         "name": location.name,
@@ -207,7 +207,7 @@ def _serialize_location(location: Location, db: Session, item_count: int | None 
 
 def _serialize_collection(collection: Collection, db: Session, item_count: int | None = None) -> dict:
     if item_count is None:
-        item_count = db.query(Part).filter(Part.collection == collection.name).count()
+        item_count = db.query(Part).filter(Part.collection == collection.name, Part.is_deleted == 0).count()
     return {
         "id": collection.id,
         "name": collection.name,
@@ -228,6 +228,7 @@ def _list_locations_payload(db: Session) -> list[dict]:
     counts: dict[str, int] = dict(
         db.query(Part.location_id, func.count(Part.id))
         .filter(Part.location_id.in_([loc.id for loc in locations]))
+        .filter(Part.is_deleted == 0)
         .group_by(Part.location_id)
         .all()
     )
@@ -241,6 +242,7 @@ def _list_collections_payload(db: Session) -> list[dict]:
     counts: dict[str, int] = dict(
         db.query(Part.collection, func.count(Part.id))
         .filter(Part.collection.in_([col.name for col in collections]))
+        .filter(Part.is_deleted == 0)
         .group_by(Part.collection)
         .all()
     )
