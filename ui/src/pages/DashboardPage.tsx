@@ -46,11 +46,16 @@ interface BackupManifest {
   asset_bytes?: number;
   app_version?: string;
   created_by_user?: string;
+  backup_verified?: boolean;
+  backup_verified_at?: string | null;
+  backup_verification_method?: string | null;
+  backup_verification_error?: string | null;
 }
 
 interface BackupListRow {
   filename: string;
   size_bytes: number;
+  created_at: string;
   modified_at: string;
 }
 
@@ -120,7 +125,7 @@ function formatRelativeAge(value: string | undefined): string {
 
 function displayBackupName(manifest: BackupManifest | null | undefined): string {
   const value = String(manifest?.backup_name || "").trim();
-  return value || "Stowge Backup";
+  return value || "Stowge Manual";
 }
 
 function delay(ms: number): Promise<void> {
@@ -180,9 +185,12 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [focusBackupFilename, setFocusBackupFilename] = useState<string | null>(null);
   const [selectedBackupDetails, setSelectedBackupDetails] = useState<BackupDetails | null>(null);
   const [backupDetailsLoading, setBackupDetailsLoading] = useState(false);
+  const [backupVerifyTarget, setBackupVerifyTarget] = useState<string | null>(null);
+  const [verifyingBackup, setVerifyingBackup] = useState(false);
   const [deleteBackupTarget, setDeleteBackupTarget] = useState<string | null>(null);
   const [deletingBackup, setDeletingBackup] = useState(false);
   const backupRowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const selectedBackupFilenameRef = useRef<string | null>(null);
 
   // Backup create modal
   const [backupModalOpen, setBackupModalOpen] = useState(false);
@@ -232,8 +240,9 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       const preferred = preferredFilename
         ? data.backups.find((b) => b.filename === preferredFilename)
         : null;
-      const selected = preferSelected && selectedBackupFilename
-        ? data.backups.find((b) => b.filename === selectedBackupFilename)
+      const liveSelectedFilename = selectedBackupFilenameRef.current;
+      const selected = preferSelected && liveSelectedFilename
+        ? data.backups.find((b) => b.filename === liveSelectedFilename)
         : null;
       const next = preferred?.filename ?? selected?.filename ?? data.backups[0].filename;
       setSelectedBackupFilename(next);
@@ -246,6 +255,10 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       setBackupsLoading(false);
     }
   }
+
+  useEffect(() => {
+    selectedBackupFilenameRef.current = selectedBackupFilename;
+  }, [selectedBackupFilename]);
 
   useEffect(() => {
     if (!focusBackupFilename) return;
@@ -417,6 +430,45 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       await loadBackups(false);
     } finally {
       setDeletingBackup(false);
+    }
+  }
+
+  async function verifyBackup(filename: string) {
+    setVerifyingBackup(true);
+    setBackupVerifyTarget(filename);
+
+    async function refreshVerifiedBackupDetails() {
+      const shouldUpdatePanel = selectedBackupFilenameRef.current === filename;
+      if (!shouldUpdatePanel) return;
+      setBackupDetailsLoading(true);
+      try {
+        const details = await apiRequest<BackupDetails>(`/api/admin/backups/${encodeURIComponent(filename)}`);
+        if (selectedBackupFilenameRef.current === filename) {
+          setSelectedBackupDetails(details);
+        }
+      } catch {
+        // Keep current panel details if a refresh request fails.
+      } finally {
+        if (selectedBackupFilenameRef.current === filename) {
+          setBackupDetailsLoading(false);
+        }
+      }
+    }
+
+    try {
+      const started = await apiRequest<{ operation_id: string }>(
+        `/api/admin/backups/${encodeURIComponent(filename)}/verify`,
+        { method: "POST" }
+      );
+      await pollOperation(started.operation_id, () => undefined);
+      await loadBackups(true);
+      await refreshVerifiedBackupDetails();
+    } catch {
+      // Details reload below will preserve current metadata display on failures.
+      await loadBackups(true);
+      await refreshVerifiedBackupDetails();
+    } finally {
+      setVerifyingBackup(false);
     }
   }
 
@@ -746,12 +798,11 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-neutral-200">{backup.filename}</p>
                         <p className="text-[11px] text-neutral-500">
-                          {formatDate(backup.modified_at)} · {formatRelativeAge(backup.modified_at)}
+                          {formatDate(backup.created_at)} · {formatRelativeAge(backup.created_at)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-xs tabular-nums text-neutral-200">{formatBytes(backup.size_bytes)}</p>
-                        <p className="text-[10px] text-neutral-500">archive</p>
                       </div>
                     </div>
                   </button>
@@ -765,18 +816,31 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
           <div className="rounded-md border border-neutral-800 p-3 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-neutral-200">Backup details</p>
+              <p className="text-sm font-medium text-neutral-200">
+                {selectedBackupDetails ? displayBackupName(selectedBackupDetails.manifest) : "Backup details"}
+              </p>
               {selectedBackupDetails && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/50 bg-emerald-950/30 px-2 py-0.5 text-[11px] text-emerald-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                  Verified
+                <span
+                  className={[
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
+                    selectedBackupDetails.manifest.backup_verified
+                      ? "border border-emerald-500/50 bg-emerald-950/30 text-emerald-300"
+                      : "border border-neutral-600/60 bg-neutral-900/70 text-neutral-400",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "h-1.5 w-1.5 rounded-full",
+                      selectedBackupDetails.manifest.backup_verified ? "bg-emerald-300" : "bg-neutral-500",
+                    ].join(" ")}
+                  />
+                  {selectedBackupDetails.manifest.backup_verified ? "Verified" : "Not verified"}
                 </span>
               )}
             </div>
             {backupDetailsLoading && <p className="text-xs text-neutral-500">Loading details…</p>}
             {!backupDetailsLoading && selectedBackupDetails && (
               <>
-                <p className="text-xs text-neutral-300">{selectedBackupDetails.filename}</p>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
                     <p className="text-[10px] uppercase tracking-wide text-neutral-500">Size</p>
@@ -802,16 +866,39 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 <div className="space-y-1.5 text-xs text-neutral-400">
                   <p>Created: {formatDate(selectedBackupDetails.manifest.created_at || selectedBackupDetails.modified_at)}</p>
                   <p>Created by: {selectedBackupDetails.manifest.created_by_user || "unknown"}</p>
-                  <p>Backup name: {displayBackupName(selectedBackupDetails.manifest)}</p>
                   <p>Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
-                  <p>Format: tar.gz · sha256-verified</p>
+                  <p>Filename: {selectedBackupDetails.filename}</p>
+                  <p>Format: tar.gz</p>
+                  <p>
+                    {verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename
+                      ? "Verifying backup..."
+                      : selectedBackupDetails.manifest.backup_verified
+                        ? "Backup verified"
+                        : "Backup not verified"}
+                    {!verifyingBackup && selectedBackupDetails.manifest.backup_verified && selectedBackupDetails.manifest.backup_verified_at
+                      ? ` · ${formatDate(selectedBackupDetails.manifest.backup_verified_at)}`
+                      : ""}
+                  </p>
                 </div>
+                {!selectedBackupDetails.manifest.backup_verified && selectedBackupDetails.manifest.backup_verification_error && (
+                  <p className="text-xs text-amber-300">
+                    Verification note: {selectedBackupDetails.manifest.backup_verification_error}
+                  </p>
+                )}
                 {!!selectedBackupDetails.manifest.asset_missing_count && (
                   <p className="text-xs text-amber-300">
                     Missing referenced files at backup time: {selectedBackupDetails.manifest.asset_missing_count}
                   </p>
                 )}
                 <div className="flex gap-2 flex-wrap pt-1">
+                  <button
+                    type="button"
+                    onClick={() => void verifyBackup(selectedBackupDetails.filename)}
+                    disabled={verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename}
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename ? "Verifying…" : "Verify"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => void downloadBackup(selectedBackupDetails.filename)}
@@ -864,7 +951,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     type="text"
                     value={backupName}
                     onChange={(event) => setBackupName(event.target.value)}
-                    placeholder="Stowge Backup"
+                    placeholder="Stowge Manual"
                     maxLength={120}
                     className="w-full rounded-md border border-neutral-700 bg-neutral-900/60 px-2.5 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 focus:border-neutral-500 focus:outline-none"
                   />

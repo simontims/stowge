@@ -29,6 +29,7 @@ from .auth import (_TIMING_DUMMY_HASH, SESSION_COOKIE_NAME,
 from .backup_restore import (BackupError, create_backup_archive,
                              ensure_backups_dir, list_backups,
                              read_manifest_from_archive, remove_tmp_dir,
+                             set_backup_verification_metadata,
                              restore_from_validation, start_restore_validation)
 from .constraints import MIN_NAME_LENGTH, require_name
 from .db import DATABASE_FILE, Base, SessionLocal, engine, get_db
@@ -1160,11 +1161,47 @@ def create_backup(payload: dict, me: User = Depends(require_admin)):
                 created_by_user=me.username,
                 progress_callback=lambda **kwargs: _update_backup_operation(op_id, **kwargs),
             )
-            _finish_backup_operation(op_id, status="completed", result={
-                "filename": result["filename"],
-                "archive_bytes": result["archive_bytes"],
-                "manifest": result["manifest"],
-            })
+
+            verification_error: str | None = None
+            _update_backup_operation(op_id, stage="verify", progress=96, message="Verifying backup integrity")
+            try:
+                verify_result = start_restore_validation(
+                    backup_path=result["path"],
+                    assets_root=assets_dir(),
+                    enforce_restore_space=False,
+                )
+                remove_tmp_dir(str(verify_result.get("tmp_dir") or ""))
+            except Exception as exc:
+                verification_error = str(exc)
+
+            manifest = set_backup_verification_metadata(
+                result["path"],
+                verified=verification_error is None,
+                error=verification_error,
+            )
+
+            if verification_error is not None:
+                _finish_backup_operation(
+                    op_id,
+                    status="failed",
+                    error=f"Backup verification failed: {verification_error}",
+                    result={
+                        "filename": result["filename"],
+                        "archive_bytes": result["archive_bytes"],
+                        "manifest": manifest,
+                    },
+                )
+                return
+
+            _finish_backup_operation(
+                op_id,
+                status="completed",
+                result={
+                    "filename": result["filename"],
+                    "archive_bytes": result["archive_bytes"],
+                    "manifest": manifest,
+                },
+            )
         except Exception as exc:
             _finish_backup_operation(op_id, status="failed", error=str(exc))
         finally:
@@ -1219,6 +1256,60 @@ def delete_backup(filename: str, me: User = Depends(require_admin)):
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to delete backup: {exc}")
     return {"ok": True}
+
+
+@app.post("/api/admin/backups/{filename}/verify")
+def verify_backup(filename: str, me: User = Depends(require_admin)):
+    backup_path = _resolve_backup_path(filename)
+    op_id = _new_backup_operation("backup-verify")
+
+    def run_verify():
+        verification_error: str | None = None
+        try:
+            result = start_restore_validation(
+                backup_path=backup_path,
+                assets_root=assets_dir(),
+                enforce_restore_space=False,
+                progress_callback=lambda **kwargs: _update_backup_operation(op_id, **kwargs),
+            )
+            remove_tmp_dir(str(result.get("tmp_dir") or ""))
+        except Exception as exc:
+            verification_error = str(exc)
+
+        try:
+            manifest = set_backup_verification_metadata(
+                backup_path,
+                verified=verification_error is None,
+                error=verification_error,
+            )
+        except Exception as exc:
+            _finish_backup_operation(op_id, status="failed", error=str(exc))
+            return
+
+        if verification_error is not None:
+            _finish_backup_operation(
+                op_id,
+                status="failed",
+                error=f"Backup verification failed: {verification_error}",
+                result={
+                    "filename": filename,
+                    "manifest": manifest,
+                },
+            )
+            return
+
+        _finish_backup_operation(
+            op_id,
+            status="completed",
+            result={
+                "filename": filename,
+                "manifest": manifest,
+            },
+        )
+
+    thread = threading.Thread(target=run_verify, daemon=True)
+    thread.start()
+    return {"operation_id": op_id}
 
 
 @app.post("/api/admin/backups/{filename}/restore-test")

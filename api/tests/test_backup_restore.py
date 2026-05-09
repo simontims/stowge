@@ -10,6 +10,7 @@ Covers:
 
 import io
 import json
+import os
 import sqlite3
 import tarfile
 import time
@@ -19,6 +20,7 @@ from uuid import uuid4
 from conftest import auth_cookies, client, make_db
 
 from stowge.main import _purge_orphaned_images_once
+from stowge.backup_restore import BackupError, set_backup_verification_metadata
 from stowge.models import Part, PartImage
 
 
@@ -70,7 +72,46 @@ class TestBackupRestoreApi:
         assert details.status_code == 200
         manifest = details.json().get("manifest") or {}
         assert manifest.get("includes_assets") is False
-        assert manifest.get("backup_name") == "Stowge Backup"
+        assert manifest.get("backup_name") == "Stowge Manual"
+        assert manifest.get("backup_verified") is True
+        assert isinstance(manifest.get("backup_verified_at"), str)
+        assert manifest.get("backup_verification_method") == "restore_preflight_v1"
+        assert manifest.get("backup_verification_error") is None
+
+    def test_create_backup_fails_when_create_time_verification_fails(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+        cookies = auth_cookies("backup-verify-fail-admin@example.com", role="admin")
+
+        def fake_start_restore_validation(*, backup_path, assets_root, progress_callback=None, enforce_restore_space=True):
+            raise BackupError("synthetic verification failure", code="backup_error")
+
+        monkeypatch.setattr("stowge.main.start_restore_validation", fake_start_restore_validation)
+
+        create = client.post("/api/admin/backups/create", json={"include_assets": False}, cookies=cookies)
+        assert create.status_code == 200
+        op_id = create.json().get("operation_id")
+        assert op_id
+
+        op = _wait_for_operation_done(op_id, cookies)
+        assert op["status"] == "failed"
+        assert "Backup verification failed" in str(op.get("error") or "")
+
+        result = op.get("result") or {}
+        filename = result.get("filename")
+        assert isinstance(filename, str)
+        manifest = result.get("manifest") or {}
+        assert manifest.get("backup_verified") is False
+        assert isinstance(manifest.get("backup_verified_at"), str)
+        assert manifest.get("backup_verification_method") == "restore_preflight_v1"
+        assert "synthetic verification failure" in str(manifest.get("backup_verification_error") or "")
+
+        details = client.get(f"/api/admin/backups/{filename}", cookies=cookies)
+        assert details.status_code == 200
+        persisted_manifest = details.json().get("manifest") or {}
+        assert persisted_manifest.get("backup_verified") is False
+        assert isinstance(persisted_manifest.get("backup_verified_at"), str)
+        assert persisted_manifest.get("backup_verification_method") == "restore_preflight_v1"
+        assert "synthetic verification failure" in str(persisted_manifest.get("backup_verification_error") or "")
 
     def test_create_backup_with_custom_name_stores_manifest_name(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
@@ -163,6 +204,63 @@ class TestBackupRestoreApi:
         op = _wait_for_operation_done(op_id, cookies)
         assert op["status"] == "failed"
 
+    def test_manual_verify_endpoint_reverifies_backup(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+        cookies = auth_cookies("verify-admin@example.com", role="admin")
+
+        create = client.post("/api/admin/backups/create", json={"include_assets": False}, cookies=cookies)
+        assert create.status_code == 200
+        create_op = _wait_for_operation_done(create.json()["operation_id"], cookies)
+        assert create_op["status"] == "completed"
+        filename = (create_op.get("result") or {}).get("filename")
+        assert isinstance(filename, str)
+
+        backup_path = Path(tmp_path) / "backups" / filename
+        set_backup_verification_metadata(str(backup_path), verified=False, error="forced reset")
+
+        verify = client.post(f"/api/admin/backups/{filename}/verify", cookies=cookies)
+        assert verify.status_code == 200
+        verify_op = _wait_for_operation_done(verify.json()["operation_id"], cookies)
+        assert verify_op["status"] == "completed"
+
+        details = client.get(f"/api/admin/backups/{filename}", cookies=cookies)
+        assert details.status_code == 200
+        manifest = details.json().get("manifest") or {}
+        assert manifest.get("backup_verified") is True
+        assert isinstance(manifest.get("backup_verified_at"), str)
+        assert manifest.get("backup_verification_method") == "restore_preflight_v1"
+        assert manifest.get("backup_verification_error") is None
+
+    def test_manual_verify_endpoint_persists_failure_metadata(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+        cookies = auth_cookies("verify-fail-admin@example.com", role="admin")
+
+        create = client.post("/api/admin/backups/create", json={"include_assets": False}, cookies=cookies)
+        assert create.status_code == 200
+        create_op = _wait_for_operation_done(create.json()["operation_id"], cookies)
+        assert create_op["status"] == "completed"
+        filename = (create_op.get("result") or {}).get("filename")
+        assert isinstance(filename, str)
+
+        def fake_start_restore_validation(*, backup_path, assets_root, progress_callback=None, enforce_restore_space=True):
+            raise BackupError("synthetic manual verify failure", code="backup_error")
+
+        monkeypatch.setattr("stowge.main.start_restore_validation", fake_start_restore_validation)
+
+        verify = client.post(f"/api/admin/backups/{filename}/verify", cookies=cookies)
+        assert verify.status_code == 200
+        verify_op = _wait_for_operation_done(verify.json()["operation_id"], cookies)
+        assert verify_op["status"] == "failed"
+        assert "Backup verification failed" in str(verify_op.get("error") or "")
+
+        details = client.get(f"/api/admin/backups/{filename}", cookies=cookies)
+        assert details.status_code == 200
+        manifest = details.json().get("manifest") or {}
+        assert manifest.get("backup_verified") is False
+        assert isinstance(manifest.get("backup_verified_at"), str)
+        assert manifest.get("backup_verification_method") == "restore_preflight_v1"
+        assert "synthetic manual verify failure" in str(manifest.get("backup_verification_error") or "")
+
     def test_multiple_backups_use_timestamp_filenames(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
         cookies = auth_cookies("unique-admin@example.com", role="admin")
@@ -187,6 +285,75 @@ class TestBackupRestoreApi:
         assert filename_a.endswith(".tar.gz")
         assert filename_b.endswith(".tar.gz")
         assert len(filename_a.removeprefix("stowge_").removesuffix(".tar.gz")) > len("2026-04-23")
+
+    def test_backups_list_uses_manifest_created_at_for_sort_and_display(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+        cookies = auth_cookies("list-created-at-admin@example.com", role="admin")
+
+        backups_dir = Path(tmp_path) / "backups"
+        backups_dir.mkdir(parents=True, exist_ok=True)
+
+        db_file = tmp_path / "mini.db"
+        raw = sqlite3.connect(str(db_file))
+        try:
+            for tbl in ("users", "sessions", "parts", "images", "collections", "locations", "llm_configs", "image_settings"):
+                raw.execute(f"CREATE TABLE {tbl} (id TEXT)")
+            raw.commit()
+        finally:
+            raw.close()
+
+        older_name = "stowge_2026-01-01.tar.gz"
+        newer_name = "stowge_2026-12-31.tar.gz"
+
+        older_manifest = {
+            "manifest_version": 1,
+            "created_at": "2026-01-01T00:00:00Z",
+            "backup_name": "Older",
+            "includes_assets": False,
+            "db_relative_path": "db/stowge.db",
+            "assets_relative_root": "assets",
+            "db_bytes": db_file.stat().st_size,
+        }
+        newer_manifest = {
+            "manifest_version": 1,
+            "created_at": "2026-12-31T00:00:00Z",
+            "backup_name": "Newer",
+            "includes_assets": False,
+            "db_relative_path": "db/stowge.db",
+            "assets_relative_root": "assets",
+            "db_bytes": db_file.stat().st_size,
+        }
+
+        older_path = backups_dir / older_name
+        newer_path = backups_dir / newer_name
+
+        with tarfile.open(older_path, "w:gz") as tar:
+            tar.add(db_file, arcname="db/stowge.db")
+            payload = json.dumps(older_manifest).encode("utf-8")
+            info = tarfile.TarInfo(name="manifest.json")
+            info.size = len(payload)
+            tar.addfile(info, io.BytesIO(payload))
+
+        with tarfile.open(newer_path, "w:gz") as tar:
+            tar.add(db_file, arcname="db/stowge.db")
+            payload = json.dumps(newer_manifest).encode("utf-8")
+            info = tarfile.TarInfo(name="manifest.json")
+            info.size = len(payload)
+            tar.addfile(info, io.BytesIO(payload))
+
+        # Force opposite file mtimes to ensure listing does not follow mtime ordering.
+        os.utime(older_path, (2000000000, 2000000000))
+        os.utime(newer_path, (1000000000, 1000000000))
+
+        listing = client.get("/api/admin/backups", cookies=cookies)
+        assert listing.status_code == 200
+        rows = listing.json().get("backups") or []
+        assert len(rows) >= 2
+
+        assert rows[0].get("filename") == newer_name
+        assert rows[0].get("created_at") == "2026-12-31T00:00:00Z"
+        assert rows[1].get("filename") == older_name
+        assert rows[1].get("created_at") == "2026-01-01T00:00:00Z"
 
     def test_delete_backup_removes_file(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ASSETS_DIR", str(tmp_path))

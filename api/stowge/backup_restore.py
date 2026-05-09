@@ -23,6 +23,7 @@ REQUIRED_MANIFEST_KEYS = {
     "assets_relative_root",
     "db_bytes",
 }
+BACKUP_VERIFICATION_METHOD = "restore_preflight_v1"
 REQUIRED_BACKUP_TABLES = {
     "users",
     "sessions",
@@ -198,7 +199,7 @@ def create_backup_archive(
 
     archive_filename = unique_backup_filename(backups_root)
     final_path = os.path.join(backups_root, archive_filename)
-    backup_display_name = (backup_name or "").strip() or "Stowge Backup"
+    backup_display_name = (backup_name or "").strip() or "Stowge Manual"
 
     temp_dir = tempfile.mkdtemp(prefix="backup_", dir=tmp_root)
     try:
@@ -222,6 +223,10 @@ def create_backup_archive(
             "asset_missing_count": asset_missing_count if include_assets else 0,
             "asset_bytes": asset_bytes if include_assets else 0,
             "db_bytes": os.path.getsize(db_snap_path),
+            "backup_verified": False,
+            "backup_verified_at": None,
+            "backup_verification_method": None,
+            "backup_verification_error": None,
         }
 
         _progress("archive", 45, "Creating compressed archive")
@@ -269,20 +274,45 @@ def create_backup_archive(
 def list_backups(assets_root: str) -> list[dict]:
     root = ensure_backups_dir(assets_root)
     rows: list[dict] = []
+
+    def _parse_iso_utc(value: str | None) -> datetime | None:
+        text = (value or "").strip()
+        if not text:
+            return None
+        normalized = text.replace("Z", "+00:00")
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
     for entry in os.scandir(root):
         if not entry.is_file():
             continue
         if not entry.name.endswith(".tar.gz"):
             continue
         st = entry.stat()
+        modified_dt = datetime.fromtimestamp(st.st_mtime, tz=timezone.utc)
+        created_dt = modified_dt
+        try:
+            manifest = read_manifest_from_archive(entry.path)
+            manifest_created = _parse_iso_utc(str(manifest.get("created_at") or ""))
+            if manifest_created is not None:
+                created_dt = manifest_created
+        except BackupError:
+            pass
+
         rows.append(
             {
                 "filename": entry.name,
                 "size_bytes": int(st.st_size),
-                "modified_at": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
+                "created_at": created_dt.isoformat().replace("+00:00", "Z"),
+                "modified_at": modified_dt.isoformat().replace("+00:00", "Z"),
             }
         )
-    rows.sort(key=lambda x: x["modified_at"], reverse=True)
+    rows.sort(key=lambda x: x["created_at"], reverse=True)
     return rows
 
 
@@ -306,6 +336,52 @@ def read_manifest_from_archive(backup_path: str) -> dict:
         raise BackupError("Invalid manifest format", code="manifest_invalid_format")
     _validate_manifest(data)
     return data
+
+
+def write_manifest_to_archive(backup_path: str, manifest: dict) -> None:
+    if not os.path.isfile(backup_path):
+        raise BackupError("Backup not found", code="backup_not_found")
+
+    tmp_path = f"{backup_path}.tmp"
+    try:
+        with tarfile.open(backup_path, "r:gz") as src, tarfile.open(tmp_path, "w:gz") as dst:
+            for member in src.getmembers():
+                if member.name == "manifest.json":
+                    continue
+
+                extracted = src.extractfile(member) if member.isfile() else None
+                dst.addfile(member, extracted)
+
+            payload = json.dumps(manifest, indent=2).encode("utf-8")
+            info = tarfile.TarInfo(name="manifest.json")
+            info.size = len(payload)
+            info.mtime = int(datetime.now(timezone.utc).timestamp())
+            dst.addfile(info, io.BytesIO(payload))
+
+        os.replace(tmp_path, backup_path)
+    except Exception as exc:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+        raise BackupError(f"Failed to update backup manifest: {exc}", code="manifest_write_failed")
+
+
+def set_backup_verification_metadata(
+    backup_path: str,
+    *,
+    verified: bool,
+    error: str | None = None,
+    verified_at: str | None = None,
+) -> dict:
+    manifest = read_manifest_from_archive(backup_path)
+    manifest["backup_verified"] = bool(verified)
+    manifest["backup_verified_at"] = verified_at or utc_now_iso()
+    manifest["backup_verification_method"] = BACKUP_VERIFICATION_METHOD
+    manifest["backup_verification_error"] = None if verified else (error or "Backup verification failed")
+    write_manifest_to_archive(backup_path, manifest)
+    return manifest
 
 
 
@@ -367,6 +443,14 @@ def _validate_manifest(manifest: dict) -> None:
         raise BackupError("Manifest field asset_missing_count must be integer", code="manifest_invalid_asset_missing_count")
     if "asset_referenced_count" in manifest and not isinstance(manifest.get("asset_referenced_count"), int):
         raise BackupError("Manifest field asset_referenced_count must be integer", code="manifest_invalid_asset_referenced_count")
+    if "backup_verified" in manifest and not isinstance(manifest.get("backup_verified"), bool):
+        raise BackupError("Manifest field backup_verified must be boolean", code="manifest_invalid_backup_verified")
+    if "backup_verified_at" in manifest and manifest.get("backup_verified_at") is not None and not isinstance(manifest.get("backup_verified_at"), str):
+        raise BackupError("Manifest field backup_verified_at must be string or null", code="manifest_invalid_backup_verified_at")
+    if "backup_verification_method" in manifest and manifest.get("backup_verification_method") is not None and not isinstance(manifest.get("backup_verification_method"), str):
+        raise BackupError("Manifest field backup_verification_method must be string or null", code="manifest_invalid_backup_verification_method")
+    if "backup_verification_error" in manifest and manifest.get("backup_verification_error") is not None and not isinstance(manifest.get("backup_verification_error"), str):
+        raise BackupError("Manifest field backup_verification_error must be string or null", code="manifest_invalid_backup_verification_error")
 
     db_rel = str(manifest.get("db_relative_path") or "")
     if not db_rel or db_rel.startswith("/") or ".." in db_rel.replace("\\", "/"):
@@ -408,6 +492,7 @@ def start_restore_validation(
     *,
     backup_path: str,
     assets_root: str,
+    enforce_restore_space: bool = True,
     progress_callback=None,
 ) -> dict:
     def _progress(stage: str, pct: int, message: str):
@@ -421,8 +506,10 @@ def start_restore_validation(
     tmp_root = temp_root(backups_root)
     restore_tmp = tempfile.mkdtemp(prefix="restore_", dir=tmp_root)
 
-    _progress("space_check", 10, "Checking available space")
-    free = disk_free_bytes(assets_root)
+    free = 0
+    if enforce_restore_space:
+        _progress("space_check", 10, "Checking available space")
+        free = disk_free_bytes(assets_root)
 
     try:
         _progress("extract", 30, "Unpacking archive")
@@ -444,16 +531,18 @@ def start_restore_validation(
         db_rel = str(manifest.get("db_relative_path") or "db/stowge.db")
         db_path = os.path.join(restore_tmp, db_rel)
 
-        required = int(manifest.get("db_bytes") or 0)
-        if includes_assets:
-            required += int(manifest.get("asset_bytes") or 0)
-        required = int(required * 1.4) + (32 * 1024 * 1024)
+        required = 0
+        if enforce_restore_space:
+            required = int(manifest.get("db_bytes") or 0)
+            if includes_assets:
+                required += int(manifest.get("asset_bytes") or 0)
+            required = int(required * 1.4) + (32 * 1024 * 1024)
 
-        if free < required:
-            raise BackupError(
-                f"Not enough free space in assets mount for restore. Required about {required} bytes, available {free} bytes.",
-                code="disk_space_insufficient_restore",
-            )
+            if free < required:
+                raise BackupError(
+                    f"Not enough free space in assets mount for restore. Required about {required} bytes, available {free} bytes.",
+                    code="disk_space_insufficient_restore",
+                )
 
         _progress("validate_sql", 60, "Validating SQL backup")
         validate_sqlite_file(db_path)
