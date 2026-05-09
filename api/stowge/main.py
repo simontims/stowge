@@ -340,6 +340,30 @@ def _default_api_base_for_provider(provider: str) -> str | None:
     return AI_PROVIDER_META.get(provider, {}).get("api_base")
 
 
+def _run_llm_validation(model: str, api_key: str, api_base: str | None) -> str:
+    from litellm import completion
+
+    resp = completion(
+        model=model,
+        messages=[
+            {
+                "role": "user",
+                "content": "Reply with exactly OK.",
+            }
+        ],
+        max_tokens=8,
+        temperature=0,
+        timeout=20,
+        api_key=api_key,
+        api_base=api_base,
+    )
+
+    try:
+        return str(resp.choices[0].message.content or "").strip()[:160]
+    except Exception:
+        return ""
+
+
 def _litellm_models_by_provider() -> dict[str, list[str]]:
     providers: dict[str, list[tuple[str, dict]]] = {k: [] for k in AI_PROVIDER_META.keys()}
     try:
@@ -1947,7 +1971,15 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
             raise HTTPException(status_code=400, detail="ai_quality must be 1-100")
         cfg.ai_quality = v
 
-    if validation_needs_reset:
+    validation_state = payload.get("validation_state")
+    if validation_state is not None and validation_state not in {"validated", "not_validated"}:
+        raise HTTPException(status_code=400, detail="validation_state must be 'validated' or 'not_validated'")
+
+    if validation_state == "validated":
+        cfg.validated_at = datetime.now(timezone.utc)
+    elif validation_state == "not_validated":
+        cfg.validated_at = None
+    elif validation_needs_reset:
         cfg.validated_at = None
 
     cfg.updated_at = datetime.now(timezone.utc)
@@ -1977,27 +2009,7 @@ def validate_ai_setting(config_id: str, db: Session = Depends(get_db), me: User 
         raise HTTPException(status_code=404, detail="AI config not found")
 
     try:
-        from litellm import completion
-
-        resp = completion(
-            model=cfg.model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": "Reply with exactly OK.",
-                }
-            ],
-            max_tokens=8,
-            temperature=0,
-            timeout=20,
-            api_key=cfg.api_key,
-            api_base=cfg.api_base,
-        )
-        preview = ""
-        try:
-            preview = str(resp.choices[0].message.content or "").strip()
-        except Exception:
-            preview = ""
+        preview = _run_llm_validation(cfg.model, cfg.api_key, cfg.api_base)
 
         cfg.validated_at = datetime.now(timezone.utc)
         cfg.updated_at = datetime.now(timezone.utc)
@@ -2013,6 +2025,41 @@ def validate_ai_setting(config_id: str, db: Session = Depends(get_db), me: User 
         cfg.validated_at = None
         cfg.updated_at = datetime.now(timezone.utc)
         db.commit()
+        raise HTTPException(status_code=400, detail=f"Validation failed: {e}")
+
+
+@app.post("/api/admin/settings/ai/{config_id}/validate-draft")
+def validate_ai_setting_draft(config_id: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    cfg = db.query(LLMConfig).filter(LLMConfig.id == config_id).first()
+    if not cfg:
+        raise HTTPException(status_code=404, detail="AI config not found")
+
+    provider = _normalize_provider(str(payload.get("provider") or cfg.provider or ""))
+    model = _normalize_model(str(payload.get("model") or cfg.model or ""))
+    api_base = str(payload.get("api_base") or cfg.api_base or "").strip()
+    api_key_input = str(payload.get("api_key") or "").strip()
+    api_key = api_key_input or (cfg.api_key or "")
+
+    if not provider:
+        raise HTTPException(status_code=400, detail="provider is required")
+    if not model:
+        raise HTTPException(status_code=400, detail="model is required")
+    if not api_base:
+        api_base = _default_api_base_for_provider(provider) or ""
+    if not api_base:
+        raise HTTPException(status_code=400, detail="api_base is required")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="api_key is required")
+
+    try:
+        preview = _run_llm_validation(model, api_key, api_base)
+        return {
+            "ok": True,
+            "provider": provider,
+            "model": model,
+            "response_preview": preview,
+        }
+    except Exception as e:
         raise HTTPException(status_code=400, detail=f"Validation failed: {e}")
 
 

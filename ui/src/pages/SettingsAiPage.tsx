@@ -43,6 +43,13 @@ interface ProvidersCatalogResponse {
   providers: ProviderOption[];
 }
 
+interface ValidationInputSnapshot {
+  provider: string;
+  model: string;
+  api_base: string;
+  api_key: string;
+}
+
 interface NewConfigForm {
   name: string;
   provider: string;
@@ -122,6 +129,15 @@ async function copyToClipboard(text: string) {
   toast.error("Clipboard is unavailable in this browser context.");
 }
 
+function buildValidationSignature(snapshot: ValidationInputSnapshot): string {
+  return JSON.stringify({
+    provider: snapshot.provider.trim().toLowerCase(),
+    model: snapshot.model.trim(),
+    api_base: snapshot.api_base.trim(),
+    api_key: snapshot.api_key.trim(),
+  });
+}
+
 interface AiSectionProps {
   embedded?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -179,6 +195,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     ai_max_edge: 1600,
     ai_quality: 85,
   });
+  const [initialValidationState, setInitialValidationState] = useState(false);
+  const [validatedSignature, setValidatedSignature] = useState<string | null>(null);
+  const [validatedAtDraft, setValidatedAtDraft] = useState<string | null>(null);
 
   const filteredConfigs = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -232,8 +251,24 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     setSortDirection("asc");
   }
 
-  const isEditDirty = useMemo(
+  const currentValidationSignature = useMemo(
     () =>
+      buildValidationSignature({
+        provider: editForm.provider,
+        model: editForm.model,
+        api_base: editForm.api_base,
+        api_key: editForm.api_key,
+      }),
+    [editForm.provider, editForm.model, editForm.api_base, editForm.api_key]
+  );
+
+  const isValidationCurrent = useMemo(
+    () => validatedSignature !== null && validatedSignature === currentValidationSignature,
+    [validatedSignature, currentValidationSignature]
+  );
+
+  const isEditDirty = useMemo(() => {
+    const hasFieldEdits =
       editForm.name !== initialEditForm.name ||
       editForm.provider !== initialEditForm.provider ||
       editForm.model !== initialEditForm.model ||
@@ -242,18 +277,11 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       editForm.is_default !== initialEditForm.is_default ||
       editForm.evidence_enabled !== initialEditForm.evidence_enabled ||
       editForm.ai_max_edge !== initialEditForm.ai_max_edge ||
-      editForm.ai_quality !== initialEditForm.ai_quality,
-    [editForm, initialEditForm]
-  );
+      editForm.ai_quality !== initialEditForm.ai_quality;
 
-  const hasPendingValidationInputs = useMemo(
-    () =>
-      editForm.provider !== initialEditForm.provider ||
-      editForm.model !== initialEditForm.model ||
-      editForm.api_base !== initialEditForm.api_base ||
-      editForm.api_key !== "",
-    [editForm, initialEditForm]
-  );
+    const validationStateChanged = isValidationCurrent !== initialValidationState;
+    return hasFieldEdits || validationStateChanged;
+  }, [editForm, initialEditForm, isValidationCurrent, initialValidationState]);
 
   // Expose dirty state and save function when embedded
   useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
@@ -416,25 +444,36 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     }
   }
 
-  async function validateConfig(config: AiConfig) {
-    setValidatingId(config.id);
-    setValidationErrorById((current) => ({ ...current, [config.id]: undefined }));
+  async function validateConfig(configId: string) {
+    if (!editingConfig || editingConfig.id !== configId) return;
+
+    setValidatingId(configId);
+    setValidationErrorById((current) => ({ ...current, [configId]: undefined }));
     try {
       await apiRequest<{ ok: boolean; response_preview?: string }>(
-        `/api/admin/settings/ai/${config.id}/validate`,
+        `/api/admin/settings/ai/${configId}/validate-draft`,
         {
           method: "POST",
+          body: JSON.stringify({
+            provider: editForm.provider,
+            model: editForm.model,
+            api_base: editForm.api_base,
+            api_key: editForm.api_key,
+          }),
         }
       );
-      await loadConfigs({ background: true });
+      setValidatedSignature(currentValidationSignature);
+      setValidatedAtDraft(new Date().toISOString());
     } catch (err) {
       const message = err instanceof Error ? err.message : "Validation failed.";
-      setValidationErrorById((current) => ({ ...current, [config.id]: message }));
-      const detailsText = `Validation failed for ${config.name}: ${message}`;
+      setValidatedSignature(null);
+      setValidatedAtDraft(null);
+      setValidationErrorById((current) => ({ ...current, [configId]: message }));
+      const detailsText = `Validation failed for ${editingConfig.name}: ${message}`;
       toast.error("Validation failed", {
         description: (
           <div className="inline-flex items-center gap-2">
-            <span>{config.name}</span>
+            <span>{editingConfig.name}</span>
             <button
               type="button"
               onClick={() => void copyToClipboard(detailsText)}
@@ -518,14 +557,29 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       ai_max_edge: config.ai_max_edge ?? 1600,
       ai_quality: config.ai_quality ?? 85,
     };
+    const initialValidatedSignature = config.is_validated
+      ? buildValidationSignature({
+          provider: snapshot.provider,
+          model: snapshot.model,
+          api_base: snapshot.api_base,
+          api_key: "",
+        })
+      : null;
+
     setEditingId(config.id);
     setInitialEditForm(snapshot);
     setEditForm(snapshot);
+    setInitialValidationState(!!config.is_validated);
+    setValidatedSignature(initialValidatedSignature);
+    setValidatedAtDraft(config.validated_at);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setUnsavedPromptOpen(false);
+    setInitialValidationState(false);
+    setValidatedSignature(null);
+    setValidatedAtDraft(null);
   }
 
   async function handleUnsavedSave() {
@@ -569,6 +623,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           evidence_enabled: editForm.evidence_enabled,
           ai_max_edge: editForm.ai_max_edge,
           ai_quality: editForm.ai_quality,
+          validation_state: isValidationCurrent ? "validated" : "not_validated",
         }),
       });
       cancelEdit();
@@ -968,11 +1023,13 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 <div className="text-neutral-400">
                   {validatingId === editingConfig.id
                     ? "Validating..."
-                    : `Last validated ${formatRelativeTime(editingConfig.validated_at)}`}
+                    : isValidationCurrent && validatedAtDraft
+                      ? `Last validated ${formatRelativeTime(validatedAtDraft)}`
+                      : "Not validated"}
                 </div>
-                <div className="text-neutral-300 mt-1">Tested {editingConfig.model}</div>
+                <div className="text-neutral-300 mt-1">Tested {editForm.model}</div>
               </div>
-              {editingConfig.is_validated ? (
+              {isValidationCurrent ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/70 text-emerald-300 bg-emerald-950/40 text-sm font-medium">
                   <CheckCircle2 size={14} />
                   Validated
@@ -1161,14 +1218,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             deleteDisabled={savingEdit}
             extraActions={
               <button
-                onClick={() => void validateConfig(editingConfig)}
-                disabled={validatingId === editingConfig.id || hasPendingValidationInputs}
+                onClick={() => void validateConfig(editingConfig.id)}
+                disabled={validatingId === editingConfig.id}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 text-blue-300 hover:text-blue-200 hover:bg-blue-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
-                title={
-                  hasPendingValidationInputs
-                    ? "Save provider/model/API changes before validating."
-                    : undefined
-                }
               >
                 <CheckCircle2 size={14} />
                 {validatingId === editingConfig.id ? "Validating..." : "Validate"}
