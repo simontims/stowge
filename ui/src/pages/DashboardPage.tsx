@@ -632,20 +632,20 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
         <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
           <p className="text-xs text-neutral-400 flex items-center gap-1.5">
-            <HardDrive size={14} />
-            Disk space
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.disk_bytes ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Used by indexed item data</p>
-        </article>
-
-        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
             <Image size={14} />
             Assets
           </p>
           <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : (metrics?.totals.asset_count ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Image files linked to items</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Image and other files linked to items</p>
+        </article>
+
+        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
+          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+            <HardDrive size={14} />
+            Disk space
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.disk_bytes ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Used by database and assets</p>
         </article>
       </section>
 
