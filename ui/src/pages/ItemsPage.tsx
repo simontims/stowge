@@ -15,6 +15,7 @@ import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
 const DELETE_TOAST_TIMEOUT_MS = 5000;
+const ITEMS_SSE_DEBOUNCE_MS = 250;
 
 interface Part {
   id: string;
@@ -27,6 +28,12 @@ interface Part {
   created_at: string;
   thumb: string | null;
   actions?: never;
+}
+
+interface ItemsChangedEventPayload {
+  action?: string;
+  item_id?: string;
+  part_id?: string;
 }
 
 export interface PartDetail {
@@ -161,6 +168,27 @@ function renderItemNameContent(row: Part, query: string, excerptLength: number, 
   );
 }
 
+function matchesActiveCollectionFilter(part: Part, collection?: string): boolean {
+  if (!collection) return true;
+  if (collection === "__none") return !part.collection;
+  return (part.collection || "").toLowerCase() === collection.toLowerCase();
+}
+
+function matchesActiveSearch(part: Part, q?: string): boolean {
+  const term = (q || "").trim().toLowerCase();
+  if (!term) return true;
+  return [part.name, part.description || "", part.collection || "", part.location || "", part.status]
+    .some((value) => value.toLowerCase().includes(term));
+}
+
+function compareParts(a: Part, b: Part, sortKey?: ItemSortKey, sortDir?: "asc" | "desc"): number {
+  const key: ItemSortKey = sortKey && ["name", "collection", "location", "status"].includes(sortKey) ? sortKey : "name";
+  const dir = sortDir === "desc" ? -1 : 1;
+  const left = ((a[key] as string | null) || "").toLowerCase();
+  const right = ((b[key] as string | null) || "").toLowerCase();
+  return left.localeCompare(right) * dir;
+}
+
 export function ItemsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -201,6 +229,9 @@ export function ItemsPage() {
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
 
   const tableRef = useRef<HTMLTableElement>(null);
+  const skipNextItemsChangedRef = useRef(0);
+  const sseReloadTimerRef = useRef<number | null>(null);
+  const selectedPartIdRef = useRef<string | null>(null);
 
   const [windowWidth, setWindowWidth] = useState<number>(
     typeof window !== "undefined" ? window.innerWidth : MOBILE_BREAKPOINT
@@ -230,6 +261,8 @@ export function ItemsPage() {
   }, [collectionFilter]);
 
   const collectionFilterSavedRef = useRef<string | null>(null);
+  selectedPartIdRef.current = selectedPartId;
+
   useEffect(() => {
     if (collectionFilterSavedRef.current === null) {
       collectionFilterSavedRef.current = debouncedCollectionFilter;
@@ -292,8 +325,43 @@ export function ItemsPage() {
   useEffect(() => {
     const source = new EventSource("/api/events/items");
 
-    const onItemsChanged = () => {
-      void loadParts({ ...loadParamsRef.current, background: true });
+    const onItemsChanged = (event: Event) => {
+      if (skipNextItemsChangedRef.current > 0) {
+        skipNextItemsChangedRef.current -= 1;
+        return;
+      }
+
+      let payload: ItemsChangedEventPayload | null = null;
+      const message = event as MessageEvent;
+      if (typeof message.data === "string" && message.data.trim()) {
+        try {
+          payload = JSON.parse(message.data) as ItemsChangedEventPayload;
+        } catch {
+          payload = null;
+        }
+      }
+
+      const action = (payload?.action || "").toLowerCase();
+      const itemId = String(payload?.item_id || payload?.part_id || "").trim();
+
+      if (action === "deleted" && itemId) {
+        setParts((current) => current.filter((part) => part.id !== itemId));
+        setSelectedPartId((current) => (current === itemId ? null : current));
+        setSelectedPart((current) => (current?.id === itemId ? null : current));
+        if (selectedPartIdRef.current === itemId) {
+          setDetailLoading(false);
+          setDetailError("This item was deleted in another session.");
+        }
+        return;
+      }
+
+      if (sseReloadTimerRef.current !== null) {
+        window.clearTimeout(sseReloadTimerRef.current);
+      }
+      sseReloadTimerRef.current = window.setTimeout(() => {
+        sseReloadTimerRef.current = null;
+        void loadParts({ ...loadParamsRef.current, background: true });
+      }, ITEMS_SSE_DEBOUNCE_MS);
     };
 
     source.addEventListener("items_changed", onItemsChanged);
@@ -302,6 +370,9 @@ export function ItemsPage() {
     };
 
     return () => {
+      if (sseReloadTimerRef.current !== null) {
+        window.clearTimeout(sseReloadTimerRef.current);
+      }
       source.removeEventListener("items_changed", onItemsChanged);
       source.close();
     };
@@ -357,6 +428,7 @@ export function ItemsPage() {
     const partName = parts.find((part) => part.id === partId)?.name ?? "Item";
     try {
       await apiRequest(`/api/items/${partId}`, { method: "DELETE" });
+      skipNextItemsChangedRef.current += 1;
       setParts((current) => current.filter((part) => part.id !== partId));
       showDeletedToast(partId, partName);
       return true;
@@ -374,6 +446,7 @@ export function ItemsPage() {
     setDeletingPartFromModal(true);
     try {
       await apiRequest(`/api/items/${selectedPartId}`, { method: "DELETE" });
+      skipNextItemsChangedRef.current += 1;
       setParts((current) => current.filter((part) => part.id !== selectedPartId));
       showDeletedToast(selectedPartId, partName);
       closeModalNow();
@@ -387,9 +460,41 @@ export function ItemsPage() {
   async function undoDelete(itemId: string, itemName: string) {
     setDeleteError("");
     try {
-      await apiRequest(`/api/items/${itemId}/restore`, { method: "POST" });
+      const restored = await apiRequest<{ ok: boolean; item?: Part }>(`/api/items/${itemId}/restore`, { method: "POST" });
+      skipNextItemsChangedRef.current += 1;
       toast.success("Item restored", { description: itemName });
-      await loadParts({ ...loadParamsRef.current, background: true });
+
+      const restoredItem = restored?.item;
+      const params = loadParamsRef.current;
+
+      if (!restoredItem) {
+        await loadParts({ ...params, background: true });
+        return;
+      }
+
+      const matchesView =
+        matchesActiveCollectionFilter(restoredItem, params.collection) &&
+        matchesActiveSearch(restoredItem, params.q);
+
+      setParts((current) => {
+        const withoutExisting = current.filter((part) => part.id !== restoredItem.id);
+
+        if (!matchesView) {
+          return withoutExisting;
+        }
+
+        const next = [...withoutExisting, restoredItem];
+        next.sort((a, b) => compareParts(a, b, params.sortKey, params.sortDir));
+        return next.slice(0, 200);
+      });
+
+      if (matchesView) {
+        void openPartModal(restoredItem.id);
+        requestAnimationFrame(() => {
+          const el = tableRef.current?.querySelector<HTMLTableRowElement>(`[data-row-id="${restoredItem.id}"]`);
+          el?.scrollIntoView({ block: "nearest" });
+        });
+      }
     } catch (err) {
       setDeleteError((err as Error).message || "Failed to restore item.");
       toast.error("Unable to restore item");
@@ -465,12 +570,14 @@ export function ItemsPage() {
             quantity: editForm.quantity,
           }),
         });
+        skipNextItemsChangedRef.current += 1;
       }
 
       if (imageDirty) {
         const desiredPrimary = draftImages.find((img) => img.is_primary)?.id || null;
         if (desiredPrimary) {
           await apiRequest(`/api/images/${desiredPrimary}/set-primary`, { method: "POST" });
+          skipNextItemsChangedRef.current += 1;
         }
       }
 

@@ -2650,8 +2650,14 @@ def restore_part(part_id: str, db: Session = Depends(get_db), me: User = Depends
     p.updated_at = datetime.now(timezone.utc)
     db.commit()
 
+    location_name = None
+    if p.location_id:
+        location = db.query(Location.id, Location.name).filter(Location.id == p.location_id).first()
+        if location:
+            _loc_id, location_name = location
+
     _publish_inventory_change("created", part_id)
-    return {"ok": True}
+    return {"ok": True, "item": _serialize_part_list(p, location_name=location_name)}
 
 @app.post("/api/parts/{part_id}/rescan")
 @app.post("/api/items/{part_id}/rescan")
