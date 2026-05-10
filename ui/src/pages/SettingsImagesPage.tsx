@@ -22,6 +22,23 @@ const DEFAULTS: ImageSettingsData = {
   thumb_quality: 70,
 };
 
+function recommendedQuality(format: ImageSettingsData["output_format"]): number {
+  return format === "webp" ? 80 : 85;
+}
+
+function qualityTip(format: ImageSettingsData["output_format"]): string {
+  if (format === "webp") {
+    return "80 recommended for WebP. Values over 85 are probably unecessary.";
+  }
+  return "85 recommended for JPG. Below 75 can introduces visible artefacts, above 90 increases file size with little visible benefit.";
+}
+
+function sanitizeQuality(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+  return Math.min(100, Math.trunc(parsed));
+}
+
 interface ImagesSectionProps {
   embedded?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -71,10 +88,15 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
     setSaving(true);
     setError("");
     setNotice("");
+    const payload: ImageSettingsData = {
+      ...form,
+      display_quality: sanitizeQuality(form.display_quality),
+      thumb_quality: sanitizeQuality(form.thumb_quality),
+    };
     try {
       const data = await apiRequest<ImageSettingsData>("/api/admin/settings/images", {
         method: "PATCH",
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       setSaved(data);
       setForm(data);
@@ -101,6 +123,16 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
     form.thumb_max_edge,
     (v) => field("thumb_max_edge", v),
     { min: 64, max: 1024, fallback: 360 },
+  );
+  const displayQualityField = useNumericField(
+    form.display_quality,
+    (v) => field("display_quality", v),
+    { min: 0, max: 100, fallback: 1 },
+  );
+  const thumbQualityField = useNumericField(
+    form.thumb_quality,
+    (v) => field("thumb_quality", v),
+    { min: 0, max: 100, fallback: 1 },
   );
 
   if (loading) return <p className="text-sm text-neutral-500">Loading…</p>;
@@ -133,7 +165,12 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
                     name="output_format"
                     value={fmt}
                     checked={form.output_format === fmt}
-                    onChange={() => field("output_format", fmt)}
+                    onChange={() => setForm((f) => ({
+                      ...f,
+                      output_format: fmt,
+                      display_quality: recommendedQuality(fmt),
+                      thumb_quality: recommendedQuality(fmt),
+                    }))}
                     className="accent-neutral-400"
                   />
                   <span className="text-sm text-neutral-300">{fmt === "jpg" ? "JPG" : "WebP"}</span>
@@ -185,20 +222,15 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-neutral-400">Quality</span>
-                <span className="text-sm text-neutral-200 tabular-nums">{form.display_quality}</span>
               </div>
               <input
-                type="range"
-                min={1}
+                type="number"
+                min={0}
                 max={100}
-                value={form.display_quality}
-                onChange={(e) => field("display_quality", parseInt(e.target.value, 10))}
-                className="mt-1 w-full accent-neutral-400"
+                {...displayQualityField}
+                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
-              <div className="mt-1 flex justify-between text-xs text-neutral-600">
-                <span>Lower</span>
-                <span>Higher</span>
-              </div>
+              <p className="mt-1 text-xs text-neutral-600">{qualityTip(form.output_format)}</p>
             </div>
           </div>
 
@@ -222,20 +254,15 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-neutral-400">Quality</span>
-                <span className="text-sm text-neutral-200 tabular-nums">{form.thumb_quality}</span>
               </div>
               <input
-                type="range"
-                min={1}
+                type="number"
+                min={0}
                 max={100}
-                value={form.thumb_quality}
-                onChange={(e) => field("thumb_quality", parseInt(e.target.value, 10))}
-                className="mt-1 w-full accent-neutral-400"
+                {...thumbQualityField}
+                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
-              <div className="mt-1 flex justify-between text-xs text-neutral-600">
-                <span>Lower</span>
-                <span>Higher</span>
-              </div>
+              <p className="mt-1 text-xs text-neutral-600">{qualityTip(form.output_format)}</p>
             </div>
           </div>
 

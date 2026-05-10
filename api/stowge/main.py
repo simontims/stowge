@@ -2246,8 +2246,13 @@ def update_image_settings(payload: dict, db: Session = Depends(get_db), me: User
             raise HTTPException(status_code=400, detail="display_max_edge must be 256-8192")
         row.display_max_edge = v
     if "display_quality" in payload:
-        v = int(payload["display_quality"])
-        if not (1 <= v <= 100):
+        try:
+            raw = payload["display_quality"]
+            v = int(raw) if raw is not None and str(raw).strip() != "" else 1
+        except (TypeError, ValueError):
+            v = 1
+        v = max(1, v)
+        if v > 100:
             raise HTTPException(status_code=400, detail="display_quality must be 1-100")
         row.display_quality = v
     if "thumb_max_edge" in payload:
@@ -2256,8 +2261,13 @@ def update_image_settings(payload: dict, db: Session = Depends(get_db), me: User
             raise HTTPException(status_code=400, detail="thumb_max_edge must be 64-1024")
         row.thumb_max_edge = v
     if "thumb_quality" in payload:
-        v = int(payload["thumb_quality"])
-        if not (1 <= v <= 100):
+        try:
+            raw = payload["thumb_quality"]
+            v = int(raw) if raw is not None and str(raw).strip() != "" else 1
+        except (TypeError, ValueError):
+            v = 1
+        v = max(1, v)
+        if v > 100:
             raise HTTPException(status_code=400, detail="thumb_quality must be 1-100")
         row.thumb_quality = v
 
