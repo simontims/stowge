@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNumericField } from "../hooks/useNumericField";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
@@ -91,6 +92,17 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
     setNotice("");
   }
 
+  const displayMaxEdgeField = useNumericField(
+    form.display_max_edge,
+    (v) => field("display_max_edge", v),
+    { min: 256, max: 8192, fallback: 2048 },
+  );
+  const thumbMaxEdgeField = useNumericField(
+    form.thumb_max_edge,
+    (v) => field("thumb_max_edge", v),
+    { min: 64, max: 1024, fallback: 360 },
+  );
+
   if (loading) return <p className="text-sm text-neutral-500">Loading…</p>;
 
   return (
@@ -164,8 +176,7 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
                 min={256}
                 max={8192}
                 step={1}
-                value={form.display_max_edge}
-                onChange={(e) => field("display_max_edge", Math.max(256, Math.min(8192, parseInt(e.target.value, 10) || 2048)))}
+                {...displayMaxEdgeField}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
               <p className="mt-1 text-xs text-neutral-600">Longest edge, 256–8192 px.</p>
@@ -202,8 +213,7 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
                 min={64}
                 max={1024}
                 step={1}
-                value={form.thumb_max_edge}
-                onChange={(e) => field("thumb_max_edge", Math.max(64, Math.min(1024, parseInt(e.target.value, 10) || 360)))}
+                {...thumbMaxEdgeField}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
               <p className="mt-1 text-xs text-neutral-600">Longest edge, 64–1024 px.</p>

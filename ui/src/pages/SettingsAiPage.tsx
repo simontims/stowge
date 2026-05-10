@@ -6,6 +6,7 @@ import { ListToolbar } from "../components/ui/ListToolbar";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
+import { useNumericField } from "../hooks/useNumericField";
 
 interface AiConfig {
   id: string;
@@ -198,6 +199,27 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [initialValidationState, setInitialValidationState] = useState(false);
   const [validatedSignature, setValidatedSignature] = useState<string | null>(null);
   const [validatedAtDraft, setValidatedAtDraft] = useState<string | null>(null);
+
+  const newMaxEdgeField = useNumericField(
+    form.ai_max_edge,
+    (v) => setForm((f) => ({ ...f, ai_max_edge: v })),
+    { min: 64, max: 4096, fallback: 1600 },
+  );
+  const newQualityField = useNumericField(
+    form.ai_quality,
+    (v) => setForm((f) => ({ ...f, ai_quality: v })),
+    { min: 1, max: 100, fallback: 85 },
+  );
+  const editMaxEdgeField = useNumericField(
+    editForm.ai_max_edge,
+    (v) => setEditForm((f) => ({ ...f, ai_max_edge: v })),
+    { min: 64, max: 4096, fallback: 1600 },
+  );
+  const editQualityField = useNumericField(
+    editForm.ai_quality,
+    (v) => setEditForm((f) => ({ ...f, ai_quality: v })),
+    { min: 1, max: 100, fallback: 85 },
+  );
 
   const filteredConfigs = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -785,8 +807,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                         type="number"
                         min={64}
                         max={4096}
-                        value={form.ai_max_edge}
-                        onChange={(e) => setForm((v) => ({ ...v, ai_max_edge: Math.max(64, Math.min(4096, parseInt(e.target.value, 10) || 1600)) }))}
+                        {...newMaxEdgeField}
                         className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                       />
                       <p className="mt-1 text-xs text-neutral-600">Max pixel edge sent to AI. Recommended: 1600.</p>
@@ -797,8 +818,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                         type="number"
                         min={1}
                         max={100}
-                        value={form.ai_quality}
-                        onChange={(e) => setForm((v) => ({ ...v, ai_quality: Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 85)) }))}
+                        {...newQualityField}
                         className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                       />
                       <p className="mt-1 text-xs text-neutral-600">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>
@@ -1185,8 +1205,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                         type="number"
                         min={64}
                         max={4096}
-                        value={editForm.ai_max_edge}
-                        onChange={(e) => setEditForm((v) => ({ ...v, ai_max_edge: Math.max(64, Math.min(4096, parseInt(e.target.value, 10) || 1600)) }))}
+                        {...editMaxEdgeField}
                         className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                       />
                       <p className="mt-1 text-xs text-neutral-600">Max pixel edge sent to AI. Recommended: 1600.</p>
@@ -1197,8 +1216,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                         type="number"
                         min={1}
                         max={100}
-                        value={editForm.ai_quality}
-                        onChange={(e) => setEditForm((v) => ({ ...v, ai_quality: Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 85)) }))}
+                        {...editQualityField}
                         className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                       />
                       <p className="mt-1 text-xs text-neutral-600">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>

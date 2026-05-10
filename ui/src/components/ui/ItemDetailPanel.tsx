@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Save, Trash2, X, ChevronLeft, ChevronRight, Star, Pencil } from "lucide-react";
+import { useNumericField } from "../../hooks/useNumericField";
 import { useNavigate } from "react-router-dom";
 import type { PartDetail, PartEditForm, LocationOption, CollectionOption } from "../../pages/ItemsPage";
 
@@ -43,6 +44,11 @@ export function ItemDetailPanel({
   const navigate = useNavigate();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [settingPrimary, setSettingPrimary] = useState(false);
+  const quantityField = useNumericField(
+    editForm.quantity,
+    (v) => onEditChange({ ...editForm, quantity: v }),
+    { min: 0, fallback: 0 },
+  );
 
   // Reset to primary image whenever a different item is selected
   useEffect(() => {
@@ -260,11 +266,8 @@ export function ItemDetailPanel({
                   <span className="text-xs text-neutral-500 uppercase tracking-wide">Quantity</span>
                   <input
                     type="number"
-                    min={1}
-                    value={editForm.quantity}
-                    onChange={(event) =>
-                      onEditChange({ ...editForm, quantity: Math.max(1, parseInt(event.target.value) || 1) })
-                    }
+                    min={0}
+                    {...quantityField}
                     className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
                   />
                 </label>

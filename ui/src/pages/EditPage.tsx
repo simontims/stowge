@@ -16,6 +16,7 @@ import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
+import { useNumericField } from "../hooks/useNumericField";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -272,6 +273,11 @@ export function EditPage() {
 
   const [form, setForm] = useState<EditForm>({ name: "", description: "", collection: "", location_id: "", status: "draft", quantity: 1 });
   const [initialForm, setInitialForm] = useState<EditForm>({ name: "", description: "", collection: "", location_id: "", status: "draft", quantity: 1 });
+  const formQuantityField = useNumericField(
+    form.quantity,
+    (v) => setForm((f) => ({ ...f, quantity: v })),
+    { min: 0, fallback: 0 },
+  );
 
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
@@ -909,9 +915,8 @@ export function EditPage() {
                 <span className="text-xs text-neutral-500 uppercase tracking-wide">Quantity</span>
                 <input
                   type="number"
-                  min={1}
-                  value={form.quantity}
-                  onChange={(e) => setForm((f) => ({ ...f, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  min={0}
+                  {...formQuantityField}
                   className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
                 />
               </label>

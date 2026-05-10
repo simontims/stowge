@@ -2396,7 +2396,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
         collection=collection,
         location_id=normalized_location_id,
         status=status,
-        quantity=max(1, int(payload.get("quantity") or 1)),
+        quantity=max(0, int(payload.get("quantity") or 0)),
         ai_primary=payload.get("ai_primary"),
         ai_alternatives=payload.get("ai_alternatives"),
         ai_chosen_index=payload.get("ai_chosen_index"),
@@ -2586,9 +2586,9 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
 
     if "quantity" in payload:
         try:
-            p.quantity = max(1, int(payload["quantity"]))
+            p.quantity = max(0, int(payload["quantity"]))
         except (TypeError, ValueError):
-            raise HTTPException(status_code=400, detail="quantity must be a positive integer")
+            raise HTTPException(status_code=400, detail="quantity must be a non-negative integer")
 
     if "collection" in payload:
         raw_collection = payload.get("collection")

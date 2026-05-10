@@ -240,18 +240,22 @@ function IconPicker({
 
   function select(name: string) {
     onChange(name);
-    close();
+    // Don't close — let user refine color or click Done
   }
 
   function applyColor() {
     onColorChange(draftColor);
+    // Don't close — let user click Done to finalize
+  }
+
+  function done() {
     close();
   }
 
   function removeColor() {
     setDraftColor("");
     onColorChange("");
-    close();
+    // Don't close — let user click Done to finalize
   }
 
   const isLoading = open && !catalogue;
@@ -349,24 +353,15 @@ function IconPicker({
                     onChange={(c) => setDraftColor(c.hex)}
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                {color && (
                   <button
                     type="button"
-                    onClick={applyColor}
-                    className="text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-md transition-colors"
+                    onClick={removeColor}
+                    className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
                   >
-                    Done
+                    Remove colour
                   </button>
-                  {color && (
-                    <button
-                      type="button"
-                      onClick={removeColor}
-                      className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
-                    >
-                      Remove colour
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             )}
 
@@ -384,8 +379,8 @@ function IconPicker({
               />
             </div>
 
-            {/* Body */}
-            <div className="overflow-y-auto p-3 flex-1">
+            {/* Body — fixed height to prevent modal jumping */}
+            <div className="h-96 overflow-y-auto p-3 flex-shrink-0">
               {isLoading ? (
                 <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
                   Loading icons…

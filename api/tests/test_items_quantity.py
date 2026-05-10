@@ -2,13 +2,13 @@
 Tests for the quantity field on items.
 
 Covers:
-  - POST /api/items  — quantity defaults to 1 when omitted
+  - POST /api/items  — quantity defaults to 0 when omitted
   - POST /api/items  — explicit quantity is stored
-  - POST /api/items  — quantity < 1 is clamped to 1
+  - POST /api/items  — quantity < 0 is clamped to 0
   - GET  /api/items        — quantity present in list response
   - GET  /api/items/{id}   — quantity present in detail response
   - PATCH /api/items/{id}  — quantity can be updated
-  - PATCH /api/items/{id}  — quantity < 1 rejected with 400
+  - PATCH /api/items/{id}  — quantity < 0 is clamped to 0
   - PATCH /api/items/{id}  — non-integer quantity rejected with 400
 """
 from conftest import auth_cookies, client
@@ -36,21 +36,21 @@ class TestQuantityCreate:
     def setup_method(self):
         self.cookies = auth_cookies("qty_test@example.com", role="admin")
 
-    def test_default_quantity_is_one(self):
+    def test_default_quantity_is_zero(self):
         item = _create_item(self.cookies)
-        assert item["quantity"] == 1
+        assert item["quantity"] == 0
 
     def test_explicit_quantity_stored(self):
         item = _create_item(self.cookies, quantity=5)
         assert item["quantity"] == 5
 
-    def test_zero_quantity_clamped_to_one(self):
+    def test_zero_quantity_stored(self):
         item = _create_item(self.cookies, quantity=0)
-        assert item["quantity"] == 1
+        assert item["quantity"] == 0
 
-    def test_negative_quantity_clamped_to_one(self):
+    def test_negative_quantity_clamped_to_zero(self):
         item = _create_item(self.cookies, quantity=-3)
-        assert item["quantity"] == 1
+        assert item["quantity"] == 0
 
 
 class TestQuantityRead:
@@ -88,7 +88,7 @@ class TestQuantityUpdate:
         r2 = client.get(f"/api/items/{item['id']}", cookies=self.cookies)
         assert r2.json()["quantity"] == 10
 
-    def test_patch_zero_quantity_clamped_to_one(self):
+    def test_patch_zero_quantity_stored(self):
         item = _create_item(self.cookies, quantity=5)
         r = client.patch(
             f"/api/items/{item['id']}",
@@ -97,9 +97,9 @@ class TestQuantityUpdate:
         )
         assert r.status_code == 200
         r2 = client.get(f"/api/items/{item['id']}", cookies=self.cookies)
-        assert r2.json()["quantity"] == 1
+        assert r2.json()["quantity"] == 0
 
-    def test_patch_negative_quantity_clamped_to_one(self):
+    def test_patch_negative_quantity_clamped_to_zero(self):
         item = _create_item(self.cookies, quantity=5)
         r = client.patch(
             f"/api/items/{item['id']}",
@@ -108,7 +108,7 @@ class TestQuantityUpdate:
         )
         assert r.status_code == 200
         r2 = client.get(f"/api/items/{item['id']}", cookies=self.cookies)
-        assert r2.json()["quantity"] == 1
+        assert r2.json()["quantity"] == 0
 
     def test_patch_non_integer_quantity_returns_400(self):
         item = _create_item(self.cookies)
@@ -129,6 +129,40 @@ class TestQuantityUpdate:
         assert r.status_code == 200
         r2 = client.get(f"/api/items/{item['id']}", cookies=self.cookies)
         assert r2.json()["quantity"] == 4
+
+    def test_zero_quantity_persists_in_detail_response(self):
+        item = _create_item(self.cookies, name="Zero Qty Detail", quantity=0)
+        assert item["quantity"] == 0
+        r = client.get(f"/api/items/{item['id']}", cookies=self.cookies)
+        assert r.status_code == 200
+        assert r.json()["quantity"] == 0
+
+    def test_zero_quantity_persists_in_list_response(self):
+        item = _create_item(self.cookies, name="Zero Qty List", quantity=0)
+        assert item["quantity"] == 0
+        r = client.get("/api/items", cookies=self.cookies)
+        assert r.status_code == 200
+        items = r.json()
+        match = next((i for i in items if i["name"] == "Zero Qty List"), None)
+        assert match is not None
+        assert match["quantity"] == 0
+
+    def test_update_to_zero_quantity_persists(self):
+        item = _create_item(self.cookies, name="Update to Zero", quantity=5)
+        r = client.patch(
+            f"/api/items/{item['id']}",
+            json={"quantity": 0},
+            cookies=self.cookies,
+        )
+        assert r.status_code == 200
+        # Verify in detail response
+        r2 = client.get(f"/api/items/{item['id']}", cookies=self.cookies)
+        assert r2.json()["quantity"] == 0
+        # Verify in list response
+        r3 = client.get("/api/items", cookies=self.cookies)
+        match = next((i for i in r3.json() if i["name"] == "Update to Zero"), None)
+        assert match is not None
+        assert match["quantity"] == 0
 
 
 class TestItemNameValidation:

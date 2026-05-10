@@ -13,6 +13,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
+import { useNumericField } from "../hooks/useNumericField";
 import { useCurrentUser } from "../lib/UserContext";
 
 interface IdentifyCandidate {
@@ -191,6 +192,11 @@ export function AddPage() {
     status: "draft",
     quantity: 1,
   });
+  const draftQuantityField = useNumericField(
+    draft.quantity,
+    (v) => setDraft((d) => ({ ...d, quantity: v })),
+    { min: 0, fallback: 0 },
+  );
   const [collections, setCollections] = useState<CollectionOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   // Session-level persistent context — survives Save / Discard
@@ -731,9 +737,8 @@ export function AddPage() {
                 <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Quantity</label>
                 <input
                   type="number"
-                  min={1}
-                  value={draft.quantity}
-                  onChange={(e) => setDraft((d) => ({ ...d, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  min={0}
+                  {...draftQuantityField}
                   className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                 />
               </div>
