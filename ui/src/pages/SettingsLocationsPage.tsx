@@ -7,6 +7,7 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { DeleteTransferModal } from "../components/ui/DeleteTransferModal";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
+import { useTableSort } from "../hooks/useTableSort";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
@@ -49,8 +50,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<LocationSortKey>("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const { sortKey, sortDirection, handleSort } = useTableSort<LocationSortKey>("name");
 
   const [addingOpen, setAddingOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -299,15 +299,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     setDeleteStep("confirm");
     setDeleteProgress([]);
     setDeleteMoveToId("");
-  }
-
-  function handleSort(nextKey: LocationSortKey) {
-    if (sortKey === nextKey) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortKey(nextKey);
-    setSortDirection("asc");
   }
 
   const filtered = useMemo(() => {

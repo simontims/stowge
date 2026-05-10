@@ -10,6 +10,7 @@ import { DeleteActionButton } from "../components/ui/DeleteControls";
 import { DeleteTransferModal } from "../components/ui/DeleteTransferModal";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
+import { useTableSort } from "../hooks/useTableSort";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
@@ -669,8 +670,7 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<CollectionSortKey>("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const { sortKey, sortDirection, handleSort } = useTableSort<CollectionSortKey>("name");
 
   const [addingOpen, setAddingOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -925,15 +925,6 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
     setDeleteStep("confirm");
     setDeleteProgress([]);
     setDeleteMoveToId("");
-  }
-
-  function handleSort(nextKey: CollectionSortKey) {
-    if (sortKey === nextKey) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortKey(nextKey);
-    setSortDirection("asc");
   }
 
   function openCollectionItems(collection: CollectionListRow) {

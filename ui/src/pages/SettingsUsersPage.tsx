@@ -4,7 +4,8 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
-import { solidActionButtonClasses } from "../components/ui/buttonStyles";
+import { solidActionButtonClasses, tableActionButtonClasses } from "../components/ui/buttonStyles";
+import { useTableSort } from "../hooks/useTableSort";
 import { apiRequest } from "../lib/api";
 import { useCurrentUser } from "../lib/UserContext";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
@@ -61,8 +62,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<UserRecord | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addingOpen, setAddingOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<UserSortKey>("email");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const { sortKey, sortDirection, handleSort } = useTableSort<UserSortKey>("email");
 
   const currentUser = useCurrentUser();
   const currentUserId = currentUser.id;
@@ -116,15 +116,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   // Expose dirty state and save function when embedded
   useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
   if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
-
-  function handleSort(nextKey: UserSortKey) {
-    if (sortKey === nextKey) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortKey(nextKey);
-    setSortDirection("asc");
-  }
 
   const columns = useMemo<Column<UserRecord>[]>(
     () => [
@@ -512,7 +503,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                   <div className="inline-flex items-center gap-2">
                     <button
                       onClick={() => startEdit(user)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                      className={tableActionButtonClasses("neutral")}
                     >
                       <Edit3 size={13} />
                       Edit
@@ -523,7 +514,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                         setConfirmDeleteUser(user);
                       }}
                       disabled={isDeleting || isCurrentUser}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className={tableActionButtonClasses("danger-hover")}
                       title={isCurrentUser ? "You cannot delete your own account" : "Delete user"}
                     >
                       <Trash2 size={13} />

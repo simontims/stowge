@@ -5,7 +5,8 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
-import { solidActionButtonClasses } from "../components/ui/buttonStyles";
+import { solidActionButtonClasses, tableActionButtonClasses } from "../components/ui/buttonStyles";
+import { useTableSort } from "../hooks/useTableSort";
 import { apiRequest } from "../lib/api";
 import { useNumericField } from "../hooks/useNumericField";
 
@@ -159,8 +160,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<NewConfigForm>(EMPTY_FORM);
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<AiSortKey>("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const { sortKey, sortDirection, handleSort } = useTableSort<AiSortKey>("name");
 
   const [advancedAddOpen, setAdvancedAddOpen] = useState(false);
   const [advancedEditOpen, setAdvancedEditOpen] = useState(false);
@@ -262,15 +262,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     [editingProviderKey]
   );
   const showListView = !addingOpen && !editingId;
-
-  function handleSort(nextKey: AiSortKey) {
-    if (sortKey === nextKey) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortKey(nextKey);
-    setSortDirection("asc");
-  }
 
   const columns = useMemo<Column<AiConfig>[]>(
     () => [
@@ -910,7 +901,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 <div className="inline-flex items-center gap-2">
                   <button
                     onClick={() => startEdit(cfg)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                    className={tableActionButtonClasses("neutral")}
                   >
                     <Edit3 size={13} />
                     Edit
@@ -918,7 +909,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   <button
                     onClick={() => setConfirmDeleteConfig(cfg)}
                     disabled={isDeleting}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className={tableActionButtonClasses("danger-hover")}
                   >
                     <Trash2 size={13} />
                     {isDeleting ? "Deleting..." : "Delete"}
