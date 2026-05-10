@@ -37,6 +37,33 @@ function TestComponent({
   );
 }
 
+function ExternalValueComponent({
+  value,
+  min,
+  max,
+  fallback,
+  integer = true,
+}: {
+  value: number;
+  min?: number;
+  max?: number;
+  fallback: number;
+  integer?: boolean;
+}) {
+  const field = useNumericField(value, () => {}, { min, max, fallback, integer });
+
+  return (
+    <div>
+      <input
+        type="number"
+        data-testid="numeric-input"
+        {...field}
+        aria-label="test-input"
+      />
+    </div>
+  );
+}
+
 describe("useNumericField", () => {
   describe("onChange behavior", () => {
     it("allows user to clear the field without snapping back", async () => {
@@ -199,8 +226,8 @@ describe("useNumericField", () => {
   describe("external value changes", () => {
     it("syncs raw display when committed value changes externally", async () => {
       const { rerender } = render(
-        <TestComponent
-          initialValue={10}
+        <ExternalValueComponent
+          value={10}
           min={0}
           max={100}
           fallback={0}
@@ -212,8 +239,8 @@ describe("useNumericField", () => {
 
       // Re-render with different value (simulating external change, like form reset)
       rerender(
-        <TestComponent
-          initialValue={50}
+        <ExternalValueComponent
+          value={50}
           min={0}
           max={100}
           fallback={0}
