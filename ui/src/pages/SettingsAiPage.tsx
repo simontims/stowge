@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Brain, CheckCircle2, Circle, Copy, Edit3, Loader2, Plus, Save, Star, Trash2 } from "lucide-react";
+import { Brain, CheckCircle2, Circle, Copy, Edit3, Loader2, Plus, Save, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
+import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
@@ -75,7 +76,7 @@ interface EditConfigForm {
   ai_quality: number;
 }
 
-type AiSortKey = "name" | "provider" | "model" | "validated";
+type AiSortKey = "name" | "provider" | "model" | "is_validated";
 
 const EMPTY_FORM: NewConfigForm = {
   name: "",
@@ -165,7 +166,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [advancedEditOpen, setAdvancedEditOpen] = useState(false);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
   const [validationErrorById, setValidationErrorById] = useState<Record<string, string | undefined>>({});
   const [providerLogoFailedByProvider, setProviderLogoFailedByProvider] = useState<Record<string, boolean>>({});
@@ -231,16 +231,15 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
         c.model.toLowerCase().includes(term)
     );
   }, [configs, search]);
-  const hasConfigs = useMemo(() => configs.length > 0, [configs]);
   const sortedFilteredConfigs = useMemo(() => {
     const direction = sortDirection === "asc" ? 1 : -1;
     const rows = [...filteredConfigs];
     rows.sort((a, b) => {
       let comparison = 0;
-      if (sortKey === "validated") {
+      if (sortKey === "is_validated") {
         comparison = Number(a.is_validated) - Number(b.is_validated);
       } else {
-        comparison = a[sortKey].localeCompare(b[sortKey], undefined, { sensitivity: "base" });
+        comparison = String(a[sortKey]).localeCompare(String(b[sortKey]), undefined, { sensitivity: "base" });
       }
       return comparison * direction;
     });
@@ -272,6 +271,51 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     setSortKey(nextKey);
     setSortDirection("asc");
   }
+
+  const columns = useMemo<Column<AiConfig>[]>(
+    () => [
+      {
+        key: "name",
+        header: "Name",
+        sortable: true,
+        render: (row) => (
+          <div className="inline-flex items-center gap-2">
+            <span>{row.name}</span>
+            {row.is_default && (
+              <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-emerald-600 text-emerald-700 bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:bg-emerald-950/40">
+                <Star size={11} />
+                Default
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "provider",
+        header: "Provider",
+        sortable: true,
+        render: (row) => <span className="text-neutral-300">{row.provider}</span>,
+      },
+      {
+        key: "model",
+        header: "Model",
+        sortable: true,
+        render: (row) => <span className="text-neutral-300">{row.model}</span>,
+      },
+      {
+        key: "is_validated",
+        header: "Validated",
+        sortable: true,
+        render: (row) =>
+          row.is_validated ? (
+            <CheckCircle2 size={16} className="text-emerald-400" aria-label="Validated" />
+          ) : (
+            <Circle size={16} className="text-neutral-500" aria-label="Not validated" />
+          ),
+      },
+    ],
+    [defaultId]
+  );
 
   const currentValidationSignature = useMemo(
     () =>
@@ -445,24 +489,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       setError((err as Error).message || "Failed to add AI model configuration.");
     } finally {
       setCreating(false);
-    }
-  }
-
-  async function setDefault(config: AiConfig) {
-    if (config.id === defaultId) return;
-    setError("");
-    setNotice("");
-    setSettingDefaultId(config.id);
-    try {
-      await apiRequest(`/api/admin/settings/ai/${config.id}/default`, {
-        method: "POST",
-      });
-      setNotice(`Default AI model set to ${config.name}.`);
-      await loadConfigs();
-    } catch (err) {
-      setError((err as Error).message || "Failed to set default AI model.");
-    } finally {
-      setSettingDefaultId(null);
     }
   }
 
@@ -874,144 +900,47 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       )}
 
       {showListView && (
-      <section className="rounded-lg border border-neutral-800 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-neutral-900 border-b border-neutral-800">
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+        <DataTable
+          columns={columns}
+          actions={{
+            header: "",
+            render: (cfg) => {
+              const isDeleting = deletingId === cfg.id;
+              return (
+                <div className="inline-flex items-center gap-2">
                   <button
-                    type="button"
-                    onClick={() => handleSort("name")}
-                    className="inline-flex items-center gap-1 hover:text-neutral-300"
+                    onClick={() => startEdit(cfg)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
                   >
-                    Name
-                    <ArrowUpDown size={12} className={sortKey === "name" ? "text-neutral-300" : "text-neutral-600"} />
+                    <Edit3 size={13} />
+                    Edit
                   </button>
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   <button
-                    type="button"
-                    onClick={() => handleSort("provider")}
-                    className="inline-flex items-center gap-1 hover:text-neutral-300"
+                    onClick={() => setConfirmDeleteConfig(cfg)}
+                    disabled={isDeleting}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Provider
-                    <ArrowUpDown size={12} className={sortKey === "provider" ? "text-neutral-300" : "text-neutral-600"} />
+                    <Trash2 size={13} />
+                    {isDeleting ? "Deleting..." : "Delete"}
                   </button>
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("model")}
-                    className="inline-flex items-center gap-1 hover:text-neutral-300"
-                  >
-                    Model
-                    <ArrowUpDown size={12} className={sortKey === "model" ? "text-neutral-300" : "text-neutral-600"} />
-                  </button>
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("validated")}
-                    className="inline-flex items-center gap-1 hover:text-neutral-300"
-                  >
-                    Validated
-                    <ArrowUpDown size={12} className={sortKey === "validated" ? "text-neutral-300" : "text-neutral-600"} />
-                  </button>
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
-              {error ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-neutral-500">
-                    {error}
-                  </td>
-                </tr>
-              ) : !hasConfigs ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-neutral-600">
-                    {loading ? "Loading AI models..." : "No AI models configured yet."}
-                  </td>
-                </tr>
-              ) : (
-                sortedFilteredConfigs.map((cfg) => {
-                  const isDefault = cfg.id === defaultId;
-                  const isDeleting = deletingId === cfg.id;
-                  const isSettingDefault = settingDefaultId === cfg.id;
-                  const isValidated = cfg.is_validated;
-                  return (
-                    <tr key={cfg.id} className="hover:bg-neutral-900/60 transition-colors">
-                      <td className="px-4 py-2.5 text-neutral-200">
-                        <div className="inline-flex items-center gap-2">
-                          <span>{cfg.name}</span>
-                          {isDefault && (
-                            <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-emerald-600 text-emerald-700 bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:bg-emerald-950/40">
-                              <Star size={11} />
-                              Default
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-neutral-300">{cfg.provider}</td>
-                      <td className="px-4 py-2.5 text-neutral-300">{cfg.model}</td>
-                      <td className="px-4 py-2.5">
-                        {isValidated ? (
-                          <CheckCircle2
-                            size={16}
-                            className="text-emerald-400"
-                            aria-label="Validated"
-                          />
-                        ) : (
-                          <Circle
-                            size={16}
-                            className="text-neutral-500"
-                            aria-label="Not validated"
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            onClick={() => startEdit(cfg)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-                          >
-                            <Edit3 size={13} />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => void setDefault(cfg)}
-                            disabled={isDefault || isSettingDefault}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            <Star size={13} />
-                            {isSettingDefault ? "Setting..." : "Set Default"}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteConfig(cfg)}
-                            disabled={isDeleting}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 size={13} />
-                            {isDeleting ? "Deleting..." : "Delete"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      )}
-
-      {showListView && hasConfigs && !error && (
-        <p className="text-xs text-neutral-600 text-right">
-          {loading ? "Loading…" : `${filteredConfigs.length} model${filteredConfigs.length !== 1 ? "s" : ""}`}
-        </p>
+                </div>
+              );
+            },
+          }}
+          rows={sortedFilteredConfigs}
+          keyField="id"
+          emptyMessage={error || (loading ? "Loading AI models..." : "No AI models configured yet.")}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSort={(key) => handleSort(key as AiSortKey)}
+          footer={sortedFilteredConfigs.length > 0 && (
+            <tr>
+              <td colSpan={5} className="px-4 py-2.5 text-right text-xs text-neutral-600">
+                {loading ? "Loading…" : `${filteredConfigs.length} model${filteredConfigs.length !== 1 ? "s" : ""}`}
+              </td>
+            </tr>
+          )}
+        />
       )}
 
       {editingConfig && (

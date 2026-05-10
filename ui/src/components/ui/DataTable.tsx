@@ -12,8 +12,17 @@ export interface Column<T> {
   width?: string;
 }
 
+export interface DataTableActions<T> {
+  header?: string;
+  headerClassName?: string;
+  className?: string;
+  width?: string;
+  render: (row: T) => React.ReactNode;
+}
+
 interface DataTableProps<T extends object> {
   columns: Column<T>[];
+  actions?: DataTableActions<T>;
   rows: T[];
   keyField: keyof T & string;
   emptyMessage?: string;
@@ -28,6 +37,7 @@ interface DataTableProps<T extends object> {
 
 export function DataTable<T extends object>({
   columns,
+  actions,
   rows,
   keyField,
   emptyMessage = "No items found.",
@@ -41,6 +51,7 @@ export function DataTable<T extends object>({
 }: DataTableProps<T>) {
   const internalRef = useRef<HTMLTableElement>(null);
   const resolvedRef = tableRef ?? internalRef;
+  const totalColumnCount = columns.length + (actions ? 1 : 0);
   return (
     <div className="border border-neutral-800 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -75,13 +86,25 @@ export function DataTable<T extends object>({
                   </th>
                 );
               })}
+              {actions && (
+                <th
+                  scope="col"
+                  style={actions.width ? { width: actions.width, minWidth: actions.width } : undefined}
+                  className={clsx(
+                    "px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider whitespace-nowrap",
+                    actions.headerClassName
+                  )}
+                >
+                  {actions.header || "Actions"}
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
             {rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length}
+                  colSpan={totalColumnCount}
                   className="px-4 py-10 text-center text-sm text-neutral-600"
                 >
                   {emptyMessage}
@@ -118,6 +141,17 @@ export function DataTable<T extends object>({
                         : String((row as Record<string, unknown>)[col.key] ?? "")}
                     </td>
                   ))}
+                  {actions && (
+                    <td
+                      style={actions.width ? { width: actions.width, minWidth: actions.width } : undefined}
+                      className={clsx(
+                        "px-4 py-2.5 text-right",
+                        actions.className
+                      )}
+                    >
+                      {actions.render(row)}
+                    </td>
+                  )}
                 </tr>
                 );
               })

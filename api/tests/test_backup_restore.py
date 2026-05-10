@@ -67,6 +67,9 @@ class TestBackupRestoreApi:
         backups = listing.json().get("backups") or []
         names = [row.get("filename") for row in backups]
         assert filename in names
+        matching = next((row for row in backups if row.get("filename") == filename), None)
+        assert matching is not None
+        assert matching.get("backup_name") == "Stowge Manual"
 
         details = client.get(f"/api/admin/backups/{filename}", cookies=cookies)
         assert details.status_code == 200

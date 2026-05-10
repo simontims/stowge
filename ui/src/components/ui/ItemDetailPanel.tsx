@@ -57,12 +57,12 @@ export function ItemDetailPanel({
   }, [selectedPart?.id, images]);
   return (
     <div
-      className={`flex flex-col h-full w-full border-l border-neutral-800 bg-neutral-950 ${
+      className={`flex flex-col h-full w-full bg-neutral-950 ${
         isMobile ? "fixed inset-0 z-40" : "relative"
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 p-4 border-b border-neutral-800 flex-none bg-neutral-950">
+      <div className="flex items-center justify-between gap-2 p-4 flex-none bg-neutral-950">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {isMobile && (
             <button

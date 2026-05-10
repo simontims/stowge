@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Edit3, Plus, Save, Trash2, X } from "lucide-react";
+import { Edit3, Plus, Save, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
+import { DataTable, type Column } from "../components/ui/DataTable";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
@@ -70,6 +71,8 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   const showListView = !addingOpen && !editingId;
 
   const [search, setSearch] = useState("");
+
+
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return users;
@@ -122,6 +125,54 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
     setSortKey(nextKey);
     setSortDirection("asc");
   }
+
+  const columns = useMemo<Column<UserRecord>[]>(
+    () => [
+      {
+        key: "email",
+        header: "Email",
+        sortable: true,
+        render: (row) => <span className="text-neutral-200">{row.email}</span>,
+      },
+      {
+        key: "firstname",
+        header: "Firstname",
+        sortable: true,
+        render: (row) => <span className="text-neutral-300">{row.firstname || "-"}</span>,
+      },
+      {
+        key: "lastname",
+        header: "Lastname",
+        sortable: true,
+        render: (row) => <span className="text-neutral-300">{row.lastname || "-"}</span>,
+      },
+      {
+        key: "role",
+        header: "Role",
+        sortable: true,
+        render: (row) => <span className="text-neutral-300">{row.role}</span>,
+      },
+      {
+        key: "last_login_at",
+        header: "Last Login",
+        sortable: true,
+        render: (row) => (
+          <span className="text-neutral-500">
+            {row.last_login_at
+              ? new Date(row.last_login_at).toLocaleString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "never"}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
 
   useEffect(() => {
     void loadUsers();
@@ -449,136 +500,54 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       )}
 
       {showListView && (
-        <section className="rounded-lg border border-neutral-800 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-neutral-900 border-b border-neutral-800">
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+        <>
+          <DataTable
+            columns={columns}
+            actions={{
+              header: "",
+              render: (user) => {
+                const isCurrentUser = user.id === currentUserId;
+                const isDeleting = deletingId === user.id;
+                return (
+                  <div className="inline-flex items-center gap-2">
                     <button
-                      type="button"
-                      onClick={() => handleSort("email")}
-                      className="inline-flex items-center gap-1 hover:text-neutral-300"
+                      onClick={() => startEdit(user)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
                     >
-                      Email
-                      <ArrowUpDown size={12} className={sortKey === "email" ? "text-neutral-300" : "text-neutral-600"} />
+                      <Edit3 size={13} />
+                      Edit
                     </button>
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     <button
-                      type="button"
-                      onClick={() => handleSort("firstname")}
-                      className="inline-flex items-center gap-1 hover:text-neutral-300"
+                      onClick={() => {
+                        if (isDeleting || isCurrentUser) return;
+                        setConfirmDeleteUser(user);
+                      }}
+                      disabled={isDeleting || isCurrentUser}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={isCurrentUser ? "You cannot delete your own account" : "Delete user"}
                     >
-                      Firstname
-                      <ArrowUpDown size={12} className={sortKey === "firstname" ? "text-neutral-300" : "text-neutral-600"} />
+                      <Trash2 size={13} />
+                      Delete
                     </button>
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("lastname")}
-                      className="inline-flex items-center gap-1 hover:text-neutral-300"
-                    >
-                      Lastname
-                      <ArrowUpDown size={12} className={sortKey === "lastname" ? "text-neutral-300" : "text-neutral-600"} />
-                    </button>
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("role")}
-                      className="inline-flex items-center gap-1 hover:text-neutral-300"
-                    >
-                      Role
-                      <ArrowUpDown size={12} className={sortKey === "role" ? "text-neutral-300" : "text-neutral-600"} />
-                    </button>
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("last_login_at")}
-                      className="inline-flex items-center gap-1 hover:text-neutral-300"
-                    >
-                      Last Login
-                      <ArrowUpDown size={12} className={sortKey === "last_login_at" ? "text-neutral-300" : "text-neutral-600"} />
-                    </button>
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider" aria-label="Actions" />
-                </tr>
-              </thead>
-              <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
-                {error ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-neutral-500">
-                      {error}
-                    </td>
-                  </tr>
-                ) : users.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-neutral-600">
-                      {loading ? "Loading users..." : "No users found."}
-                    </td>
-                  </tr>
-                ) : (
-                  sortedFilteredUsers.map((user) => {
-                    const isCurrentUser = user.id === currentUserId;
-                    const isDeleting = deletingId === user.id;
-
-                    return (
-                      <tr key={user.id} className="hover:bg-neutral-900/60 transition-colors">
-                        <td className="px-4 py-2.5 text-neutral-200">{user.email}</td>
-                        <td className="px-4 py-2.5 text-neutral-300">{user.firstname || "-"}</td>
-                        <td className="px-4 py-2.5 text-neutral-300">{user.lastname || "-"}</td>
-                        <td className="px-4 py-2.5 text-neutral-300">{user.role}</td>
-                        <td className="px-4 py-2.5 text-neutral-500">
-                          {user.last_login_at
-                            ? new Date(user.last_login_at).toLocaleString(undefined, {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "never"}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              onClick={() => startEdit(user)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
-                            >
-                              <Edit3 size={13} />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (isDeleting || isCurrentUser) return;
-                                setConfirmDeleteUser(user);
-                              }}
-                              disabled={isDeleting || isCurrentUser}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                              title={isCurrentUser ? "You cannot delete your own account" : "Delete user"}
-                            >
-                              <Trash2 size={13} />
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {showListView && !(error && !loading && users.length === 0) && (
-        <p className="text-xs text-neutral-600 text-right">
-          {loading ? "Loading…" : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""}`}
-        </p>
+                  </div>
+                );
+              },
+            }}
+            rows={sortedFilteredUsers}
+            keyField="id"
+            emptyMessage={error || (loading ? "Loading users..." : "No users found.")}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSort={(key) => handleSort(key as UserSortKey)}
+            footer={sortedFilteredUsers.length > 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-2.5 text-right text-xs text-neutral-600">
+                  {loading ? "Loading…" : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""}`}
+                </td>
+              </tr>
+            )}
+          />
+        </>
       )}
 
       <UnsavedChangesDialog

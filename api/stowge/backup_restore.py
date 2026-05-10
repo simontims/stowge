@@ -296,17 +296,22 @@ def list_backups(assets_root: str) -> list[dict]:
         st = entry.stat()
         modified_dt = datetime.fromtimestamp(st.st_mtime, tz=timezone.utc)
         created_dt = modified_dt
+        backup_name = "Stowge Manual"
         try:
             manifest = read_manifest_from_archive(entry.path)
             manifest_created = _parse_iso_utc(str(manifest.get("created_at") or ""))
             if manifest_created is not None:
                 created_dt = manifest_created
+            manifest_name = str(manifest.get("backup_name") or "").strip()
+            if manifest_name:
+                backup_name = manifest_name
         except BackupError:
             pass
 
         rows.append(
             {
                 "filename": entry.name,
+                "backup_name": backup_name,
                 "size_bytes": int(st.st_size),
                 "created_at": created_dt.isoformat().replace("+00:00", "Z"),
                 "modified_at": modified_dt.isoformat().replace("+00:00", "Z"),

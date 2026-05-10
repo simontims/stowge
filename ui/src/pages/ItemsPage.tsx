@@ -6,6 +6,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { ItemDetailPanel } from "../components/ui/ItemDetailPanel";
+import { TablePaneLayout } from "../components/ui/TablePaneLayout";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
@@ -588,9 +589,11 @@ export function ItemsPage() {
       const currentIdx = selectedPartId ? parts.findIndex((r) => r.id === selectedPartId) : -1;
       let nextIdx: number;
       if (e.key === "ArrowDown") {
-        nextIdx = currentIdx < parts.length - 1 ? currentIdx + 1 : 0;
+        if (currentIdx >= parts.length - 1) return;  // already at bottom
+        nextIdx = currentIdx + 1;
       } else {
-        nextIdx = currentIdx > 0 ? currentIdx - 1 : parts.length - 1;
+        if (currentIdx <= 0) return;  // already at top or nothing selected
+        nextIdx = currentIdx - 1;
       }
       const nextRow = parts[nextIdx];
       if (!nextRow || deletingId === nextRow.id) return;
@@ -717,176 +720,178 @@ export function ItemsPage() {
         title={collectionLabel || "Items"}
       />
 
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-0 overflow-hidden">
-        {/* Left side: Table (always visible on desktop, hidden when detail open on mobile) */}
-        <div
-          className={`flex-1 min-h-0 flex flex-col overflow-hidden ${
-            isMobile && selectedPartId ? "hidden" : ""
-          }`}
-        >
-          <div
-            className={`space-y-4 flex-1 min-h-0 flex flex-col overflow-hidden ${
-              collectionFilter ? "" : "p-4"
-            }`}
-          >
-            <ListToolbar
-              search={search}
-              onSearchChange={setSearch}
-              placeholder={collectionFilter ? "Search by name and description" : "Search items, locations, collections…"}
-              loading={loading}
-              action={
-                <button
-                  onClick={() => {
-                    if (!collectionFilter) {
-                      navigate("/add");
-                      return;
-                    }
+      <TablePaneLayout
+        variant="aside"
+        rightVisible={selectedPartId !== null}
+        splitClassName="flex-1 min-h-0 flex flex-col lg:flex-row gap-0 overflow-hidden"
+        leftPaneClassName="min-w-0 flex-1 flex flex-col min-h-0"
+        rightWrapperClassName={
+          isMobile
+            ? "fixed inset-0 z-40 w-full"
+            : "hidden lg:flex lg:w-96"
+        }
+        rightPaneClassName=""
+        left={
+          <>
+            {/* Left side: Table (always visible on desktop, hidden when detail open on mobile) */}
+            <div
+              className={`flex-1 min-h-0 flex flex-col overflow-hidden ${
+                isMobile && selectedPartId ? "hidden" : ""
+              }`}
+            >
+              <div
+                className={`space-y-4 flex-1 min-h-0 flex flex-col overflow-hidden ${
+                  collectionFilter ? "" : "p-4"
+                }`}
+              >
+                <ListToolbar
+                  search={search}
+                  onSearchChange={setSearch}
+                  placeholder={collectionFilter ? "Search by name and description" : "Search items, locations, collections…"}
+                  loading={loading}
+                  action={
+                    <button
+                      onClick={() => {
+                        if (!collectionFilter) {
+                          navigate("/add");
+                          return;
+                        }
 
-                    const nextSearch = new URLSearchParams();
-                    if (activeCollectionOption?.id) {
-                      nextSearch.set("collection_id", activeCollectionOption.id);
-                    } else {
-                      nextSearch.set("collection", collectionFilter);
-                    }
+                        const nextSearch = new URLSearchParams();
+                        if (activeCollectionOption?.id) {
+                          nextSearch.set("collection_id", activeCollectionOption.id);
+                        } else {
+                          nextSearch.set("collection", collectionFilter);
+                        }
 
-                    navigate({
-                      pathname: "/add",
-                      search: nextSearch.toString(),
-                    });
-                  }}
-                  className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
-                >
-                  <Plus size={14} />
-                  Add Item
-                </button>
-              }
-            />
+                        navigate({
+                          pathname: "/add",
+                          search: nextSearch.toString(),
+                        });
+                      }}
+                      className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
+                    >
+                      <Plus size={14} />
+                      Add Item
+                    </button>
+                  }
+                />
 
-            {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+                {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
 
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              {isMobile ? (
-                <div className="pr-1">
-                  {parts.length === 0 ? (
-                    <div className="border border-neutral-800 rounded-lg p-6 text-sm text-neutral-500 text-center">
-                      {emptyMessage}
+                <div className={`flex-1 min-h-0 ${isMobile ? "overflow-y-auto" : ""}`}>
+                  {isMobile ? (
+                    <div className="pr-1">
+                      {parts.length === 0 ? (
+                        <div className="border border-neutral-800 rounded-lg p-6 text-sm text-neutral-500 text-center">
+                          {emptyMessage}
+                        </div>
+                      ) : (
+                        <div className="space-y-2 pb-2">
+                          {parts.map((row) => {
+                            const isDeleting = deletingId === row.id;
+                            return (
+                              <article
+                                key={row.id}
+                                className="rounded-lg border border-neutral-800 bg-neutral-950 p-2.5"
+                              >
+                                <div className="flex items-start gap-2.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isDeleting) return;
+                                      void openPartModal(row.id);
+                                    }}
+                                    className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
+                                  >
+                                    {row.thumb ? (
+                                      <img
+                                        src={row.thumb}
+                                        alt={row.name}
+                                        className="h-14 w-14 shrink-0 rounded border border-neutral-800 object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-14 w-14 shrink-0 rounded border border-neutral-800 bg-neutral-900 text-[10px] text-neutral-500 flex items-center justify-center">
+                                        no image
+                                      </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-semibold text-neutral-100">
+                                          {renderItemNameContent(row, activeResultQuery, mobileDescriptionExcerptLength, `mobile-${row.id}`)}
+                                        </div>
+                                      </div>
+                                      <div className="mt-1 flex flex-wrap gap-1.5">
+                                        <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
+                                          {row.collection || "No collection"}
+                                        </span>
+                                        <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
+                                          {row.location || "No location"}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1 text-[11px] text-neutral-500">Status: {row.status}</p>
+                                    </div>
+                                  </button>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="space-y-2 pb-2">
-                      {parts.map((row) => {
-                        const isDeleting = deletingId === row.id;
-                        return (
-                          <article
-                            key={row.id}
-                            className="rounded-lg border border-neutral-800 bg-neutral-950 p-2.5"
-                          >
-                            <div className="flex items-start gap-2.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (isDeleting) return;
-                                  void openPartModal(row.id);
-                                }}
-                                className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
-                              >
-                                {row.thumb ? (
-                                  <img
-                                    src={row.thumb}
-                                    alt={row.name}
-                                    className="h-14 w-14 shrink-0 rounded border border-neutral-800 object-cover"
-                                  />
-                                ) : (
-                                  <div className="h-14 w-14 shrink-0 rounded border border-neutral-800 bg-neutral-900 text-[10px] text-neutral-500 flex items-center justify-center">
-                                    no image
-                                  </div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-semibold text-neutral-100">
-                                      {renderItemNameContent(row, activeResultQuery, mobileDescriptionExcerptLength, `mobile-${row.id}`)}
-                                    </div>
-                                  </div>
-                                  <div className="mt-1 flex flex-wrap gap-1.5">
-                                    <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
-                                      {row.collection || "No collection"}
-                                    </span>
-                                    <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
-                                      {row.location || "No location"}
-                                    </span>
-                                  </div>
-                                  <p className="mt-1 text-[11px] text-neutral-500">Status: {row.status}</p>
-                                </div>
-                              </button>
-
-                            </div>
-                          </article>
-                        );
-                      })}
+                    <div className="min-h-0 h-full overflow-y-auto lg:border-r lg:border-neutral-800 lg:pr-4">
+                      <DataTable
+                        columns={columns}
+                        rows={parts}
+                        keyField="id"
+                        emptyMessage={emptyMessage}
+                        sortKey={sortKey}
+                        sortDirection={sortDirection}
+                        onSort={(key) => handleSort(key as ItemSortKey)}
+                        activeRowId={selectedPartId ?? undefined}
+                        tableRef={tableRef}
+                        onRowClick={(row) => {
+                          if (deletingId === row.id) return;
+                          void openPartModal(row.id);
+                        }}
+                      />
+                      <p className="text-xs text-neutral-600 text-right pt-1">
+                        {loading ? "Loading…" : `${parts.length} item${parts.length !== 1 ? "s" : ""}`}
+                      </p>
                     </div>
                   )}
                 </div>
-              ) : (
-                <>
-                  <DataTable
-                    columns={columns}
-                    rows={parts}
-                    keyField="id"
-                    emptyMessage={emptyMessage}
-                    sortKey={sortKey}
-                    sortDirection={sortDirection}
-                    onSort={(key) => handleSort(key as ItemSortKey)}
-                    activeRowId={selectedPartId ?? undefined}
-                    tableRef={tableRef}
-                    onRowClick={(row) => {
-                      if (deletingId === row.id) return;
-                      void openPartModal(row.id);
-                    }}
-                  />
-                  <p className="text-xs text-neutral-600 text-right pt-1">
-                    {loading ? "Loading…" : `${parts.length} item${parts.length !== 1 ? "s" : ""}`}
-                  </p>
-                </>
-              )}
+              </div>
             </div>
-
-          </div>
-        </div>
-
-        {/* Right side: Detail panel (visible on desktop if selected, full-screen on mobile if selected) */}
-        {selectedPartId && (
-          <div
-            className={
-              isMobile
-                ? "fixed inset-0 z-40 w-full"
-                : "hidden lg:flex lg:w-96 lg:border-l border-neutral-800"
-            }
-          >
-            <ItemDetailPanel
-              selectedPart={selectedPart}
-              images={draftImages}
-              editForm={editForm}
-              detailLoading={detailLoading}
-              detailError={detailError}
-              savingDetail={savingDetail}
-              deletingPartFromModal={deletingPartFromModal}
-              locations={locations}
-              collectionOptions={collectionOptions}
-              hasDirtyChanges={hasDirtyChanges}
-              onEditChange={setEditForm}
-              onSave={async () => {
-                const ok = await savePartChanges();
-                if (ok) {
-                  closeModalNow();
-                }
-              }}
-              onClose={requestCloseModal}
-              onConfirmDelete={deletePartFromModal}
-              isMobile={isMobile}
-              onSetPrimaryImage={handleSetPrimaryImage}
-            />
-          </div>
-        )}
-      </div>
+          </>
+        }
+        right={
+          <ItemDetailPanel
+            selectedPart={selectedPart}
+            images={draftImages}
+            editForm={editForm}
+            detailLoading={detailLoading}
+            detailError={detailError}
+            savingDetail={savingDetail}
+            deletingPartFromModal={deletingPartFromModal}
+            locations={locations}
+            collectionOptions={collectionOptions}
+            hasDirtyChanges={hasDirtyChanges}
+            onEditChange={setEditForm}
+            onSave={async () => {
+              const ok = await savePartChanges();
+              if (ok) {
+                closeModalNow();
+              }
+            }}
+            onClose={requestCloseModal}
+            onConfirmDelete={deletePartFromModal}
+            isMobile={isMobile}
+            onSetPrimaryImage={handleSetPrimaryImage}
+          />
+        }
+      />
 
       {/* Unsaved changes dialog */}
       {unsavedPromptOpen && (

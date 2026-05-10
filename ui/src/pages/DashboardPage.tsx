@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Tag, Package, HardDrive, Image, Database, RefreshCw } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { DataTable, type Column } from "../components/ui/DataTable";
+import { TablePaneLayout } from "../components/ui/TablePaneLayout";
 import { apiRequest, UNAUTHORIZED_EVENT } from "../lib/api";
 import { stageLabel, preflightTitle, restoreStepState } from "../lib/statusMappings";
 
@@ -54,6 +56,7 @@ interface BackupManifest {
 
 interface BackupListRow {
   filename: string;
+  backup_name?: string;
   size_bytes: number;
   created_at: string;
   modified_at: string;
@@ -182,14 +185,12 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [backupsLoading, setBackupsLoading] = useState(false);
   const [backupsError, setBackupsError] = useState("");
   const [selectedBackupFilename, setSelectedBackupFilename] = useState<string | null>(null);
-  const [focusBackupFilename, setFocusBackupFilename] = useState<string | null>(null);
   const [selectedBackupDetails, setSelectedBackupDetails] = useState<BackupDetails | null>(null);
   const [backupDetailsLoading, setBackupDetailsLoading] = useState(false);
   const [backupVerifyTarget, setBackupVerifyTarget] = useState<string | null>(null);
   const [verifyingBackup, setVerifyingBackup] = useState(false);
   const [deleteBackupTarget, setDeleteBackupTarget] = useState<string | null>(null);
   const [deletingBackup, setDeletingBackup] = useState(false);
-  const backupRowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const selectedBackupFilenameRef = useRef<string | null>(null);
 
   // Backup create modal
@@ -233,7 +234,6 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
       if (data.backups.length === 0) {
         setSelectedBackupFilename(null);
-        setFocusBackupFilename(null);
         setSelectedBackupDetails(null);
         return;
       }
@@ -247,9 +247,6 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
         : null;
       const next = preferred?.filename ?? selected?.filename ?? data.backups[0].filename;
       setSelectedBackupFilename(next);
-      if (preferred?.filename) {
-        setFocusBackupFilename(preferred.filename);
-      }
     } catch (err) {
       setBackupsError((err as Error).message || "Failed to load backups.");
     } finally {
@@ -262,18 +259,34 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   }, [selectedBackupFilename]);
 
   useEffect(() => {
-    if (!focusBackupFilename) return;
-    const target = backupRowRefs.current[focusBackupFilename];
-    if (!target) return;
-    target.focus();
-    target.scrollIntoView({ block: "nearest" });
-    setFocusBackupFilename(null);
-  }, [backups, focusBackupFilename]);
-
-  useEffect(() => {
     if (!restoreModalOpen || restoreStep !== "ready") return;
     restoreApplyButtonRef.current?.focus();
   }, [restoreModalOpen, restoreStep]);
+
+  const backupColumns = useMemo<Column<BackupListRow>[]>(
+    () => [
+      {
+        key: "backup_name",
+        header: "Backup",
+        render: (row) => (
+          <div className="min-w-0">
+            <p className="truncate text-xs font-medium text-neutral-200">{displayBackupName({ backup_name: row.backup_name })}</p>
+            <p className="text-[11px] text-neutral-500">
+              {formatDate(row.created_at)} · {formatRelativeAge(row.created_at)}
+            </p>
+          </div>
+        ),
+      },
+      {
+        key: "size_bytes",
+        header: "Size",
+        className: "w-28 text-right",
+        headerClassName: "w-28 text-right",
+        render: (row) => <span className="text-xs tabular-nums text-neutral-200">{formatBytes(row.size_bytes)}</span>,
+      },
+    ],
+    []
+  );
 
   useEffect(() => {
     void loadMetrics();
@@ -778,53 +791,15 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-          <div className="rounded-md border border-neutral-800 p-3">
-            <p className="mb-2 text-sm font-medium text-neutral-200">Backup archives</p>
-            {backupsError && <p className="text-xs text-red-400 mb-2">{backupsError}</p>}
-            <div className="max-h-80 overflow-auto space-y-1 pr-1">
-              {backups.map((backup) => {
-                const selected = backup.filename === selectedBackupFilename;
-                return (
-                  <button
-                    key={backup.filename}
-                    ref={(el) => {
-                      backupRowRefs.current[backup.filename] = el;
-                    }}
-                    type="button"
-                    onClick={() => setSelectedBackupFilename(backup.filename)}
-                    className={[
-                      "w-full text-left rounded-md border px-2.5 py-2.5",
-                      selected
-                        ? "border-sky-500/60 bg-sky-950/20"
-                        : "border-neutral-800 bg-neutral-900/20 hover:bg-neutral-800/30",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-medium text-neutral-200">{backup.filename}</p>
-                        <p className="text-[11px] text-neutral-500">
-                          {formatDate(backup.created_at)} · {formatRelativeAge(backup.created_at)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs tabular-nums text-neutral-200">{formatBytes(backup.size_bytes)}</p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-              {!backupsLoading && backups.length === 0 && (
-                <p className="text-xs text-neutral-500">No backups found in /assets/backups.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-md border border-neutral-800 p-3 space-y-3">
+        <TablePaneLayout
+          variant="aside"
+          rightVisible={Boolean(selectedBackupFilename)}
+          leftPaneClassName="min-w-0 flex-1"
+          rightPaneClassName="flex-1 p-3 space-y-3"
+          leftHeader={backupsError ? <p className="text-xs text-red-400 mb-2">{backupsError}</p> : undefined}
+          rightHeader={
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-neutral-200">
-                {selectedBackupDetails ? displayBackupName(selectedBackupDetails.manifest) : "Backup details"}
-              </p>
+              <p className="text-sm font-medium text-neutral-200">Backup details</p>
               {selectedBackupDetails && (
                 <span
                   className={[
@@ -844,96 +819,115 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 </span>
               )}
             </div>
-            {backupDetailsLoading && <p className="text-xs text-neutral-500">Loading details…</p>}
-            {!backupDetailsLoading && selectedBackupDetails && (
-              <>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
-                    <p className="text-[10px] uppercase tracking-wide text-neutral-500">Size</p>
-                    <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">{formatBytes(selectedBackupDetails.size_bytes)}</p>
+          }
+          left={
+            <>
+              <DataTable
+                columns={backupColumns}
+                rows={backups}
+                keyField="filename"
+                emptyMessage="No backups found in /assets/backups."
+                activeRowId={selectedBackupFilename ?? undefined}
+                onRowClick={(row) => setSelectedBackupFilename(row.filename)}
+              />
+              <p className="text-xs text-neutral-600 text-right pt-1">
+                {backupsLoading ? "Loading…" : `${backups.length} archive${backups.length !== 1 ? "s" : ""}`}
+              </p>
+            </>
+          }
+          right={
+            <>
+              {backupDetailsLoading && <p className="text-xs text-neutral-500">Loading details…</p>}
+              {!backupDetailsLoading && selectedBackupDetails && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-neutral-500">Size</p>
+                      <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">{formatBytes(selectedBackupDetails.size_bytes)}</p>
+                    </div>
+                    <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-neutral-500">Database</p>
+                      <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
+                        {selectedBackupDetails.manifest.db_bytes ? formatBytes(selectedBackupDetails.manifest.db_bytes) : "--"}
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-neutral-500">Assets</p>
+                      <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
+                        {selectedBackupDetails.manifest.includes_assets
+                          ? (selectedBackupDetails.manifest.asset_bytes
+                            ? formatBytes(selectedBackupDetails.manifest.asset_bytes)
+                            : `${selectedBackupDetails.manifest.asset_included_count ?? 0} files`)
+                          : "No"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
-                    <p className="text-[10px] uppercase tracking-wide text-neutral-500">Database</p>
-                    <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
-                      {selectedBackupDetails.manifest.db_bytes ? formatBytes(selectedBackupDetails.manifest.db_bytes) : "--"}
+                  <div className="space-y-1.5 text-xs text-neutral-400">
+                    <p>Created: {formatDate(selectedBackupDetails.manifest.created_at || selectedBackupDetails.modified_at)}</p>
+                    <p>Created by: {selectedBackupDetails.manifest.created_by_user || "unknown"}</p>
+                    <p>Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
+                    <p>Filename: {selectedBackupDetails.filename}</p>
+                    <p>Format: tar.gz</p>
+                    <p>
+                      {verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename
+                        ? "Verifying backup..."
+                        : selectedBackupDetails.manifest.backup_verified
+                          ? "Backup verified"
+                          : "Backup not verified"}
+                      {!verifyingBackup && selectedBackupDetails.manifest.backup_verified && selectedBackupDetails.manifest.backup_verified_at
+                        ? ` · ${formatDate(selectedBackupDetails.manifest.backup_verified_at)}`
+                        : ""}
                     </p>
                   </div>
-                  <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
-                    <p className="text-[10px] uppercase tracking-wide text-neutral-500">Assets</p>
-                    <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
-                      {selectedBackupDetails.manifest.includes_assets
-                        ? (selectedBackupDetails.manifest.asset_bytes
-                          ? formatBytes(selectedBackupDetails.manifest.asset_bytes)
-                          : `${selectedBackupDetails.manifest.asset_included_count ?? 0} files`)
-                        : "No"}
+                  {!selectedBackupDetails.manifest.backup_verified && selectedBackupDetails.manifest.backup_verification_error && (
+                    <p className="text-xs text-amber-300">
+                      Verification note: {selectedBackupDetails.manifest.backup_verification_error}
                     </p>
+                  )}
+                  {!!selectedBackupDetails.manifest.asset_missing_count && (
+                    <p className="text-xs text-amber-300">
+                      Missing referenced files at backup time: {selectedBackupDetails.manifest.asset_missing_count}
+                    </p>
+                  )}
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    <button
+                      type="button"
+                      onClick={() => void verifyBackup(selectedBackupDetails.filename)}
+                      disabled={verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename}
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename ? "Verifying…" : "Verify"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void downloadBackup(selectedBackupDetails.filename)}
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium"
+                    >
+                      Download
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openRestoreFlow}
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 hover:text-red-200 hover:bg-red-900/30 text-xs font-medium"
+                    >
+                      Restore
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteBackupTarget(selectedBackupDetails.filename)}
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 text-red-300 hover:text-red-200 text-xs font-medium"
+                    >
+                      Delete
+                    </button>
                   </div>
-                </div>
-                <div className="space-y-1.5 text-xs text-neutral-400">
-                  <p>Created: {formatDate(selectedBackupDetails.manifest.created_at || selectedBackupDetails.modified_at)}</p>
-                  <p>Created by: {selectedBackupDetails.manifest.created_by_user || "unknown"}</p>
-                  <p>Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
-                  <p>Filename: {selectedBackupDetails.filename}</p>
-                  <p>Format: tar.gz</p>
-                  <p>
-                    {verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename
-                      ? "Verifying backup..."
-                      : selectedBackupDetails.manifest.backup_verified
-                        ? "Backup verified"
-                        : "Backup not verified"}
-                    {!verifyingBackup && selectedBackupDetails.manifest.backup_verified && selectedBackupDetails.manifest.backup_verified_at
-                      ? ` · ${formatDate(selectedBackupDetails.manifest.backup_verified_at)}`
-                      : ""}
-                  </p>
-                </div>
-                {!selectedBackupDetails.manifest.backup_verified && selectedBackupDetails.manifest.backup_verification_error && (
-                  <p className="text-xs text-amber-300">
-                    Verification note: {selectedBackupDetails.manifest.backup_verification_error}
-                  </p>
-                )}
-                {!!selectedBackupDetails.manifest.asset_missing_count && (
-                  <p className="text-xs text-amber-300">
-                    Missing referenced files at backup time: {selectedBackupDetails.manifest.asset_missing_count}
-                  </p>
-                )}
-                <div className="flex gap-2 flex-wrap pt-1">
-                  <button
-                    type="button"
-                    onClick={() => void verifyBackup(selectedBackupDetails.filename)}
-                    disabled={verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {verifyingBackup && backupVerifyTarget === selectedBackupDetails.filename ? "Verifying…" : "Verify"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void downloadBackup(selectedBackupDetails.filename)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium"
-                  >
-                    Download
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openRestoreFlow}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 hover:text-red-200 hover:bg-red-900/30 text-xs font-medium"
-                  >
-                    Restore
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteBackupTarget(selectedBackupDetails.filename)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 text-red-300 hover:text-red-200 text-xs font-medium"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </>
-            )}
-            {!backupDetailsLoading && !selectedBackupDetails && (
-              <p className="text-xs text-neutral-500">Select a backup to view details.</p>
-            )}
-          </div>
-        </div>
+                </>
+              )}
+              {!backupDetailsLoading && !selectedBackupDetails && selectedBackupFilename && (
+                <p className="text-xs text-neutral-500">Select a backup to view details.</p>
+              )}
+            </>
+          }
+        />
       </section>
 
       {backupModalOpen && (
