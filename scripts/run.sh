@@ -136,6 +136,22 @@ invoke_pip_filtered() {
   fi
 }
 
+ensure_pip_available() {
+  local python_exe="$1"
+
+  if "$python_exe" -m pip --version >/dev/null 2>&1; then
+    return
+  fi
+
+  step "Bootstrapping pip in API virtual environment"
+  "$python_exe" -m ensurepip --upgrade >/dev/null
+
+  if ! "$python_exe" -m pip --version >/dev/null 2>&1; then
+    echo "Failed to bootstrap pip in virtual environment: $python_exe" >&2
+    exit 1
+  fi
+}
+
 test_ui_build_required() {
   local ui_src_dir="$1"
   local ui_out_dir="$2"
@@ -255,6 +271,8 @@ if [[ ! -x "$python_exe" ]]; then
   echo "Python executable not found in venv: $python_exe" >&2
   exit 1
 fi
+
+ensure_pip_available "$python_exe"
 
 if [[ $SKIP_INSTALL -eq 0 ]]; then
   step "Installing API dependencies"
