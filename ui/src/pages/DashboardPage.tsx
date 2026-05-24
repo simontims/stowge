@@ -1165,9 +1165,9 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       </p>
                       {taskKey === "backup" && (
                         <p>
-                          Retention: {schedule.backup_retention_enabled
-                            ? `Delete automatic backups older than ${schedule.backup_retention_days} day${schedule.backup_retention_days === 1 ? "" : "s"}`
-                            : "Keep all backups"}
+                          Settings: Assets {schedule.backup_include_assets ? "included" : "not included"}.
+                          {schedule.backup_retention_enabled &&
+                            ` Delete automatic backups older than ${schedule.backup_retention_days} day${schedule.backup_retention_days === 1 ? "" : "s"}.`}
                         </p>
                       )}
                     </div>
@@ -1211,6 +1211,13 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       </section>
 
       <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
+        {maintenanceSchedules?.backup && (
+          <p className="text-xs text-neutral-500">
+            Settings: Assets {maintenanceSchedules.backup.backup_include_assets ? "included" : "not included"}.
+            {maintenanceSchedules.backup.backup_retention_enabled &&
+              ` Delete automatic backups older than ${maintenanceSchedules.backup.backup_retention_days} days.`}
+          </p>
+        )}
         <TablePaneLayout
           variant="aside"
           rightVisible={Boolean(selectedBackupFilename)}
