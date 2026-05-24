@@ -813,6 +813,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
         const createdFilename = String(done.result?.filename || "").trim() || null;
         await loadBackups(Boolean(createdFilename), createdFilename);
       }
+      await loadMaintenanceSchedules();
     } catch (err) {
       setBackupOp({
         id: "",
@@ -1186,7 +1187,15 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleRunMaintenanceTask(taskKey)}
+                        onClick={() => {
+                          if (taskKey === "backup") {
+                            setBackupModalOpen(true);
+                            setBackupOp(null);
+                            setBackupName("");
+                          } else {
+                            void handleRunMaintenanceTask(taskKey);
+                          }
+                        }}
                         disabled={running}
                         className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60"
                       >
