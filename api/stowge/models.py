@@ -94,6 +94,7 @@ class MaintenanceSchedule(Base):
     last_error = Column(Text, nullable=True)
     backup_retention_enabled = Column(Integer, nullable=False, default=0)  # 0|1
     backup_retention_days = Column(Integer, nullable=False, default=30)
+    backup_include_assets = Column(Integer, nullable=False, default=1)  # 0|1
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
 class PartImage(Base):

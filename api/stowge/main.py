@@ -623,6 +623,8 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE maintenance_schedules ADD COLUMN backup_retention_enabled INTEGER NOT NULL DEFAULT 0"))
             if "backup_retention_days" not in maintenance_columns:
                 conn.execute(text("ALTER TABLE maintenance_schedules ADD COLUMN backup_retention_days INTEGER NOT NULL DEFAULT 30"))
+            if "backup_include_assets" not in maintenance_columns:
+                conn.execute(text("ALTER TABLE maintenance_schedules ADD COLUMN backup_include_assets INTEGER NOT NULL DEFAULT 1"))
 
         def local_cron_to_utc(cron_expression: str) -> str:
             parts = str(cron_expression or "").strip().split()
@@ -676,6 +678,7 @@ def _run_startup_migrations():
                                 task_key=task_key,
                                 enabled=0,
                                 cron_expression=default_cron,
+                                backup_include_assets=1 if task_key == "backup" else 0,
                                 next_run_at=None,
                                 updated_at=now,
                             )
@@ -683,6 +686,8 @@ def _run_startup_migrations():
                     else:
                         row.enabled = 0
                         row.cron_expression = default_cron
+                        if task_key == "backup":
+                            row.backup_include_assets = 1
                         row.next_run_at = None
                         row.updated_at = now
                 db.add(AppMeta(key=_MAINTENANCE_DEFAULTS_SEED_KEY, value=APP_VERSION))
@@ -985,6 +990,7 @@ def _serialize_maintenance_schedule(row: MaintenanceSchedule) -> dict:
         "cron_expression": row.cron_expression,
         "backup_retention_enabled": bool(row.backup_retention_enabled),
         "backup_retention_days": retention_days,
+        "backup_include_assets": bool(row.backup_include_assets) if row.backup_include_assets is not None else True,
         "next_run_at": _utc_iso(_coerce_utc(row.next_run_at)),
         "last_run_at": _utc_iso(_coerce_utc(row.last_run_at)),
         "last_duration_ms": row.last_duration_ms,
@@ -1206,7 +1212,9 @@ def _run_maintenance_task_by_key(task_key: str, db: Session, *, run_source: str)
     if task_key == "backup":
         backup_name = "Stowge Automatic" if run_source == "scheduler" else None
         created_by = "system/scheduler" if run_source == "scheduler" else "admin/manual"
-        return _run_backup_once(db, include_assets=True, backup_name=backup_name, created_by_user=created_by)
+        schedule_row = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.task_key == "backup").first()
+        include_assets = bool(schedule_row.backup_include_assets) if schedule_row and schedule_row.backup_include_assets is not None else True
+        return _run_backup_once(db, include_assets=include_assets, backup_name=backup_name, created_by_user=created_by)
     raise RuntimeError(f"Unknown maintenance task: {task_key}")
 
 
@@ -1745,6 +1753,11 @@ def update_maintenance_schedule(task_key: str, payload: dict, db: Session = Depe
         if days < 1 or days > 3650:
             raise HTTPException(status_code=400, detail="backup_retention_days must be between 1 and 3650")
         row.backup_retention_days = days
+
+    if "backup_include_assets" in payload:
+        if task_key != "backup":
+            raise HTTPException(status_code=400, detail="backup_include_assets is only valid for backup task")
+        row.backup_include_assets = 1 if bool(payload.get("backup_include_assets")) else 0
 
     row.updated_at = _coerce_utc(now)
     if bool(row.enabled):

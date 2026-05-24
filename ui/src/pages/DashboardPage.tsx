@@ -91,6 +91,7 @@ interface MaintenanceScheduleRow {
   cron_expression: string;
   backup_retention_enabled: boolean;
   backup_retention_days: number;
+  backup_include_assets: boolean;
   next_run_at: string | null;
   last_run_at: string | null;
   last_duration_ms: number | null;
@@ -414,6 +415,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [scheduleModalCronDraft, setScheduleModalCronDraft] = useState("");
   const [scheduleModalRetentionEnabledDraft, setScheduleModalRetentionEnabledDraft] = useState(false);
   const [scheduleModalRetentionDaysDraft, setScheduleModalRetentionDaysDraft] = useState(30);
+  const [scheduleModalIncludeAssetsDraft, setScheduleModalIncludeAssetsDraft] = useState(true);
   const [scheduleModalAdvancedOpen, setScheduleModalAdvancedOpen] = useState(false);
   const [runningMaintenanceTask, setRunningMaintenanceTask] = useState<Partial<Record<MaintenanceTaskKey, boolean>>>({});
   const [purgeResult, setPurgeResult] = useState<{ deleted: number; freed_bytes: number } | null>(null);
@@ -706,6 +708,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
     setScheduleModalCronDraft(localCron);
     setScheduleModalRetentionEnabledDraft(Boolean(schedule.backup_retention_enabled));
     setScheduleModalRetentionDaysDraft(Number.isFinite(schedule.backup_retention_days) ? Math.max(1, Math.min(3650, schedule.backup_retention_days)) : 30);
+    setScheduleModalIncludeAssetsDraft(schedule.backup_include_assets !== false);
     setScheduleModalAdvancedOpen(parseFriendlyCron(localCron).frequency === "custom");
   // Intentionally only initialize drafts when modal task changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -723,7 +726,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
     const normalizedLocalCron = normalizeCronExpressionInput(scheduleModalCronDraft);
     const normalizedUtcCron = cronLocalToUtc(normalizedLocalCron);
-    const payload: Partial<Pick<MaintenanceScheduleRow, "cron_expression" | "backup_retention_enabled" | "backup_retention_days">> = {};
+    const payload: Partial<Pick<MaintenanceScheduleRow, "cron_expression" | "backup_retention_enabled" | "backup_retention_days" | "backup_include_assets">> = {};
 
     if (normalizedUtcCron && normalizedUtcCron !== schedule.cron_expression) {
       payload.cron_expression = normalizedUtcCron;
@@ -736,6 +739,9 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       const clampedDays = Math.max(1, Math.min(3650, scheduleModalRetentionDaysDraft));
       if (clampedDays !== schedule.backup_retention_days) {
         payload.backup_retention_days = clampedDays;
+      }
+      if (scheduleModalIncludeAssetsDraft !== (schedule.backup_include_assets !== false)) {
+        payload.backup_include_assets = scheduleModalIncludeAssetsDraft;
       }
     }
 
@@ -1459,6 +1465,16 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
                 {taskKey === "backup" && (
                   <div className="rounded-md border border-neutral-800 bg-neutral-900/30 p-3 space-y-2">
+                    <label className="inline-flex items-center gap-2 text-xs text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={scheduleModalIncludeAssetsDraft}
+                        onChange={(event) => setScheduleModalIncludeAssetsDraft(event.target.checked)}
+                        disabled={saving}
+                        className="rounded border-neutral-700 bg-neutral-950"
+                      />
+                      Include asset files referenced in the database
+                    </label>
                     <label className="inline-flex items-center gap-2 text-xs text-neutral-300">
                       <input
                         type="checkbox"
