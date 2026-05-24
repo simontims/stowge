@@ -1098,6 +1098,13 @@ def _run_vacuum_once() -> dict:
     }
 
 
+class _BackupVerificationFailed(RuntimeError):
+    """Raised when backup verification fails but the archive was created."""
+    def __init__(self, message: str, result: dict):
+        super().__init__(message)
+        self.result = result
+
+
 def _run_backup_once(
     db: Session,
     *,
@@ -1138,7 +1145,10 @@ def _run_backup_once(
         error=verification_error,
     )
     if verification_error is not None:
-        raise RuntimeError(f"Backup verification failed: {verification_error}")
+        raise _BackupVerificationFailed(
+            f"Backup verification failed: {verification_error}",
+            result={"filename": result["filename"], "archive_bytes": result["archive_bytes"], "manifest": manifest},
+        )
 
     retention_result = {"deleted": 0, "freed_bytes": 0, "older_than_days": retention_days}
     if retention_enabled:
@@ -1200,7 +1210,7 @@ def _run_maintenance_task_by_key(task_key: str, db: Session, *, run_source: str)
     raise RuntimeError(f"Unknown maintenance task: {task_key}")
 
 
-def _execute_maintenance_task(task_key: str, *, run_source: str):
+def _execute_maintenance_task(task_key: str, *, run_source: str, db: Session | None = None):
     if not _try_claim_maintenance_task(task_key):
         message = f"task={task_key} source={run_source} reason=already_running"
         if run_source == "manual":
@@ -1227,7 +1237,9 @@ def _execute_maintenance_task(task_key: str, *, run_source: str):
             "started_at": _utc_iso(started_wall),
         },
     )
-    db = SessionLocal()
+    owns_db = db is None
+    if owns_db:
+        db = SessionLocal()
     try:
         result = _run_maintenance_task_by_key(task_key, db, run_source=run_source)
         duration_ms = int((time.perf_counter() - started_perf) * 1000)
@@ -1275,7 +1287,8 @@ def _execute_maintenance_task(task_key: str, *, run_source: str):
         )
         raise
     finally:
-        db.close()
+        if owns_db:
+            db.close()
         _release_maintenance_task(task_key)
 
 
@@ -1818,10 +1831,10 @@ def scan_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requi
 
 
 @app.delete("/api/admin/maintenance/orphaned-images")
-def purge_orphaned_images(me: User = Depends(require_admin)):
+def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(require_admin)):
     """Delete all asset files not referenced in the database."""
     try:
-        return _execute_maintenance_task("orphaned_images_cleanup", run_source="manual")
+        return _execute_maintenance_task("orphaned_images_cleanup", run_source="manual", db=db)
     except HTTPException:
         raise
     except Exception as exc:
@@ -1884,6 +1897,16 @@ def create_backup(payload: dict, me: User = Depends(require_admin)):
                     "manifest": result["manifest"],
                 },
             )
+        except _BackupVerificationFailed as exc:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_maintenance_run_result(
+                db,
+                task_key="backup",
+                status="failed",
+                duration_ms=duration_ms,
+                error=str(exc),
+            )
+            _finish_backup_operation(op_id, status="failed", error=str(exc), result=exc.result)
         except Exception as exc:
             duration_ms = int((time.perf_counter() - started_perf) * 1000)
             _record_maintenance_run_result(
