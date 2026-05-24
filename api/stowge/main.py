@@ -40,8 +40,8 @@ from .images import (DEFAULT_IMAGE_CONFIG, ImageConfig, assets_dir,
                      b64_from_stored_paths, cleanup_asset_paths,
                      delete_stored_images, process_and_store,
                      process_for_identify, resolve_path)
-from .models import (Collection, ImageSettings, LLMConfig, Location, Part,
-                     PartImage, User)
+from .models import (Collection, ImageSettings, ItemContentsEntry, LLMConfig,
+                     Location, Part, PartImage, User)
 from .openai_id import identify as openai_identify
 
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
@@ -258,7 +258,7 @@ def _list_public_ai_settings_payload(db: Session) -> dict:
     }
 
 
-def _serialize_part_list(part: Part, location_name: str | None = None) -> dict:
+def _serialize_part_list(part: Part, location_name: str | None = None, contents_count: int = 0) -> dict:
     primary_image = next((img for img in part.images if img.is_primary), part.images[0]) if part.images else None
     return {
         "id": part.id,
@@ -268,6 +268,7 @@ def _serialize_part_list(part: Part, location_name: str | None = None) -> dict:
         "location": location_name,
         "status": part.status,
         "quantity": part.quantity if part.quantity is not None else 1,
+        "contents_count": int(contents_count),
         "created_at": part.created_at.isoformat(),
         "thumb": (_signed_image_url(primary_image.id, "thumb") if primary_image else None),
     }
@@ -293,10 +294,28 @@ def _serialize_part_detail(part: Part, location_name: str | None = None) -> dict
             "original_url": (_signed_image_url(img.id, "original") if img.path_original else None),
             "is_primary": bool(img.is_primary),
         } for img in part.images],
+        "contents": [{
+            "id": entry.id,
+            "name": entry.name,
+            "quantity": entry.quantity if entry.quantity is not None else 1,
+            "note": entry.note,
+        } for entry in part.contents],
         "ai_primary": part.ai_primary,
         "ai_alternatives": part.ai_alternatives,
         "ai_chosen_index": part.ai_chosen_index,
     }
+
+
+def _contents_count_by_item_id(db: Session, item_ids: list[str]) -> dict[str, int]:
+    if not item_ids:
+        return {}
+    rows = (
+        db.query(ItemContentsEntry.item_id, func.count(ItemContentsEntry.id))
+        .filter(ItemContentsEntry.item_id.in_(item_ids))
+        .group_by(ItemContentsEntry.item_id)
+        .all()
+    )
+    return {str(item_id): int(count) for item_id, count in rows}
 
 
 def _mask_key(value: str | None) -> str | None:
@@ -2494,7 +2513,15 @@ def list_parts(
         location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
         location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
 
-    return [_serialize_part_list(p, location_name=(location_names.get(p.location_id) if p.location_id else None)) for p in parts]
+    contents_counts = _contents_count_by_item_id(db, [p.id for p in parts])
+    return [
+        _serialize_part_list(
+            p,
+            location_name=(location_names.get(p.location_id) if p.location_id else None),
+            contents_count=contents_counts.get(p.id, 0),
+        )
+        for p in parts
+    ]
 
 
 @app.get("/api/items/deleted")
@@ -2525,7 +2552,15 @@ def list_deleted_items(
         location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
         location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
 
-    return [_serialize_part_list(p, location_name=(location_names.get(p.location_id) if p.location_id else None)) for p in parts]
+    contents_counts = _contents_count_by_item_id(db, [p.id for p in parts])
+    return [
+        _serialize_part_list(
+            p,
+            location_name=(location_names.get(p.location_id) if p.location_id else None),
+            contents_count=contents_counts.get(p.id, 0),
+        )
+        for p in parts
+    ]
 
 
 @app.post("/api/items/deleted/purge")
@@ -2621,6 +2656,40 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
                 raise HTTPException(status_code=400, detail="Invalid location.")
             p.location_id = str(location_id)
 
+    if "contents" in payload:
+        raw_contents = payload.get("contents")
+        if raw_contents is None:
+            raw_contents = []
+        if not isinstance(raw_contents, list):
+            raise HTTPException(status_code=400, detail="contents must be a list")
+
+        db.query(ItemContentsEntry).filter(ItemContentsEntry.item_id == p.id).delete()
+
+        for index, row in enumerate(raw_contents):
+            if not isinstance(row, dict):
+                raise HTTPException(status_code=400, detail="each contents entry must be an object")
+            name = str(row.get("name") or "").strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="contents entry name is required")
+
+            try:
+                quantity = max(1, int(row.get("quantity") or 1))
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="contents entry quantity must be a positive integer")
+
+            note_raw = row.get("note")
+            note = str(note_raw).strip() if note_raw is not None else ""
+
+            db.add(
+                ItemContentsEntry(
+                    item_id=p.id,
+                    name=name,
+                    quantity=quantity,
+                    note=note or None,
+                    sort_order=index,
+                )
+            )
+
     p.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}
@@ -2657,7 +2726,8 @@ def restore_part(part_id: str, db: Session = Depends(get_db), me: User = Depends
             _loc_id, location_name = location
 
     _publish_inventory_change("created", part_id)
-    return {"ok": True, "item": _serialize_part_list(p, location_name=location_name)}
+    contents_count = _contents_count_by_item_id(db, [p.id]).get(p.id, 0)
+    return {"ok": True, "item": _serialize_part_list(p, location_name=location_name, contents_count=contents_count)}
 
 @app.post("/api/parts/{part_id}/rescan")
 @app.post("/api/items/{part_id}/rescan")

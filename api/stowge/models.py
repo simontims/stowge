@@ -52,6 +52,26 @@ class Part(Base):
     is_deleted = Column(Integer, nullable=False, default=0)  # 0|1 soft-delete flag
 
     images = relationship("PartImage", back_populates="part", cascade="all, delete-orphan")
+    contents = relationship(
+        "ItemContentsEntry",
+        back_populates="part",
+        cascade="all, delete-orphan",
+        order_by="ItemContentsEntry.sort_order",
+    )
+
+
+class ItemContentsEntry(Base):
+    __tablename__ = "item_contents"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    item_id = Column(String, ForeignKey("parts.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    note = Column(Text, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+    part = relationship("Part", back_populates="contents")
 
 class PartImage(Base):
     __tablename__ = "images"

@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Package, Plus } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -25,6 +25,7 @@ interface Part {
   location: string | null;
   status: string;
   quantity: number;
+  contents_count?: number;
   created_at: string;
   thumb: string | null;
   actions?: never;
@@ -141,24 +142,43 @@ function renderHighlightedText(value: string, query: string, keyPrefix: string):
   );
 }
 
-function renderItemNameContent(row: Part, query: string, excerptLength: number, keyPrefix: string): ReactNode {
+function renderItemNameContent(
+  row: Part,
+  query: string,
+  excerptLength: number,
+  keyPrefix: string,
+  showContentsBadge: boolean = false,
+): ReactNode {
   const descriptionExcerpt = buildCenteredExcerpt(row.description, query, excerptLength);
+  const contentsCount = row.contents_count || 0;
+  const nameLine = (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <span className="break-words font-medium text-neutral-200 min-w-0">
+        {renderHighlightedText(row.name, query, `${keyPrefix}-name`)}
+      </span>
+      {showContentsBadge && contentsCount > 0 ? (
+        <span
+          className="inline-flex shrink-0 items-center gap-1 rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-400"
+          title={`${contentsCount} contents entries`}
+        >
+          <Package size={10} />
+          {contentsCount}
+        </span>
+      ) : null}
+    </div>
+  );
 
   if (!descriptionExcerpt) {
     return (
       <div className="flex min-h-[2.5rem] items-center">
-        <div className="break-words font-medium text-neutral-200">
-          {renderHighlightedText(row.name, query, `${keyPrefix}-name`)}
-        </div>
+        {nameLine}
       </div>
     );
   }
 
   return (
     <div className="min-w-0 space-y-1">
-      <div className="break-words font-medium text-neutral-200">
-        {renderHighlightedText(row.name, query, `${keyPrefix}-name`)}
-      </div>
+      {nameLine}
       {descriptionExcerpt ? (
         <div className="break-words text-xs leading-5 text-neutral-500">
           {renderHighlightedText(descriptionExcerpt, query, `${keyPrefix}-description`)}
@@ -755,7 +775,7 @@ export function ItemsPage() {
         header: "Name",
         sortable: true,
         width: columnWidths.name,
-        render: (row) => renderItemNameContent(row, activeResultQuery, desktopDescriptionExcerptLength, `desktop-${row.id}`),
+        render: (row) => renderItemNameContent(row, activeResultQuery, desktopDescriptionExcerptLength, `desktop-${row.id}`, true),
       },
       {
         key: "collection",
@@ -925,7 +945,7 @@ export function ItemsPage() {
                                     <div className="min-w-0 flex-1">
                                       <div className="min-w-0">
                                         <div className="text-sm font-semibold text-neutral-100">
-                                          {renderItemNameContent(row, activeResultQuery, mobileDescriptionExcerptLength, `mobile-${row.id}`)}
+                                          {renderItemNameContent(row, activeResultQuery, mobileDescriptionExcerptLength, `mobile-${row.id}`, true)}
                                         </div>
                                       </div>
                                       <div className="mt-1 flex flex-wrap gap-1.5">
