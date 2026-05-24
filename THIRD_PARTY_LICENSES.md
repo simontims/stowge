@@ -116,6 +116,14 @@ license file.
 - Official source: https://www.npmjs.com/package/clsx
 - License reference: https://github.com/lukeed/clsx/blob/master/license
 
+### cronstrue
+
+- Version used: `^3.14.0`
+- License: MIT
+- Copyright notice: Copyright (c) 2017 Brady Holt
+- Official source: https://www.npmjs.com/package/cronstrue
+- License reference: https://github.com/bradymholt/cRonstrue/blob/main/LICENSE
+
 ### lucide-react
 
 - Version used: `^0.577.0`

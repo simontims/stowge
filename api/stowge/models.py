@@ -73,6 +73,29 @@ class ItemContentsEntry(Base):
 
     part = relationship("Part", back_populates="contents")
 
+
+class AppMeta(Base):
+    __tablename__ = "app_meta"
+
+    key = Column(String, primary_key=True)
+    value = Column(Text, nullable=False)
+
+
+class MaintenanceSchedule(Base):
+    __tablename__ = "maintenance_schedules"
+
+    task_key = Column(String, primary_key=True)
+    enabled = Column(Integer, nullable=False, default=0)  # 0|1
+    cron_expression = Column(String, nullable=False)
+    next_run_at = Column(DateTime(timezone=True), nullable=True)
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    last_duration_ms = Column(Integer, nullable=True)
+    last_status = Column(String, nullable=True)  # success|failed
+    last_error = Column(Text, nullable=True)
+    backup_retention_enabled = Column(Integer, nullable=False, default=0)  # 0|1
+    backup_retention_days = Column(Integer, nullable=False, default=30)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
 class PartImage(Base):
     __tablename__ = "images"
     id = Column(String, primary_key=True)  # set by /identify

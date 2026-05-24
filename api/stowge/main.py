@@ -1,14 +1,16 @@
 import asyncio
 import json
+import logging
 import os
 import re
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import List, Literal, Optional
 
+from croniter import croniter
 from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
                      UploadFile)
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,13 +42,30 @@ from .images import (DEFAULT_IMAGE_CONFIG, ImageConfig, assets_dir,
                      b64_from_stored_paths, cleanup_asset_paths,
                      delete_stored_images, process_and_store,
                      process_for_identify, resolve_path)
-from .models import (Collection, ImageSettings, ItemContentsEntry, LLMConfig,
-                     Location, Part, PartImage, User)
+from .models import (AppMeta, Collection, ImageSettings, ItemContentsEntry,
+                     LLMConfig, Location, MaintenanceSchedule, Part,
+                     PartImage, User)
 from .openai_id import identify as openai_identify
 
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+_MAINTENANCE_DEFAULTS_SEED_KEY = "maintenance_defaults_seeded_v1"
+_MAINTENANCE_TASK_KEYS = ("vacuum", "orphaned_images_cleanup", "backup")
+_MAINTENANCE_TASK_DEFAULTS: dict[str, dict[str, str]] = {
+    "vacuum": {
+        "cron": "0 3 * * 0",
+        "description": "Optimise SQLite database",
+    },
+    "orphaned_images_cleanup": {
+        "cron": "0 4 * * 0",
+        "description": "Delete orphaned image assets",
+    },
+    "backup": {
+        "cron": "0 2 * * *",
+        "description": "Create verified backup archive",
+    },
+}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 AI_PROVIDER_META: dict[str, dict[str, str]] = {
@@ -544,6 +563,11 @@ def _run_startup_migrations():
     if "users" not in tables:
         return
 
+    if "app_meta" not in tables:
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS app_meta (key VARCHAR PRIMARY KEY, value TEXT NOT NULL)"))
+        tables.add("app_meta")
+
     if "images" in tables:
         image_columns = {c["name"] for c in inspect(engine).get_columns("images")}
         with engine.begin() as conn:
@@ -592,6 +616,78 @@ def _run_startup_migrations():
             if changed:
                 db.commit()
 
+    if "maintenance_schedules" in tables:
+        maintenance_columns = {c["name"] for c in inspect(engine).get_columns("maintenance_schedules")}
+        with engine.begin() as conn:
+            if "backup_retention_enabled" not in maintenance_columns:
+                conn.execute(text("ALTER TABLE maintenance_schedules ADD COLUMN backup_retention_enabled INTEGER NOT NULL DEFAULT 0"))
+            if "backup_retention_days" not in maintenance_columns:
+                conn.execute(text("ALTER TABLE maintenance_schedules ADD COLUMN backup_retention_days INTEGER NOT NULL DEFAULT 30"))
+
+        def local_cron_to_utc(cron_expression: str) -> str:
+            parts = str(cron_expression or "").strip().split()
+            if len(parts) != 5:
+                return cron_expression
+
+            minute_raw, hour_raw, day_of_month, month, day_of_week = parts
+            if not minute_raw.isdigit() or not hour_raw.isdigit():
+                return cron_expression
+
+            local_minute = int(minute_raw)
+            local_hour = int(hour_raw)
+            if local_minute < 0 or local_minute > 59 or local_hour < 0 or local_hour > 23:
+                return cron_expression
+
+            local_now = datetime.now().astimezone()
+            probe = local_now.replace(hour=local_hour, minute=local_minute, second=0, microsecond=0)
+            utc_probe = probe.astimezone(timezone.utc)
+
+            day_shift = utc_probe.weekday() - probe.weekday()
+            if day_shift > 3:
+                day_shift -= 7
+            if day_shift < -3:
+                day_shift += 7
+
+            new_day_of_week = day_of_week
+            new_day_of_month = day_of_month
+            if day_shift and day_of_week.isdigit() and 0 <= int(day_of_week) <= 6:
+                new_day_of_week = str((int(day_of_week) + day_shift) % 7)
+            if day_shift and day_of_month.isdigit():
+                new_day_of_month = str(max(1, min(31, int(day_of_month) + day_shift)))
+
+            return f"{utc_probe.minute} {utc_probe.hour} {new_day_of_month} {month} {new_day_of_week}"
+
+        with Session(bind=engine) as db:
+            seeded = db.query(AppMeta).filter(AppMeta.key == _MAINTENANCE_DEFAULTS_SEED_KEY).first()
+            if not seeded:
+                now = datetime.now(timezone.utc)
+                existing = {
+                    row.task_key: row
+                    for row in db.query(MaintenanceSchedule)
+                    .filter(MaintenanceSchedule.task_key.in_(_MAINTENANCE_TASK_KEYS))
+                    .all()
+                }
+                for task_key in _MAINTENANCE_TASK_KEYS:
+                    default_cron = local_cron_to_utc(_MAINTENANCE_TASK_DEFAULTS[task_key]["cron"])
+                    row = existing.get(task_key)
+                    if row is None:
+                        db.add(
+                            MaintenanceSchedule(
+                                task_key=task_key,
+                                enabled=0,
+                                cron_expression=default_cron,
+                                next_run_at=None,
+                                updated_at=now,
+                            )
+                        )
+                    else:
+                        row.enabled = 0
+                        row.cron_expression = default_cron
+                        row.next_run_at = None
+                        row.updated_at = now
+                db.add(AppMeta(key=_MAINTENANCE_DEFAULTS_SEED_KEY, value=APP_VERSION))
+                db.commit()
+
     # Backward compatibility: if legacy OPENAI env vars are present and no model
     # is configured yet, create a default LiteLLM model entry automatically.
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -638,6 +734,18 @@ _ACTIVE_BACKUP_OP_ID: str | None = None
 _RESTORE_VALIDATIONS_LOCK = Lock()
 _RESTORE_VALIDATIONS: dict[str, dict] = {}
 
+_MAINTENANCE_SCHEDULER_LOCK = Lock()
+_MAINTENANCE_SCHEDULER_THREAD: threading.Thread | None = None
+_MAINTENANCE_SCHEDULER_STOP = threading.Event()
+_MAINTENANCE_SCHEDULER_POLL_SECONDS = 1.0
+_MAINTENANCE_STARTUP_DEFER_SECONDS = 60
+_MAINTENANCE_TASK_RUN_LOCK = Lock()
+_MAINTENANCE_TASK_RUNNING: set[str] = set()
+_MAINTENANCE_EVENTS_LOCK = Lock()
+_MAINTENANCE_EVENTS_SEQ = 0
+_MAINTENANCE_EVENTS_LOG: list[dict] = []
+_MAINTENANCE_EVENTS_MAX = 256
+
 # Serve Vite-built hashed bundles from /app/ui/assets.
 app.mount(
     "/assets",
@@ -663,6 +771,51 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(self)"
     return response
+
+
+@app.on_event("startup")
+def startup_maintenance_scheduler():
+    _start_maintenance_scheduler_if_needed()
+
+
+@app.on_event("shutdown")
+def shutdown_maintenance_scheduler():
+    _MAINTENANCE_SCHEDULER_STOP.set()
+    logger = logging.getLogger("uvicorn.error")
+
+    with _MAINTENANCE_TASK_RUN_LOCK:
+        running_tasks = sorted(_MAINTENANCE_TASK_RUNNING)
+    with _BACKUP_OPS_LOCK:
+        active_backup_op = _ACTIVE_BACKUP_OP_ID
+
+    task_count = len(running_tasks)
+    backup_op_count = 1 if active_backup_op else 0
+    total_waiting = task_count + backup_op_count
+
+    if total_waiting == 0:
+        logger.info("[maintenance-scheduler] no running tasks to wait for on shutdown")
+        return
+
+    wait_parts: list[str] = []
+    if task_count:
+        wait_parts.append(f"{task_count} maintenance task(s): {', '.join(running_tasks)}")
+    if backup_op_count:
+        wait_parts.append("1 backup/restore operation")
+
+    logger.info("[maintenance-scheduler] waiting for %s to complete on shutdown", " and ".join(wait_parts))
+
+    while True:
+        with _MAINTENANCE_TASK_RUN_LOCK:
+            running_tasks = sorted(_MAINTENANCE_TASK_RUNNING)
+        with _BACKUP_OPS_LOCK:
+            active_backup_op = _ACTIVE_BACKUP_OP_ID
+
+        if not running_tasks and not active_backup_op:
+            break
+
+        time.sleep(0.25)
+
+    logger.info("[maintenance-scheduler] running tasks complete; shutdown may continue")
 
 # ---------------- helpers ----------------
 
@@ -757,6 +910,456 @@ def _finish_backup_operation(op_id: str, *, status: str, result: dict | None = N
         op["updated_at"] = _utc_iso(datetime.now(timezone.utc))
         if _ACTIVE_BACKUP_OP_ID == op_id:
             _ACTIVE_BACKUP_OP_ID = None
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _log_scheduler(message: str):
+    logging.getLogger("uvicorn.error").info("[maintenance-scheduler] %s", str(message).strip())
+
+
+def _try_claim_maintenance_task(task_key: str) -> bool:
+    with _MAINTENANCE_TASK_RUN_LOCK:
+        if task_key in _MAINTENANCE_TASK_RUNNING:
+            return False
+        _MAINTENANCE_TASK_RUNNING.add(task_key)
+        return True
+
+
+def _release_maintenance_task(task_key: str):
+    with _MAINTENANCE_TASK_RUN_LOCK:
+        _MAINTENANCE_TASK_RUNNING.discard(task_key)
+
+
+def _is_maintenance_task_running(task_key: str) -> bool:
+    with _MAINTENANCE_TASK_RUN_LOCK:
+        return task_key in _MAINTENANCE_TASK_RUNNING
+
+
+def _publish_maintenance_event(event_type: str, payload: dict):
+    global _MAINTENANCE_EVENTS_SEQ
+    with _MAINTENANCE_EVENTS_LOCK:
+        _MAINTENANCE_EVENTS_SEQ += 1
+        event = {
+            "seq": _MAINTENANCE_EVENTS_SEQ,
+            "type": event_type,
+            "ts": datetime.now(timezone.utc).isoformat(),
+            **payload,
+        }
+        _MAINTENANCE_EVENTS_LOG.append(event)
+        if len(_MAINTENANCE_EVENTS_LOG) > _MAINTENANCE_EVENTS_MAX:
+            del _MAINTENANCE_EVENTS_LOG[0 : len(_MAINTENANCE_EVENTS_LOG) - _MAINTENANCE_EVENTS_MAX]
+
+
+def _maintenance_events_since(last_seq: int) -> list[dict]:
+    with _MAINTENANCE_EVENTS_LOCK:
+        return [e for e in _MAINTENANCE_EVENTS_LOG if int(e.get("seq", 0)) > last_seq]
+
+
+def _compute_next_run_utc(cron_expression: str, *, after: datetime | None = None) -> datetime:
+    base = after or _now_utc()
+    candidate = croniter(cron_expression, base).get_next(datetime)
+    if candidate.tzinfo is None:
+        return candidate.replace(tzinfo=timezone.utc)
+    return candidate.astimezone(timezone.utc)
+
+
+def _coerce_utc(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _serialize_maintenance_schedule(row: MaintenanceSchedule) -> dict:
+    retention_days = int(row.backup_retention_days or 30)
+    if retention_days < 1:
+        retention_days = 1
+    return {
+        "task_key": row.task_key,
+        "enabled": bool(row.enabled),
+        "is_running": _is_maintenance_task_running(row.task_key),
+        "cron_expression": row.cron_expression,
+        "backup_retention_enabled": bool(row.backup_retention_enabled),
+        "backup_retention_days": retention_days,
+        "next_run_at": _utc_iso(_coerce_utc(row.next_run_at)),
+        "last_run_at": _utc_iso(_coerce_utc(row.last_run_at)),
+        "last_duration_ms": row.last_duration_ms,
+        "last_status": row.last_status,
+        "last_error": row.last_error,
+        "updated_at": _utc_iso(_coerce_utc(row.updated_at)),
+    }
+
+
+def _backup_retention_settings(db: Session) -> tuple[bool, int]:
+    row = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.task_key == "backup").first()
+    if not row:
+        return False, 30
+    days = int(row.backup_retention_days or 30)
+    days = max(1, min(3650, days))
+    return bool(row.backup_retention_enabled), days
+
+
+def _purge_old_backups(*, older_than_days: int) -> dict:
+    cutoff = _now_utc() - timedelta(days=older_than_days)
+    backups_dir = ensure_backups_dir(assets_dir())
+    deleted = 0
+    freed_bytes = 0
+    skipped_non_automatic = 0
+
+    for name in os.listdir(backups_dir):
+        if not name.endswith(".tar.gz"):
+            continue
+        path = os.path.join(backups_dir, name)
+        if not os.path.isfile(path):
+            continue
+        try:
+            manifest = read_manifest_from_archive(path)
+            backup_name = str(manifest.get("backup_name") or "").strip()
+            created_by = str(manifest.get("created_by_user") or "").strip().lower()
+            is_automatic = backup_name == "Stowge Automatic" or created_by == "system/scheduler"
+            if not is_automatic:
+                skipped_non_automatic += 1
+                continue
+
+            stat = os.stat(path)
+            modified_at = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
+            if modified_at >= cutoff:
+                continue
+            freed_bytes += int(stat.st_size)
+            os.remove(path)
+            deleted += 1
+        except (OSError, BackupError):
+            continue
+
+    return {
+        "deleted": deleted,
+        "freed_bytes": freed_bytes,
+        "older_than_days": older_than_days,
+        "skipped_non_automatic": skipped_non_automatic,
+    }
+
+
+def _ensure_maintenance_schedules(db: Session):
+    now = _now_utc()
+    existing = {
+        row.task_key: row
+        for row in db.query(MaintenanceSchedule)
+        .filter(MaintenanceSchedule.task_key.in_(_MAINTENANCE_TASK_KEYS))
+        .all()
+    }
+    changed = False
+    for task_key in _MAINTENANCE_TASK_KEYS:
+        row = existing.get(task_key)
+        default_cron = _MAINTENANCE_TASK_DEFAULTS[task_key]["cron"]
+        if row is None:
+            db.add(
+                MaintenanceSchedule(
+                    task_key=task_key,
+                    enabled=0,
+                    cron_expression=default_cron,
+                    next_run_at=None,
+                    updated_at=now,
+                )
+            )
+            changed = True
+            continue
+        if not (row.cron_expression or "").strip():
+            row.cron_expression = default_cron
+            row.updated_at = now
+            changed = True
+    if changed:
+        db.commit()
+
+
+def _run_vacuum_once() -> dict:
+    import sqlite3 as _sqlite3
+
+    db_file = DATABASE_FILE
+    if not db_file or not db_file.endswith(".db"):
+        raise RuntimeError("VACUUM is only supported for SQLite databases")
+    size_before = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
+    raw = _sqlite3.connect(db_file)
+    try:
+        raw.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        raw.execute("VACUUM")
+        raw.execute("ANALYZE")
+        raw.execute("PRAGMA optimize")
+    finally:
+        raw.close()
+    size_after = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
+    return {
+        "size_before": size_before,
+        "size_after": size_after,
+        "freed_bytes": max(0, size_before - size_after),
+    }
+
+
+def _run_backup_once(
+    db: Session,
+    *,
+    include_assets: bool = True,
+    backup_name: str | None = None,
+    created_by_user: str = "system",
+    progress_callback=None,
+) -> dict:
+    retention_enabled, retention_days = _backup_retention_settings(db)
+
+    result = create_backup_archive(
+        db=db,
+        db_file=DATABASE_FILE,
+        assets_root=assets_dir(),
+        include_assets=include_assets,
+        backup_name=backup_name,
+        app_version=APP_VERSION,
+        created_by_user=created_by_user,
+        progress_callback=progress_callback,
+    )
+
+    verification_error: str | None = None
+    if progress_callback is not None:
+        progress_callback(stage="verify", progress=96, message="Verifying backup integrity")
+    try:
+        verify_result = start_restore_validation(
+            backup_path=result["path"],
+            assets_root=assets_dir(),
+            enforce_restore_space=False,
+        )
+        remove_tmp_dir(str(verify_result.get("tmp_dir") or ""))
+    except Exception as exc:
+        verification_error = str(exc)
+
+    manifest = set_backup_verification_metadata(
+        result["path"],
+        verified=verification_error is None,
+        error=verification_error,
+    )
+    if verification_error is not None:
+        raise RuntimeError(f"Backup verification failed: {verification_error}")
+
+    retention_result = {"deleted": 0, "freed_bytes": 0, "older_than_days": retention_days}
+    if retention_enabled:
+        retention_result = _purge_old_backups(older_than_days=retention_days)
+
+    return {
+        "filename": result["filename"],
+        "archive_bytes": result["archive_bytes"],
+        "manifest": manifest,
+        "retention": retention_result,
+    }
+
+
+def _record_maintenance_run_result(
+    db: Session,
+    *,
+    task_key: str,
+    status: str,
+    duration_ms: int,
+    error: str | None,
+):
+    row = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.task_key == task_key).first()
+    if not row:
+        return
+    now = _now_utc()
+    row.last_run_at = _coerce_utc(now)
+    row.last_duration_ms = duration_ms
+    row.last_status = status
+    row.last_error = error
+    row.updated_at = _coerce_utc(now)
+    if bool(row.enabled):
+        try:
+            row.next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
+        except Exception:
+            row.next_run_at = None
+    else:
+        row.next_run_at = None
+    db.commit()
+    _publish_maintenance_event(
+        "maintenance_schedule_updated",
+        {
+            "task_key": task_key,
+            "status": status,
+            "duration_ms": duration_ms,
+            "error": error,
+        },
+    )
+
+
+def _run_maintenance_task_by_key(task_key: str, db: Session, *, run_source: str) -> dict:
+    if task_key == "vacuum":
+        return _run_vacuum_once()
+    if task_key == "orphaned_images_cleanup":
+        return _purge_orphaned_images_once(db)
+    if task_key == "backup":
+        backup_name = "Stowge Automatic" if run_source == "scheduler" else None
+        created_by = "system/scheduler" if run_source == "scheduler" else "admin/manual"
+        return _run_backup_once(db, include_assets=True, backup_name=backup_name, created_by_user=created_by)
+    raise RuntimeError(f"Unknown maintenance task: {task_key}")
+
+
+def _execute_maintenance_task(task_key: str, *, run_source: str):
+    if not _try_claim_maintenance_task(task_key):
+        message = f"task={task_key} source={run_source} reason=already_running"
+        if run_source == "manual":
+            raise HTTPException(status_code=409, detail=f"Maintenance task '{task_key}' is already running")
+        _log_scheduler(f"skipped {message}")
+        _publish_maintenance_event(
+            "maintenance_task_skipped",
+            {
+                "task_key": task_key,
+                "source": run_source,
+                "reason": "already_running",
+            },
+        )
+        return {"task_key": task_key, "status": "skipped", "reason": "already_running"}
+
+    started_wall = _now_utc()
+    started_perf = time.perf_counter()
+    _log_scheduler(f"starting task={task_key} source={run_source}")
+    _publish_maintenance_event(
+        "maintenance_task_started",
+        {
+            "task_key": task_key,
+            "source": run_source,
+            "started_at": _utc_iso(started_wall),
+        },
+    )
+    db = SessionLocal()
+    try:
+        result = _run_maintenance_task_by_key(task_key, db, run_source=run_source)
+        duration_ms = int((time.perf_counter() - started_perf) * 1000)
+        _record_maintenance_run_result(
+            db,
+            task_key=task_key,
+            status="success",
+            duration_ms=duration_ms,
+            error=None,
+        )
+        _log_scheduler(
+            f"completed task={task_key} source={run_source} duration_ms={duration_ms} started_at={_utc_iso(started_wall)}"
+        )
+        _publish_maintenance_event(
+            "maintenance_task_completed",
+            {
+                "task_key": task_key,
+                "source": run_source,
+                "duration_ms": duration_ms,
+                "started_at": _utc_iso(started_wall),
+            },
+        )
+        return result
+    except Exception as exc:
+        duration_ms = int((time.perf_counter() - started_perf) * 1000)
+        _record_maintenance_run_result(
+            db,
+            task_key=task_key,
+            status="failed",
+            duration_ms=duration_ms,
+            error=str(exc),
+        )
+        _log_scheduler(
+            f"failed task={task_key} source={run_source} duration_ms={duration_ms} error={exc}"
+        )
+        _publish_maintenance_event(
+            "maintenance_task_failed",
+            {
+                "task_key": task_key,
+                "source": run_source,
+                "duration_ms": duration_ms,
+                "started_at": _utc_iso(started_wall),
+                "error": str(exc),
+            },
+        )
+        raise
+    finally:
+        db.close()
+        _release_maintenance_task(task_key)
+
+
+def _maintenance_scheduler_loop():
+    while not _MAINTENANCE_SCHEDULER_STOP.is_set():
+        db = SessionLocal()
+        try:
+            _ensure_maintenance_schedules(db)
+            now = _now_utc()
+            rows = (
+                db.query(MaintenanceSchedule)
+                .filter(MaintenanceSchedule.task_key.in_(_MAINTENANCE_TASK_KEYS), MaintenanceSchedule.enabled == 1)
+                .order_by(MaintenanceSchedule.next_run_at.asc(), MaintenanceSchedule.task_key.asc())
+                .all()
+            )
+            due_keys: list[str] = []
+            for row in rows:
+                next_run_at = _coerce_utc(row.next_run_at)
+                if not next_run_at:
+                    try:
+                        next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
+                        row.next_run_at = next_run_at
+                        row.updated_at = _coerce_utc(now)
+                        db.commit()
+                    except Exception:
+                        row.next_run_at = None
+                        row.last_status = "failed"
+                        row.last_error = "Invalid cron expression"
+                        row.updated_at = _coerce_utc(now)
+                        db.commit()
+                        continue
+                if next_run_at and next_run_at <= now:
+                    due_keys.append(row.task_key)
+        except Exception as exc:
+            _log_scheduler(f"loop error: {exc}")
+            due_keys = []
+        finally:
+            db.close()
+
+        for task_key in due_keys:
+            try:
+                _execute_maintenance_task(task_key, run_source="scheduler")
+            except Exception:
+                pass
+
+        _MAINTENANCE_SCHEDULER_STOP.wait(_MAINTENANCE_SCHEDULER_POLL_SECONDS)
+
+
+def _start_maintenance_scheduler_if_needed():
+    global _MAINTENANCE_SCHEDULER_THREAD
+    with _MAINTENANCE_SCHEDULER_LOCK:
+        if _MAINTENANCE_SCHEDULER_THREAD and _MAINTENANCE_SCHEDULER_THREAD.is_alive():
+            return
+
+        db = SessionLocal()
+        try:
+            _ensure_maintenance_schedules(db)
+            now = _now_utc()
+            defer_until = now + timedelta(seconds=_MAINTENANCE_STARTUP_DEFER_SECONDS)
+            rows = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.task_key.in_(_MAINTENANCE_TASK_KEYS)).all()
+            enabled_count = sum(1 for row in rows if bool(row.enabled))
+            deferred_count = 0
+            for row in rows:
+                if not bool(row.enabled):
+                    continue
+                next_run = _coerce_utc(row.next_run_at)
+                if next_run is None or next_run <= defer_until:
+                    try:
+                        row.next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=defer_until))
+                    except Exception:
+                        row.next_run_at = defer_until
+                    deferred_count += 1
+            if deferred_count:
+                db.commit()
+            _log_scheduler(
+                f"loaded schedules total={len(rows)} enabled={enabled_count}"
+                + (f" deferred={deferred_count} (startup delay {_MAINTENANCE_STARTUP_DEFER_SECONDS}s)" if deferred_count else "")
+            )
+        finally:
+            db.close()
+
+        _MAINTENANCE_SCHEDULER_STOP.clear()
+        _MAINTENANCE_SCHEDULER_THREAD = threading.Thread(target=_maintenance_scheduler_loop, daemon=True)
+        _MAINTENANCE_SCHEDULER_THREAD.start()
 
 
 def _resolve_backup_path(filename: str) -> str:
@@ -1076,6 +1679,120 @@ def _build_tracked_paths(db: Session) -> set[str]:
     return tracked
 
 
+@app.get("/api/admin/maintenance/schedules")
+def get_maintenance_schedules(db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    _ensure_maintenance_schedules(db)
+    rows = (
+        db.query(MaintenanceSchedule)
+        .filter(MaintenanceSchedule.task_key.in_(_MAINTENANCE_TASK_KEYS))
+        .order_by(MaintenanceSchedule.task_key.asc())
+        .all()
+    )
+    return {
+        "schedules": [_serialize_maintenance_schedule(row) for row in rows],
+    }
+
+
+@app.patch("/api/admin/maintenance/schedules/{task_key}")
+def update_maintenance_schedule(task_key: str, payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
+    if task_key not in _MAINTENANCE_TASK_KEYS:
+        raise HTTPException(status_code=404, detail="Unknown maintenance task")
+
+    _ensure_maintenance_schedules(db)
+    row = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.task_key == task_key).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    now = _now_utc()
+    if "cron_expression" in payload:
+        cron_expression = str(payload.get("cron_expression") or "").strip()
+        if not cron_expression:
+            raise HTTPException(status_code=400, detail="cron_expression is required")
+        try:
+            _compute_next_run_utc(cron_expression, after=now)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid cron expression: {exc}")
+        row.cron_expression = cron_expression
+
+    if "enabled" in payload:
+        row.enabled = 1 if bool(payload.get("enabled")) else 0
+
+    if "backup_retention_enabled" in payload:
+        if task_key != "backup":
+            raise HTTPException(status_code=400, detail="backup_retention_enabled is only valid for backup task")
+        row.backup_retention_enabled = 1 if bool(payload.get("backup_retention_enabled")) else 0
+
+    if "backup_retention_days" in payload:
+        if task_key != "backup":
+            raise HTTPException(status_code=400, detail="backup_retention_days is only valid for backup task")
+        try:
+            days = int(payload.get("backup_retention_days"))
+        except Exception:
+            raise HTTPException(status_code=400, detail="backup_retention_days must be an integer")
+        if days < 1 or days > 3650:
+            raise HTTPException(status_code=400, detail="backup_retention_days must be between 1 and 3650")
+        row.backup_retention_days = days
+
+    row.updated_at = _coerce_utc(now)
+    if bool(row.enabled):
+        row.next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
+    else:
+        row.next_run_at = None
+
+    db.commit()
+    db.refresh(row)
+    _publish_maintenance_event(
+        "maintenance_schedule_updated",
+        {
+            "task_key": task_key,
+            "source": "manual",
+        },
+    )
+    return _serialize_maintenance_schedule(row)
+
+
+@app.get("/api/events/maintenance")
+async def maintenance_events(
+    request: Request,
+    since: int = 0,
+    _me: User = Depends(require_admin),
+):
+    async def event_stream():
+        last_seq = max(0, int(since))
+        heartbeat = 0
+        while True:
+            if await request.is_disconnected():
+                break
+
+            events = _maintenance_events_since(last_seq)
+            if events:
+                for ev in events:
+                    last_seq = int(ev.get("seq", last_seq))
+                    yield (
+                        f"id: {ev['seq']}\n"
+                        f"event: {ev['type']}\n"
+                        f"data: {json.dumps(ev)}\n\n"
+                    )
+                heartbeat = 0
+            else:
+                heartbeat += 1
+                if heartbeat >= 10:
+                    yield ": keepalive\n\n"
+                    heartbeat = 0
+
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.get("/api/admin/maintenance/orphaned-images")
 def scan_orphaned_images(db: Session = Depends(get_db), me: User = Depends(require_admin)):
     """Scan the assets directory for files not referenced in the database (dry run)."""
@@ -1101,118 +1818,62 @@ def scan_orphaned_images(db: Session = Depends(get_db), me: User = Depends(requi
 
 
 @app.delete("/api/admin/maintenance/orphaned-images")
-def purge_orphaned_images(db: Session = Depends(get_db), me: User = Depends(require_admin)):
+def purge_orphaned_images(me: User = Depends(require_admin)):
     """Delete all asset files not referenced in the database."""
-    tracked = _build_tracked_paths(db)
-    base_assets_dir = assets_dir()
-    deleted = 0
-    freed_bytes = 0
-    for root, _dirs, files in os.walk(base_assets_dir):
-        if os.path.basename(root) == "backups":
-            continue
-        for fname in files:
-            abs_path = os.path.join(root, fname)
-            rel_path = os.path.relpath(abs_path, base_assets_dir).replace("\\", "/")
-            if rel_path.startswith("backups/"):
-                continue
-            if rel_path not in tracked:
-                try:
-                    freed_bytes += os.path.getsize(abs_path)
-                    os.remove(abs_path)
-                    deleted += 1
-                except OSError:
-                    pass
-    # Remove newly empty subdirectories (best-effort).
-    for root, _dirs, _files in os.walk(base_assets_dir, topdown=False):
-        if root == base_assets_dir:
-            continue
-        if os.path.basename(root) == "backups":
-            continue
-        try:
-            if not os.listdir(root):
-                os.rmdir(root)
-        except OSError:
-            pass
-    return {"deleted": deleted, "freed_bytes": freed_bytes}
+    try:
+        return _execute_maintenance_task("orphaned_images_cleanup", run_source="manual")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Orphan cleanup failed: {exc}")
 
 
 @app.post("/api/admin/maintenance/vacuum")
 def vacuum_database(me: User = Depends(require_admin)):
     """Run VACUUM, ANALYZE, and PRAGMA optimize on the SQLite database."""
-    import sqlite3 as _sqlite3
-    db_file = DATABASE_FILE
-    if not db_file or not db_file.endswith(".db"):
-        raise HTTPException(status_code=400, detail="VACUUM is only supported for SQLite databases")
     try:
-        size_before = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
-        raw = _sqlite3.connect(db_file)
-        try:
-            raw.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            raw.execute("VACUUM")
-            raw.execute("ANALYZE")
-            raw.execute("PRAGMA optimize")
-        finally:
-            raw.close()
-        size_after = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
+        return _execute_maintenance_task("vacuum", run_source="manual")
+    except HTTPException:
+        raise
     except Exception as exc:
+        if "only supported for SQLite" in str(exc):
+            raise HTTPException(status_code=400, detail=str(exc))
         raise HTTPException(status_code=500, detail=f"Vacuum failed: {exc}")
-    return {
-        "size_before": size_before,
-        "size_after": size_after,
-        "freed_bytes": max(0, size_before - size_after),
-    }
 
 
 @app.post("/api/admin/backups/create")
 def create_backup(payload: dict, me: User = Depends(require_admin)):
     include_assets = bool(payload.get("include_assets", False))
     backup_name = str(payload.get("backup_name") or "").strip() or None
-    op_id = _new_backup_operation("backup-create")
+    if not _try_claim_maintenance_task("backup"):
+        raise HTTPException(status_code=409, detail="Maintenance task 'backup' is already running")
+
+    try:
+        op_id = _new_backup_operation("backup-create")
+    except Exception:
+        _release_maintenance_task("backup")
+        raise
 
     def run_backup():
         db = SessionLocal()
+        started_perf = time.perf_counter()
         try:
-            result = create_backup_archive(
-                db=db,
-                db_file=DATABASE_FILE,
-                assets_root=assets_dir(),
+            result = _run_backup_once(
+                db,
                 include_assets=include_assets,
                 backup_name=backup_name,
-                app_version=APP_VERSION,
                 created_by_user=me.username,
                 progress_callback=lambda **kwargs: _update_backup_operation(op_id, **kwargs),
             )
 
-            verification_error: str | None = None
-            _update_backup_operation(op_id, stage="verify", progress=96, message="Verifying backup integrity")
-            try:
-                verify_result = start_restore_validation(
-                    backup_path=result["path"],
-                    assets_root=assets_dir(),
-                    enforce_restore_space=False,
-                )
-                remove_tmp_dir(str(verify_result.get("tmp_dir") or ""))
-            except Exception as exc:
-                verification_error = str(exc)
-
-            manifest = set_backup_verification_metadata(
-                result["path"],
-                verified=verification_error is None,
-                error=verification_error,
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_maintenance_run_result(
+                db,
+                task_key="backup",
+                status="success",
+                duration_ms=duration_ms,
+                error=None,
             )
-
-            if verification_error is not None:
-                _finish_backup_operation(
-                    op_id,
-                    status="failed",
-                    error=f"Backup verification failed: {verification_error}",
-                    result={
-                        "filename": result["filename"],
-                        "archive_bytes": result["archive_bytes"],
-                        "manifest": manifest,
-                    },
-                )
-                return
 
             _finish_backup_operation(
                 op_id,
@@ -1220,16 +1881,30 @@ def create_backup(payload: dict, me: User = Depends(require_admin)):
                 result={
                     "filename": result["filename"],
                     "archive_bytes": result["archive_bytes"],
-                    "manifest": manifest,
+                    "manifest": result["manifest"],
                 },
             )
         except Exception as exc:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_maintenance_run_result(
+                db,
+                task_key="backup",
+                status="failed",
+                duration_ms=duration_ms,
+                error=str(exc),
+            )
             _finish_backup_operation(op_id, status="failed", error=str(exc))
         finally:
             db.close()
+            _release_maintenance_task("backup")
 
     thread = threading.Thread(target=run_backup, daemon=True)
-    thread.start()
+    try:
+        thread.start()
+    except Exception as exc:
+        _finish_backup_operation(op_id, status="failed", error=str(exc))
+        _release_maintenance_task("backup")
+        raise HTTPException(status_code=500, detail=f"Failed to start backup: {exc}")
     return {"operation_id": op_id}
 
 

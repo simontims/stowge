@@ -87,7 +87,7 @@ stowge/
 - Name: Application DB
 - Type: SQLite (current local and compose defaults)
 - Purpose: Persistent state for users, items, images, collections, locations, and AI config metadata.
-- Key tables: users, sessions, parts, item_contents, part_images, collections, locations, llm_configs.
+- Key tables: users, sessions, parts, item_contents, maintenance_schedules, part_images, collections, locations, llm_configs.
 - Stub tables (schema present, no routes yet): external_identities, api_keys.
 
 ### 4.2 File Storage
@@ -229,6 +229,18 @@ For future user-managed API keys for scripts and automation.
 - note
 - sort_order
 - created_at
+
+### Maintenance Schedule (maintenance_schedules table)
+
+- task_key
+- enabled
+- cron_expression
+- next_run_at
+- last_run_at
+- last_duration_ms
+- last_status
+- last_error
+- updated_at
 
 ### Collection
 
