@@ -139,27 +139,30 @@ async def maintenance_events(
     async def event_stream():
         last_seq = max(0, int(since))
         heartbeat = 0
-        while True:
-            if await request.is_disconnected():
-                break
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
 
-            events = maintenance_events_since(last_seq)
-            if events:
-                for ev in events:
-                    last_seq = int(ev.get("seq", last_seq))
-                    yield (
-                        f"id: {ev['seq']}\n"
-                        f"event: {ev['type']}\n"
-                        f"data: {json.dumps(ev)}\n\n"
-                    )
-                heartbeat = 0
-            else:
-                heartbeat += 1
-                if heartbeat >= 10:
-                    yield ": keepalive\n\n"
+                events = maintenance_events_since(last_seq)
+                if events:
+                    for ev in events:
+                        last_seq = int(ev.get("seq", last_seq))
+                        yield (
+                            f"id: {ev['seq']}\n"
+                            f"event: {ev['type']}\n"
+                            f"data: {json.dumps(ev)}\n\n"
+                        )
                     heartbeat = 0
+                else:
+                    heartbeat += 1
+                    if heartbeat >= 10:
+                        yield ": keepalive\n\n"
+                        heartbeat = 0
 
-            await asyncio.sleep(1)
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            return
 
     return StreamingResponse(
         event_stream(),

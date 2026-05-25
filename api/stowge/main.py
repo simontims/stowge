@@ -6,9 +6,7 @@ includes all route modules, and manages startup/shutdown lifecycle.
 
 import logging
 import os
-import time
 from datetime import datetime, timezone
-from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,9 +18,7 @@ from sqlalchemy.orm import Session
 
 from .db import Base, SessionLocal, engine, get_db
 from .helpers.ai_providers import default_api_base_for_provider
-from .helpers.backup_state import get_active_backup_op_id
-from .helpers.maintenance import (MAINTENANCE_TASK_KEYS, get_running_tasks,
-                                  get_scheduler_stop_event,
+from .helpers.maintenance import (MAINTENANCE_TASK_KEYS,
                                   start_maintenance_scheduler_if_needed,
                                   stop_maintenance_scheduler)
 from .models import AppMeta, LLMConfig, MaintenanceSchedule
@@ -352,42 +348,6 @@ def startup_maintenance_scheduler():
 @app.on_event("shutdown")
 def shutdown_maintenance_scheduler():
     stop_maintenance_scheduler()
-    logger = logging.getLogger("uvicorn.error")
-
-    from .helpers.backup_state import get_active_backup_op_id as _get_active_op
-    from .helpers.maintenance import get_running_tasks as _get_running, get_task_run_lock
-
-    with get_task_run_lock():
-        running_tasks = sorted(_get_running())
-    active_backup_op = _get_active_op()
-
-    task_count = len(running_tasks)
-    backup_op_count = 1 if active_backup_op else 0
-    total_waiting = task_count + backup_op_count
-
-    if total_waiting == 0:
-        logger.info("[maintenance-scheduler] no running tasks to wait for on shutdown")
-        return
-
-    wait_parts: list[str] = []
-    if task_count:
-        wait_parts.append(f"{task_count} maintenance task(s): {', '.join(running_tasks)}")
-    if backup_op_count:
-        wait_parts.append("1 backup/restore operation")
-
-    logger.info("[maintenance-scheduler] waiting for %s to complete on shutdown", " and ".join(wait_parts))
-
-    while True:
-        with get_task_run_lock():
-            running_tasks = sorted(_get_running())
-        active_backup_op = _get_active_op()
-
-        if not running_tasks and not active_backup_op:
-            break
-
-        time.sleep(0.25)
-
-    logger.info("[maintenance-scheduler] running tasks complete; shutdown may continue")
 
 
 # ---------------------------------------------------------------------------

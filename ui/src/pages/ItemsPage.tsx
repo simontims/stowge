@@ -13,6 +13,8 @@ import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { buildCenteredExcerpt, splitMatchSegments } from "../lib/itemSearch";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
+import { type LocationOption, type CollectionOption } from "../lib/types";
+import { imageStateSignature } from "../lib/format";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
 const DELETE_TOAST_TIMEOUT_MS = 5000;
@@ -67,15 +69,6 @@ export interface PartEditForm {
   quantity: number;
 }
 
-export interface LocationOption {
-  id: string;
-  name: string;
-}
-
-export interface CollectionOption {
-  id: string;
-  name: string;
-}
 
 const EMPTY_EDIT_FORM: PartEditForm = {
   name: "",
@@ -108,9 +101,6 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   );
 }
 
-function imageStateSignature(images: Array<{ id: string; is_primary: boolean }>): string {
-  return images.map((img) => `${img.id}:${img.is_primary ? "1" : "0"}`).join("|");
-}
 
 type ItemSortKey = "name" | "collection" | "location" | "status";
 

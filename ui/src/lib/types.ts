@@ -1,3 +1,14 @@
+export interface LocationOption {
+  id: string;
+  name: string;
+}
+
+export interface CollectionOption {
+  id: string;
+  name: string;
+  ai_hint?: string | null;
+}
+
 export interface CurrentUser {
   id: string;
   email: string;

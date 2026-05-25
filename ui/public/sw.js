@@ -7,6 +7,3 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener("fetch", () => {
-  // Intentionally no-op for now to avoid stale data/cache bugs.
-});

@@ -17,6 +17,8 @@ import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 import { useNumericField } from "../hooks/useNumericField";
+import { type LocationOption, type CollectionOption } from "../lib/types";
+import { imageStateSignature } from "../lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,15 +59,6 @@ interface PartDetail {
   contents: ContentsEntry[];
 }
 
-interface LocationOption {
-  id: string;
-  name: string;
-}
-
-interface CollectionOption {
-  id: string;
-  name: string;
-}
 
 interface EditForm {
   name: string;
@@ -129,9 +122,6 @@ function createLocalContentId(): string {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function imageStateSignature(images: Array<{ id: string; is_primary: boolean }>): string {
-  return images.map((img) => `${img.id}:${img.is_primary ? "1" : "0"}`).join("|");
-}
 
 interface ContentQuantityFieldProps {
   value: number;

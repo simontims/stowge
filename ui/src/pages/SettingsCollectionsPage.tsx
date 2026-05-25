@@ -14,6 +14,7 @@ import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { useTableSort } from "../hooks/useTableSort";
 import { COLLECTIONS_NAV_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "../lib/api";
+import { formatBytes } from "../lib/format";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import Sketch from "@uiw/react-color-sketch";
 
@@ -110,18 +111,6 @@ interface CollectionForm {
 
 const EMPTY_FORM: CollectionForm = { name: "", icon: "", color: "", description: "", ai_hint: "" };
 
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-  const precision = unitIndex === 0 ? 0 : value >= 100 ? 0 : value >= 10 ? 1 : 2;
-  return `${value.toFixed(precision)} ${units[unitIndex]}`;
-}
 
 // ── AI Hint help examples ────────────────────────────────────────────────────
 const AI_HINT_EXAMPLES: { label: string; hint: string }[] = [

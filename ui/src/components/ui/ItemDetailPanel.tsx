@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Save, Trash2, X, ChevronLeft, ChevronRight, Star, Pencil } from "lucide-react";
 import { useNumericField } from "../../hooks/useNumericField";
 import { useNavigate } from "react-router-dom";
-import type { PartDetail, PartEditForm, LocationOption, CollectionOption } from "../../pages/ItemsPage";
+import type { PartDetail, PartEditForm } from "../../pages/ItemsPage";
+import type { LocationOption, CollectionOption } from "../../lib/types";
 
 interface ItemDetailPanelProps {
   selectedPart: PartDetail | null;

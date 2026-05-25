@@ -15,6 +15,7 @@ import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { useNumericField } from "../hooks/useNumericField";
 import { useCurrentUser } from "../lib/UserContext";
+import { type LocationOption, type CollectionOption } from "../lib/types";
 
 interface IdentifyCandidate {
   name?: string;
@@ -69,16 +70,6 @@ interface AddPageBootstrapResponse {
   ai_settings: AiSettingsResponse;
 }
 
-interface CollectionOption {
-  id: string;
-  name: string;
-  ai_hint?: string | null;
-}
-
-interface LocationOption {
-  id: string;
-  name: string;
-}
 
 interface PartDraft {
   name: string;
