@@ -9,9 +9,10 @@ import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { DeleteTransferModal } from "../components/ui/DeleteTransferModal";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { useTableSort } from "../hooks/useTableSort";
+import { useResourceList } from "../hooks/useResourceList";
+import { useDirtyState } from "../hooks/useDirtyState";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
-import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 interface LocationRecord {
   id: string;
@@ -45,9 +46,7 @@ interface LocationsSectionProps {
 }
 
 export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: LocationsSectionProps = {}) {
-  const [locations, setLocations] = useState<LocationRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
+  const { items: locations, loading, error: loadError, load: loadLocations } = useResourceList<LocationRecord>({ url: "/api/locations", onError: "Unable to load locations right now." });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -61,7 +60,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   const [editForm, setEditForm] = useState<LocationForm>(EMPTY_FORM);
   const [initialEditForm, setInitialEditForm] = useState<LocationForm>(EMPTY_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -84,17 +82,14 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     [locations, confirmDeleteId]
   );
 
-  const isEditDirty = useMemo(
-    () =>
-      editForm.name !== initialEditForm.name ||
-      editForm.description !== initialEditForm.description ||
-      editForm.photo_path !== null,
-    [editForm, initialEditForm]
-  );
-  useBeforeUnload(!embedded && Boolean(editingId) && isEditDirty);
-
-  // Expose dirty state and save function when embedded
-  useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
+  const { isDirty: isEditDirty, unsavedPromptOpen, closePrompt, confirmDiscard } = useDirtyState({
+    form: editForm,
+    initialForm: initialEditForm,
+    isEqual: (a, b) => a.name === b.name && a.description === b.description && a.photo_path === null,
+    embedded,
+    active: Boolean(editingId),
+    onDirtyChange,
+  });
   if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
 
   useEffect(() => {
@@ -106,26 +101,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     const timeout = setTimeout(() => setNotice(""), 4500);
     return () => clearTimeout(timeout);
   }, [notice]);
-
-  async function loadLocations(options?: { background?: boolean }) {
-    const background = options?.background ?? false;
-
-    if (!background) {
-      setLoading(true);
-      setLoadError("");
-    }
-    try {
-      const data = await apiRequest<LocationRecord[]>("/api/locations");
-      setLocations(data);
-    } catch (err) {
-      setLocations([]);
-      setLoadError((err as Error).message || "Unable to load locations right now.");
-    } finally {
-      if (!background) {
-        setLoading(false);
-      }
-    }
-  }
 
   function startEdit(location: LocationRecord) {
     setError("");
@@ -144,7 +119,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     setEditingId(null);
     setEditForm(EMPTY_FORM);
     setInitialEditForm(EMPTY_FORM);
-    setUnsavedPromptOpen(false);
+    closePrompt();
   }
 
   async function handleUnsavedSave() {
@@ -153,6 +128,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   }
 
   function handleUnsavedDiscard() {
+    confirmDiscard();
     cancelEdit();
   }
 
@@ -619,7 +595,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         open={unsavedPromptOpen}
         message="You have unsaved changes. Do you want to save before leaving this location?"
         saving={isSavingEdit}
-        onCancel={() => setUnsavedPromptOpen(false)}
+        onCancel={closePrompt}
         onDiscard={handleUnsavedDiscard}
         onSave={() => void handleUnsavedSave()}
       />

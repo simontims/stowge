@@ -7,9 +7,11 @@ import { DataTable, type Column } from "../components/ui/DataTable";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { solidActionButtonClasses, tableActionButtonClasses } from "../components/ui/buttonStyles";
 import { useTableSort } from "../hooks/useTableSort";
+import { useResourceList } from "../hooks/useResourceList";
+import { useModalState } from "../hooks/useModalState";
+import { useDirtyState } from "../hooks/useDirtyState";
 import { apiRequest } from "../lib/api";
 import { useCurrentUser } from "../lib/UserContext";
-import { useBeforeUnload } from "../lib/useBeforeUnload";
 
 interface UserRecord {
   id: string;
@@ -46,9 +48,7 @@ interface UsersSectionProps {
 }
 
 export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersSectionProps = {}) {
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { items: users, loading, error, setError, load: loadUsers } = useResourceList<UserRecord>({ url: "/api/users", onError: "Failed to load users." });
   const [notice, setNotice] = useState("");
 
   const [newUser, setNewUser] = useState<UserForm>(EMPTY_NEW_USER);
@@ -58,9 +58,8 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   const [editForm, setEditForm] = useState<UserForm>(EMPTY_NEW_USER);
   const [initialEditForm, setInitialEditForm] = useState<UserForm>(EMPTY_NEW_USER);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
 
-  const [confirmDeleteUser, setConfirmDeleteUser] = useState<UserRecord | null>(null);
+  const deleteModal = useModalState<UserRecord>();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addingOpen, setAddingOpen] = useState(false);
   const { sortKey, sortDirection, handleSort } = useTableSort<UserSortKey>("email");
@@ -103,19 +102,14 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
     return rows;
   }, [filteredUsers, sortDirection, sortKey]);
 
-  const isEditDirty = useMemo(
-    () =>
-      editForm.email !== initialEditForm.email ||
-      editForm.firstname !== initialEditForm.firstname ||
-      editForm.lastname !== initialEditForm.lastname ||
-      editForm.password !== "" ||
-      editForm.role !== initialEditForm.role,
-    [editForm, initialEditForm]
-  );
-  useBeforeUnload(!embedded && Boolean(editingId) && isEditDirty);
-
-  // Expose dirty state and save function when embedded
-  useEffect(() => { onDirtyChange?.(isEditDirty); }, [isEditDirty, onDirtyChange]);
+  const { isDirty: isEditDirty, unsavedPromptOpen, closePrompt, confirmDiscard } = useDirtyState({
+    form: editForm,
+    initialForm: initialEditForm,
+    isEqual: (a, b) => a.email === b.email && a.firstname === b.firstname && a.lastname === b.lastname && a.password === "" && a.role === b.role,
+    embedded,
+    active: Boolean(editingId),
+    onDirtyChange,
+  });
   if (saveFnRef) saveFnRef.current = isEditDirty ? saveEdit : null;
 
   const columns = useMemo<Column<UserRecord>[]>(
@@ -169,27 +163,6 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   useEffect(() => {
     void loadUsers();
   }, []);
-
-  async function loadUsers(options?: { background?: boolean }) {
-    const background = options?.background ?? false;
-
-    if (!background) {
-      setLoading(true);
-      setError("");
-      setNotice("");
-    }
-    try {
-      const data = await apiRequest<UserRecord[]>("/api/users");
-      setUsers(data);
-    } catch (err) {
-      setUsers([]);
-      setError((err as Error).message || "Failed to load users.");
-    } finally {
-      if (!background) {
-        setLoading(false);
-      }
-    }
-  }
 
   async function createUser() {
     setError("");
@@ -245,7 +218,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
     setEditingId(null);
     setEditForm(EMPTY_NEW_USER);
     setInitialEditForm(EMPTY_NEW_USER);
-    setUnsavedPromptOpen(false);
+    closePrompt();
   }
 
   async function handleUnsavedSave() {
@@ -253,6 +226,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
   }
 
   function handleUnsavedDiscard() {
+    confirmDiscard();
     closeEditNow();
   }
 
@@ -308,7 +282,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
     setDeletingId(user.id);
     try {
       await apiRequest(`/api/users/${user.id}`, { method: "DELETE" });
-      setConfirmDeleteUser(null);
+      deleteModal.close();
       setNotice("User deleted.");
       await loadUsers();
     } catch (err) {
@@ -511,7 +485,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                     <button
                       onClick={() => {
                         if (isDeleting || isCurrentUser) return;
-                        setConfirmDeleteUser(user);
+                        deleteModal.open(user);
                       }}
                       disabled={isDeleting || isCurrentUser}
                       className={tableActionButtonClasses("danger-hover")}
@@ -545,12 +519,12 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
         open={unsavedPromptOpen}
         message="You have unsaved changes. Do you want to save before leaving this user?"
         saving={isSavingEdit}
-        onCancel={() => setUnsavedPromptOpen(false)}
+        onCancel={closePrompt}
         onDiscard={handleUnsavedDiscard}
         onSave={() => void handleUnsavedSave()}
       />
 
-      {confirmDeleteUser && (
+      {deleteModal.target && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div
             role="dialog"
@@ -560,7 +534,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-neutral-100">Delete User</h3>
               <button
-                onClick={() => setConfirmDeleteUser(null)}
+                onClick={deleteModal.close}
                 className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
                 title="Close"
               >
@@ -569,24 +543,24 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
             </div>
 
             <p className="text-sm text-neutral-300">
-              Delete user <span className="font-medium text-neutral-100">{confirmDeleteUser.email}</span>?
+              Delete user <span className="font-medium text-neutral-100">{deleteModal.target.email}</span>?
             </p>
 
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
-                onClick={() => setConfirmDeleteUser(null)}
-                disabled={deletingId === confirmDeleteUser.id}
+                onClick={deleteModal.close}
+                disabled={deletingId === deleteModal.target.id}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
-                onClick={() => void deleteUser(confirmDeleteUser)}
-                disabled={deletingId === confirmDeleteUser.id}
+                onClick={() => void deleteUser(deleteModal.target!)}
+                disabled={deletingId === deleteModal.target.id}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
               >
                 <Trash2 size={13} />
-                {deletingId === confirmDeleteUser.id ? "Deleting..." : "Confirm Delete"}
+                {deletingId === deleteModal.target.id ? "Deleting..." : "Confirm Delete"}
               </button>
             </div>
           </div>
