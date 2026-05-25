@@ -43,8 +43,8 @@ def test_identify_uses_selected_llm_config_without_server_error(isolated_client,
         captured["collection_context"] = collection_context
         return {"candidates": [{"name": "Widget", "confidence": 0.9}]}
 
-    monkeypatch.setattr("stowge.main.process_for_identify", fake_process_for_identify)
-    monkeypatch.setattr("stowge.main.openai_identify", fake_openai_identify)
+    monkeypatch.setattr("stowge.routes.ai_settings.process_for_identify", fake_process_for_identify)
+    monkeypatch.setattr("stowge.routes.ai_settings.openai_identify", fake_openai_identify)
 
     response = isolated_client.post(
         f"/api/identify?mode=three&llm_id={llm_id}",

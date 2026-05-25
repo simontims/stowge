@@ -19,7 +19,7 @@ from uuid import uuid4
 
 from conftest import auth_cookies, client, make_db
 
-from stowge.main import _purge_orphaned_images_once
+from stowge.helpers.maintenance import purge_orphaned_images_once as _purge_orphaned_images_once
 from stowge.backup_restore import BackupError, set_backup_verification_metadata
 from stowge.models import Part, PartImage
 
@@ -88,7 +88,7 @@ class TestBackupRestoreApi:
         def fake_start_restore_validation(*, backup_path, assets_root, progress_callback=None, enforce_restore_space=True):
             raise BackupError("synthetic verification failure", code="backup_error")
 
-        monkeypatch.setattr("stowge.main.start_restore_validation", fake_start_restore_validation)
+        monkeypatch.setattr("stowge.helpers.maintenance.start_restore_validation", fake_start_restore_validation)
 
         create = client.post("/api/admin/backups/create", json={"include_assets": False}, cookies=cookies)
         assert create.status_code == 200
@@ -248,7 +248,7 @@ class TestBackupRestoreApi:
         def fake_start_restore_validation(*, backup_path, assets_root, progress_callback=None, enforce_restore_space=True):
             raise BackupError("synthetic manual verify failure", code="backup_error")
 
-        monkeypatch.setattr("stowge.main.start_restore_validation", fake_start_restore_validation)
+        monkeypatch.setattr("stowge.routes.admin.start_restore_validation", fake_start_restore_validation)
 
         verify = client.post(f"/api/admin/backups/{filename}/verify", cookies=cookies)
         assert verify.status_code == 200

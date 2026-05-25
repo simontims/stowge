@@ -40,7 +40,7 @@ def test_validate_draft_uses_unsaved_form_values_and_saved_key_fallback(isolated
         captured["api_base"] = api_base
         return "OK"
 
-    monkeypatch.setattr("stowge.main._run_llm_validation", fake_run)
+    monkeypatch.setattr("stowge.routes.ai_settings.run_llm_validation", fake_run)
 
     response = isolated_client.post(
         f"/api/admin/settings/ai/{llm.id}/validate-draft",
