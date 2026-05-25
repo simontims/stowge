@@ -7,19 +7,22 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from stowge.auth import SESSION_COOKIE_NAME, create_session, hash_password
-from stowge.db import get_db
-from stowge.main import app
-from stowge.models import Base, User
-
+# IMPORTANT: Set DATABASE_URL BEFORE importing any stowge modules, because
+# stowge.db reads the env var at import time to create the engine.
 _db_fd, _db_path = tempfile.mkstemp(suffix=".db")
 os.close(_db_fd)
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{_db_path}")
+os.environ["DATABASE_URL"] = f"sqlite:///{_db_path}"
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from stowge.auth import SESSION_COOKIE_NAME, create_session, hash_password  # noqa: E402
+from stowge.db import get_db  # noqa: E402
+from stowge.main import app  # noqa: E402
+from stowge.models import Base, User  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

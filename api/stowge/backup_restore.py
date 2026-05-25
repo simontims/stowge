@@ -11,6 +11,8 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from .asset_paths import location_photo_variant_paths
+from .datetime_utils import utc_now_iso
 from .models import Location, PartImage
 
 BACKUP_MANIFEST_VERSION = 1
@@ -49,8 +51,6 @@ class BackupSpaceEstimate:
 
 
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 
@@ -94,16 +94,6 @@ def _safe_rel(rel_path: str) -> str:
 
 
 
-def _location_photo_variant_paths(photo_path: str | None) -> tuple[str, str, str] | tuple[()]:
-    if not photo_path:
-        return ()
-    display_path = str(photo_path)
-    thumb_path = display_path.replace("/display.", "/thumb.")
-    original_path = display_path.replace("/display.", "/original.")
-    return (display_path, thumb_path, original_path)
-
-
-
 def gather_referenced_assets(db: Session) -> set[str]:
     tracked: set[str] = set()
     for (pt, pd, po) in db.query(PartImage.path_thumb, PartImage.path_display, PartImage.path_original).all():
@@ -112,7 +102,7 @@ def gather_referenced_assets(db: Session) -> set[str]:
                 tracked.add(_safe_rel(str(p)))
 
     for (photo_path,) in db.query(Location.photo_path).filter(Location.photo_path.isnot(None)).all():
-        for rel in _location_photo_variant_paths(photo_path):
+        for rel in location_photo_variant_paths(photo_path):
             tracked.add(_safe_rel(rel))
 
     return tracked

@@ -6,6 +6,7 @@ from sqlalchemy import (JSON, Column, DateTime, ForeignKey, Integer, String,
 from sqlalchemy.orm import relationship
 
 from .db import Base
+from .datetime_utils import now_utc
 from .image_defaults import (IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
                              IMAGE_DISPLAY_QUALITY_DEFAULT,
                              IMAGE_OUTPUT_FORMAT_DEFAULT,
@@ -13,9 +14,6 @@ from .image_defaults import (IMAGE_DISPLAY_MAX_EDGE_DEFAULT,
                              IMAGE_THUMB_MAX_EDGE_DEFAULT,
                              IMAGE_THUMB_QUALITY_DEFAULT)
 
-
-def now_utc():
-    return datetime.now(timezone.utc)
 
 class User(Base):
     __tablename__ = "users"

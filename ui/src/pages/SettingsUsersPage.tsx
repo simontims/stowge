@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Edit3, Plus, Save, Trash2, X } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { StatusMessage } from "../components/ui/StatusMessage";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
@@ -469,8 +470,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
         </section>
       )}
 
-      {error && !showListView && <p className="text-sm text-red-400">{error}</p>}
-      {notice && <p className="text-sm text-emerald-400">{notice}</p>}
+      <StatusMessage error={showListView ? "" : error} notice={notice} />
 
       {showListView && (
         <ListToolbar

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Brain, CheckCircle2, Circle, Copy, Edit3, Loader2, Plus, Save, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
+import { StatusMessage } from "../components/ui/StatusMessage";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
@@ -869,8 +870,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
         </section>
       )}
 
-      {error && !showListView && <p className="text-sm text-red-400">{error}</p>}
-      {notice && <p className="text-sm text-emerald-400">{notice}</p>}
+      <StatusMessage error={showListView ? "" : error} notice={notice} />
 
       {showListView && (
         <ListToolbar

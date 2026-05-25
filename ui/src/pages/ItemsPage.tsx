@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useDebounce } from "../hooks/useDebounce";
 import { Package, Plus } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -227,11 +228,7 @@ export function ItemsPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Debounced search value — used when building API requests
-  const [debouncedSearch, setDebouncedSearch] = useState(search);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
+  const debouncedSearch = useDebounce(search, 300);
 
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [selectedPart, setSelectedPart] = useState<PartDetail | null>(null);
@@ -274,11 +271,7 @@ export function ItemsPage() {
   );
 
   // Debounced collection filter — reduces write traffic on PATCH /api/me
-  const [debouncedCollectionFilter, setDebouncedCollectionFilter] = useState(collectionFilter);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedCollectionFilter(collectionFilter), 300);
-    return () => clearTimeout(t);
-  }, [collectionFilter]);
+  const debouncedCollectionFilter = useDebounce(collectionFilter, 300);
 
   const collectionFilterSavedRef = useRef<string | null>(null);
   selectedPartIdRef.current = selectedPartId;

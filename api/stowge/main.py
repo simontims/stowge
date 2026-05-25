@@ -23,11 +23,13 @@ from slowapi.util import get_remote_address
 from sqlalchemy import func, inspect, or_, text
 from sqlalchemy.orm import Session
 
+from .asset_paths import location_photo_variant_paths
 from .auth import (_TIMING_DUMMY_HASH, SESSION_COOKIE_NAME,
                    SESSION_COOKIE_SECURE, SESSION_LIFETIME_MINUTES,
                    create_session, current_user, delete_all_sessions,
                    delete_session, hash_password, require_admin,
                    verify_password)
+from .datetime_utils import coerce_utc, now_utc, utc_iso
 from .backup_restore import (BackupError, create_backup_archive,
                              ensure_backups_dir, list_backups,
                              read_manifest_from_archive, remove_tmp_dir,
@@ -160,17 +162,6 @@ def _is_valid_email(value: str) -> bool:
     return bool(EMAIL_RE.match(value))
 
 
-def _utc_iso(dt: datetime | None) -> str | None:
-    """Return an ISO-8601 string always suffixed with 'Z' (UTC).
-    SQLite drops timezone info on round-trip, so naive datetimes that
-    originated from datetime.now(timezone.utc) are explicitly re-marked."""
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        return dt.isoformat() + "Z"
-    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
 def _serialize_user(user: User) -> dict:
     parsed_collection_nav_order: list[str] = []
     if user.collection_nav_order:
@@ -192,22 +183,13 @@ def _serialize_user(user: User) -> dict:
         "preferred_add_location_id": user.preferred_add_location_id,
         "last_open_collection": user.last_open_collection,
         "collection_nav_order": parsed_collection_nav_order,
-        "created_at": _utc_iso(user.created_at),
-        "last_login_at": _utc_iso(user.last_login_at),
+        "created_at": utc_iso(user.created_at),
+        "last_login_at": utc_iso(user.last_login_at),
     }
 
 
 def _location_photo_url(location_id: str) -> str:
     return f"/api/locations/{location_id}/photo"
-
-
-def _location_photo_variant_paths(photo_path: str | None) -> tuple[str, str, str] | tuple[()]:
-    if not photo_path:
-        return ()
-    display_path = str(photo_path)
-    thumb_path = display_path.replace("/display.", "/thumb.")
-    original_path = display_path.replace("/display.", "/original.")
-    return (display_path, thumb_path, original_path)
 
 
 def _serialize_location(location: Location, db: Session, item_count: int | None = None) -> dict:
@@ -219,8 +201,8 @@ def _serialize_location(location: Location, db: Session, item_count: int | None 
         "description": location.description,
         "item_count": int(item_count),
         "photo_url": (_location_photo_url(location.id) if location.photo_path else None),
-        "created_at": _utc_iso(location.created_at),
-        "updated_at": _utc_iso(location.updated_at),
+        "created_at": utc_iso(location.created_at),
+        "updated_at": utc_iso(location.updated_at),
     }
 
 
@@ -235,8 +217,8 @@ def _serialize_collection(collection: Collection, db: Session, item_count: int |
         "description": collection.description,
         "ai_hint": collection.ai_hint,
         "item_count": int(item_count),
-        "created_at": _utc_iso(collection.created_at),
-        "updated_at": _utc_iso(collection.updated_at),
+        "created_at": utc_iso(collection.created_at),
+        "updated_at": utc_iso(collection.updated_at),
     }
 
 
@@ -354,7 +336,7 @@ def _serialize_llm_public(cfg: LLMConfig) -> dict:
         "api_base": cfg.api_base,
         "is_default": bool(cfg.is_default),
         "is_validated": bool(cfg.validated_at),
-        "validated_at": _utc_iso(cfg.validated_at),
+        "validated_at": utc_iso(cfg.validated_at),
         "evidence_enabled": bool(cfg.evidence_enabled),
         "ai_max_edge": cfg.ai_max_edge if cfg.ai_max_edge is not None else 1600,
         "ai_quality": cfg.ai_quality if cfg.ai_quality is not None else 85,
@@ -364,8 +346,8 @@ def _serialize_llm_public(cfg: LLMConfig) -> dict:
 def _serialize_llm_admin(cfg: LLMConfig) -> dict:
     data = _serialize_llm_public(cfg)
     data["api_key_masked"] = _mask_key(cfg.api_key)
-    data["created_at"] = _utc_iso(cfg.created_at)
-    data["updated_at"] = _utc_iso(cfg.updated_at)
+    data["created_at"] = utc_iso(cfg.created_at)
+    data["updated_at"] = utc_iso(cfg.updated_at)
     return data
 
 
@@ -883,7 +865,7 @@ def _new_backup_operation(op_type: str) -> str:
             "message": "Starting",
             "error": None,
             "result": None,
-            "updated_at": _utc_iso(datetime.now(timezone.utc)),
+            "updated_at": utc_iso(datetime.now(timezone.utc)),
         }
         _ACTIVE_BACKUP_OP_ID = op_id
         return op_id
@@ -897,7 +879,7 @@ def _update_backup_operation(op_id: str, *, stage: str, progress: int, message: 
         op["stage"] = stage
         op["progress"] = max(0, min(100, int(progress)))
         op["message"] = message
-        op["updated_at"] = _utc_iso(datetime.now(timezone.utc))
+        op["updated_at"] = utc_iso(datetime.now(timezone.utc))
 
 
 def _finish_backup_operation(op_id: str, *, status: str, result: dict | None = None, error: str | None = None):
@@ -912,13 +894,9 @@ def _finish_backup_operation(op_id: str, *, status: str, result: dict | None = N
         if status == "completed":
             op["progress"] = 100
             op["stage"] = "complete"
-        op["updated_at"] = _utc_iso(datetime.now(timezone.utc))
+        op["updated_at"] = utc_iso(datetime.now(timezone.utc))
         if _ACTIVE_BACKUP_OP_ID == op_id:
             _ACTIVE_BACKUP_OP_ID = None
-
-
-def _now_utc() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _log_scheduler(message: str):
@@ -964,19 +942,11 @@ def _maintenance_events_since(last_seq: int) -> list[dict]:
 
 
 def _compute_next_run_utc(cron_expression: str, *, after: datetime | None = None) -> datetime:
-    base = after or _now_utc()
+    base = after or now_utc()
     candidate = croniter(cron_expression, base).get_next(datetime)
     if candidate.tzinfo is None:
         return candidate.replace(tzinfo=timezone.utc)
     return candidate.astimezone(timezone.utc)
-
-
-def _coerce_utc(dt: datetime | None) -> datetime | None:
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
 
 
 def _serialize_maintenance_schedule(row: MaintenanceSchedule) -> dict:
@@ -991,12 +961,12 @@ def _serialize_maintenance_schedule(row: MaintenanceSchedule) -> dict:
         "backup_retention_enabled": bool(row.backup_retention_enabled),
         "backup_retention_days": retention_days,
         "backup_include_assets": bool(row.backup_include_assets) if row.backup_include_assets is not None else True,
-        "next_run_at": _utc_iso(_coerce_utc(row.next_run_at)),
-        "last_run_at": _utc_iso(_coerce_utc(row.last_run_at)),
+        "next_run_at": utc_iso(coerce_utc(row.next_run_at)),
+        "last_run_at": utc_iso(coerce_utc(row.last_run_at)),
         "last_duration_ms": row.last_duration_ms,
         "last_status": row.last_status,
         "last_error": row.last_error,
-        "updated_at": _utc_iso(_coerce_utc(row.updated_at)),
+        "updated_at": utc_iso(coerce_utc(row.updated_at)),
     }
 
 
@@ -1010,7 +980,7 @@ def _backup_retention_settings(db: Session) -> tuple[bool, int]:
 
 
 def _purge_old_backups(*, older_than_days: int) -> dict:
-    cutoff = _now_utc() - timedelta(days=older_than_days)
+    cutoff = now_utc() - timedelta(days=older_than_days)
     backups_dir = ensure_backups_dir(assets_dir())
     deleted = 0
     freed_bytes = 0
@@ -1050,7 +1020,7 @@ def _purge_old_backups(*, older_than_days: int) -> dict:
 
 
 def _ensure_maintenance_schedules(db: Session):
-    now = _now_utc()
+    now = now_utc()
     existing = {
         row.task_key: row
         for row in db.query(MaintenanceSchedule)
@@ -1179,15 +1149,15 @@ def _record_maintenance_run_result(
     row = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.task_key == task_key).first()
     if not row:
         return
-    now = _now_utc()
-    row.last_run_at = _coerce_utc(now)
+    now = now_utc()
+    row.last_run_at = coerce_utc(now)
     row.last_duration_ms = duration_ms
     row.last_status = status
     row.last_error = error
-    row.updated_at = _coerce_utc(now)
+    row.updated_at = coerce_utc(now)
     if bool(row.enabled):
         try:
-            row.next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
+            row.next_run_at = coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
         except Exception:
             row.next_run_at = None
     else:
@@ -1234,7 +1204,7 @@ def _execute_maintenance_task(task_key: str, *, run_source: str, db: Session | N
         )
         return {"task_key": task_key, "status": "skipped", "reason": "already_running"}
 
-    started_wall = _now_utc()
+    started_wall = now_utc()
     started_perf = time.perf_counter()
     _log_scheduler(f"starting task={task_key} source={run_source}")
     _publish_maintenance_event(
@@ -1242,7 +1212,7 @@ def _execute_maintenance_task(task_key: str, *, run_source: str, db: Session | N
         {
             "task_key": task_key,
             "source": run_source,
-            "started_at": _utc_iso(started_wall),
+            "started_at": utc_iso(started_wall),
         },
     )
     owns_db = db is None
@@ -1259,7 +1229,7 @@ def _execute_maintenance_task(task_key: str, *, run_source: str, db: Session | N
             error=None,
         )
         _log_scheduler(
-            f"completed task={task_key} source={run_source} duration_ms={duration_ms} started_at={_utc_iso(started_wall)}"
+            f"completed task={task_key} source={run_source} duration_ms={duration_ms} started_at={utc_iso(started_wall)}"
         )
         _publish_maintenance_event(
             "maintenance_task_completed",
@@ -1267,7 +1237,7 @@ def _execute_maintenance_task(task_key: str, *, run_source: str, db: Session | N
                 "task_key": task_key,
                 "source": run_source,
                 "duration_ms": duration_ms,
-                "started_at": _utc_iso(started_wall),
+                "started_at": utc_iso(started_wall),
             },
         )
         return result
@@ -1289,7 +1259,7 @@ def _execute_maintenance_task(task_key: str, *, run_source: str, db: Session | N
                 "task_key": task_key,
                 "source": run_source,
                 "duration_ms": duration_ms,
-                "started_at": _utc_iso(started_wall),
+                "started_at": utc_iso(started_wall),
                 "error": str(exc),
             },
         )
@@ -1305,7 +1275,7 @@ def _maintenance_scheduler_loop():
         db = SessionLocal()
         try:
             _ensure_maintenance_schedules(db)
-            now = _now_utc()
+            now = now_utc()
             rows = (
                 db.query(MaintenanceSchedule)
                 .filter(MaintenanceSchedule.task_key.in_(_MAINTENANCE_TASK_KEYS), MaintenanceSchedule.enabled == 1)
@@ -1314,18 +1284,18 @@ def _maintenance_scheduler_loop():
             )
             due_keys: list[str] = []
             for row in rows:
-                next_run_at = _coerce_utc(row.next_run_at)
+                next_run_at = coerce_utc(row.next_run_at)
                 if not next_run_at:
                     try:
-                        next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
+                        next_run_at = coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
                         row.next_run_at = next_run_at
-                        row.updated_at = _coerce_utc(now)
+                        row.updated_at = coerce_utc(now)
                         db.commit()
                     except Exception:
                         row.next_run_at = None
                         row.last_status = "failed"
                         row.last_error = "Invalid cron expression"
-                        row.updated_at = _coerce_utc(now)
+                        row.updated_at = coerce_utc(now)
                         db.commit()
                         continue
                 if next_run_at and next_run_at <= now:
@@ -1354,7 +1324,7 @@ def _start_maintenance_scheduler_if_needed():
         db = SessionLocal()
         try:
             _ensure_maintenance_schedules(db)
-            now = _now_utc()
+            now = now_utc()
             defer_until = now + timedelta(seconds=_MAINTENANCE_STARTUP_DEFER_SECONDS)
             rows = db.query(MaintenanceSchedule).filter(MaintenanceSchedule.task_key.in_(_MAINTENANCE_TASK_KEYS)).all()
             enabled_count = sum(1 for row in rows if bool(row.enabled))
@@ -1362,10 +1332,10 @@ def _start_maintenance_scheduler_if_needed():
             for row in rows:
                 if not bool(row.enabled):
                     continue
-                next_run = _coerce_utc(row.next_run_at)
+                next_run = coerce_utc(row.next_run_at)
                 if next_run is None or next_run <= defer_until:
                     try:
-                        row.next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=defer_until))
+                        row.next_run_at = coerce_utc(_compute_next_run_utc(row.cron_expression, after=defer_until))
                     except Exception:
                         row.next_run_at = defer_until
                     deferred_count += 1
@@ -1595,7 +1565,7 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
         # Each location photo may have a display variant stored; also check for
         # sibling thumb/original variants using the same naming convention that
         # cleanup_asset_paths uses.
-        for rel_path in _location_photo_variant_paths(photo_path):
+        for rel_path in location_photo_variant_paths(photo_path):
             abs_path = os.path.join(base_assets_dir, rel_path)
             try:
                 location_photo_bytes += os.path.getsize(abs_path)
@@ -1695,7 +1665,7 @@ def _build_tracked_paths(db: Session) -> set[str]:
     for (photo_path,) in db.query(Location.photo_path).filter(
         Location.photo_path.isnot(None)
     ).all():
-        for variant_path in _location_photo_variant_paths(photo_path):
+        for variant_path in location_photo_variant_paths(photo_path):
             tracked.add(_norm_rel(variant_path))
     return tracked
 
@@ -1724,7 +1694,7 @@ def update_maintenance_schedule(task_key: str, payload: dict, db: Session = Depe
     if not row:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
-    now = _now_utc()
+    now = now_utc()
     if "cron_expression" in payload:
         cron_expression = str(payload.get("cron_expression") or "").strip()
         if not cron_expression:
@@ -1759,9 +1729,9 @@ def update_maintenance_schedule(task_key: str, payload: dict, db: Session = Depe
             raise HTTPException(status_code=400, detail="backup_include_assets is only valid for backup task")
         row.backup_include_assets = 1 if bool(payload.get("backup_include_assets")) else 0
 
-    row.updated_at = _coerce_utc(now)
+    row.updated_at = coerce_utc(now)
     if bool(row.enabled):
-        row.next_run_at = _coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
+        row.next_run_at = coerce_utc(_compute_next_run_utc(row.cron_expression, after=now))
     else:
         row.next_run_at = None
 
@@ -1969,7 +1939,7 @@ def get_backup_details(filename: str, me: User = Depends(require_admin)):
     return {
         "filename": filename,
         "size_bytes": int(stat.st_size),
-        "modified_at": _utc_iso(datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)),
+        "modified_at": utc_iso(datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)),
         "manifest": manifest,
     }
 
@@ -2065,7 +2035,7 @@ def restore_test_backup(filename: str, me: User = Depends(require_admin)):
                     "manifest": result["manifest"],
                     "includes_assets": result["includes_assets"],
                     "assets_count": result["assets_count"],
-                    "created_at": _utc_iso(datetime.now(timezone.utc)),
+                    "created_at": utc_iso(datetime.now(timezone.utc)),
                 }
             _finish_backup_operation(
                 op_id,
@@ -2493,7 +2463,7 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
     db.refresh(location)
 
     if "photo_path" in payload and old_photo_path and old_photo_path != location.photo_path:
-        cleanup_asset_paths(list(_location_photo_variant_paths(old_photo_path)))
+        cleanup_asset_paths(list(location_photo_variant_paths(old_photo_path)))
 
     return _serialize_location(location, db)
 
@@ -2524,7 +2494,7 @@ def delete_location(
     db.commit()
 
     if photo_path:
-        cleanup_asset_paths(list(_location_photo_variant_paths(photo_path)))
+        cleanup_asset_paths(list(location_photo_variant_paths(photo_path)))
 
     return {"ok": True}
 

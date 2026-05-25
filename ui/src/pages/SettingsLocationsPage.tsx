@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { StatusMessage } from "../components/ui/StatusMessage";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DataTable, type Column } from "../components/ui/DataTable";
@@ -577,8 +578,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         </section>
       )}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {notice && <p className="text-sm text-emerald-400">{notice}</p>}
+      <StatusMessage error={error} notice={notice} />
 
       {showListView && (
         <>

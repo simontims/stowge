@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNumericField } from "../hooks/useNumericField";
 import { PageHeader } from "../components/ui/PageHeader";
+import { StatusMessage } from "../components/ui/StatusMessage";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
 
@@ -141,8 +142,7 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
     <div className="space-y-5">
       {!embedded && <PageHeader title="Image Settings" />}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {notice && <p className="text-sm text-emerald-400">{notice}</p>}
+      <StatusMessage error={error} notice={notice} />
 
       {/* ── Image Storage Settings ── */}
       <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-6">
