@@ -3,12 +3,11 @@
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
-from fastapi import (APIRouter, Depends, File, HTTPException, Query, Request,
-                     UploadFile)
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..auth import current_user
@@ -16,13 +15,12 @@ from ..constraints import MIN_NAME_LENGTH, require_name
 from ..db import get_db
 from ..helpers.events import parts_events_since, publish_inventory_change
 from ..helpers.serializers import (contents_count_by_item_id, serialize_part_detail,
-                                   serialize_part_list, signed_image_url)
-from ..images import (b64_from_stored_paths, cleanup_asset_paths,
-                      process_and_store)
+                                   serialize_part_list)
+from ..images import b64_from_stored_paths, cleanup_asset_paths
 from ..models import (Collection, ItemContentsEntry, Location, Part,
                       PartImage, User)
 from ..openai_id import identify as openai_identify
-from .ai_settings import get_image_config, resolve_llm_config_for_request
+from .ai_settings import resolve_llm_config_for_request
 
 router = APIRouter()
 

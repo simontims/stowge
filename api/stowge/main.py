@@ -4,7 +4,6 @@ Creates the FastAPI app, registers middleware, mounts static files,
 includes all route modules, and manages startup/shutdown lifecycle.
 """
 
-import logging
 import os
 from datetime import datetime, timezone
 
@@ -16,7 +15,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
-from .db import Base, SessionLocal, engine, get_db
+from .db import Base, engine
 from .helpers.ai_providers import default_api_base_for_provider
 from .helpers.maintenance import (MAINTENANCE_TASK_KEYS,
                                   start_maintenance_scheduler_if_needed,
@@ -317,15 +316,15 @@ async def add_security_headers(request: Request, call_next):
 # Route Registration
 # ---------------------------------------------------------------------------
 
-from .routes.admin import router as admin_router
-from .routes.ai_settings import router as ai_settings_router
-from .routes.auth import router as auth_router
-from .routes.backup import router as backup_router
-from .routes.collections import router as collections_router
-from .routes.health import router as health_router
-from .routes.images import router as images_router
-from .routes.items import router as items_router
-from .routes.locations import router as locations_router
+from .routes.admin import router as admin_router  # noqa: E402
+from .routes.ai_settings import router as ai_settings_router  # noqa: E402
+from .routes.auth import router as auth_router  # noqa: E402
+from .routes.backup import router as backup_router  # noqa: E402
+from .routes.collections import router as collections_router  # noqa: E402
+from .routes.health import router as health_router  # noqa: E402
+from .routes.images import router as images_router  # noqa: E402
+from .routes.items import router as items_router  # noqa: E402
+from .routes.locations import router as locations_router  # noqa: E402
 
 app.include_router(health_router)
 app.include_router(auth_router)

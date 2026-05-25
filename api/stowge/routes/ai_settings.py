@@ -22,7 +22,6 @@ from ..helpers.serializers import (list_public_ai_settings_payload,
 from ..images import process_for_identify
 from ..models import Collection, LLMConfig, User
 from ..openai_id import identify as openai_identify
-from .images import get_image_config
 
 router = APIRouter()
 

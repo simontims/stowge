@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime, timezone
 
 from sqlalchemy import (JSON, Column, DateTime, ForeignKey, Integer, String,
                         Text, UniqueConstraint)
