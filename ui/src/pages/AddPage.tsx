@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Brain,
-  Camera,
   Loader2,
   Save,
-  Upload,
-  X,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
+import { PhotoCapture } from "../components/ui/PhotoCapture";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
+import { resizeImage } from "../lib/resizeImage";
 import { useNumericField } from "../hooks/useNumericField";
 import { useCurrentUser } from "../lib/UserContext";
 import { type LocationOption, type CollectionOption } from "../lib/types";
@@ -83,80 +82,6 @@ interface PartDraft {
 type ScanFlowMode = "input" | "review";
 
 const MAX_PHOTOS = 5;
-
-// ---------------------------------------------------------------------------
-// PhotoCapture — fixed-position button + thumbnail strip below
-// ---------------------------------------------------------------------------
-interface PhotoCaptureProps {
-  previewUrls: string[];
-  photoCount: number;
-  maxPhotos: number;
-  disabled: boolean;
-  hideButtons?: boolean;
-  onTakePicture: () => void;
-  onPickPhotos: () => void;
-  onRemovePhoto: (index: number) => void;
-}
-
-function PhotoCapture({
-  previewUrls,
-  photoCount,
-  maxPhotos,
-  disabled,
-  hideButtons = false,
-  onTakePicture,
-  onPickPhotos,
-  onRemovePhoto,
-}: PhotoCaptureProps) {
-  const atMax = photoCount >= maxPhotos;
-  return (
-    <div className="space-y-3">
-      {/* Button row — hidden in review mode but keeps same space for thumbnails */}
-      {!hideButtons && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onTakePicture}
-            disabled={disabled || atMax}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-neutral-700 rounded-md text-sm text-neutral-200 hover:text-white hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Camera size={16} />
-            Take photo
-          </button>
-          <button
-            onClick={onPickPhotos}
-            disabled={disabled || atMax}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-3 border border-neutral-700 rounded-md text-sm text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            aria-label="Upload photos"
-          >
-            <Upload size={16} />
-          </button>
-          <span className="text-xs text-neutral-600 w-8 text-right shrink-0">{photoCount}/{maxPhotos}</span>
-        </div>
-      )}
-
-      {/* Thumbnail strip */}
-      {previewUrls.length > 0 && (
-        <div className="flex gap-2">
-          {previewUrls.map((url, idx) => (
-            <div key={url} className="relative w-14 h-14 shrink-0 rounded border border-neutral-700 overflow-hidden bg-neutral-900">
-              <img src={url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
-              {!hideButtons && (
-                <button
-                  onClick={() => onRemovePhoto(idx)}
-                  disabled={disabled}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 disabled:opacity-60"
-                  aria-label={`Remove photo ${idx + 1}`}
-                >
-                  <X size={8} />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function AddPage() {
   const currentUser = useCurrentUser();
@@ -815,40 +740,6 @@ export function AddPage() {
     </div>
   );
 }
-
-// AI identify upload pre-resize. Storage uploads are intentionally not pre-resized.
-function resizeImage(file: File, maxEdge: number, quality: number): Promise<File> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      const { naturalWidth: w, naturalHeight: h } = img;
-      const safeMaxEdge = Math.max(64, Math.min(4096, maxEdge || 1600));
-      const safeQuality = Math.max(0.01, Math.min(1, quality || 0.85));
-      const scale = Math.min(1, safeMaxEdge / Math.max(w, h));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(w * scale);
-      canvas.height = Math.round(h * scale);
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) { resolve(file); return; }
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
-        },
-        "image/jpeg",
-        safeQuality
-      );
-    };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
-    img.src = objectUrl;
-  });
-}
-
-
-
-
 
 
 

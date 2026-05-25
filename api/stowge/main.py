@@ -320,6 +320,7 @@ async def add_security_headers(request: Request, call_next):
 from .routes.admin import router as admin_router
 from .routes.ai_settings import router as ai_settings_router
 from .routes.auth import router as auth_router
+from .routes.backup import router as backup_router
 from .routes.collections import router as collections_router
 from .routes.health import router as health_router
 from .routes.images import router as images_router
@@ -334,6 +335,7 @@ app.include_router(items_router)
 app.include_router(images_router)
 app.include_router(ai_settings_router)
 app.include_router(admin_router)
+app.include_router(backup_router)
 
 
 # ---------------------------------------------------------------------------

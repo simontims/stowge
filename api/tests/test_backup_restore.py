@@ -248,7 +248,7 @@ class TestBackupRestoreApi:
         def fake_start_restore_validation(*, backup_path, assets_root, progress_callback=None, enforce_restore_space=True):
             raise BackupError("synthetic manual verify failure", code="backup_error")
 
-        monkeypatch.setattr("stowge.routes.admin.start_restore_validation", fake_start_restore_validation)
+        monkeypatch.setattr("stowge.routes.backup.start_restore_validation", fake_start_restore_validation)
 
         verify = client.post(f"/api/admin/backups/{filename}/verify", cookies=cookies)
         assert verify.status_code == 200
