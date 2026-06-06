@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Brain,
+  Camera,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -335,6 +336,7 @@ export function EditPage() {
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const localImageUrlsRef = useRef<Set<string>>(new Set());
 
   // AI rescan state
@@ -936,6 +938,24 @@ export function EditPage() {
                 className="hidden"
                 onChange={(e) => void handleImageUpload(e.target.files)}
               />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  void handleImageUpload(e.target.files);
+                  e.currentTarget.value = "";
+                }}
+              />
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={uploadingImages}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 text-sm transition-colors"
+              >
+                <Camera size={13} /> Take photo
+              </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingImages}
