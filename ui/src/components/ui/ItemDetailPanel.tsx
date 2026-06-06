@@ -22,7 +22,7 @@ interface ItemDetailPanelProps {
   onConfirmDelete: () => void;
   isMobile?: boolean;
   onSetPrimaryImage?: (imageId: string) => Promise<void>;
-  onRotateImage?: (imageId: string) => Promise<void>;
+  onRotateImage?: (imageId: string) => void;
 }
 
 export function ItemDetailPanel({
@@ -57,7 +57,14 @@ export function ItemDetailPanel({
   useEffect(() => {
     const primaryIdx = images.findIndex((img) => img.is_primary);
     setActiveImageIdx(primaryIdx >= 0 ? primaryIdx : 0);
-  }, [selectedPart?.id, images]);
+  }, [selectedPart?.id]);
+
+  // Keep activeImageIdx in bounds if images are removed
+  useEffect(() => {
+    if (activeImageIdx >= images.length && images.length > 0) {
+      setActiveImageIdx(images.length - 1);
+    }
+  }, [images.length, activeImageIdx]);
   return (
     <div
       className={`flex flex-col h-full w-full bg-neutral-950 ${
@@ -136,6 +143,7 @@ export function ItemDetailPanel({
                   src={images[activeImageIdx]?.display_url}
                   alt={selectedPart.name}
                   className="w-full h-full object-cover"
+                  style={images[activeImageIdx]?.rotation ? { transform: `rotate(${images[activeImageIdx].rotation}deg)` } : undefined}
                 />
                 {images.length > 1 && (
                   <>
@@ -190,19 +198,19 @@ export function ItemDetailPanel({
                         />
                       ))}
                     </div>
-                    {onRotateImage && (
-                      <button
-                        onClick={() => {
-                          const imgId = images[activeImageIdx]?.id;
-                          if (imgId) void onRotateImage(imgId);
-                        }}
-                        className="absolute bottom-2 right-2 p-1.5 rounded bg-black/60 text-white hover:bg-black/80 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Rotate 90° clockwise"
-                      >
-                        <RotateCw size={14} />
-                      </button>
-                    )}
                   </>
+                )}
+                {onRotateImage && (
+                  <button
+                    onClick={() => {
+                      const imgId = images[activeImageIdx]?.id;
+                      if (imgId) onRotateImage(imgId);
+                    }}
+                    className="absolute bottom-2 right-2 p-1.5 rounded bg-black/60 text-white hover:bg-black/80 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Rotate 90° clockwise"
+                  >
+                    <RotateCw size={14} />
+                  </button>
                 )}
               </div>
             )}

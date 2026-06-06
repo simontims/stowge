@@ -254,17 +254,32 @@ def set_primary_image(
 def rotate_image(
     image_id: str,
     direction: Literal["cw", "ccw"] = "cw",
+    degrees: int = 90,
     db: Session = Depends(get_db),
     me: User = Depends(current_user),
 ):
     from PIL import Image as PILImage
     import io
 
+    if degrees not in (90, 180, 270):
+        raise HTTPException(status_code=400, detail="degrees must be 90, 180, or 270")
+
     img = db.query(PartImage).filter(PartImage.id == image_id).first()
     if not img:
         raise HTTPException(status_code=404, detail="Not found")
 
-    transpose = PILImage.Transpose.ROTATE_270 if direction == "cw" else PILImage.Transpose.ROTATE_90
+    # Build list of transpose operations
+    transpose_map_cw = {
+        90: [PILImage.Transpose.ROTATE_270],
+        180: [PILImage.Transpose.ROTATE_180],
+        270: [PILImage.Transpose.ROTATE_90],
+    }
+    transpose_map_ccw = {
+        90: [PILImage.Transpose.ROTATE_90],
+        180: [PILImage.Transpose.ROTATE_180],
+        270: [PILImage.Transpose.ROTATE_270],
+    }
+    ops = transpose_map_cw[degrees] if direction == "cw" else transpose_map_ccw[degrees]
 
     for rel_path in [img.path_thumb, img.path_display, img.path_original]:
         if not rel_path:
@@ -273,7 +288,8 @@ def rotate_image(
         if not os.path.exists(abs_path):
             continue
         pil_img = PILImage.open(abs_path)
-        pil_img = pil_img.transpose(transpose)
+        for op in ops:
+            pil_img = pil_img.transpose(op)
         buf = io.BytesIO()
         fmt = "WEBP" if abs_path.endswith(".webp") else "JPEG"
         save_kwargs = {"quality": 90, "method": 6} if fmt == "WEBP" else {"quality": 90, "optimize": True}
@@ -284,10 +300,11 @@ def rotate_image(
         with open(abs_path, "wb") as f:
             f.write(buf.read())
 
-    # Swap width and height in DB
-    old_w, old_h = img.width, img.height
-    img.width = old_h
-    img.height = old_w
+    # Swap width and height in DB (only for 90/270, not 180)
+    if degrees in (90, 270):
+        old_w, old_h = img.width, img.height
+        img.width = old_h
+        img.height = old_w
     db.commit()
 
     publish_inventory_change("updated", img.part_id)

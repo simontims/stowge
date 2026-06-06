@@ -11,6 +11,6 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
 }
 
-export function imageStateSignature(images: Array<{ id: string; is_primary: boolean }>): string {
-  return images.map((img) => `${img.id}:${img.is_primary ? "1" : "0"}`).join("|");
+export function imageStateSignature(images: Array<{ id: string; is_primary: boolean; rotation?: number }>): string {
+  return images.map((img) => `${img.id}:${img.is_primary ? "1" : "0"}:${img.rotation || 0}`).join("|");
 }

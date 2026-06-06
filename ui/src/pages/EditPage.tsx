@@ -36,6 +36,7 @@ interface PartImage {
 interface DraftImage extends PartImage {
   is_local?: boolean;
   local_file?: File;
+  rotation?: number; // 0, 90, 180, 270
 }
 
 interface ContentsEntry {
@@ -487,6 +488,31 @@ export function EditPage() {
       }
 
       if (hasImageDirtyChanges) {
+        // Apply pending rotations to persisted images
+        const rotatedPersistedImages = images.filter((img) => !img.is_local && img.rotation);
+        for (const img of rotatedPersistedImages) {
+          await apiRequest(`/api/images/${img.id}/rotate?direction=cw&degrees=${img.rotation}`, {
+            method: "POST",
+          });
+        }
+
+        // Apply pending rotations to local images (rotate the File blob)
+        const localImagesWithRotation = images.filter(
+          (img) => img.is_local && img.local_file && img.rotation
+        );
+        if (localImagesWithRotation.length > 0) {
+          const { rotateImage } = await import("../lib/rotateImage");
+          for (const img of localImagesWithRotation) {
+            let file = img.local_file!;
+            const steps = (img.rotation! / 90);
+            for (let s = 0; s < steps; s++) {
+              file = await rotateImage(file);
+            }
+            // Mutate the draft in-place for the upload step below
+            (img as DraftImage).local_file = file;
+          }
+        }
+
         const removedImageIds = initialImages
           .filter((img) => !images.some((current) => !current.is_local && current.id === img.id))
           .map((img) => img.id);
@@ -690,34 +716,14 @@ export function EditPage() {
     }
   }
 
-  async function handleRotateImage(imageId: string) {
-    const img = images.find((i) => i.id === imageId);
-    if (!img) return;
-    if (img.is_local && img.local_file) {
-      const { rotateImage } = await import("../lib/rotateImage");
-      const rotated = await rotateImage(img.local_file);
-      const objectUrl = URL.createObjectURL(rotated);
-      localImageUrlsRef.current.add(objectUrl);
-      setImages((prev) =>
-        prev.map((i) =>
-          i.id === imageId
-            ? { ...i, thumb_url: objectUrl, display_url: objectUrl, local_file: rotated }
-            : i
-        )
-      );
-    } else {
-      const result = await apiRequest<{ thumb_url: string; display_url: string }>(
-        `/api/images/${imageId}/rotate?direction=cw`,
-        { method: "POST" }
-      );
-      setImages((prev) =>
-        prev.map((i) =>
-          i.id === imageId
-            ? { ...i, thumb_url: result.thumb_url, display_url: result.display_url }
-            : i
-        )
-      );
-    }
+  function handleRotateImage(imageId: string) {
+    setImages((prev) =>
+      prev.map((i) =>
+        i.id === imageId
+          ? { ...i, rotation: ((i.rotation || 0) + 90) % 360 }
+          : i
+      )
+    );
   }
 
   async function handleRescan() {
@@ -916,12 +922,13 @@ export function EditPage() {
                         src={img.thumb_url || img.display_url}
                         alt={`${part.name} ${idx + 1}`}
                         className="w-full h-full object-cover"
+                        style={img.rotation ? { transform: `rotate(${img.rotation}deg)` } : undefined}
                       />
                     </button>
 
                     {img.is_primary ? (
-                      <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/90 text-white text-[10px] font-medium pointer-events-none">
-                        <Star size={9} fill="currentColor" />
+                      <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-amber-500/90 text-white text-xs font-medium pointer-events-none">
+                        <Star size={12} fill="currentColor" />
                         Primary
                       </div>
                     ) : (
@@ -930,9 +937,9 @@ export function EditPage() {
                           if (!settingPrimaryId) void handleSetPrimary(img.id);
                         }}
                         disabled={!!settingPrimaryId}
-                        className="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
+                        className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
                       >
-                        <Star size={9} />
+                        <Star size={12} />
                         {settingPrimaryId === img.id ? "Setting…" : "Make primary"}
                       </button>
                     )}
@@ -942,19 +949,19 @@ export function EditPage() {
                         if (!deletingImageId) void handleDeleteImage(img.id);
                       }}
                       disabled={!!deletingImageId}
-                      className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-medium hover:bg-red-600/80 disabled:opacity-60 transition-colors opacity-0 group-hover:opacity-100"
+                      className="absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-red-600/80 disabled:opacity-60 transition-colors opacity-0 group-hover:opacity-100"
                       title="Remove this image"
                     >
-                      <Trash2 size={9} />
+                      <Trash2 size={12} />
                       {deletingImageId === img.id ? "Removing…" : "Remove"}
                     </button>
 
                     <button
-                      onClick={() => void handleRotateImage(img.id)}
-                      className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-medium hover:bg-black/80 transition-colors opacity-0 group-hover:opacity-100"
+                      onClick={() => handleRotateImage(img.id)}
+                      className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 transition-colors opacity-0 group-hover:opacity-100"
                       title="Rotate 90° clockwise"
                     >
-                      <RotateCw size={9} />
+                      <RotateCw size={12} />
                     </button>
                   </div>
                 ))}
@@ -1296,6 +1303,7 @@ export function EditPage() {
               src={images[activeImageIdx].display_url || images[activeImageIdx].original_url || images[activeImageIdx].thumb_url}
               alt={`${part.name} full view`}
               className="w-full h-full object-contain"
+              style={images[activeImageIdx].rotation ? { transform: `rotate(${images[activeImageIdx].rotation}deg)` } : undefined}
             />
 
             {images[activeImageIdx].is_primary ? (

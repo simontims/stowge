@@ -57,6 +57,7 @@ export interface PartDetail {
     display_url: string;
     original_url: string | null;
     is_primary: boolean;
+    rotation?: number;
   }>;
 }
 
@@ -577,6 +578,14 @@ export function ItemsPage() {
       }
 
       if (imageDirty) {
+        // Apply pending rotations
+        const rotatedImages = draftImages.filter((img) => img.rotation);
+        for (const img of rotatedImages) {
+          await apiRequest(`/api/images/${img.id}/rotate?direction=cw&degrees=${img.rotation}`, {
+            method: "POST",
+          });
+        }
+
         const desiredPrimary = draftImages.find((img) => img.is_primary)?.id || null;
         if (desiredPrimary) {
           await apiRequest(`/api/images/${desiredPrimary}/set-primary`, { method: "POST" });
@@ -639,15 +648,11 @@ export function ItemsPage() {
     setDraftImages((prev) => prev.map((img) => ({ ...img, is_primary: img.id === imageId })));
   }
 
-  async function handleRotateImage(imageId: string) {
-    const result = await apiRequest<{ thumb_url: string; display_url: string }>(
-      `/api/images/${imageId}/rotate?direction=cw`,
-      { method: "POST" }
-    );
+  function handleRotateImage(imageId: string) {
     setDraftImages((prev) =>
       prev.map((img) =>
         img.id === imageId
-          ? { ...img, thumb_url: result.thumb_url, display_url: result.display_url }
+          ? { ...img, rotation: ((img.rotation || 0) + 90) % 360 }
           : img
       )
     );
