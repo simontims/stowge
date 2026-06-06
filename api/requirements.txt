@@ -4,12 +4,12 @@ fastapi>=0.116.1,<1.0
 uvicorn[standard]==0.46.0
 python-multipart==0.0.26
 
-SQLAlchemy==2.0.49
+SQLAlchemy==2.0.50
 
 bcrypt==5.0.0
 
 pillow==12.2.0
-litellm==1.83.12
+litellm==1.87.1
 httpx>=0.28.0
 slowapi>=0.1.9
 croniter>=2.0.7
