@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, Trash2, X, ChevronLeft, ChevronRight, Star, Pencil } from "lucide-react";
+import { Save, Trash2, X, ChevronLeft, ChevronRight, Star, Pencil, RotateCw } from "lucide-react";
 import { useNumericField } from "../../hooks/useNumericField";
 import { useNavigate } from "react-router-dom";
 import type { PartDetail, PartEditForm } from "../../pages/ItemsPage";
@@ -22,6 +22,7 @@ interface ItemDetailPanelProps {
   onConfirmDelete: () => void;
   isMobile?: boolean;
   onSetPrimaryImage?: (imageId: string) => Promise<void>;
+  onRotateImage?: (imageId: string) => Promise<void>;
 }
 
 export function ItemDetailPanel({
@@ -41,6 +42,7 @@ export function ItemDetailPanel({
   onConfirmDelete,
   isMobile = false,
   onSetPrimaryImage,
+  onRotateImage,
 }: ItemDetailPanelProps) {
   const navigate = useNavigate();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
@@ -188,6 +190,18 @@ export function ItemDetailPanel({
                         />
                       ))}
                     </div>
+                    {onRotateImage && (
+                      <button
+                        onClick={() => {
+                          const imgId = images[activeImageIdx]?.id;
+                          if (imgId) void onRotateImage(imgId);
+                        }}
+                        className="absolute bottom-2 right-2 p-1.5 rounded bg-black/60 text-white hover:bg-black/80 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Rotate 90° clockwise"
+                      >
+                        <RotateCw size={14} />
+                      </button>
+                    )}
                   </>
                 )}
               </div>

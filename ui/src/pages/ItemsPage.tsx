@@ -639,6 +639,20 @@ export function ItemsPage() {
     setDraftImages((prev) => prev.map((img) => ({ ...img, is_primary: img.id === imageId })));
   }
 
+  async function handleRotateImage(imageId: string) {
+    const result = await apiRequest<{ thumb_url: string; display_url: string }>(
+      `/api/images/${imageId}/rotate?direction=cw`,
+      { method: "POST" }
+    );
+    setDraftImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId
+          ? { ...img, thumb_url: result.thumb_url, display_url: result.display_url }
+          : img
+      )
+    );
+  }
+
   function handleUnsavedDiscard() {
     setUnsavedPromptOpen(false);
     closeModalNow();
@@ -1001,6 +1015,7 @@ export function ItemsPage() {
             onConfirmDelete={deletePartFromModal}
             isMobile={isMobile}
             onSetPrimaryImage={handleSetPrimaryImage}
+            onRotateImage={handleRotateImage}
           />
         }
       />

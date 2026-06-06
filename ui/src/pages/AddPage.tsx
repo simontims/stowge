@@ -338,6 +338,12 @@ export function AddPage() {
     mergePhotos(Array.from(files));
   }
 
+  async function handleRotatePhoto(index: number) {
+    const { rotateImage } = await import("../lib/rotateImage");
+    const rotated = await rotateImage(photos[index]);
+    setPhotos((current) => current.map((f, i) => (i === index ? rotated : f)));
+  }
+
   async function submitIdentify() {
     setSubmitError("");
     setSubmitErrorDetail("");
@@ -560,6 +566,7 @@ export function AddPage() {
             onTakePicture={onTakePicture}
             onPickPhotos={() => fileInputRef.current?.click()}
             onRemovePhoto={removePhoto}
+            onRotatePhoto={handleRotatePhoto}
           />
 
           {/* Sticky action bar */}

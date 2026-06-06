@@ -5,6 +5,7 @@ Also provides shared helpers used by other route modules:
 """
 
 from datetime import datetime, timezone
+import os
 from typing import List, Literal, Optional
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Query, Request,
@@ -17,7 +18,8 @@ from ..db import get_db
 from ..helpers.events import publish_inventory_change
 from ..helpers.serializers import signed_image_url, variant_rel
 from ..image_signing import verify as verify_image
-from ..images import (DEFAULT_IMAGE_CONFIG, ImageConfig, cleanup_asset_paths,
+from ..images import (DEFAULT_IMAGE_CONFIG, ImageConfig, assets_dir,
+                      cleanup_asset_paths,
                       delete_stored_images, process_and_store, resolve_path)
 from ..models import ImageSettings, Part, PartImage, User
 
@@ -246,6 +248,54 @@ def set_primary_image(
     db.commit()
     publish_inventory_change("updated", img.part_id)
     return {"ok": True}
+
+
+@router.post("/api/images/{image_id}/rotate")
+def rotate_image(
+    image_id: str,
+    direction: Literal["cw", "ccw"] = "cw",
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    from PIL import Image as PILImage
+    import io
+
+    img = db.query(PartImage).filter(PartImage.id == image_id).first()
+    if not img:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    transpose = PILImage.Transpose.ROTATE_270 if direction == "cw" else PILImage.Transpose.ROTATE_90
+
+    for rel_path in [img.path_thumb, img.path_display, img.path_original]:
+        if not rel_path:
+            continue
+        abs_path = os.path.join(assets_dir(), rel_path)
+        if not os.path.exists(abs_path):
+            continue
+        pil_img = PILImage.open(abs_path)
+        pil_img = pil_img.transpose(transpose)
+        buf = io.BytesIO()
+        fmt = "WEBP" if abs_path.endswith(".webp") else "JPEG"
+        save_kwargs = {"quality": 90, "method": 6} if fmt == "WEBP" else {"quality": 90, "optimize": True}
+        if fmt == "JPEG" and pil_img.mode in ("RGBA", "P"):
+            pil_img = pil_img.convert("RGB")
+        pil_img.save(buf, format=fmt, **save_kwargs)
+        buf.seek(0)
+        with open(abs_path, "wb") as f:
+            f.write(buf.read())
+
+    # Swap width and height in DB
+    old_w, old_h = img.width, img.height
+    img.width = old_h
+    img.height = old_w
+    db.commit()
+
+    publish_inventory_change("updated", img.part_id)
+    return {
+        "ok": True,
+        "thumb_url": signed_image_url(image_id, "thumb"),
+        "display_url": signed_image_url(image_id, "display"),
+    }
 
 
 @router.delete("/api/images/{image_id}")

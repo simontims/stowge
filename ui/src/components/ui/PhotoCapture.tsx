@@ -1,4 +1,4 @@
-import { Camera, Upload, X } from "lucide-react";
+import { Camera, RotateCw, Upload, X } from "lucide-react";
 
 interface PhotoCaptureProps {
   previewUrls: string[];
@@ -9,6 +9,7 @@ interface PhotoCaptureProps {
   onTakePicture: () => void;
   onPickPhotos: () => void;
   onRemovePhoto: (index: number) => void;
+  onRotatePhoto?: (index: number) => void;
 }
 
 export function PhotoCapture({
@@ -20,6 +21,7 @@ export function PhotoCapture({
   onTakePicture,
   onPickPhotos,
   onRemovePhoto,
+  onRotatePhoto,
 }: PhotoCaptureProps) {
   const atMax = photoCount >= maxPhotos;
   return (
@@ -61,6 +63,16 @@ export function PhotoCapture({
                   aria-label={`Remove photo ${idx + 1}`}
                 >
                   <X size={8} />
+                </button>
+              )}
+              {!hideButtons && onRotatePhoto && (
+                <button
+                  onClick={() => onRotatePhoto(idx)}
+                  disabled={disabled}
+                  className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 disabled:opacity-60"
+                  aria-label={`Rotate photo ${idx + 1}`}
+                >
+                  <RotateCw size={8} />
                 </button>
               )}
             </div>

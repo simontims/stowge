@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Loader2,
   Plus,
+  RotateCw,
   Save,
   Star,
   Trash2,
@@ -689,6 +690,36 @@ export function EditPage() {
     }
   }
 
+  async function handleRotateImage(imageId: string) {
+    const img = images.find((i) => i.id === imageId);
+    if (!img) return;
+    if (img.is_local && img.local_file) {
+      const { rotateImage } = await import("../lib/rotateImage");
+      const rotated = await rotateImage(img.local_file);
+      const objectUrl = URL.createObjectURL(rotated);
+      localImageUrlsRef.current.add(objectUrl);
+      setImages((prev) =>
+        prev.map((i) =>
+          i.id === imageId
+            ? { ...i, thumb_url: objectUrl, display_url: objectUrl, local_file: rotated }
+            : i
+        )
+      );
+    } else {
+      const result = await apiRequest<{ thumb_url: string; display_url: string }>(
+        `/api/images/${imageId}/rotate?direction=cw`,
+        { method: "POST" }
+      );
+      setImages((prev) =>
+        prev.map((i) =>
+          i.id === imageId
+            ? { ...i, thumb_url: result.thumb_url, display_url: result.display_url }
+            : i
+        )
+      );
+    }
+  }
+
   async function handleRescan() {
     if (!itemId) return;
     setRescanning(true);
@@ -916,6 +947,14 @@ export function EditPage() {
                     >
                       <Trash2 size={9} />
                       {deletingImageId === img.id ? "Removing…" : "Remove"}
+                    </button>
+
+                    <button
+                      onClick={() => void handleRotateImage(img.id)}
+                      className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-medium hover:bg-black/80 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Rotate 90° clockwise"
+                    >
+                      <RotateCw size={9} />
                     </button>
                   </div>
                 ))}
