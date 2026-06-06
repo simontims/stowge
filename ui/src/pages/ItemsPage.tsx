@@ -602,6 +602,7 @@ export function ItemsPage() {
       setInitialImageSignature(imageStateSignature(refreshed.images));
       setEditForm(refreshedForm);
       setInitialEditForm(refreshedForm);
+      const newPrimaryImage = refreshed.images.find((img) => img.is_primary) || refreshed.images[0];
       setParts((current) =>
         current.map((p) =>
           p.id === refreshed.id
@@ -612,6 +613,7 @@ export function ItemsPage() {
                 location: refreshed.location,
                 status: refreshed.status,
                 quantity: refreshed.quantity,
+                thumb: newPrimaryImage?.thumb_url ?? null,
               }
             : p
         )
