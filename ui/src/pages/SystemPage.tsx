@@ -17,9 +17,9 @@ const DEFAULT_TAB: Tab = "status";
 const TABS: Array<{ id: Tab; label: string; description: string }> = [
   { id: "status",      label: "Status",      description: "System health and inventory metrics" },
   { id: "collections", label: "Collections", description: "Manage inventory collections and AI hints" },
+  { id: "locations",   label: "Locations",   description: "Manage storage locations" },
   { id: "ai",          label: "AI",          description: "Configure LLM providers and models" },
   { id: "images",      label: "Images",      description: "Image storage quality and format" },
-  { id: "locations",   label: "Locations",   description: "Manage storage locations" },
   { id: "users",       label: "Users",       description: "Manage user accounts and access" },
 ];
 
