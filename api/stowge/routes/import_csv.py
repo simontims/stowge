@@ -2,12 +2,10 @@
 
 import csv
 import io
-import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..auth import require_admin
@@ -125,13 +123,13 @@ def preview_import(
     existing_locations: set[str] = set()
     if csv_locations:
         db_locations = db.query(Location.name).all()
-        existing_locations = {l.name.lower() for l in db_locations}
+        existing_locations = {loc.name.lower() for loc in db_locations}
 
     missing_collections = sorted(
         [c for c in csv_collections if c.lower() not in existing_collections]
     )
     missing_locations = sorted(
-        [l for l in csv_locations if l.lower() not in existing_locations]
+        [loc for loc in csv_locations if loc.lower() not in existing_locations]
     )
 
     return {
@@ -173,14 +171,14 @@ def confirm_import(
     collection_map: dict[str, Collection] = {c.name.lower(): c for c in db_collections}
 
     db_locations = db.query(Location).all()
-    location_map: dict[str, Location] = {l.name.lower(): l for l in db_locations}
+    location_map: dict[str, Location] = {loc.name.lower(): loc for loc in db_locations}
 
     # Determine what needs to be created
     csv_collections = {r["collection"] for r in rows if r["collection"]}
     csv_locations = {r["location"] for r in rows if r["location"]}
 
     missing_collections = [c for c in csv_collections if c.lower() not in collection_map]
-    missing_locations = [l for l in csv_locations if l.lower() not in location_map]
+    missing_locations = [loc for loc in csv_locations if loc.lower() not in location_map]
 
     if missing_collections and not create_collections:
         raise HTTPException(
