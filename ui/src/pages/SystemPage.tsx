@@ -7,10 +7,11 @@ import { SettingsCollectionsPage } from "./SettingsCollectionsPage";
 import { SettingsAiPage } from "./SettingsAiPage";
 import { SettingsImagesPage } from "./SettingsImagesPage";
 import { SettingsLocationsPage } from "./SettingsLocationsPage";
+import { SettingsToolsPage } from "./SettingsToolsPage";
 import { SettingsUsersPage } from "./SettingsUsersPage";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 
-type Tab = "status" | "collections" | "ai" | "images" | "locations" | "users";
+type Tab = "status" | "collections" | "ai" | "images" | "locations" | "users" | "tools";
 
 const DEFAULT_TAB: Tab = "status";
 
@@ -21,6 +22,7 @@ const TABS: Array<{ id: Tab; label: string; description: string }> = [
   { id: "ai",          label: "AI",          description: "Configure LLM providers and models" },
   { id: "images",      label: "Images",      description: "Image storage quality and format" },
   { id: "users",       label: "Users",       description: "Manage user accounts and access" },
+  { id: "tools",       label: "Tools",       description: "Import and export utilities" },
 ];
 
 type SaveRef = { current: (() => Promise<void>) | null };
@@ -44,6 +46,7 @@ export function SystemPage() {
   const imagesSaveFnRef = useRef<(() => Promise<void>) | null>(null);
   const locationsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
   const usersSaveFnRef = useRef<(() => Promise<void>) | null>(null);
+  const toolsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
 
   const saveFnRefMap: Record<Exclude<Tab, "status">, SaveRef> = {
     collections: collectionsSaveFnRef,
@@ -51,6 +54,7 @@ export function SystemPage() {
     images: imagesSaveFnRef,
     locations: locationsSaveFnRef,
     users: usersSaveFnRef,
+    tools: toolsSaveFnRef,
   };
 
   const isDirty = dirtySection !== null;
@@ -198,6 +202,13 @@ export function SystemPage() {
           embedded
           onDirtyChange={(dirty) => handleDirtyChange("users", dirty)}
           saveFnRef={usersSaveFnRef}
+        />
+      )}
+      {activeTab === "tools" && (
+        <SettingsToolsPage
+          embedded
+          onDirtyChange={(dirty) => handleDirtyChange("tools", dirty)}
+          saveFnRef={toolsSaveFnRef}
         />
       )}
 

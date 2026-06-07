@@ -321,8 +321,10 @@ from .routes.ai_settings import router as ai_settings_router  # noqa: E402
 from .routes.auth import router as auth_router  # noqa: E402
 from .routes.backup import router as backup_router  # noqa: E402
 from .routes.collections import router as collections_router  # noqa: E402
+from .routes.export import router as export_router  # noqa: E402
 from .routes.health import router as health_router  # noqa: E402
 from .routes.images import router as images_router  # noqa: E402
+from .routes.import_csv import router as import_router  # noqa: E402
 from .routes.items import router as items_router  # noqa: E402
 from .routes.locations import router as locations_router  # noqa: E402
 
@@ -335,6 +337,8 @@ app.include_router(images_router)
 app.include_router(ai_settings_router)
 app.include_router(admin_router)
 app.include_router(backup_router)
+app.include_router(export_router)
+app.include_router(import_router)
 
 
 # ---------------------------------------------------------------------------
