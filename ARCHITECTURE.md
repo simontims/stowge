@@ -127,6 +127,9 @@ stowge/
 	- POST /api/images/store
 	- POST /api/images/discard
 	- GET /api/events/items        → SSE stream (authenticated via session cookie)
+	- GET /api/export/csv          → CSV download (admin, supports scope/collection/location filters)
+	- POST /api/import/csv/preview → Parse CSV and report missing collections/locations (admin)
+	- POST /api/import/csv/confirm → Import items from CSV, optionally creating missing collections/locations (admin)
 
 ## 7. Security Considerations
 
@@ -286,7 +289,7 @@ For future user-managed API keys for scripts and automation.
 - Project Name: Stowge
 - Repository URL: https://github.com/simontims/stowge
 - Primary Image Registry: https://hub.docker.com/r/simontims/stowge
-- Date of Last Update: 2026-03-24
+- Date of Last Update: 2026-06-07
 
 ## 13. Glossary
 

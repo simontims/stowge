@@ -67,6 +67,11 @@ stowge admin create --email admin@example.com
 
 You will be prompted to enter and confirm the new password.
 
+### Import and Export
+In `System > Tools`, you can:
+- **Export to CSV** — download your inventory with optional scope (active/deleted/all) and collection/location filters. Includes name, description, collection, location, status, quantity, contents, and timestamps.
+- **Import from CSV** — upload a CSV with columns for name, description, collection, location, status, and quantity. The importer previews what will be imported and identifies any collections or locations that don't exist yet, offering to create them automatically.
+
 ### Backup and restore
 In `System > Status > Maintenance`, use `Backup / Restore` to:
 - create a backup archive in `/assets/backups`

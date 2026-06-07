@@ -1,7 +1,7 @@
 # 🚀 Stowge Roadmap
 
 ## 🎯 Vision
-Easy inventory with a brilliant user experience and AI-assist
+Easy inventory with a simple user experience and optional AI assistance
 
 ---
 
@@ -10,7 +10,6 @@ Easy inventory with a brilliant user experience and AI-assist
 - Replace homegrown datatables with an opensource library
 - API key generation per user
 - API
-- Bulk export and import (CSV / JSON)
 - Basic Home Assistant integration (read-only)
 - Image recognition improvements (retry + suggestions)
 - User role expaction to Collection access
