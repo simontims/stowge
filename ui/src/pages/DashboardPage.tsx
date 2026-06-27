@@ -7,6 +7,7 @@ import { TablePaneLayout } from "../components/ui/TablePaneLayout";
 import { apiRequest, UNAUTHORIZED_EVENT } from "../lib/api";
 import { stageLabel, preflightTitle, restoreStepState } from "../lib/statusMappings";
 import { formatBytes } from "../lib/format";
+import { useTableSort } from "../hooks/useTableSort";
 
 interface CollectionStatusRow {
   id: string;
@@ -81,6 +82,8 @@ interface BackupOperation {
   error: string | null;
   result: Record<string, unknown> | null;
 }
+
+type BackupSortKey = "backup_name" | "created_at" | "modified_at" | "size_bytes";
 
 type MaintenanceTaskKey = "vacuum" | "orphaned_images_cleanup" | "backup";
 type FriendlyFrequency = "daily" | "weekly" | "monthly" | "custom";
@@ -184,6 +187,13 @@ function formatDuration(durationMs: number | null | undefined): string {
   if (seconds < 60) return `${seconds.toFixed(seconds >= 10 ? 0 : 1)}s`;
   const minutes = seconds / 60;
   return `${minutes.toFixed(minutes >= 10 ? 0 : 1)}m`;
+}
+
+function toDateMs(value: string | undefined): number {
+  if (!value) return 0;
+  const normalized = value.includes(" ") && !value.includes("T") ? value.replace(" ", "T") : value;
+  const ms = new Date(normalized).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
 }
 
 function parseFriendlyCron(cronExpression: string): FriendlyCronState {
@@ -334,9 +344,22 @@ function summarizeLastRun(schedule: MaintenanceScheduleRow): ReactNode {
   const ranAt = formatDate(schedule.last_run_at);
   const duration = formatDuration(schedule.last_duration_ms);
   if (schedule.last_status === "failed") {
+    return ` ${ranAt} Failed in ${duration}${schedule.last_error ? `: ${schedule.last_error}` : ""}`;
+  }
+  if (schedule.last_status === "success") {
+    return ` ${ranAt} Completed in ${duration}`;
+  }
+  return ` ${ranAt}`;
+}
+
+function summarizeLastRunModal(schedule: MaintenanceScheduleRow): ReactNode {
+  if (!schedule.last_run_at) return "Never run yet";
+  const ranAt = formatDate(schedule.last_run_at);
+  const duration = formatDuration(schedule.last_duration_ms);
+  if (schedule.last_status === "failed") {
     return (
       <>
-        <span className="block">{ranAt}</span>
+        <span>{ranAt}</span>
         <span className="block">Failed in {duration}{schedule.last_error ? `: ${schedule.last_error}` : ""}</span>
       </>
     );
@@ -344,7 +367,7 @@ function summarizeLastRun(schedule: MaintenanceScheduleRow): ReactNode {
   if (schedule.last_status === "success") {
     return (
       <>
-        <span className="block">{ranAt}</span>
+        <span>{ranAt}</span>
         <span className="block">Completed in {duration}</span>
       </>
     );
@@ -413,7 +436,8 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
   // Backups list/detail
   const [backups, setBackups] = useState<BackupListRow[]>([]);
-  const [backupsLoading, setBackupsLoading] = useState(false);
+  const [backupsLoading, setBackupsLoading] = useState(true);
+  const [backupsLoadedOnce, setBackupsLoadedOnce] = useState(false);
   const [backupsError, setBackupsError] = useState("");
   const [selectedBackupFilename, setSelectedBackupFilename] = useState<string | null>(null);
   const [selectedBackupDetails, setSelectedBackupDetails] = useState<BackupDetails | null>(null);
@@ -424,6 +448,11 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const selectedBackupFilenameRef = useRef<string | null>(null);
   const [backupPage, setBackupPage] = useState(0);
   const BACKUP_PAGE_SIZE = 5;
+  const {
+    sortKey: backupSortKey,
+    sortDirection: backupSortDirection,
+    handleSort: handleBackupSort,
+  } = useTableSort<BackupSortKey>("created_at", "desc");
 
   // Backup create modal
   const [backupModalOpen, setBackupModalOpen] = useState(false);
@@ -443,11 +472,32 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const totalBackupBytes = useMemo(() => {
     return backups.reduce((sum, backup) => sum + backup.size_bytes, 0);
   }, [backups]);
-  const backupPageCount = Math.max(1, Math.ceil(backups.length / BACKUP_PAGE_SIZE));
+  const sortedBackups = useMemo(() => {
+    const rowsCopy = [...backups];
+    rowsCopy.sort((a, b) => {
+      let cmp = 0;
+      if (backupSortKey === "backup_name") {
+        cmp = displayBackupName({ backup_name: a.backup_name }).localeCompare(
+          displayBackupName({ backup_name: b.backup_name }),
+          undefined,
+          { sensitivity: "base" },
+        );
+      } else if (backupSortKey === "created_at") {
+        cmp = toDateMs(a.created_at) - toDateMs(b.created_at);
+      } else if (backupSortKey === "modified_at") {
+        cmp = toDateMs(a.created_at) - toDateMs(b.created_at);
+      } else {
+        cmp = a.size_bytes - b.size_bytes;
+      }
+      return backupSortDirection === "asc" ? cmp : -cmp;
+    });
+    return rowsCopy;
+  }, [backups, backupSortDirection, backupSortKey]);
+  const backupPageCount = Math.max(1, Math.ceil(sortedBackups.length / BACKUP_PAGE_SIZE));
   const pagedBackups = useMemo(() => {
     const start = backupPage * BACKUP_PAGE_SIZE;
-    return backups.slice(start, start + BACKUP_PAGE_SIZE);
-  }, [backups, backupPage, BACKUP_PAGE_SIZE]);
+    return sortedBackups.slice(start, start + BACKUP_PAGE_SIZE);
+  }, [sortedBackups, backupPage, BACKUP_PAGE_SIZE]);
   useEffect(() => {
     if (backupPage >= backupPageCount) {
       setBackupPage(Math.max(0, backupPageCount - 1));
@@ -496,6 +546,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
     } catch (err) {
       setBackupsError((err as Error).message || "Failed to load backups.");
     } finally {
+      setBackupsLoadedOnce(true);
       setBackupsLoading(false);
     }
   }
@@ -515,6 +566,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
     } catch (err) {
       setBackupsError((err as Error).message || "Failed to load backups.");
     } finally {
+      setBackupsLoadedOnce(true);
       setBackupsLoading(false);
     }
   }
@@ -533,18 +585,35 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       {
         key: "backup_name",
         header: "Backup",
+        sortable: true,
         render: (row) => (
-          <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-neutral-200">{displayBackupName({ backup_name: row.backup_name })}</p>
-            <p className="text-[11px] text-neutral-500">
-              {formatDate(row.created_at)} · {formatRelativeAge(row.created_at)}
-            </p>
-          </div>
+          <p className="truncate text-xs font-medium text-neutral-200">{displayBackupName({ backup_name: row.backup_name })}</p>
+        ),
+      },
+      {
+        key: "created_at",
+        header: "Last backup",
+        sortable: true,
+        className: "w-56 whitespace-nowrap",
+        headerClassName: "w-56",
+        render: (row) => (
+          <span className="text-[11px] text-neutral-400">{formatDate(row.created_at)}</span>
+        ),
+      },
+      {
+        key: "modified_at",
+        header: "Age",
+        sortable: true,
+        className: "w-20 text-right whitespace-nowrap",
+        headerClassName: "w-20 text-right",
+        render: (row) => (
+          <span className="text-[11px] tabular-nums text-neutral-500">{formatRelativeAge(row.created_at)}</span>
         ),
       },
       {
         key: "size_bytes",
         header: "Size",
+        sortable: true,
         className: "w-28 text-right",
         headerClassName: "w-28 text-right",
         render: (row) => <span className="text-xs tabular-nums text-neutral-200">{formatBytes(row.size_bytes)}</span>,
@@ -552,6 +621,20 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
     ],
     []
   );
+
+  const backupsEmptyState =
+    !backupsLoadedOnce || (backupsLoading && backups.length === 0)
+      ? (
+        <div className="mx-auto flex max-w-[18rem] items-center justify-center gap-2 text-xs text-neutral-500">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-pulse" style={{ animationDelay: "120ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-pulse" style={{ animationDelay: "240ms" }} />
+          </span>
+          <span>Loading backups...</span>
+        </div>
+      )
+      : "No backups found in /assets/backups.";
 
   useEffect(() => {
     void loadMetrics();
@@ -1200,13 +1283,6 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       </section>
 
       <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
-        {maintenanceSchedules?.backup && (
-          <p className="text-xs text-neutral-500">
-            Settings: Assets {maintenanceSchedules.backup.backup_include_assets ? "included" : "not included"}.
-            {maintenanceSchedules.backup.backup_retention_enabled &&
-              ` Delete automatic backups older than ${maintenanceSchedules.backup.backup_retention_days} days.`}
-          </p>
-        )}
         <TablePaneLayout
           variant="aside"
           rightVisible={Boolean(selectedBackupFilename)}
@@ -1256,7 +1332,10 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                   columns={backupColumns}
                   rows={pagedBackups}
                   keyField="filename"
-                  emptyMessage="No backups found in /assets/backups."
+                  emptyMessage={backupsEmptyState}
+                  sortKey={backupSortKey}
+                  sortDirection={backupSortDirection}
+                  onSort={(key) => handleBackupSort(key as BackupSortKey)}
                   activeRowId={selectedBackupFilename ?? undefined}
                   onRowClick={(row) => setSelectedBackupFilename(row.filename)}
                 />
@@ -1389,8 +1468,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
               <div className="w-full max-w-xl rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl p-4 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-neutral-100">Edit schedule</h3>
-                    <p className="mt-1 text-xs text-neutral-500">{meta.title}</p>
+                    <h3 className="text-sm font-semibold text-neutral-100">{`Edit ${meta.title.toLowerCase()} schedule`}</h3>
                   </div>
                 </div>
 
@@ -1517,7 +1595,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
                 <div className="grid gap-1 text-xs text-neutral-400 sm:grid-cols-2">
                   <p>Next run: {schedule.enabled ? (schedule.next_run_at ? formatDate(schedule.next_run_at) : "Not scheduled") : "Schedule disabled"}</p>
-                  <p>Last run: {summarizeLastRun(schedule)}</p>
+                  <p>Last run: {summarizeLastRunModal(schedule)}</p>
                 </div>
 
                 <div className="flex justify-end gap-2">

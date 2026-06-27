@@ -25,7 +25,7 @@ interface DataTableProps<T extends object> {
   actions?: DataTableActions<T>;
   rows: T[];
   keyField: keyof T & string;
-  emptyMessage?: string;
+  emptyMessage?: React.ReactNode;
   footer?: React.ReactNode;
   onRowClick?: (row: T) => void;
   sortKey?: string;
