@@ -4,6 +4,7 @@ Location photo variant path behavior tests.
 Covers:
   - PATCH /api/locations/{id} cleans old display/thumb/original siblings
   - DELETE /api/locations/{id} cleans display/thumb/original siblings
+    - PATCH /api/locations/{id} cleans old icon display/thumb/original siblings
   - GET /api/admin/maintenance/orphaned-images does not count tracked location siblings
 """
 from conftest import auth_cookies, client, write_asset
@@ -86,6 +87,43 @@ def test_delete_location_cleans_all_variant_paths(tmp_path, monkeypatch):
         assert not (tmp_path / rel_path).exists()
 
 
+def test_patch_location_icon_cleans_old_variant_paths(tmp_path, monkeypatch, isolated_db, isolated_client):
+    monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+    from conftest import auth_cookies_isolated
+    cookies = auth_cookies_isolated(isolated_db, "loc_icon_patch@example.com", role="admin")
+
+    old_display = "loc-icon-old/display.jpg"
+    new_display = "loc-icon-new/display.jpg"
+
+    old_variants = _location_variants(old_display)
+    new_variants = _location_variants(new_display)
+
+    for rel_path in old_variants:
+        write_asset(tmp_path, rel_path)
+    for rel_path in new_variants:
+        write_asset(tmp_path, rel_path)
+
+    create_response = isolated_client.post(
+        "/api/locations",
+        json={"name": "Location Icon Patch Cleanup", "icon_path": old_display},
+        cookies=cookies,
+    )
+    assert create_response.status_code == 200, create_response.text
+    location_id = create_response.json()["id"]
+
+    patch_response = isolated_client.patch(
+        f"/api/locations/{location_id}",
+        json={"icon_path": new_display},
+        cookies=cookies,
+    )
+    assert patch_response.status_code == 200, patch_response.text
+
+    for rel_path in old_variants:
+        assert not (tmp_path / rel_path).exists()
+    for rel_path in new_variants:
+        assert (tmp_path / rel_path).exists()
+
+
 def test_orphan_scan_ignores_location_photo_sibling_variants(tmp_path, monkeypatch, isolated_db, isolated_client):
     monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
     from conftest import auth_cookies_isolated
@@ -103,6 +141,35 @@ def test_orphan_scan_ignores_location_photo_sibling_variants(tmp_path, monkeypat
     create_response = isolated_client.post(
         "/api/locations",
         json={"name": "Location Orphan Scan", "photo_path": display_path},
+        cookies=cookies,
+    )
+    assert create_response.status_code == 200, create_response.text
+
+    scan_response = isolated_client.get("/api/admin/maintenance/orphaned-images", cookies=cookies)
+    assert scan_response.status_code == 200, scan_response.text
+    payload = scan_response.json()
+
+    assert payload["file_count"] == 1
+    assert payload["disk_bytes"] == len(orphan_bytes)
+
+
+def test_orphan_scan_ignores_location_icon_sibling_variants(tmp_path, monkeypatch, isolated_db, isolated_client):
+    monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+    from conftest import auth_cookies_isolated
+    cookies = auth_cookies_isolated(isolated_db, "loc_orphan_icon@example.com", role="admin")
+
+    display_path = "loc-icon-track/display.jpg"
+    variants = _location_variants(display_path)
+    for rel_path in variants:
+        write_asset(tmp_path, rel_path, b"tracked")
+
+    orphan_rel_path = "orphan/untracked-icon.jpg"
+    orphan_bytes = b"orphan-file"
+    write_asset(tmp_path, orphan_rel_path, orphan_bytes)
+
+    create_response = isolated_client.post(
+        "/api/locations",
+        json={"name": "Location Icon Orphan Scan", "icon_path": display_path},
         cookies=cookies,
     )
     assert create_response.status_code == 200, create_response.text

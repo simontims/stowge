@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
+import { IconColorPicker } from "../components/ui/IconColorPicker";
+import { TablerIcon } from "../components/ui/TablerIcon";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusMessage } from "../components/ui/StatusMessage";
 import { ListToolbar } from "../components/ui/ListToolbar";
@@ -18,6 +20,8 @@ interface LocationRecord {
   id: string;
   name: string;
   description: string | null;
+  icon: string | null;
+  color: string | null;
   item_count: number;
   photo_url: string | null;
   created_at: string | null;
@@ -28,12 +32,16 @@ interface LocationRecord {
 interface LocationForm {
   name: string;
   description: string;
+  icon: string;
+  color: string;
   photo_path: string | null;
 }
 
 const EMPTY_FORM: LocationForm = {
   name: "",
   description: "",
+  icon: "",
+  color: "",
   photo_path: null,
 };
 
@@ -85,7 +93,12 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   const { isDirty: isEditDirty, unsavedPromptOpen, closePrompt, confirmDiscard } = useDirtyState({
     form: editForm,
     initialForm: initialEditForm,
-    isEqual: (a, b) => a.name === b.name && a.description === b.description && a.photo_path === null,
+    isEqual: (a, b) =>
+      a.name === b.name &&
+      a.description === b.description &&
+      a.icon === b.icon &&
+      a.color === b.color &&
+      a.photo_path === null,
     embedded,
     active: Boolean(editingId),
     onDirtyChange,
@@ -109,6 +122,8 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     const snapshot: LocationForm = {
       name: location.name,
       description: location.description || "",
+      icon: location.icon || "",
+      color: location.color || "",
       photo_path: null,
     };
     setInitialEditForm(snapshot);
@@ -167,6 +182,8 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       const payload = {
         name: newForm.name.trim(),
         description: newForm.description.trim(),
+        icon: newForm.icon || null,
+        color: newForm.color || null,
         photo_path: newForm.photo_path,
       };
 
@@ -201,10 +218,14 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       const payload: {
         name: string;
         description: string;
+        icon: string | null;
+        color: string | null;
         photo_path?: string | null;
       } = {
         name: editForm.name.trim(),
         description: editForm.description.trim(),
+        icon: editForm.icon || null,
+        color: editForm.color || null,
       };
       if (editForm.photo_path !== null) {
         payload.photo_path = editForm.photo_path;
@@ -306,6 +327,19 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
 
   const columns = useMemo<Column<LocationRecord>[]>(
     () => [
+      {
+        key: "icon",
+        header: "Icon",
+        className: "w-20",
+        render: (row) =>
+          row.icon ? (
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-800 bg-neutral-900">
+              <TablerIcon name={row.icon} size={16} color={row.color || undefined} />
+            </span>
+          ) : (
+            <span className="text-xs text-neutral-600">none</span>
+          ),
+      },
       {
         key: "photo_url",
         header: "Photo",
@@ -432,6 +466,16 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 placeholder="Where this location is and what it stores"
               />
             </label>
+            <div className="sm:col-span-2 flex items-center gap-3">
+              <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+              <IconColorPicker
+                title={newForm.name || "Location"}
+                value={newForm.icon}
+                onChange={(name) => setNewForm((v) => ({ ...v, icon: name }))}
+                color={newForm.color}
+                onColorChange={(hex) => setNewForm((v) => ({ ...v, color: hex }))}
+              />
+            </div>
             <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => newPhotoInputRef.current?.click()}
@@ -504,6 +548,16 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 min-h-[96px]"
               />
             </label>
+            <div className="sm:col-span-2 flex items-center gap-3">
+              <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+              <IconColorPicker
+                title={editForm.name || "Location"}
+                value={editForm.icon}
+                onChange={(name) => setEditForm((v) => ({ ...v, icon: name }))}
+                color={editForm.color}
+                onColorChange={(hex) => setEditForm((v) => ({ ...v, color: hex }))}
+              />
+            </div>
             <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => editPhotoInputRef.current?.click()}

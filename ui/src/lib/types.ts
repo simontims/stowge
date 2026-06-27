@@ -1,6 +1,10 @@
 export interface LocationOption {
   id: string;
   name: string;
+  icon?: string | null;
+  color?: string | null;
+  photo_url?: string | null;
+  icon_url?: string | null;
 }
 
 export interface CollectionOption {

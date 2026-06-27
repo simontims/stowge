@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from ..asset_paths import location_photo_variant_paths
+from ..asset_paths import location_image_variant_paths, location_photo_variant_paths
 from ..auth import current_user
 from ..constraints import MIN_NAME_LENGTH, require_name
 from ..db import get_db
@@ -34,6 +34,22 @@ def upload_location_photo(
     }
 
 
+@router.post("/api/locations/icon")
+def upload_location_icon(
+    icon: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    stored = process_and_store([icon], get_image_config(db))
+    if not stored:
+        raise HTTPException(status_code=400, detail="No icon uploaded")
+    payload = stored[0]
+    return {
+        "icon_path": payload["path_display"],
+        "stored": payload,
+    }
+
+
 @router.get("/api/locations")
 def list_locations(db: Session = Depends(get_db), me: User = Depends(current_user)):
     return list_locations_payload(db)
@@ -43,7 +59,10 @@ def list_locations(db: Session = Depends(get_db), me: User = Depends(current_use
 def create_location(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
     name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
     description = str(payload.get("description") or "").strip() or None
+    icon = str(payload.get("icon") or "").strip() or None
+    color = str(payload.get("color") or "").strip() or None
     photo_path = str(payload.get("photo_path") or "").strip() or None
+    icon_path = str(payload.get("icon_path") or "").strip() or None
 
     existing = db.query(Location).filter(Location.name == name).first()
     if existing:
@@ -52,7 +71,10 @@ def create_location(payload: dict, db: Session = Depends(get_db), me: User = Dep
     location = Location(
         name=name,
         description=description,
+        icon=icon,
+        color=color,
         photo_path=photo_path,
+        icon_path=icon_path,
     )
     db.add(location)
     db.commit()
@@ -67,6 +89,7 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Location not found")
 
     old_photo_path = location.photo_path
+    old_icon_path = location.icon_path
 
     if "name" in payload:
         name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
@@ -82,9 +105,19 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
     if "description" in payload:
         location.description = str(payload.get("description") or "").strip() or None
 
+    if "icon" in payload:
+        location.icon = str(payload.get("icon") or "").strip() or None
+
+    if "color" in payload:
+        location.color = str(payload.get("color") or "").strip() or None
+
     if "photo_path" in payload:
         next_photo_path = str(payload.get("photo_path") or "").strip() or None
         location.photo_path = next_photo_path
+
+    if "icon_path" in payload:
+        next_icon_path = str(payload.get("icon_path") or "").strip() or None
+        location.icon_path = next_icon_path
 
     location.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -92,6 +125,9 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
 
     if "photo_path" in payload and old_photo_path and old_photo_path != location.photo_path:
         cleanup_asset_paths(list(location_photo_variant_paths(old_photo_path)))
+
+    if "icon_path" in payload and old_icon_path and old_icon_path != location.icon_path:
+        cleanup_asset_paths(list(location_image_variant_paths(old_icon_path)))
 
     return serialize_location(location, db)
 
@@ -117,12 +153,15 @@ def delete_location(
         target_location_id = target.id
 
     photo_path = location.photo_path
+    icon_path = location.icon_path
     db.query(Part).filter(Part.location_id == location_id).update({"location_id": target_location_id})
     db.delete(location)
     db.commit()
 
     if photo_path:
         cleanup_asset_paths(list(location_photo_variant_paths(photo_path)))
+    if icon_path:
+        cleanup_asset_paths(list(location_image_variant_paths(icon_path)))
 
     return {"ok": True}
 
@@ -135,4 +174,15 @@ def get_location_photo(location_id: str, db: Session = Depends(get_db), me: User
     if not location.photo_path:
         raise HTTPException(status_code=404, detail="Location photo not found")
     abs_path = resolve_path(location.photo_path)
+    return FileResponse(abs_path)
+
+
+@router.get("/api/locations/{location_id}/icon")
+def get_location_icon(location_id: str, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    location = db.query(Location).filter(Location.id == location_id).first()
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+    if not location.icon_path:
+        raise HTTPException(status_code=404, detail="Location icon not found")
+    abs_path = resolve_path(location.icon_path)
     return FileResponse(abs_path)

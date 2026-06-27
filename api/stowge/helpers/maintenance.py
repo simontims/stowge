@@ -14,7 +14,7 @@ from croniter import croniter
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..asset_paths import location_photo_variant_paths
+from ..asset_paths import location_image_variant_paths, location_photo_variant_paths
 from ..backup_restore import (BackupError, create_backup_archive,
                               ensure_backups_dir, read_manifest_from_archive,
                               remove_tmp_dir, set_backup_verification_metadata,
@@ -260,6 +260,11 @@ def build_tracked_paths(db: Session) -> set[str]:
         Location.photo_path.isnot(None)
     ).all():
         for variant_path in location_photo_variant_paths(photo_path):
+            tracked.add(_norm_rel(variant_path))
+    for (icon_path,) in db.query(Location.icon_path).filter(
+        Location.icon_path.isnot(None)
+    ).all():
+        for variant_path in location_image_variant_paths(icon_path):
             tracked.add(_norm_rel(variant_path))
     return tracked
 

@@ -45,6 +45,10 @@ def location_photo_url(location_id: str) -> str:
     return f"/api/locations/{location_id}/photo"
 
 
+def location_icon_url(location_id: str) -> str:
+    return f"/api/locations/{location_id}/icon"
+
+
 def serialize_user(user: User) -> dict:
     parsed_collection_nav_order: list[str] = []
     if user.collection_nav_order:
@@ -78,8 +82,11 @@ def serialize_location(location: Location, db: Session, item_count: int | None =
         "id": location.id,
         "name": location.name,
         "description": location.description,
+        "icon": location.icon,
+        "color": location.color,
         "item_count": int(item_count),
         "photo_url": (location_photo_url(location.id) if location.photo_path else None),
+        "icon_url": (location_icon_url(location.id) if location.icon_path else None),
         "created_at": utc_iso(location.created_at),
         "updated_at": utc_iso(location.updated_at),
     }

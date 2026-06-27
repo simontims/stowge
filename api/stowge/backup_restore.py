@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from .asset_paths import location_photo_variant_paths
+from .asset_paths import location_image_variant_paths, location_photo_variant_paths
 from .datetime_utils import utc_now_iso
 from .models import Location, PartImage
 
@@ -103,6 +103,10 @@ def gather_referenced_assets(db: Session) -> set[str]:
 
     for (photo_path,) in db.query(Location.photo_path).filter(Location.photo_path.isnot(None)).all():
         for rel in location_photo_variant_paths(photo_path):
+            tracked.add(_safe_rel(rel))
+
+    for (icon_path,) in db.query(Location.icon_path).filter(Location.icon_path.isnot(None)).all():
+        for rel in location_image_variant_paths(icon_path):
             tracked.add(_safe_rel(rel))
 
     return tracked

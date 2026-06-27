@@ -72,6 +72,15 @@ def _run_startup_migrations():
             if "color" not in coll_columns:
                 conn.execute(text("ALTER TABLE collections ADD COLUMN color VARCHAR NULL"))
 
+        if "locations" in set(inspect(engine).get_table_names()):
+            location_columns = {c["name"] for c in inspect(engine).get_columns("locations")}
+            if "icon" not in location_columns:
+                conn.execute(text("ALTER TABLE locations ADD COLUMN icon VARCHAR NULL"))
+            if "color" not in location_columns:
+                conn.execute(text("ALTER TABLE locations ADD COLUMN color VARCHAR NULL"))
+            if "icon_path" not in location_columns:
+                conn.execute(text("ALTER TABLE locations ADD COLUMN icon_path VARCHAR NULL"))
+
         parts_columns = set()
         if "parts" in set(inspect(engine).get_table_names()):
             parts_columns = {c["name"] for c in inspect(engine).get_columns("parts")}

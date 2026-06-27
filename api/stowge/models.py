@@ -136,7 +136,10 @@ class Location(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, unique=True, index=True)
     description = Column(Text, nullable=True)
+    icon = Column(String, nullable=True)  # tabler icon name, e.g. 'wrench'
+    color = Column(String, nullable=True)  # CSS colour string, e.g. '#60a5fa'
     photo_path = Column(String, nullable=True)
+    icon_path = Column(String, nullable=True)
     item_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)

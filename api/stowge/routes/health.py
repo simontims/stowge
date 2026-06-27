@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
-from ..asset_paths import location_photo_variant_paths
+from ..asset_paths import location_image_variant_paths, location_photo_variant_paths
 from ..auth import current_user
 from ..db import get_db
 from ..images import assets_dir
@@ -140,10 +140,20 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
             except OSError:
                 pass
 
+    location_icon_bytes = 0
+    location_icon_paths = db.query(Location.icon_path).filter(Location.icon_path.isnot(None)).all()
+    for (icon_path,) in location_icon_paths:
+        for rel_path in location_image_variant_paths(icon_path):
+            abs_path = os.path.join(base_assets_dir, rel_path)
+            try:
+                location_icon_bytes += os.path.getsize(abs_path)
+            except OSError:
+                pass
+
     rows = []
     total_items = 0
     total_assets = 0
-    total_disk_bytes = location_photo_bytes + uncollected_bytes + recycle_bin_bytes
+    total_disk_bytes = location_photo_bytes + location_icon_bytes + uncollected_bytes + recycle_bin_bytes
 
     for collection in collections:
         name = collection.name
