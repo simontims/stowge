@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Tag, Package, HardDrive, Image, Database, Archive } from "lucide-react";
 import cronstrue from "cronstrue";
+import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { TablePaneLayout } from "../components/ui/TablePaneLayout";
@@ -430,8 +431,6 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [scheduleModalIncludeAssetsDraft, setScheduleModalIncludeAssetsDraft] = useState(true);
   const [scheduleModalAdvancedOpen, setScheduleModalAdvancedOpen] = useState(false);
   const [runningMaintenanceTask, setRunningMaintenanceTask] = useState<Partial<Record<MaintenanceTaskKey, boolean>>>({});
-  const [purgeResult, setPurgeResult] = useState<{ deleted: number; freed_bytes: number } | null>(null);
-  const [vacuumResult, setVacuumResult] = useState<{ size_before: number; size_after: number; freed_bytes: number } | null>(null);
   const [maintenanceError, setMaintenanceError] = useState("");
 
   // Backups list/detail
@@ -833,13 +832,23 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
           "/api/admin/maintenance/vacuum",
           { method: "POST" }
         );
-        setVacuumResult(data);
+        if (data.freed_bytes > 0) {
+          toast.success("Database optimised", {
+            description: `Freed ${formatBytes(data.freed_bytes)} (${formatBytes(data.size_before)} -> ${formatBytes(data.size_after)}).`,
+          });
+        } else {
+          toast.success("Database already compact", {
+            description: `${formatBytes(data.size_after)} in use.`,
+          });
+        }
       } else if (taskKey === "orphaned_images_cleanup") {
         const data = await apiRequest<{ deleted: number; freed_bytes: number }>(
           "/api/admin/maintenance/orphaned-images",
           { method: "DELETE" }
         );
-        setPurgeResult(data);
+        toast.success("Orphaned image cleanup complete", {
+          description: `Deleted ${data.deleted} file${data.deleted !== 1 ? "s" : ""}, freed ${formatBytes(data.freed_bytes)}.`,
+        });
       } else {
         const started = await apiRequest<{ operation_id: string }>("/api/admin/backups/create", {
           method: "POST",
@@ -1216,20 +1225,6 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                         </span>
                       </label>
                     </div>
-
-                    {taskKey === "vacuum" && vacuumResult && (
-                      <p className="text-xs text-emerald-300">
-                        {vacuumResult.freed_bytes > 0
-                          ? `Freed ${formatBytes(vacuumResult.freed_bytes)} (${formatBytes(vacuumResult.size_before)} -> ${formatBytes(vacuumResult.size_after)}).`
-                          : `Database already compact (${formatBytes(vacuumResult.size_after)}).`}
-                      </p>
-                    )}
-
-                    {taskKey === "orphaned_images_cleanup" && purgeResult && (
-                      <p className="text-xs text-emerald-300">
-                        Deleted {purgeResult.deleted} file{purgeResult.deleted !== 1 ? "s" : ""}, freed {formatBytes(purgeResult.freed_bytes)}.
-                      </p>
-                    )}
 
                     <div className="rounded-md border border-neutral-800 bg-neutral-900/30 px-3 py-2 text-xs text-neutral-400 space-y-1">
                       <p>
