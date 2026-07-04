@@ -30,6 +30,21 @@ from .rate_limit import limiter
 UI_DIR = os.getenv("UI_DIR", "/app/ui")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").strip()
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+EXTERNAL_API_BASE_PATH = (os.getenv("EXTERNAL_API_BASE_PATH", "/external-api") or "/external-api").strip()
+OPENAPI_TAGS = [
+    {"name": "health", "description": "System status and health checks"},
+    {"name": "auth", "description": "Login, logout, and user identity"},
+    {"name": "locations", "description": "Location management"},
+    {"name": "collections", "description": "Collection management"},
+    {"name": "items", "description": "Inventory items"},
+    {"name": "images", "description": "Image storage and retrieval"},
+    {"name": "ai_settings", "description": "AI provider and model settings"},
+    {"name": "admin", "description": "Administrative maintenance tools"},
+    {"name": "api_keys", "description": "API key lifecycle management"},
+    {"name": "backup", "description": "Backup and restore operations"},
+    {"name": "export", "description": "CSV export operations"},
+    {"name": "import", "description": "CSV import operations"},
+]
 
 _MAINTENANCE_DEFAULTS_SEED_KEY = "maintenance_defaults_seeded_v1"
 _MAINTENANCE_TASK_DEFAULTS: dict[str, dict[str, str]] = {
@@ -251,6 +266,102 @@ def _run_startup_migrations():
                 db.add(AppMeta(key=_MAINTENANCE_DEFAULTS_SEED_KEY, value=APP_VERSION))
                 db.commit()
 
+    if "api_keys" in tables:
+        api_key_column_info = inspect(engine).get_columns("api_keys")
+        api_key_columns = {c["name"] for c in api_key_column_info}
+        user_id_non_nullable = any(
+            c["name"] == "user_id" and not bool(c.get("nullable", True))
+            for c in api_key_column_info
+        )
+        with engine.begin() as conn:
+            if "key_type" not in api_key_columns:
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN key_type VARCHAR NOT NULL DEFAULT 'user'"))
+            if "scopes_json" not in api_key_columns:
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN scopes_json TEXT NOT NULL DEFAULT '[]'"))
+            if "created_by_user_id" not in api_key_columns:
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN created_by_user_id VARCHAR NULL"))
+            if "revoked_at" not in api_key_columns:
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN revoked_at DATETIME NULL"))
+            if "revoked_by_user_id" not in api_key_columns:
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN revoked_by_user_id VARCHAR NULL"))
+            if "revoked_reason" not in api_key_columns:
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN revoked_reason TEXT NULL"))
+
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_key_hash ON api_keys(key_hash)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_created_by_user_id ON api_keys(created_by_user_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_revoked_by_user_id ON api_keys(revoked_by_user_id)"))
+
+            conn.execute(text("""
+                UPDATE api_keys
+                SET created_by_user_id = user_id
+                WHERE created_by_user_id IS NULL
+            """))
+
+            if user_id_non_nullable:
+                conn.execute(text("DROP TABLE IF EXISTS api_keys__new"))
+                conn.execute(text("""
+                    CREATE TABLE api_keys__new (
+                        id VARCHAR PRIMARY KEY,
+                        user_id VARCHAR NULL,
+                        key_type VARCHAR NOT NULL DEFAULT 'user',
+                        name VARCHAR NOT NULL,
+                        key_prefix VARCHAR NOT NULL,
+                        key_hash VARCHAR NOT NULL,
+                        scopes_json TEXT NOT NULL DEFAULT '[]',
+                        created_by_user_id VARCHAR NULL,
+                        created_at DATETIME NOT NULL,
+                        last_used_at DATETIME NULL,
+                        expires_at DATETIME NULL,
+                        revoked_at DATETIME NULL,
+                        revoked_by_user_id VARCHAR NULL,
+                        revoked_reason TEXT NULL,
+                        FOREIGN KEY(user_id) REFERENCES users(id),
+                        FOREIGN KEY(created_by_user_id) REFERENCES users(id),
+                        FOREIGN KEY(revoked_by_user_id) REFERENCES users(id)
+                    )
+                """))
+                conn.execute(text("""
+                    INSERT INTO api_keys__new (
+                        id,
+                        user_id,
+                        key_type,
+                        name,
+                        key_prefix,
+                        key_hash,
+                        scopes_json,
+                        created_by_user_id,
+                        created_at,
+                        last_used_at,
+                        expires_at,
+                        revoked_at,
+                        revoked_by_user_id,
+                        revoked_reason
+                    )
+                    SELECT
+                        id,
+                        user_id,
+                        COALESCE(key_type, 'user'),
+                        name,
+                        key_prefix,
+                        key_hash,
+                        COALESCE(scopes_json, '[]'),
+                        COALESCE(created_by_user_id, user_id),
+                        created_at,
+                        last_used_at,
+                        expires_at,
+                        revoked_at,
+                        revoked_by_user_id,
+                        revoked_reason
+                    FROM api_keys
+                """))
+                conn.execute(text("DROP TABLE api_keys"))
+                conn.execute(text("ALTER TABLE api_keys__new RENAME TO api_keys"))
+
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_user_id ON api_keys(user_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_key_hash ON api_keys(key_hash)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_created_by_user_id ON api_keys(created_by_user_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_revoked_by_user_id ON api_keys(revoked_by_user_id)"))
+
     # Backward compatibility: if legacy OPENAI env vars are present and no model
     # is configured yet, create a default LiteLLM model entry automatically.
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -289,7 +400,14 @@ init_db()
 # Application
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Stowge", version=APP_VERSION)
+app = FastAPI(
+    title="Stowge",
+    version=APP_VERSION,
+    openapi_tags=OPENAPI_TAGS,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -328,6 +446,7 @@ async def add_security_headers(request: Request, call_next):
 from .routes.admin import router as admin_router  # noqa: E402
 from .routes.ai_settings import router as ai_settings_router  # noqa: E402
 from .routes.auth import router as auth_router  # noqa: E402
+from .routes.api_keys import router as api_keys_router  # noqa: E402
 from .routes.backup import router as backup_router  # noqa: E402
 from .routes.collections import router as collections_router  # noqa: E402
 from .routes.export import router as export_router  # noqa: E402
@@ -336,18 +455,22 @@ from .routes.images import router as images_router  # noqa: E402
 from .routes.import_csv import router as import_router  # noqa: E402
 from .routes.items import router as items_router  # noqa: E402
 from .routes.locations import router as locations_router  # noqa: E402
+from .external_api import external_api_app  # noqa: E402
 
-app.include_router(health_router)
-app.include_router(auth_router)
-app.include_router(locations_router)
-app.include_router(collections_router)
-app.include_router(items_router)
-app.include_router(images_router)
-app.include_router(ai_settings_router)
-app.include_router(admin_router)
-app.include_router(backup_router)
-app.include_router(export_router)
-app.include_router(import_router)
+app.include_router(health_router, tags=["health"])
+app.include_router(auth_router, tags=["auth"])
+app.include_router(locations_router, tags=["locations"])
+app.include_router(collections_router, tags=["collections"])
+app.include_router(items_router, tags=["items"])
+app.include_router(images_router, tags=["images"])
+app.include_router(ai_settings_router, tags=["ai_settings"])
+app.include_router(admin_router, tags=["admin"])
+app.include_router(api_keys_router, tags=["api_keys"])
+app.include_router(backup_router, tags=["backup"])
+app.include_router(export_router, tags=["export"])
+app.include_router(import_router, tags=["import"])
+
+app.mount(EXTERNAL_API_BASE_PATH, external_api_app)
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +548,8 @@ def logo_webp():
 
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 def spa_fallback(full_path: str):
-    if full_path.startswith("api/") or full_path in {"docs", "openapi.json", "redoc"}:
+    external_prefix = EXTERNAL_API_BASE_PATH.strip("/")
+    if full_path.startswith("api/") or (external_prefix and full_path.startswith(f"{external_prefix}/")):
         raise HTTPException(status_code=404, detail="Not found")
 
     headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}

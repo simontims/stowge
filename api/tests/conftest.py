@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from stowge.auth import SESSION_COOKIE_NAME, create_session, hash_password  # noqa: E402
 from stowge.db import get_db  # noqa: E402
+from stowge.external_api import external_api_app  # noqa: E402
 from stowge.main import app  # noqa: E402
 from stowge.models import Base, User  # noqa: E402
 
@@ -149,6 +150,7 @@ def isolated_client(isolated_db):
     
     # Override the get_db dependency
     app.dependency_overrides[get_db] = override_get_db
+    external_api_app.dependency_overrides[get_db] = override_get_db
     
     test_client = TestClient(app, raise_server_exceptions=True)
     
@@ -156,6 +158,7 @@ def isolated_client(isolated_db):
     
     # Clean up dependency overrides
     app.dependency_overrides.clear()
+    external_api_app.dependency_overrides.clear()
 
 
 # Helper functions for isolated database tests

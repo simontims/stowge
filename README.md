@@ -164,6 +164,41 @@ The local run scripts automatically:
 - install/build UI from `ui/` to `ui/dist`
 - start FastAPI on `http://localhost:18090`
 
+## API Documentation
+
+Stowge ships a dedicated, code-driven external API surface for integrators.
+These docs are served from the running container so they always match that
+instance's exact version.
+
+- Swagger UI (interactive): `/external-api/docs`
+- ReDoc (reference): `/external-api/redoc`
+- OpenAPI JSON: `/external-api/openapi.json`
+
+### Optional: Generate docs artifacts from code (contributors/CI)
+
+If you are just running Stowge via container, you do not need this step.
+The live docs endpoints above are generated and served by the running app.
+
+From the repository root:
+
+```powershell
+C:/dev/stowge/api/.venv/Scripts/python.exe scripts/generate_api_docs.py
+```
+
+Or with a Python on PATH:
+
+```bash
+python scripts/generate_api_docs.py
+```
+
+This command generates repository artifacts used for review/diff and CI checks:
+
+- `docs/api/openapi.json`
+- `docs/api/endpoints.md`
+
+These files are derived from the external FastAPI app schema so they stay aligned with implemented integrator routes.
+Pull request CI also verifies these generated files are current.
+
 ## License
 
 Stowge is released under the [MIT License](LICENSE).

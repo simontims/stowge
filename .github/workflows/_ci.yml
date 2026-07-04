@@ -8,6 +8,35 @@ permissions:
 
 
 jobs:
+  api-docs-sync:
+    name: API Docs Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install API dependencies
+        run: pip install -r api/requirements.txt
+
+      - name: Regenerate API docs
+        run: python scripts/generate_api_docs.py
+
+      - name: Verify docs are up to date
+        run: |
+          if [ -n "$(git status --porcelain -- docs/api/openapi.json docs/api/endpoints.md)" ]; then
+            echo "Generated API docs are out of date."
+            echo "Run: python scripts/generate_api_docs.py"
+            echo "Then commit docs/api/openapi.json and docs/api/endpoints.md"
+            git --no-pager diff -- docs/api/openapi.json docs/api/endpoints.md || true
+            exit 1
+          fi
+
   lint-python:
     name: Lint (Python)
     runs-on: ubuntu-latest

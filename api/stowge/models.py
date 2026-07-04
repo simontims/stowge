@@ -206,20 +206,25 @@ class ExternalIdentity(Base):
 
 
 class ApiKey(Base):
-    """Stub model for future user-managed API keys for scripts and automation.
+    """API key for automation and external integrations.
 
-    Not yet wired to any routes.  When API key support is added:
-    - The full key is shown once on creation and never stored in plaintext.
-    - key_hash stores a SHA-256 hash of the full key for constant-time lookup.
-    - key_prefix (first 8 chars) is stored for display-only identification.
+    - Full key value is shown once on creation and never stored in plaintext.
+    - key_hash stores SHA-256 of the full key for lookup and verification.
+    - key_prefix stores the first 8 chars for display-only identification.
     """
     __tablename__ = "api_keys"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    key_type = Column(String, nullable=False, default="user")  # user|system
     name = Column(String, nullable=False)
     key_prefix = Column(String, nullable=False)     # first 8 chars, shown for identification
-    key_hash = Column(String, nullable=False)       # SHA-256 hash of the full key
+    key_hash = Column(String, nullable=False, unique=True, index=True)  # SHA-256 hash of the full key
+    scopes_json = Column(Text, nullable=False, default="[]")
+    created_by_user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    revoked_reason = Column(Text, nullable=True)

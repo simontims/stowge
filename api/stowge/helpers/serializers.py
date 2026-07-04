@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 from ..datetime_utils import utc_iso
 from ..image_signing import sign as sign_image
 from ..image_signing import ttl_seconds
-from ..models import (Collection, ItemContentsEntry, LLMConfig, Location, Part,
-                      PartImage, User)
+from ..datetime_utils import now_utc
+from ..models import (ApiKey, Collection, ItemContentsEntry, LLMConfig,
+                      Location, Part, PartImage, User)
 from .ai_providers import resolve_llm_config
 
 
@@ -227,3 +228,58 @@ def serialize_llm_admin(cfg: LLMConfig) -> dict:
     data["created_at"] = utc_iso(cfg.created_at)
     data["updated_at"] = utc_iso(cfg.updated_at)
     return data
+
+
+def parse_scopes_json(value: str | None) -> list[str]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except Exception:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in parsed:
+        scope = str(raw).strip()
+        if not scope or scope in seen:
+            continue
+        seen.add(scope)
+        out.append(scope)
+    return out
+
+
+def serialize_api_key(
+    api_key: ApiKey,
+    *,
+    owner_email: str | None = None,
+    created_by_email: str | None = None,
+    revoked_by_email: str | None = None,
+) -> dict:
+    now = now_utc()
+    status = "active"
+    if api_key.revoked_at is not None:
+        status = "revoked"
+    elif api_key.expires_at is not None and api_key.expires_at <= now:
+        status = "expired"
+
+    return {
+        "id": api_key.id,
+        "key_type": api_key.key_type,
+        "name": api_key.name,
+        "key_prefix": api_key.key_prefix,
+        "owner_user_id": api_key.user_id,
+        "owner_email": owner_email,
+        "scopes": parse_scopes_json(api_key.scopes_json),
+        "status": status,
+        "created_by_user_id": api_key.created_by_user_id,
+        "created_by_email": created_by_email,
+        "created_at": utc_iso(api_key.created_at),
+        "last_used_at": utc_iso(api_key.last_used_at),
+        "expires_at": utc_iso(api_key.expires_at),
+        "revoked_at": utc_iso(api_key.revoked_at),
+        "revoked_by_user_id": api_key.revoked_by_user_id,
+        "revoked_by_email": revoked_by_email,
+        "revoked_reason": api_key.revoked_reason,
+    }

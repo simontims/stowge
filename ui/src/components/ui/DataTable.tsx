@@ -1,10 +1,10 @@
-import { useRef } from "react";
+import { useRef, type MouseEvent, type ReactNode } from "react";
 import clsx from "clsx";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 export interface Column<T> {
   key: keyof T & string;
-  header: string;
+  header: ReactNode;
   render?: (row: T) => React.ReactNode;
   className?: string;
   headerClassName?: string;
@@ -33,6 +33,12 @@ interface DataTableProps<T extends object> {
   onSort?: (key: keyof T & string) => void;
   activeRowId?: string;
   tableRef?: React.RefObject<HTMLTableElement | null>;
+}
+
+function shouldIgnoreSortClick(event: MouseEvent<HTMLElement>): boolean {
+  const target = event.target as HTMLElement | null;
+  if (!target) return false;
+  return Boolean(target.closest("button,select,input,textarea,a,label"));
 }
 
 export function DataTable<T extends object>({
@@ -75,7 +81,14 @@ export function DataTable<T extends object>({
                       isSortable && "cursor-pointer hover:text-neutral-300 transition-colors",
                       col.headerClassName
                     )}
-                    onClick={isSortable ? () => onSort(col.key) : undefined}
+                    onClick={
+                      isSortable
+                        ? (event) => {
+                            if (shouldIgnoreSortClick(event)) return;
+                            onSort(col.key);
+                          }
+                        : undefined
+                    }
                   >
                     <span className="inline-flex items-center gap-1">
                       {col.header}
