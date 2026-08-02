@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Save, HelpCircle, Settings } from "lucide-react";
+import { Plus, Save, HelpCircle, Settings, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusMessage } from "../components/ui/StatusMessage";
@@ -637,7 +637,11 @@ export function SettingsCollectionsPage({ embedded, onDirtyChange, saveFnRef }: 
         className: "w-14",
         render: (row) => (
           <span className="flex items-center justify-center w-8 h-8 rounded border border-neutral-800 bg-neutral-900 text-neutral-400">
-            {row.isSynthetic ? <span className="text-xs text-neutral-500">-</span> : <TablerIcon name={row.icon} size={15} color={row.color} />}
+            {row.syntheticKind === "recycle-bin"
+              ? <Trash2 size={15} className="text-neutral-500" aria-label="Recycle Bin" />
+              : row.isSynthetic
+                ? <span className="text-xs text-neutral-500">-</span>
+                : <TablerIcon name={row.icon} size={15} color={row.color} />}
           </span>
         ),
       },

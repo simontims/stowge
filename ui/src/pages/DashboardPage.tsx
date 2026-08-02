@@ -340,17 +340,17 @@ function toHumanCronLocal(utcCronExpression: string): string {
   return toHumanCron(cronUtcToLocal(normalizeCronExpressionInput(utcCronExpression)));
 }
 
-function summarizeLastRun(schedule: MaintenanceScheduleRow): ReactNode {
+function summarizeLastRunCompact(schedule: MaintenanceScheduleRow): string {
   if (!schedule.last_run_at) return "Never run yet";
   const ranAt = formatDate(schedule.last_run_at);
   const duration = formatDuration(schedule.last_duration_ms);
   if (schedule.last_status === "failed") {
-    return ` ${ranAt} Failed in ${duration}${schedule.last_error ? `: ${schedule.last_error}` : ""}`;
+    return `${ranAt} (failed in ${duration}${schedule.last_error ? `: ${schedule.last_error}` : ""})`;
   }
   if (schedule.last_status === "success") {
-    return ` ${ranAt} Completed in ${duration}`;
+    return `${ranAt} (took ${duration})`;
   }
-  return ` ${ranAt}`;
+  return ranAt;
 }
 
 function summarizeLastRunModal(schedule: MaintenanceScheduleRow): ReactNode {
@@ -1239,9 +1239,9 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       )}
                     </div>
 
-                    <div className="grid gap-1 text-xs text-neutral-400 sm:grid-cols-2">
-                      <p>Next run: {schedule.enabled ? (schedule.next_run_at ? formatDate(schedule.next_run_at) : "Not scheduled") : "Schedule disabled"}</p>
-                      <p>Last run: {summarizeLastRun(schedule)}</p>
+                    <div className="space-y-1 text-xs text-neutral-400">
+                      <p>Last run: {summarizeLastRunCompact(schedule)}</p>
+                      <p>Next scheduled: {schedule.enabled ? (schedule.next_run_at ? formatDate(schedule.next_run_at) : "Not scheduled") : "Schedule disabled"}</p>
                     </div>
 
                     <div className="mt-auto flex items-center justify-between gap-2 pt-2">
