@@ -53,6 +53,7 @@ jobs:
       - uses: astral-sh/ruff-action@v3
         with:
           src: ${{ github.workspace }}/api
+          args: --config ${{ github.workspace }}/api/ruff.toml
 
   lint-typescript:
     name: Lint (TypeScript)
