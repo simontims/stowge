@@ -21,11 +21,15 @@ Unlimited custom collections
 - Artisan keyboard keycaps
 - Random cables (mystery box of 'probably important someday')
 
-Unlimited custom locations
-- Garage
-- Shed
-- Loft
-- Box #7 under the spare bed
+Unlimited custom locations with optional hierarchy
+- Site: Home, Storage Unit, Boat
+- Area: Garage, Loft, Engine Bay
+- Location: Shelf 2, Box #7, Port locker
+
+Hierarchy remains optional in day-to-day use:
+- If you only have one Site and one Area, pickers show only Locations.
+- If you have one Site and multiple Areas, pickers show Area + Location.
+- If you have multiple Sites, pickers show Site + Area + Location.
 
 
 ## Quick Start (Docker host)
@@ -72,6 +76,15 @@ In `System > Tools`, you can:
 - **Export to CSV** — download your inventory with optional scope (active/deleted/all) and collection/location filters. Includes name, description, collection, location, status, quantity, contents, and timestamps.
 - **Import from CSV** — upload a CSV with columns for name, description, collection, location, status, and quantity. The importer previews what will be imported and identifies any collections or locations that don't exist yet, offering to create them automatically.
 
+### Location hierarchy migration behavior
+On upgrade to the Site/Area/Location schema:
+- a default Site named `Home` is created automatically
+- a default Area named `General` is created automatically
+- all existing Locations are automatically assigned to `General`
+- existing Location IDs, names, and item assignments are preserved
+
+No user action is required for this migration.
+
 ### Backup and restore
 In `System > Status > Maintenance`, use `Backup / Restore` to:
 - create a backup archive in `/assets/backups`
@@ -98,7 +111,9 @@ Go to `System > AI` and add one or more LLM providers/models,
 set API keys, and choose a default model for `Add`.
 
 ### 6) Add Collections and Locations (optional)
-Visit the Collections and Locations areas, and experiment
+Visit the Collections and Locations areas, and experiment. Sites and Areas can
+be configured when needed, but if your setup is simple the UI keeps location
+selection flat and fast.
 
 ### 7) Start adding items!
 

@@ -53,7 +53,10 @@ def setup_first_admin(request: Request, payload: dict, db: Session = Depends(get
     db.refresh(user)
 
     session_id = create_session(user, db)
-    response = JSONResponse(content=serialize_user(user))
+    response = JSONResponse(content={
+        **serialize_user(user),
+        "show_hierarchy_intro": True,
+    })
     response.set_cookie(
         SESSION_COOKIE_NAME,
         session_id,
@@ -77,10 +80,14 @@ def login(request: Request, payload: dict, db: Session = Depends(get_db)):
     if not verify_password(password, check_hash) or not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    is_first_login = user.last_login_at is None
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
     session_id = create_session(user, db)
-    response = JSONResponse(content=serialize_user(user))
+    response = JSONResponse(content={
+        **serialize_user(user),
+        "show_hierarchy_intro": is_first_login,
+    })
     response.set_cookie(
         SESSION_COOKIE_NAME,
         session_id,

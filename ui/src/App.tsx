@@ -14,6 +14,30 @@ import { UNAUTHORIZED_EVENT, OFFLINE_EVENT } from "./lib/api";
 import { type CurrentUser } from "./lib/types";
 import { UserContext } from "./lib/UserContext";
 import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
+import { HierarchyIntroTour } from "./components/onboarding/HierarchyIntroTour";
+import { RERUN_HIERARCHY_INTRO_EVENT } from "./lib/onboarding";
+
+const HIERARCHY_INTRO_STORAGE_KEY_PREFIX = "stowge:hierarchy-intro-seen:v2:";
+
+function hierarchyIntroSeenKey(userId: string): string {
+  return `${HIERARCHY_INTRO_STORAGE_KEY_PREFIX}${userId}`;
+}
+
+function hasSeenHierarchyIntro(userId: string): boolean {
+  try {
+    return localStorage.getItem(hierarchyIntroSeenKey(userId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markHierarchyIntroSeen(userId: string): void {
+  try {
+    localStorage.setItem(hierarchyIntroSeenKey(userId), "1");
+  } catch {
+    // Best-effort persistence only.
+  }
+}
 
 function resolvePostLoginRoute(user: CurrentUser): string {
   const lastCollection = user.last_open_collection?.trim();
@@ -27,12 +51,24 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [showHierarchyIntro, setShowHierarchyIntro] = useState(false);
+  const [introUserId, setIntroUserId] = useState<string | null>(null);
   const [toastTheme, setToastTheme] = useState<"light" | "dark">(
     () => (document.documentElement.dataset.theme === "light" ? "light" : "dark")
   );
   const [isMobileToastViewport, setIsMobileToastViewport] = useState<boolean>(
     () => (typeof window !== "undefined" ? window.innerWidth < 768 : false)
   );
+
+  function startHierarchyIntroIfNeeded(user: CurrentUser) {
+    if (hasSeenHierarchyIntro(user.id)) {
+      setShowHierarchyIntro(false);
+      setIntroUserId(null);
+      return;
+    }
+    setShowHierarchyIntro(true);
+    setIntroUserId(user.id);
+  }
 
   useEffect(() => {
     const root = document.documentElement;
@@ -67,6 +103,7 @@ export default function App() {
         if (res.ok) {
           const me = (await res.json()) as CurrentUser;
           setCurrentUser(me);
+          startHierarchyIntroIfNeeded(me);
         }
         setAuthChecked(true);
       })
@@ -148,9 +185,33 @@ export default function App() {
   function handleLogin(user: CurrentUser) {
     const destination = resolvePostLoginRoute(user);
     window.history.replaceState(null, "", destination);
+    startHierarchyIntroIfNeeded(user);
     setCurrentUser(user);
     setAuthChecked(true);
   }
+
+  function handleHierarchyIntroComplete() {
+    if (introUserId) {
+      markHierarchyIntroSeen(introUserId);
+    }
+    setShowHierarchyIntro(false);
+    setIntroUserId(null);
+  }
+
+  useEffect(() => {
+    function handleRerunHierarchyIntro() {
+      if (!currentUser) return;
+      setShowHierarchyIntro(false);
+      setIntroUserId(currentUser.id);
+      // Restart from step 1 even if a previous run was already completed.
+      window.setTimeout(() => {
+        setShowHierarchyIntro(true);
+      }, 0);
+    }
+
+    window.addEventListener(RERUN_HIERARCHY_INTRO_EVENT, handleRerunHierarchyIntro);
+    return () => window.removeEventListener(RERUN_HIERARCHY_INTRO_EVENT, handleRerunHierarchyIntro);
+  }, [currentUser]);
 
   async function handleLogout() {
     try {
@@ -201,6 +262,11 @@ export default function App() {
         position={isMobileToastViewport ? "top-center" : "bottom-right"}
         theme={toastTheme}
         richColors
+      />
+      <HierarchyIntroTour
+        open={showHierarchyIntro}
+        isAdmin={currentUser.role === "admin"}
+        onComplete={handleHierarchyIntroComplete}
       />
       </BrowserRouter>
     </UserContext.Provider>

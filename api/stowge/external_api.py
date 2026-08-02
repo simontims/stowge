@@ -13,7 +13,7 @@ from .routes.api_v1 import router as api_v1_router
 EXTERNAL_OPENAPI_TAGS = [
     {"name": "items", "description": "Read, create, update, and delete inventory items"},
     {"name": "collections", "description": "Read, create, update, and delete collections"},
-    {"name": "locations", "description": "Read, create, update, and delete locations"},
+    {"name": "locations", "description": "Read, create, update, and delete sites, areas, and locations"},
 ]
 
 

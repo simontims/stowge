@@ -237,6 +237,79 @@ def test_external_v1_requires_bearer_token(isolated_client):
     assert response.json()["detail"] == "Missing bearer token"
 
 
+def test_external_v1_sites_areas_and_location_hierarchy(isolated_client, isolated_db):
+    admin_cookies = auth_cookies_isolated(isolated_db, "v1-admin-4@example.com", role="admin")
+
+    key = _create_key(
+        isolated_client,
+        admin_cookies,
+        [
+            "locations.read",
+            "locations.write",
+            "locations.delete",
+        ],
+    )
+    headers = {"Authorization": f"Bearer {key}"}
+
+    create_site = isolated_client.post(
+        f"{EXTERNAL_BASE}/sites",
+        json={"name": "Boat", "description": "Marina site"},
+        headers=headers,
+    )
+    assert create_site.status_code == 200, create_site.text
+    site_id = create_site.json()["id"]
+
+    list_sites = isolated_client.get(f"{EXTERNAL_BASE}/sites", headers=headers)
+    assert list_sites.status_code == 200, list_sites.text
+    assert any(site["id"] == site_id for site in list_sites.json())
+
+    create_area = isolated_client.post(
+        f"{EXTERNAL_BASE}/areas",
+        json={"name": "Engine Bay", "site_id": site_id},
+        headers=headers,
+    )
+    assert create_area.status_code == 200, create_area.text
+    area_id = create_area.json()["id"]
+    assert create_area.json()["site_id"] == site_id
+
+    list_areas = isolated_client.get(f"{EXTERNAL_BASE}/areas?site_id={site_id}", headers=headers)
+    assert list_areas.status_code == 200, list_areas.text
+    assert any(area["id"] == area_id for area in list_areas.json())
+
+    create_location = isolated_client.post(
+        f"{EXTERNAL_BASE}/locations",
+        json={"name": "Port Locker", "area_id": area_id},
+        headers=headers,
+    )
+    assert create_location.status_code == 200, create_location.text
+    location_id = create_location.json()["id"]
+    assert create_location.json()["area_id"] == area_id
+    assert create_location.json()["site_id"] == site_id
+
+    list_locations_by_area = isolated_client.get(
+        f"{EXTERNAL_BASE}/locations?area_id={area_id}",
+        headers=headers,
+    )
+    assert list_locations_by_area.status_code == 200, list_locations_by_area.text
+    assert any(location["id"] == location_id for location in list_locations_by_area.json())
+
+    list_locations_by_site = isolated_client.get(
+        f"{EXTERNAL_BASE}/locations?site_id={site_id}",
+        headers=headers,
+    )
+    assert list_locations_by_site.status_code == 200, list_locations_by_site.text
+    assert any(location["id"] == location_id for location in list_locations_by_site.json())
+
+    delete_location = isolated_client.delete(f"{EXTERNAL_BASE}/locations/{location_id}", headers=headers)
+    assert delete_location.status_code == 200, delete_location.text
+
+    delete_area = isolated_client.delete(f"{EXTERNAL_BASE}/areas/{area_id}", headers=headers)
+    assert delete_area.status_code == 200, delete_area.text
+
+    delete_site = isolated_client.delete(f"{EXTERNAL_BASE}/sites/{site_id}", headers=headers)
+    assert delete_site.status_code == 200, delete_site.text
+
+
 def test_external_docs_expose_only_external_surface(isolated_client):
     docs_response = isolated_client.get("/external-api/openapi.json")
     assert docs_response.status_code == 200, docs_response.text
@@ -248,6 +321,8 @@ def test_external_docs_expose_only_external_surface(isolated_client):
     assert "/v1/items" in paths
     assert "/v1/collections" in paths
     assert "/v1/locations" in paths
+    assert "/v1/sites" in paths
+    assert "/v1/areas" in paths
 
     assert "/api/login" not in paths
     assert "/api/admin/maintenance/schedules" not in paths

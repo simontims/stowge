@@ -144,6 +144,18 @@ class TestLogin:
         assert "id" in body
         assert "email" in body or "username" in body
 
+    def test_login_response_includes_hierarchy_intro_flag(self):
+        db = make_db()
+        username = "firstlogin@example.com"
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            create_user(db, username=username, password="Pass1234!")
+
+        r = _login(username, "Pass1234!")
+        assert r.status_code == 200
+        body = r.json()
+        assert body.get("show_hierarchy_intro") is True
+
     def test_login_wrong_password_returns_401(self):
         r = _login("login@example.com", "WrongPassword!")
         assert r.status_code == 401

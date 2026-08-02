@@ -1,10 +1,28 @@
 export interface LocationOption {
   id: string;
   name: string;
+  area_id?: string | null;
+  area_name?: string | null;
+  site_id?: string | null;
+  site_name?: string | null;
   icon?: string | null;
   color?: string | null;
   photo_url?: string | null;
   icon_url?: string | null;
+}
+
+export interface SiteOption {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface AreaOption {
+  id: string;
+  name: string;
+  site_id?: string | null;
+  site_name?: string | null;
+  description?: string | null;
 }
 
 export interface CollectionOption {
@@ -26,4 +44,5 @@ export interface CurrentUser {
   collection_nav_order: string[];
   created_at: string | null;
   last_login_at: string | null;
+  show_hierarchy_intro?: boolean;
 }

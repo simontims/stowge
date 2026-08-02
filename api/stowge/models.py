@@ -130,12 +130,34 @@ class LLMConfig(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
 
+class Site(Base):
+    __tablename__ = "sites"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+
+class Area(Base):
+    __tablename__ = "areas"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+
 class Location(Base):
     __tablename__ = "locations"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, unique=True, index=True)
     description = Column(Text, nullable=True)
+    area_id = Column(String, ForeignKey("areas.id"), nullable=True, index=True)
     icon = Column(String, nullable=True)  # tabler icon name, e.g. 'wrench'
     color = Column(String, nullable=True)  # CSS colour string, e.g. '#60a5fa'
     photo_path = Column(String, nullable=True)

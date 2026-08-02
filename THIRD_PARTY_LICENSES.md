@@ -155,3 +155,11 @@ license file.
 - Copyright notice: See upstream license file
 - Official source: https://www.npmjs.com/package/react-router-dom
 - License reference: https://github.com/remix-run/react-router/blob/main/LICENSE.md
+
+### react-joyride
+
+- Version used: `^3.2.0`
+- License: MIT
+- Copyright notice: See upstream license file
+- Official source: https://www.npmjs.com/package/react-joyride
+- License reference: https://github.com/gilbarbara/react-joyride/blob/main/LICENSE

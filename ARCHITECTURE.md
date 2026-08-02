@@ -86,8 +86,8 @@ stowge/
 
 - Name: Application DB
 - Type: SQLite (current local and compose defaults)
-- Purpose: Persistent state for users, items, images, collections, locations, and AI config metadata.
-- Key tables: users, sessions, parts, item_contents, maintenance_schedules, part_images, collections, locations, llm_configs.
+- Purpose: Persistent state for users, items, images, collections, hierarchical locations, and AI config metadata.
+- Key tables: users, sessions, parts, item_contents, maintenance_schedules, part_images, collections, sites, areas, locations, llm_configs.
 - Stub tables (schema present, no routes yet): external_identities, api_keys.
 
 ### 4.2 File Storage
@@ -122,6 +122,8 @@ stowge/
 	- PATCH /api/items/{id}
 	- DELETE /api/items/{id}
 	- GET /api/collections
+	- GET /api/sites
+	- GET /api/areas
 	- GET /api/locations
 	- POST /api/identify
 	- POST /api/images/store
@@ -253,11 +255,25 @@ For future user-managed API keys for scripts and automation.
 - description
 - ai_hint
 
+### Site
+
+- id
+- name
+- description
+
+### Area
+
+- id
+- name
+- description
+- site_id
+
 ### Location
 
 - id
 - name
 - description
+- area_id
 - photo_path
 
 ### Item Image (part_images table)
@@ -277,21 +293,32 @@ For future user-managed API keys for scripts and automation.
 - Item photos are persisted only at save time to avoid orphan storage from abandoned Add flows.
 - Backend currently remains a single FastAPI service (no microservice split).
 - SQLite is the default persistence layer in current deployment patterns.
+- Location hierarchy uses three tiers (Site -> Area -> Location) while items remain directly assigned to Location.
+- Backward compatibility is preserved for existing Location endpoints and payload keys; hierarchy fields are additive.
 
 ## 11. Future Considerations
 
 - Evaluate periodic garbage collection for any orphan image directories created by unexpected process termination.
 - Consider database options for larger multi-user installations.
 - Consider separating frontend hosting from API service if scale or delivery constraints evolve.
+- If duplicate location names across Areas/Sites are needed later, versioned API changes should be used to preserve existing name-based integrations.
 
-## 12. Project Identification
+## 12. Location Hierarchy Migration
+
+- Existing installations are migrated automatically at startup.
+- A default Site (`Home`) and default Area (`General`) are created if missing.
+- Existing Locations are backfilled to the default Area when area linkage is missing.
+- Existing Location IDs, names, and item-to-location assignments are preserved.
+- UI pickers collapse hierarchy levels when only one Site/Area exists to keep simple setups fast.
+
+## 13. Project Identification
 
 - Project Name: Stowge
 - Repository URL: https://github.com/simontims/stowge
 - Primary Image Registry: https://hub.docker.com/r/simontims/stowge
 - Date of Last Update: 2026-06-07
 
-## 13. Glossary
+## 14. Glossary
 
 - Collection: Domain grouping for items (for example Electronic Parts, Sailing Gear, Houseplants).
 - Item: Inventory record; represented by Part model/table in api.

@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Upload, AlertTriangle, CheckCircle } from "lucide-react";
 import { apiRequest, UNAUTHORIZED_EVENT } from "../lib/api";
+import { buildLocationDisplayLabel } from "../lib/locationHierarchy";
+import type { LocationOption } from "../lib/types";
 import { solidActionButtonClasses, outlinedActionButtonClasses } from "../components/ui/buttonStyles";
 
 interface CollectionOption {
-  name: string;
-}
-
-interface LocationOption {
-  id: string;
   name: string;
 }
 
@@ -38,6 +35,8 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
     item_count: number;
     parse_errors: string[];
     missing_collections: string[];
+    missing_sites: string[];
+    missing_areas: string[];
     missing_locations: string[];
   } | null>(null);
 
@@ -49,6 +48,14 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
   useEffect(() => {
     void loadFilters();
   }, []);
+
+  const locationLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const row of locations) {
+      labels.set(row.id, buildLocationDisplayLabel(row, locations));
+    }
+    return labels;
+  }, [locations]);
 
   async function loadFilters() {
     try {
@@ -104,7 +111,12 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
     }
   }
 
-  async function handleImport(createCollections: boolean, createLocations: boolean) {
+  async function handleImport(
+    createCollections: boolean,
+    createSites: boolean,
+    createAreas: boolean,
+    createLocations: boolean,
+  ) {
     if (!importFile) return;
     setImporting(true);
     setImportError("");
@@ -112,6 +124,8 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
     const params = new URLSearchParams();
     if (createCollections) params.set("create_collections", "true");
+    if (createSites) params.set("create_sites", "true");
+    if (createAreas) params.set("create_areas", "true");
     if (createLocations) params.set("create_locations", "true");
 
     const formData = new FormData();
@@ -136,6 +150,8 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
       const parts: string[] = [`${data.imported} item${data.imported !== 1 ? "s" : ""} imported`];
       if (data.collections_created) parts.push(`${data.collections_created} collection${data.collections_created !== 1 ? "s" : ""} created`);
+      if (data.sites_created) parts.push(`${data.sites_created} site${data.sites_created !== 1 ? "s" : ""} created`);
+      if (data.areas_created) parts.push(`${data.areas_created} area${data.areas_created !== 1 ? "s" : ""} created`);
       if (data.locations_created) parts.push(`${data.locations_created} location${data.locations_created !== 1 ? "s" : ""} created`);
       setImportNotice(parts.join(", ") + ".");
 
@@ -273,7 +289,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
               <option value="">All locations</option>
               {locations.map((l) => (
                 <option key={l.id} value={l.name}>
-                  {l.name}
+                  {locationLabels.get(l.id) || l.name}
                 </option>
               ))}
             </select>
@@ -381,7 +397,29 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
                 </div>
               )}
 
-              {(preview.missing_collections.length > 0 || preview.missing_locations.length > 0) && (
+              {preview.missing_sites.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-400">
+                    Missing sites ({preview.missing_sites.length})
+                  </p>
+                  <p className="text-xs text-neutral-400">
+                    {preview.missing_sites.join(", ")}
+                  </p>
+                </div>
+              )}
+
+              {preview.missing_areas.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-400">
+                    Missing areas ({preview.missing_areas.length})
+                  </p>
+                  <p className="text-xs text-neutral-400">
+                    {preview.missing_areas.join(", ")}
+                  </p>
+                </div>
+              )}
+
+              {(preview.missing_collections.length > 0 || preview.missing_sites.length > 0 || preview.missing_areas.length > 0 || preview.missing_locations.length > 0) && (
                 <p className="text-sm text-neutral-400">
                   These will be created automatically when you confirm the import.
                 </p>
@@ -392,6 +430,8 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
                   type="button"
                   onClick={() => void handleImport(
                     preview.missing_collections.length > 0,
+                    preview.missing_sites.length > 0,
+                    preview.missing_areas.length > 0,
                     preview.missing_locations.length > 0,
                   )}
                   disabled={importing || preview.item_count === 0}

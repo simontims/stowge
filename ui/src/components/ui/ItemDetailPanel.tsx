@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Save, Trash2, X, ChevronLeft, ChevronRight, Star, Pencil, RotateCw } from "lucide-react";
 import { useNumericField } from "../../hooks/useNumericField";
 import { useNavigate } from "react-router-dom";
+import { buildLocationDisplayLabel } from "../../lib/locationHierarchy";
 import type { PartDetail, PartEditForm } from "../../pages/ItemsPage";
 import type { LocationOption, CollectionOption } from "../../lib/types";
 
@@ -47,6 +48,13 @@ export function ItemDetailPanel({
   const navigate = useNavigate();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [settingPrimary, setSettingPrimary] = useState(false);
+  const locationLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const location of locations) {
+      labels.set(location.id, buildLocationDisplayLabel(location, locations));
+    }
+    return labels;
+  }, [locations]);
   const quantityField = useNumericField(
     editForm.quantity,
     (v) => onEditChange({ ...editForm, quantity: v }),
@@ -262,7 +270,7 @@ export function ItemDetailPanel({
                     <option value="">No location</option>
                     {locations.map((location) => (
                       <option key={location.id} value={location.id}>
-                        {location.name}
+                        {locationLabels.get(location.id) || location.name}
                       </option>
                     ))}
                   </select>

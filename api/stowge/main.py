@@ -5,6 +5,7 @@ includes all route modules, and manages startup/shutdown lifecycle.
 """
 
 import os
+import uuid
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Request
@@ -20,7 +21,7 @@ from .helpers.ai_providers import default_api_base_for_provider
 from .helpers.maintenance import (MAINTENANCE_TASK_KEYS,
                                   start_maintenance_scheduler_if_needed,
                                   stop_maintenance_scheduler)
-from .models import AppMeta, LLMConfig, MaintenanceSchedule
+from .models import AppMeta, Area, LLMConfig, Location, MaintenanceSchedule, Site
 from .rate_limit import limiter
 
 # ---------------------------------------------------------------------------
@@ -35,6 +36,8 @@ OPENAPI_TAGS = [
     {"name": "health", "description": "System status and health checks"},
     {"name": "auth", "description": "Login, logout, and user identity"},
     {"name": "locations", "description": "Location management"},
+    {"name": "areas", "description": "Area management"},
+    {"name": "sites", "description": "Site management"},
     {"name": "collections", "description": "Collection management"},
     {"name": "items", "description": "Inventory items"},
     {"name": "images", "description": "Image storage and retrieval"},
@@ -47,6 +50,7 @@ OPENAPI_TAGS = [
 ]
 
 _MAINTENANCE_DEFAULTS_SEED_KEY = "maintenance_defaults_seeded_v1"
+_SITE_AREA_DEFAULTS_SEED_KEY = "site_area_defaults_seeded_v1"
 _MAINTENANCE_TASK_DEFAULTS: dict[str, dict[str, str]] = {
     "vacuum": {"cron": "0 3 * * 0"},
     "orphaned_images_cleanup": {"cron": "0 4 * * 0"},
@@ -95,6 +99,8 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE locations ADD COLUMN color VARCHAR NULL"))
             if "icon_path" not in location_columns:
                 conn.execute(text("ALTER TABLE locations ADD COLUMN icon_path VARCHAR NULL"))
+            if "area_id" not in location_columns:
+                conn.execute(text("ALTER TABLE locations ADD COLUMN area_id VARCHAR NULL"))
 
         parts_columns = set()
         if "parts" in set(inspect(engine).get_table_names()):
@@ -142,6 +148,42 @@ def _run_startup_migrations():
         with engine.begin() as conn:
             conn.execute(text("CREATE TABLE IF NOT EXISTS app_meta (key VARCHAR PRIMARY KEY, value TEXT NOT NULL)"))
         tables.add("app_meta")
+
+    if "sites" in tables and "areas" in tables and "locations" in tables:
+        with Session(bind=engine) as db:
+            seeded = db.query(AppMeta).filter(AppMeta.key == _SITE_AREA_DEFAULTS_SEED_KEY).first()
+            default_site = db.query(Site).filter(Site.name == "Home").first()
+            if not default_site:
+                default_site = Site(
+                    id=str(uuid.uuid4()),
+                    name="Home",
+                    description="Default site created during location hierarchy migration.",
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                )
+                db.add(default_site)
+                db.flush()
+
+            default_area = db.query(Area).filter(Area.name == "General").first()
+            if not default_area:
+                default_area = Area(
+                    id=str(uuid.uuid4()),
+                    name="General",
+                    description="Default area created during location hierarchy migration.",
+                    site_id=default_site.id,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                )
+                db.add(default_area)
+                db.flush()
+            elif not default_area.site_id:
+                default_area.site_id = default_site.id
+
+            db.query(Location).filter(Location.area_id.is_(None)).update({"area_id": default_area.id})
+
+            if not seeded:
+                db.add(AppMeta(key=_SITE_AREA_DEFAULTS_SEED_KEY, value=APP_VERSION))
+            db.commit()
 
     if "images" in tables:
         image_columns = {c["name"] for c in inspect(engine).get_columns("images")}
@@ -449,17 +491,21 @@ from .routes.auth import router as auth_router  # noqa: E402
 from .routes.api_keys import router as api_keys_router  # noqa: E402
 from .routes.backup import router as backup_router  # noqa: E402
 from .routes.collections import router as collections_router  # noqa: E402
+from .routes.areas import router as areas_router  # noqa: E402
 from .routes.export import router as export_router  # noqa: E402
 from .routes.health import router as health_router  # noqa: E402
 from .routes.images import router as images_router  # noqa: E402
 from .routes.import_csv import router as import_router  # noqa: E402
 from .routes.items import router as items_router  # noqa: E402
 from .routes.locations import router as locations_router  # noqa: E402
+from .routes.sites import router as sites_router  # noqa: E402
 from .external_api import external_api_app  # noqa: E402
 
 app.include_router(health_router, tags=["health"])
 app.include_router(auth_router, tags=["auth"])
 app.include_router(locations_router, tags=["locations"])
+app.include_router(areas_router, tags=["areas"])
+app.include_router(sites_router, tags=["sites"])
 app.include_router(collections_router, tags=["collections"])
 app.include_router(items_router, tags=["items"])
 app.include_router(images_router, tags=["images"])

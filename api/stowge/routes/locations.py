@@ -12,10 +12,31 @@ from ..constraints import MIN_NAME_LENGTH, require_name
 from ..db import get_db
 from ..helpers.serializers import (list_locations_payload, serialize_location)
 from ..images import cleanup_asset_paths, process_and_store, resolve_path
-from ..models import Location, Part, User
+from ..models import Area, Location, Part, User
 from .images import get_image_config
 
 router = APIRouter()
+
+
+def _default_area_id(db: Session) -> str | None:
+    default = db.query(Area).filter(Area.name == "General").first()
+    if default:
+        return default.id
+    only = db.query(Area).order_by(Area.created_at.asc()).all()
+    if len(only) == 1:
+        return only[0].id
+    return only[0].id if only else None
+
+
+def _resolve_area_id(db: Session, payload: dict) -> str | None:
+    if "area_id" in payload:
+        raw = str(payload.get("area_id") or "").strip()
+        if raw:
+            area = db.query(Area).filter(Area.id == raw).first()
+            if not area:
+                raise HTTPException(status_code=400, detail="Invalid area")
+            return area.id
+    return _default_area_id(db)
 
 
 @router.post("/api/locations/photo")
@@ -51,8 +72,26 @@ def upload_location_icon(
 
 
 @router.get("/api/locations")
-def list_locations(db: Session = Depends(get_db), me: User = Depends(current_user)):
-    return list_locations_payload(db)
+def list_locations(
+    area_id: str | None = None,
+    site_id: str | None = None,
+    db: Session = Depends(get_db),
+    me: User = Depends(current_user),
+):
+    if not area_id and not site_id:
+        return list_locations_payload(db)
+
+    query = db.query(Location)
+    if area_id:
+        query = query.filter(Location.area_id == area_id)
+    elif site_id:
+        area_ids = [row.id for row in db.query(Area.id).filter(Area.site_id == site_id).all()]
+        if not area_ids:
+            return []
+        query = query.filter(Location.area_id.in_(area_ids))
+
+    rows = query.order_by(Location.created_at.asc()).all()
+    return [serialize_location(location, db) for location in rows]
 
 
 @router.post("/api/locations")
@@ -63,6 +102,7 @@ def create_location(payload: dict, db: Session = Depends(get_db), me: User = Dep
     color = str(payload.get("color") or "").strip() or None
     photo_path = str(payload.get("photo_path") or "").strip() or None
     icon_path = str(payload.get("icon_path") or "").strip() or None
+    area_id = _resolve_area_id(db, payload)
 
     existing = db.query(Location).filter(Location.name == name).first()
     if existing:
@@ -71,6 +111,7 @@ def create_location(payload: dict, db: Session = Depends(get_db), me: User = Dep
     location = Location(
         name=name,
         description=description,
+        area_id=area_id,
         icon=icon,
         color=color,
         photo_path=photo_path,
@@ -104,6 +145,9 @@ def update_location(location_id: str, payload: dict, db: Session = Depends(get_d
 
     if "description" in payload:
         location.description = str(payload.get("description") or "").strip() or None
+
+    if "area_id" in payload:
+        location.area_id = _resolve_area_id(db, payload)
 
     if "icon" in payload:
         location.icon = str(payload.get("icon") or "").strip() or None

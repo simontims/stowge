@@ -10,7 +10,9 @@ from ..auth import current_user
 from ..constraints import MIN_NAME_LENGTH, require_name
 from ..db import get_db
 from ..helpers.serializers import (list_collections_payload,
+                                   list_areas_payload,
                                    list_locations_payload,
+                                   list_sites_payload,
                                    list_public_ai_settings_payload,
                                    serialize_collection)
 from ..models import Collection, Part, User
@@ -27,6 +29,8 @@ def list_collections(db: Session = Depends(get_db), me: User = Depends(current_u
 def get_items_bootstrap(db: Session = Depends(get_db), me: User = Depends(current_user)):
     return {
         "collections": list_collections_payload(db),
+        "sites": list_sites_payload(db),
+        "areas": list_areas_payload(db),
         "locations": list_locations_payload(db),
         "ai_settings": list_public_ai_settings_payload(db),
     }

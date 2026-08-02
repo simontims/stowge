@@ -11,8 +11,8 @@ from ..datetime_utils import utc_iso
 from ..image_signing import sign as sign_image
 from ..image_signing import ttl_seconds
 from ..datetime_utils import now_utc
-from ..models import (ApiKey, Collection, ItemContentsEntry, LLMConfig,
-                      Location, Part, PartImage, User)
+from ..models import (ApiKey, Area, Collection, ItemContentsEntry, LLMConfig,
+                      Location, Part, PartImage, Site, User)
 from .ai_providers import resolve_llm_config
 
 
@@ -79,10 +79,25 @@ def serialize_user(user: User) -> dict:
 def serialize_location(location: Location, db: Session, item_count: int | None = None) -> dict:
     if item_count is None:
         item_count = db.query(Part).filter(Part.location_id == location.id, Part.is_deleted == 0).count()
+    area_name: str | None = None
+    site_id: str | None = None
+    site_name: str | None = None
+    if location.area_id:
+        area = db.query(Area).filter(Area.id == location.area_id).first()
+        if area:
+            area_name = area.name
+            site_id = area.site_id
+            if site_id:
+                site = db.query(Site).filter(Site.id == site_id).first()
+                site_name = site.name if site else None
     return {
         "id": location.id,
         "name": location.name,
         "description": location.description,
+        "area_id": location.area_id,
+        "area_name": area_name,
+        "site_id": site_id,
+        "site_name": site_name,
         "icon": location.icon,
         "color": location.color,
         "item_count": int(item_count),
@@ -90,6 +105,28 @@ def serialize_location(location: Location, db: Session, item_count: int | None =
         "icon_url": (location_icon_url(location.id) if location.icon_path else None),
         "created_at": utc_iso(location.created_at),
         "updated_at": utc_iso(location.updated_at),
+    }
+
+
+def serialize_site(site: Site) -> dict:
+    return {
+        "id": site.id,
+        "name": site.name,
+        "description": site.description,
+        "created_at": utc_iso(site.created_at),
+        "updated_at": utc_iso(site.updated_at),
+    }
+
+
+def serialize_area(area: Area, site_name: str | None = None) -> dict:
+    return {
+        "id": area.id,
+        "name": area.name,
+        "description": area.description,
+        "site_id": area.site_id,
+        "site_name": site_name,
+        "created_at": utc_iso(area.created_at),
+        "updated_at": utc_iso(area.updated_at),
     }
 
 
@@ -121,6 +158,23 @@ def list_locations_payload(db: Session) -> list[dict]:
         .all()
     )
     return [serialize_location(loc, db, item_count=int(counts.get(loc.id, 0))) for loc in locations]
+
+
+def list_sites_payload(db: Session) -> list[dict]:
+    sites = db.query(Site).order_by(Site.created_at.asc()).all()
+    return [serialize_site(site) for site in sites]
+
+
+def list_areas_payload(db: Session) -> list[dict]:
+    areas = db.query(Area).order_by(Area.created_at.asc()).all()
+    if not areas:
+        return []
+    site_ids = [area.site_id for area in areas if area.site_id]
+    site_names_by_id: dict[str, str] = {}
+    if site_ids:
+        sites = db.query(Site.id, Site.name).filter(Site.id.in_(site_ids)).all()
+        site_names_by_id = {site_id: site_name for site_id, site_name in sites}
+    return [serialize_area(area, site_names_by_id.get(area.site_id or "")) for area in areas]
 
 
 def list_collections_payload(db: Session) -> list[dict]:

@@ -11,6 +11,7 @@ import { PhotoCapture } from "../components/ui/PhotoCapture";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
+import { buildLocationDisplayLabel } from "../lib/locationHierarchy";
 import { resizeImage } from "../lib/resizeImage";
 import { useNumericField } from "../hooks/useNumericField";
 import { useCurrentUser } from "../lib/UserContext";
@@ -136,6 +137,13 @@ export function AddPage() {
     () => identifyData?.ai?.candidates ?? [],
     [identifyData]
   );
+  const locationLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const location of locations) {
+      labels.set(location.id, buildLocationDisplayLabel(location, locations));
+    }
+    return labels;
+  }, [locations]);
 
   const selectedCandidate = candidates[selectedIndex];
   const canSubmitToAi = llmOptions.length > 0;
@@ -549,7 +557,7 @@ export function AddPage() {
           >
             <option value="">None</option>
             {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
+              <option key={l.id} value={l.id}>{locationLabels.get(l.id) || l.name}</option>
             ))}
           </select>
         </div>

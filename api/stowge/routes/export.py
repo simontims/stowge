@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth import require_admin
 from ..db import get_db
-from ..models import ItemContentsEntry, Location, Part, User
+from ..models import Area, ItemContentsEntry, Location, Part, Site, User
 
 router = APIRouter()
 
@@ -19,6 +19,8 @@ CSV_COLUMNS = [
     "name",
     "description",
     "collection",
+    "site",
+    "area",
     "location",
     "status",
     "quantity",
@@ -39,7 +41,14 @@ def _format_contents(entries: list[ItemContentsEntry]) -> str:
     return "; ".join(parts)
 
 
-def _generate_csv(items: list, location_map: dict[str, str]):
+def _generate_csv(
+    items: list,
+    location_map: dict[str, str],
+    area_map: dict[str, str],
+    site_map: dict[str, str],
+    location_area_map: dict[str, str],
+    area_site_map: dict[str, str],
+):
     """Generator that yields CSV rows for streaming."""
     buf = io.StringIO()
     writer = csv.writer(buf, quoting=csv.QUOTE_ALL)
@@ -52,10 +61,21 @@ def _generate_csv(items: list, location_map: dict[str, str]):
 
     for item in items:
         loc_name = location_map.get(item.location_id, "") if item.location_id else ""
+        area_name = ""
+        site_name = ""
+        if item.location_id:
+            area_id = location_area_map.get(item.location_id)
+            if area_id:
+                area_name = area_map.get(area_id, "")
+                site_id = area_site_map.get(area_id)
+                if site_id:
+                    site_name = site_map.get(site_id, "")
         row = [
             item.name or "",
             item.description or "",
             item.collection or "",
+            site_name,
+            area_name,
             loc_name,
             item.status or "",
             item.quantity if item.quantity is not None else 1,
@@ -104,15 +124,31 @@ def export_csv(
     # Build location name lookup
     location_ids = {p.location_id for p in items if p.location_id}
     location_map: dict[str, str] = {}
+    location_area_map: dict[str, str] = {}
+    area_map: dict[str, str] = {}
+    area_site_map: dict[str, str] = {}
+    site_map: dict[str, str] = {}
     if location_ids:
-        rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
-        location_map = {lid: lname for lid, lname in rows}
+        rows = db.query(Location.id, Location.name, Location.area_id).filter(Location.id.in_(location_ids)).all()
+        location_map = {lid: lname for lid, lname, _ in rows}
+        location_area_map = {lid: area_id for lid, _, area_id in rows if area_id}
+
+    if location_area_map:
+        area_ids = list(set(location_area_map.values()))
+        area_rows = db.query(Area.id, Area.name, Area.site_id).filter(Area.id.in_(area_ids)).all()
+        area_map = {area_id: area_name for area_id, area_name, _ in area_rows}
+        area_site_map = {area_id: site_id for area_id, _, site_id in area_rows if site_id}
+
+    if area_site_map:
+        site_ids = list(set(area_site_map.values()))
+        site_rows = db.query(Site.id, Site.name).filter(Site.id.in_(site_ids)).all()
+        site_map = {site_id: site_name for site_id, site_name in site_rows}
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     filename = f"stowge-export-{today}.csv"
 
     return StreamingResponse(
-        _generate_csv(items, location_map),
+        _generate_csv(items, location_map, area_map, site_map, location_area_map, area_site_map),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

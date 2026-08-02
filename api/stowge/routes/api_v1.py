@@ -12,14 +12,56 @@ from ..constraints import MIN_NAME_LENGTH, require_name
 from ..db import get_db
 from ..helpers.serializers import (
     contents_count_by_item_id,
+    serialize_area,
     serialize_collection,
     serialize_location,
     serialize_part_detail,
     serialize_part_list,
+    serialize_site,
 )
-from ..models import Collection, Location, Part
+from ..models import Area, Collection, Location, Part, Site
 
 router = APIRouter()
+
+
+def _default_area_id(db: Session) -> str | None:
+    default = db.query(Area).filter(Area.name == "General").first()
+    if default:
+        return default.id
+    only = db.query(Area).order_by(Area.created_at.asc()).all()
+    if len(only) == 1:
+        return only[0].id
+    return only[0].id if only else None
+
+
+def _resolve_area_id(db: Session, payload: dict) -> str | None:
+    if "area_id" in payload:
+        raw = str(payload.get("area_id") or "").strip()
+        if raw:
+            area = db.query(Area).filter(Area.id == raw).first()
+            if not area:
+                raise HTTPException(status_code=400, detail="Invalid area")
+            return area.id
+    return _default_area_id(db)
+
+
+def _resolve_site_id(db: Session, payload: dict) -> str | None:
+    if "site_id" in payload:
+        raw = str(payload.get("site_id") or "").strip()
+        if raw:
+            site = db.query(Site).filter(Site.id == raw).first()
+            if not site:
+                raise HTTPException(status_code=400, detail="Invalid site")
+            return site.id
+
+    default = db.query(Site).filter(Site.name == "Home").first()
+    if default:
+        return default.id
+
+    only = db.query(Site).order_by(Site.created_at.asc()).all()
+    if len(only) == 1:
+        return only[0].id
+    return only[0].id if only else None
 
 
 def _list_items(
@@ -376,14 +418,243 @@ def v1_list_collection_items(
     return _list_items(db, collection_name=collection.name, limit=limit, offset=offset)
 
 
-@router.get("/v1/locations", tags=["locations"], summary="List locations")
-def v1_list_locations(
+@router.get("/v1/sites", tags=["locations"], summary="List sites")
+def v1_list_sites(
     limit: int = Query(default=200, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.read"])),
 ):
-    rows = db.query(Location).order_by(Location.created_at.asc()).offset(offset).limit(limit).all()
+    rows = db.query(Site).order_by(Site.created_at.asc()).offset(offset).limit(limit).all()
+    return [serialize_site(site) for site in rows]
+
+
+@router.post("/v1/sites", tags=["locations"], summary="Create site")
+def v1_create_site(
+    payload: dict,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.write"])),
+):
+    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+    description = str(payload.get("description") or "").strip() or None
+
+    existing = db.query(Site).filter(Site.name == name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Site name already exists")
+
+    row = Site(name=name, description=description)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return serialize_site(row)
+
+
+@router.get("/v1/sites/{site_id}", tags=["locations"], summary="Get site")
+def v1_get_site(
+    site_id: str,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.read"])),
+):
+    row = db.query(Site).filter(Site.id == site_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Site not found")
+    return serialize_site(row)
+
+
+@router.patch("/v1/sites/{site_id}", tags=["locations"], summary="Update site")
+def v1_update_site(
+    site_id: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.write"])),
+):
+    row = db.query(Site).filter(Site.id == site_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    if "name" in payload:
+        name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+        existing = db.query(Site).filter(Site.name == name, Site.id != site_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Site name already exists")
+        row.name = name
+
+    if "description" in payload:
+        row.description = str(payload.get("description") or "").strip() or None
+
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return serialize_site(row)
+
+
+@router.delete("/v1/sites/{site_id}", tags=["locations"], summary="Delete site")
+def v1_delete_site(
+    site_id: str,
+    move_to_site_id: str | None = None,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.delete"])),
+):
+    row = db.query(Site).filter(Site.id == site_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    area_count = db.query(Area).filter(Area.site_id == site_id).count()
+    if area_count > 0 and not move_to_site_id:
+        raise HTTPException(status_code=400, detail="Site has areas. Provide move_to_site_id before deleting.")
+
+    if move_to_site_id:
+        target = db.query(Site).filter(Site.id == move_to_site_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="Target site not found")
+        if target.id == row.id:
+            raise HTTPException(status_code=400, detail="Cannot move areas to the same site")
+        db.query(Area).filter(Area.site_id == row.id).update({"site_id": target.id})
+
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/v1/areas", tags=["locations"], summary="List areas")
+def v1_list_areas(
+    site_id: str | None = None,
+    limit: int = Query(default=200, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.read"])),
+):
+    query = db.query(Area)
+    if site_id:
+        query = query.filter(Area.site_id == site_id)
+    rows = query.order_by(Area.created_at.asc()).offset(offset).limit(limit).all()
+
+    site_ids = [area.site_id for area in rows if area.site_id]
+    site_names_by_id: dict[str, str] = {}
+    if site_ids:
+        sites = db.query(Site.id, Site.name).filter(Site.id.in_(site_ids)).all()
+        site_names_by_id = {site_id_value: site_name for site_id_value, site_name in sites}
+
+    return [serialize_area(area, site_name=site_names_by_id.get(area.site_id or "")) for area in rows]
+
+
+@router.post("/v1/areas", tags=["locations"], summary="Create area")
+def v1_create_area(
+    payload: dict,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.write"])),
+):
+    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+    description = str(payload.get("description") or "").strip() or None
+    site_id = _resolve_site_id(db, payload)
+
+    existing = db.query(Area).filter(Area.name == name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Area name already exists")
+
+    row = Area(name=name, description=description, site_id=site_id)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    site_name = db.query(Site.name).filter(Site.id == row.site_id).scalar() if row.site_id else None
+    return serialize_area(row, site_name=site_name)
+
+
+@router.get("/v1/areas/{area_id}", tags=["locations"], summary="Get area")
+def v1_get_area(
+    area_id: str,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.read"])),
+):
+    row = db.query(Area).filter(Area.id == area_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Area not found")
+    site_name = db.query(Site.name).filter(Site.id == row.site_id).scalar() if row.site_id else None
+    return serialize_area(row, site_name=site_name)
+
+
+@router.patch("/v1/areas/{area_id}", tags=["locations"], summary="Update area")
+def v1_update_area(
+    area_id: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.write"])),
+):
+    row = db.query(Area).filter(Area.id == area_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Area not found")
+
+    if "name" in payload:
+        name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+        existing = db.query(Area).filter(Area.name == name, Area.id != area_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Area name already exists")
+        row.name = name
+
+    if "description" in payload:
+        row.description = str(payload.get("description") or "").strip() or None
+
+    if "site_id" in payload:
+        row.site_id = _resolve_site_id(db, payload)
+
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+
+    site_name = db.query(Site.name).filter(Site.id == row.site_id).scalar() if row.site_id else None
+    return serialize_area(row, site_name=site_name)
+
+
+@router.delete("/v1/areas/{area_id}", tags=["locations"], summary="Delete area")
+def v1_delete_area(
+    area_id: str,
+    move_to_area_id: str | None = None,
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.delete"])),
+):
+    row = db.query(Area).filter(Area.id == area_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Area not found")
+
+    location_count = db.query(Location).filter(Location.area_id == area_id).count()
+    if location_count > 0 and not move_to_area_id:
+        raise HTTPException(status_code=400, detail="Area has locations. Provide move_to_area_id before deleting.")
+
+    target_area_id: str | None = None
+    if move_to_area_id:
+        target = db.query(Area).filter(Area.id == move_to_area_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="Target area not found")
+        if target.id == row.id:
+            raise HTTPException(status_code=400, detail="Cannot move locations to the same area")
+        target_area_id = target.id
+
+    db.query(Location).filter(Location.area_id == row.id).update({"area_id": target_area_id})
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/v1/locations", tags=["locations"], summary="List locations")
+def v1_list_locations(
+    area_id: str | None = None,
+    site_id: str | None = None,
+    limit: int = Query(default=200, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["locations.read"])),
+):
+    query = db.query(Location)
+    if area_id:
+        query = query.filter(Location.area_id == area_id)
+    elif site_id:
+        area_ids = [row.id for row in db.query(Area.id).filter(Area.site_id == site_id).all()]
+        if not area_ids:
+            return []
+        query = query.filter(Location.area_id.in_(area_ids))
+
+    rows = query.order_by(Location.created_at.asc()).offset(offset).limit(limit).all()
     if not rows:
         return []
 
@@ -420,12 +691,13 @@ def v1_create_location(
     description = str(payload.get("description") or "").strip() or None
     icon = str(payload.get("icon") or "").strip() or None
     color = str(payload.get("color") or "").strip() or None
+    area_id = _resolve_area_id(db, payload)
 
     existing = db.query(Location).filter(Location.name == name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Location name already exists")
 
-    row = Location(name=name, description=description, icon=icon, color=color)
+    row = Location(name=name, description=description, area_id=area_id, icon=icon, color=color)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -452,6 +724,9 @@ def v1_update_location(
 
     if "description" in payload:
         row.description = str(payload.get("description") or "").strip() or None
+
+    if "area_id" in payload:
+        row.area_id = _resolve_area_id(db, payload)
 
     if "icon" in payload:
         row.icon = str(payload.get("icon") or "").strip() or None

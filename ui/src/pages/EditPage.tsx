@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Brain,
@@ -17,6 +17,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { solidActionButtonClasses } from "../components/ui/buttonStyles";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
+import { buildLocationDisplayLabel } from "../lib/locationHierarchy";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 import { useNumericField } from "../hooks/useNumericField";
 import { type LocationOption, type CollectionOption } from "../lib/types";
@@ -348,6 +349,13 @@ export function EditPage() {
   const [selectedCandidateIdx, setSelectedCandidateIdx] = useState(0);
   const [showDiff, setShowDiff] = useState(false);
   const restoreActionButtonRef = useRef<HTMLButtonElement | null>(null);
+  const locationLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const location of locations) {
+      labels.set(location.id, buildLocationDisplayLabel(location, locations));
+    }
+    return labels;
+  }, [locations]);
 
   function goPrevImage() {
     if (images.length <= 1) return;
@@ -1083,7 +1091,7 @@ export function EditPage() {
                 >
                   <option value="">No location</option>
                   {locations.map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
+                    <option key={l.id} value={l.id}>{locationLabels.get(l.id) || l.name}</option>
                   ))}
                 </select>
               </label>

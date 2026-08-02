@@ -157,6 +157,7 @@ export function SystemPage() {
               key={tab.id}
               type="button"
               onClick={() => handleTabClick(tab.id)}
+              data-tour={tab.id === "locations" ? "system-tab-locations" : undefined}
               className={[
                 "inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
                 isActive
