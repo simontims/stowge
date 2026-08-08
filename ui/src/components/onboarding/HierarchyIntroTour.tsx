@@ -44,7 +44,7 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
           target: "body",
           placement: "center",
           skipBeacon: true,
-          title: "New: Site and Area hierarchy",
+          title: "New: Sites and Areas hierarchy",
           content: (
             <div className="space-y-2 text-sm leading-6">
               <p>
@@ -64,41 +64,49 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
         target: "[data-tour='system-tab-locations']",
         placement: "bottom",
         skipBeacon: true,
-        title: "Locations now include hierarchy",
+        title: "Locations now includes hierarchy",
         content: (
           <p className="text-sm leading-6">
-            Use this <strong>Locations</strong> tab to manage the new Site / Area / Location structure.
+            Use this <strong>Locations</strong> tab to manage Sites, Areas, and Locations.
           </p>
         ),
       },
       {
-        target: "[data-tour='locations-sites-section']",
+        target: "[data-tour='locations-hierarchy-toggle']",
         placement: "bottom",
         skipBeacon: true,
-        title: "Step 1: Create Sites",
+        title: "Sites and Areas card",
         content: (
           <div className="space-y-2 text-sm leading-6">
             <p>
-              A <strong>Site</strong> is a top-level place like Home, Storage Unit, My Other House.
+              Use this collapsible card to manage your hierarchy.
             </p>
             <p>
-              A default first site has been created for you named, <strong>'Home'</strong>.
+              A <strong>Site</strong> is a top-level place like Home or Storage Unit, and an <strong>Area</strong> is a zone within a Site.
             </p>
           </div>
         ),
       },
       {
-        target: "[data-tour='locations-areas-section']",
+        target: "[data-tour='locations-add-area']",
         placement: "bottom",
         skipBeacon: true,
-        title: "Step 2: Create Areas",
+        before: async () => {
+          const addAreaButton = document.querySelector("[data-tour='locations-add-area']");
+          if (!addAreaButton) {
+            const toggle = document.querySelector("[data-tour='locations-hierarchy-toggle']") as HTMLElement | null;
+            toggle?.click();
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 120));
+        },
+        title: "Add an Area",
         content: (
           <div className="space-y-2 text-sm leading-6">
             <p>
-              An <strong>Area</strong> is a zone inside a Site, such as Attic, Garage, Shed, etc.
+              Add Areas inside each Site, for example <strong>Garage</strong>, <strong>Attic</strong>, or <strong>Shed</strong>.
             </p>
             <p>
-              A default first area has been created for you named, <strong>'General'</strong>.
+              Most users can start with the default Site named <strong>Home</strong>.
             </p>
           </div>
         ),
@@ -107,10 +115,10 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
         target: "[data-tour='locations-add-location-button']",
         placement: "left",
         skipBeacon: true,
-        title: "Step 3: Add Locations",
+        title: "Add Locations",
         content: (
           <p className="text-sm leading-6">
-            Add each exact storage <strong>Location</strong> under the right Area, then assign items there.
+            Add each exact storage <strong>Location</strong> under the correct Area, then assign items there.
           </p>
         ),
       },
@@ -125,9 +133,35 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
         title: "Choose the Area",
         content: (
           <p className="text-sm leading-6">
-            Set the <strong>Area</strong> here when creating a Location so it lands in the correct Site hierarchy.
+            Set the <strong>Area</strong> here when creating a Location so it appears in the right Site and Area hierarchy.
           </p>
         ),
+      },
+      {
+        target: "[data-tour='locations-area-filter']",
+        placement: "bottom",
+        skipBeacon: true,
+        title: "Filter your Locations",
+        content: (
+          <p className="text-sm leading-6">
+            Use Site and Area filters to quickly narrow the Locations table.
+          </p>
+        ),
+      },
+      {
+        target: "[data-tour='locations-add-site']",
+        placement: "bottom",
+        skipBeacon: true,
+        before: async () => {
+          const addSiteButton = document.querySelector("[data-tour='locations-add-site']");
+          if (!addSiteButton) {
+            const toggle = document.querySelector("[data-tour='locations-hierarchy-toggle']") as HTMLElement | null;
+            toggle?.click();
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 120));
+        },
+        title: "Optional: Add another Site",
+        content: <p className="text-sm leading-6">Add another Site only when you manage storage in multiple places.</p>,
       },
     ];
   }, [isAdmin]);
@@ -155,7 +189,7 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
         arrowColor: "#262626",
         backgroundColor: "#262626",
         overlayColor: "rgba(0,0,0,0.55)",
-        primaryColor: "#84cc16",
+        primaryColor: "#2563eb",
         textColor: "#f5f5f5",
         dismissKeyAction: "close",
         overlayClickAction: false,
@@ -187,8 +221,8 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
           color: "#a3a3a3",
         },
         buttonPrimary: {
-          backgroundColor: "#84cc16",
-          color: "#172554",
+          backgroundColor: "#2563eb",
+          color: "#ffffff",
           fontWeight: 600,
         },
       }}

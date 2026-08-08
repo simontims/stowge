@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ChevronRight, Compass, Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
 import { IconColorPicker } from "../components/ui/IconColorPicker";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -56,17 +56,6 @@ interface AreaRecord {
   description?: string | null;
 }
 
-interface SiteForm {
-  name: string;
-  description: string;
-}
-
-interface AreaForm {
-  name: string;
-  description: string;
-  site_id: string;
-}
-
 const EMPTY_FORM: LocationForm = {
   name: "",
   description: "",
@@ -74,17 +63,6 @@ const EMPTY_FORM: LocationForm = {
   icon: "",
   color: "",
   photo_path: null,
-};
-
-const EMPTY_SITE_FORM: SiteForm = {
-  name: "",
-  description: "",
-};
-
-const EMPTY_AREA_FORM: AreaForm = {
-  name: "",
-  description: "",
-  site_id: "",
 };
 
 type LocationSortKey = "name" | "description" | "item_count";
@@ -102,17 +80,16 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   const [search, setSearch] = useState("");
   const { sortKey, sortDirection, handleSort } = useTableSort<LocationSortKey>("name");
 
+  const [hierarchyExpanded, setHierarchyExpanded] = useState(false);
+  const [hierarchyEditKey, setHierarchyEditKey] = useState<string | null>(null);
+  const [hierarchyDraftName, setHierarchyDraftName] = useState("");
   const [addingOpen, setAddingOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [newForm, setNewForm] = useState<LocationForm>(EMPTY_FORM);
   const [sites, setSites] = useState<SiteRecord[]>([]);
   const [areas, setAreas] = useState<AreaRecord[]>([]);
-  const [newSiteForm, setNewSiteForm] = useState<SiteForm>(EMPTY_SITE_FORM);
-  const [newAreaForm, setNewAreaForm] = useState<AreaForm>(EMPTY_AREA_FORM);
-  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
-  const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
-  const [editSiteForm, setEditSiteForm] = useState<SiteForm>(EMPTY_SITE_FORM);
-  const [editAreaForm, setEditAreaForm] = useState<AreaForm>(EMPTY_AREA_FORM);
+  const [siteFilterId, setSiteFilterId] = useState("");
+  const [areaFilterId, setAreaFilterId] = useState("");
   const [savingSite, setSavingSite] = useState(false);
   const [savingArea, setSavingArea] = useState(false);
   const [confirmDeleteSiteId, setConfirmDeleteSiteId] = useState<string | null>(null);
@@ -192,92 +169,154 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     }
   }
 
+  const siteById = useMemo(() => {
+    const map = new Map<string, SiteRecord>();
+    for (const site of sites) {
+      map.set(site.id, site);
+    }
+    return map;
+  }, [sites]);
+
+  const areaById = useMemo(() => {
+    const map = new Map<string, AreaRecord>();
+    for (const area of areas) {
+      map.set(area.id, area);
+    }
+    return map;
+  }, [areas]);
+
+  const areasBySiteId = useMemo(() => {
+    const map = new Map<string, AreaRecord[]>();
+    for (const area of areas) {
+      const key = area.site_id || "__no_site__";
+      const current = map.get(key) || [];
+      current.push(area);
+      map.set(key, current);
+    }
+    return map;
+  }, [areas]);
+
+  const locationCountByAreaId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const location of locations) {
+      if (!location.area_id) continue;
+      counts.set(location.area_id, (counts.get(location.area_id) || 0) + 1);
+    }
+    return counts;
+  }, [locations]);
+
+  const hasMultipleSites = sites.length > 1;
+
+  function formatAreaLabel(area: AreaRecord): string {
+    const siteName = area.site_id ? (siteById.get(area.site_id)?.name || area.site_name || "Site") : "Site";
+    return hasMultipleSites ? `${siteName} / ${area.name}` : area.name;
+  }
+
+  function formatLocationBreadcrumb(areaId: string | null | undefined): string {
+    if (!areaId) return "Unassigned";
+    const area = areaById.get(areaId);
+    if (!area) return "Unassigned";
+    const siteName = area.site_id ? (siteById.get(area.site_id)?.name || area.site_name || "Site") : "Site";
+    return hasMultipleSites ? `${siteName} › ${area.name}` : area.name;
+  }
+
+  const hierarchySummary = useMemo(() => {
+    if (sites.length === 0) return "No sites yet";
+
+    const parts = sites.map((site) => {
+      const areaNames = (areasBySiteId.get(site.id) || []).map((area) => area.name);
+      const areaSummary = areaNames.length > 0 ? areaNames.join(", ") : "No areas";
+      return hasMultipleSites ? `${site.name}: ${areaSummary}` : areaSummary;
+    });
+
+    return parts.join(" · ");
+  }, [areasBySiteId, hasMultipleSites, sites]);
+
   useEffect(() => {
-    if (!newAreaForm.site_id && sites.length === 1) {
-      setNewAreaForm((current) => ({ ...current, site_id: sites[0].id }));
+    if (!siteFilterId || !areaFilterId) return;
+    const selectedArea = areaById.get(areaFilterId);
+    if (!selectedArea || selectedArea.site_id !== siteFilterId) {
+      setAreaFilterId("");
     }
-  }, [newAreaForm.site_id, sites]);
+  }, [areaById, areaFilterId, siteFilterId]);
 
-  function startEditSite(site: SiteRecord) {
-    setEditingSiteId(site.id);
-    setEditSiteForm({
-      name: site.name,
-      description: "",
-    });
+  function beginHierarchyEdit(key: string, initialName: string) {
+    setHierarchyEditKey(key);
+    setHierarchyDraftName(initialName);
   }
 
-  function cancelEditSite() {
-    setEditingSiteId(null);
-    setEditSiteForm(EMPTY_SITE_FORM);
+  function cancelHierarchyEdit() {
+    setHierarchyEditKey(null);
+    setHierarchyDraftName("");
   }
 
-  function startEditArea(area: AreaRecord) {
-    setEditingAreaId(area.id);
-    setEditAreaForm({
-      name: area.name,
-      description: area.description || "",
-      site_id: area.site_id || (sites.length === 1 ? sites[0].id : ""),
-    });
-  }
-
-  function cancelEditArea() {
-    setEditingAreaId(null);
-    setEditAreaForm(EMPTY_AREA_FORM);
-  }
-
-  async function createSite() {
-    const name = newSiteForm.name.trim();
-    if (name.length < MIN_NAME_LENGTH) {
-      setError(minimumLengthMessage("Site name"));
+  async function saveHierarchyEdit() {
+    const name = hierarchyDraftName.trim();
+    if (name.length < MIN_NAME_LENGTH || !hierarchyEditKey) {
+      setError(minimumLengthMessage("Name"));
       return;
     }
 
-    setSavingSite(true);
     setError("");
+    setNotice("");
+
     try {
-      await apiRequest("/api/sites", {
-        method: "POST",
-        body: JSON.stringify({
-          name,
-          description: newSiteForm.description.trim() || null,
-        }),
-      });
-      setNewSiteForm(EMPTY_SITE_FORM);
+      if (hierarchyEditKey === "site:new") {
+        setSavingSite(true);
+        await apiRequest("/api/sites", {
+          method: "POST",
+          body: JSON.stringify({ name, description: null }),
+        });
+        setNotice("Site created.");
+      } else if (hierarchyEditKey.startsWith("site:")) {
+        const siteId = hierarchyEditKey.slice("site:".length);
+        setSavingSite(true);
+        await apiRequest(`/api/sites/${siteId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ name }),
+        });
+        setNotice("Site updated.");
+      } else if (hierarchyEditKey.startsWith("area:new:")) {
+        const siteId = hierarchyEditKey.slice("area:new:".length);
+        setSavingArea(true);
+        await apiRequest("/api/areas", {
+          method: "POST",
+          body: JSON.stringify({ name, description: null, site_id: siteId || null }),
+        });
+        setNotice("Area created.");
+      } else if (hierarchyEditKey.startsWith("area:")) {
+        const areaId = hierarchyEditKey.slice("area:".length);
+        const area = areaById.get(areaId);
+        setSavingArea(true);
+        await apiRequest(`/api/areas/${areaId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name,
+            site_id: area?.site_id || null,
+          }),
+        });
+        setNotice("Area updated.");
+      }
+
+      cancelHierarchyEdit();
       await loadHierarchyOptions();
-      setNotice("Site created.");
+      await loadLocations();
     } catch (err) {
-      setError((err as Error).message || "Failed to create site.");
+      setError((err as Error).message || "Failed to save changes.");
     } finally {
       setSavingSite(false);
+      setSavingArea(false);
     }
   }
 
-  async function saveSiteEdit() {
-    if (!editingSiteId) return;
-    const name = editSiteForm.name.trim();
-    if (name.length < MIN_NAME_LENGTH) {
-      setError(minimumLengthMessage("Site name"));
-      return;
-    }
+  function handleHierarchySiteDelete(siteId: string) {
+    setConfirmDeleteSiteId(siteId);
+    setDeleteSiteMoveToId("");
+  }
 
-    setSavingSite(true);
-    setError("");
-    try {
-      await apiRequest(`/api/sites/${editingSiteId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name,
-          description: editSiteForm.description.trim() || null,
-        }),
-      });
-      cancelEditSite();
-      await loadHierarchyOptions();
-      setNotice("Site updated.");
-    } catch (err) {
-      setError((err as Error).message || "Failed to update site.");
-    } finally {
-      setSavingSite(false);
-    }
+  function handleHierarchyAreaDelete(areaId: string) {
+    setConfirmDeleteAreaId(areaId);
+    setDeleteAreaMoveToId("");
   }
 
   async function deleteSite(siteId: string) {
@@ -295,72 +334,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       setError((err as Error).message || "Failed to delete site.");
     } finally {
       setSavingSite(false);
-    }
-  }
-
-  async function createArea() {
-    const name = newAreaForm.name.trim();
-    if (name.length < MIN_NAME_LENGTH) {
-      setError(minimumLengthMessage("Area name"));
-      return;
-    }
-    if (sites.length > 1 && !newAreaForm.site_id) {
-      setError("Select a site for this area.");
-      return;
-    }
-
-    setSavingArea(true);
-    setError("");
-    try {
-      await apiRequest("/api/areas", {
-        method: "POST",
-        body: JSON.stringify({
-          name,
-          description: newAreaForm.description.trim() || null,
-          site_id: newAreaForm.site_id || null,
-        }),
-      });
-      setNewAreaForm({ ...EMPTY_AREA_FORM, site_id: sites.length === 1 ? sites[0].id : "" });
-      await loadHierarchyOptions();
-      setNotice("Area created.");
-    } catch (err) {
-      setError((err as Error).message || "Failed to create area.");
-    } finally {
-      setSavingArea(false);
-    }
-  }
-
-  async function saveAreaEdit() {
-    if (!editingAreaId) return;
-    const name = editAreaForm.name.trim();
-    if (name.length < MIN_NAME_LENGTH) {
-      setError(minimumLengthMessage("Area name"));
-      return;
-    }
-    if (sites.length > 1 && !editAreaForm.site_id) {
-      setError("Select a site for this area.");
-      return;
-    }
-
-    setSavingArea(true);
-    setError("");
-    try {
-      await apiRequest(`/api/areas/${editingAreaId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name,
-          description: editAreaForm.description.trim() || null,
-          site_id: editAreaForm.site_id || null,
-        }),
-      });
-      cancelEditArea();
-      await loadHierarchyOptions();
-      await loadLocations();
-      setNotice("Area updated.");
-    } catch (err) {
-      setError((err as Error).message || "Failed to update area.");
-    } finally {
-      setSavingArea(false);
     }
   }
 
@@ -586,15 +559,35 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return locations;
-
     return locations.filter((location) => {
+      if (siteFilterId) {
+        const area = location.area_id ? areaById.get(location.area_id) : null;
+        const resolvedSiteId = area?.site_id || location.site_id || "";
+        if (resolvedSiteId !== siteFilterId) {
+          return false;
+        }
+      }
+
+      if (areaFilterId && location.area_id !== areaFilterId) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
       const name = location.name.toLowerCase();
       const description = (location.description || "").toLowerCase();
       const count = String(location.item_count);
-      return name.includes(term) || description.includes(term) || count.includes(term);
+      const breadcrumb = formatLocationBreadcrumb(location.area_id).toLowerCase();
+      return (
+        name.includes(term) ||
+        description.includes(term) ||
+        count.includes(term) ||
+        breadcrumb.includes(term)
+      );
     });
-  }, [locations, search]);
+  }, [areaById, areaFilterId, formatLocationBreadcrumb, locations, search, siteFilterId]);
 
   const sorted = useMemo(() => {
     const dir = sortDirection === "asc" ? 1 : -1;
@@ -613,32 +606,35 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   const columns = useMemo<Column<LocationRecord>[]>(
     () => [
       {
-        key: "icon",
-        header: "Icon",
-        className: "w-20",
-        render: (row) =>
-          row.icon ? (
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-800 bg-neutral-900">
-              <TablerIcon name={row.icon} size={16} color={row.color || undefined} />
+        key: "id",
+        header: "",
+        className: "w-14",
+        headerClassName: "w-14",
+        render: (row) => {
+          if (row.icon) {
+            return (
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-700 bg-neutral-900">
+                <TablerIcon name={row.icon} size={15} color={row.color || undefined} />
+              </span>
+            );
+          }
+
+          if (row.photo_url) {
+            return (
+              <img
+                src={row.photo_url}
+                alt={row.name}
+                className="h-8 w-8 rounded-md border border-neutral-700 object-cover"
+              />
+            );
+          }
+
+          return (
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-700 bg-neutral-800 text-xs font-semibold text-neutral-400 uppercase">
+              {row.name.trim().charAt(0) || "?"}
             </span>
-          ) : (
-            <span className="text-xs text-neutral-600">none</span>
-          ),
-      },
-      {
-        key: "photo_url",
-        header: "Photo",
-        className: "w-20",
-        render: (row) =>
-          row.photo_url ? (
-            <img
-              src={row.photo_url}
-              alt={row.name}
-              className="w-10 h-10 object-cover rounded border border-neutral-800"
-            />
-          ) : (
-            <span className="text-xs text-neutral-600">none</span>
-          ),
+          );
+        },
       },
       {
         key: "name",
@@ -655,24 +651,18 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         ),
       },
       {
-        key: "area_name",
-        header: "Area",
+        key: "area_id",
+        header: "Location",
         render: (row) => (
-          <span className="text-neutral-400">{row.area_name || "General"}</span>
-        ),
-      },
-      {
-        key: "site_name",
-        header: "Site",
-        render: (row) => (
-          <span className="text-neutral-500">{row.site_name || "Home"}</span>
+          <span className="text-neutral-400">{formatLocationBreadcrumb(row.area_id)}</span>
         ),
       },
       {
         key: "item_count",
-        header: "Item Count",
+        header: "Items",
         sortable: true,
-        className: "w-28",
+        className: "w-24",
+        headerClassName: "w-24",
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
             {row.item_count}
@@ -681,20 +671,19 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       },
       {
         key: "actions",
-        header: "ACTIONS",
-        className: "w-44 text-right",
-        headerClassName: "w-44 text-right",
+        header: "Actions",
+        className: "w-28 text-right",
+        headerClassName: "w-28 text-right",
         render: (row) => {
           const isDeleting = deletingId === row.id;
           return (
             <div className="inline-flex items-center gap-2 justify-end w-full">
               <button
                 onClick={() => startEdit(row)}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
                 title={`Edit ${row.name}`}
               >
                 <Edit3 size={13} />
-                Edit
               </button>
               <button
                 onClick={() => {
@@ -703,21 +692,20 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 }}
                 disabled={isDeleting}
                 className={[
-                  "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border transition-colors",
+                  "inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
                   "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
                   isDeleting ? "opacity-60 cursor-not-allowed" : "",
                 ].join(" ")}
                 title={`Delete ${row.name}`}
               >
                 <Trash2 size={13} />
-                Delete
               </button>
             </div>
           );
         },
       },
     ],
-    [deletingId]
+    [deletingId, formatLocationBreadcrumb]
   );
 
   const emptyMessage = useMemo(() => {
@@ -732,6 +720,11 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     }
     return "No locations found. Add your first one above.";
   }, [loadError, loading, search]);
+
+  const scopedAreas = useMemo(
+    () => areas.filter((area) => !siteFilterId || area.site_id === siteFilterId),
+    [areas, siteFilterId]
+  );
 
   const confirmDeleteSite = useMemo(
     () => sites.find((site) => site.id === confirmDeleteSiteId) || null,
@@ -758,181 +751,244 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       {!embedded && (
         <PageHeader
           title="Locations"
-          description="Add, edit, and delete storage locations for your inventory"
+          description="Organize storage into sites, areas, and locations - or ignore the hierarchy entirely and just add locations."
         />
       )}
 
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent(RERUN_HIERARCHY_INTRO_EVENT))}
-          className={`${outlinedActionButtonClasses("neutral")} px-3 py-1.5 text-sm font-medium`}
+      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 overflow-hidden" data-tour="locations-sites-section">
+        <div
+          data-tour="locations-hierarchy-toggle"
+          role="button"
+          tabIndex={0}
+          onClick={() => setHierarchyExpanded((current) => !current)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setHierarchyExpanded((current) => !current);
+            }
+          }}
+          className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-neutral-800 bg-neutral-950/20"
         >
-          <Compass size={14} />
-          Re-run Sites &amp; Areas Tour
-        </button>
-      </div>
+          <ChevronRight
+            size={14}
+            className={`text-neutral-400 transition-transform ${hierarchyExpanded ? "rotate-90" : "rotate-0"}`}
+          />
+          <span className="text-sm font-semibold text-neutral-100">Sites &amp; Areas</span>
+          <span className="text-xs text-neutral-500 truncate">{hierarchySummary}</span>
+          <span className="ml-auto">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                window.dispatchEvent(new CustomEvent(RERUN_HIERARCHY_INTRO_EVENT));
+              }}
+              className={`${outlinedActionButtonClasses("neutral")} px-2.5 py-1.5 text-xs font-medium`}
+            >
+              <Compass size={12} />
+              Re-run tour
+            </button>
+          </span>
+        </div>
 
-      <section data-tour="locations-sites-section" className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
-        <h2 className="text-sm font-semibold text-neutral-100">Sites</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <input
-            value={newSiteForm.name}
-            onChange={(e) => setNewSiteForm((v) => ({ ...v, name: e.target.value }))}
-            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-            placeholder="New site name"
-          />
-          <input
-            value={newSiteForm.description}
-            onChange={(e) => setNewSiteForm((v) => ({ ...v, description: e.target.value }))}
-            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-            placeholder="Description (optional)"
-          />
-          <button
-            type="button"
-            onClick={() => void createSite()}
-            disabled={savingSite}
-            className={`${solidActionButtonClasses("positive")} px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed`}
-          >
-            <Plus size={14} />
-            Add Site
-          </button>
-        </div>
-        <div className="space-y-2">
-          {sites.map((site) => {
-            const isEditing = editingSiteId === site.id;
-            return (
-              <div key={site.id} className="rounded-md border border-neutral-800 bg-neutral-950/35 p-3 space-y-2">
-                {isEditing ? (
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <input
-                      value={editSiteForm.name}
-                      onChange={(e) => setEditSiteForm((v) => ({ ...v, name: e.target.value }))}
-                      className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    />
-                    <input
-                      value={editSiteForm.description}
-                      onChange={(e) => setEditSiteForm((v) => ({ ...v, description: e.target.value }))}
-                      className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                      placeholder="Description (optional)"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => void saveSiteEdit()} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-200 hover:border-neutral-500 text-sm">
-                        <Save size={13} /> Save
-                      </button>
-                      <button type="button" onClick={cancelEditSite} className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-200 text-sm">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-200">{site.name}</p>
-                    </div>
-                    <div className="inline-flex items-center gap-2">
-                      <button type="button" onClick={() => startEditSite(site)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm">
-                        <Edit3 size={13} /> Edit
-                      </button>
-                      <button type="button" onClick={() => { setConfirmDeleteSiteId(site.id); setDeleteSiteMoveToId(""); }} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 text-sm">
-                        <Trash2 size={13} /> Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+        {hierarchyExpanded && (
+          <div className="px-4 py-3 space-y-2">
+            {sites.map((site) => {
+              const siteKey = `site:${site.id}`;
+              const isSiteEditing = hierarchyEditKey === siteKey;
+              const siteAreas = areasBySiteId.get(site.id) || [];
 
-      <section data-tour="locations-areas-section" className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
-        <h2 className="text-sm font-semibold text-neutral-100">Areas</h2>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <input
-            value={newAreaForm.name}
-            onChange={(e) => setNewAreaForm((v) => ({ ...v, name: e.target.value }))}
-            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-            placeholder="New area name"
-          />
-          <input
-            value={newAreaForm.description}
-            onChange={(e) => setNewAreaForm((v) => ({ ...v, description: e.target.value }))}
-            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-            placeholder="Description (optional)"
-          />
-          <select
-            value={newAreaForm.site_id}
-            onChange={(e) => setNewAreaForm((v) => ({ ...v, site_id: e.target.value }))}
-            className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-          >
-            <option value="">{sites.length > 1 ? "Select site..." : "Default site"}</option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>{site.name}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => void createArea()}
-            disabled={savingArea}
-            className={`${solidActionButtonClasses("positive")} px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed`}
-          >
-            <Plus size={14} />
-            Add Area
-          </button>
-        </div>
-        <div className="space-y-2">
-          {areas.map((area) => {
-            const isEditing = editingAreaId === area.id;
-            return (
-              <div key={area.id} className="rounded-md border border-neutral-800 bg-neutral-950/35 p-3 space-y-2">
-                {isEditing ? (
-                  <div className="grid gap-2 sm:grid-cols-4">
-                    <input
-                      value={editAreaForm.name}
-                      onChange={(e) => setEditAreaForm((v) => ({ ...v, name: e.target.value }))}
-                      className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    />
-                    <input
-                      value={editAreaForm.description}
-                      onChange={(e) => setEditAreaForm((v) => ({ ...v, description: e.target.value }))}
-                      className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                      placeholder="Description (optional)"
-                    />
-                    <select
-                      value={editAreaForm.site_id}
-                      onChange={(e) => setEditAreaForm((v) => ({ ...v, site_id: e.target.value }))}
-                      className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                    >
-                      <option value="">{sites.length > 1 ? "Select site..." : "Default site"}</option>
-                      {sites.map((site) => (
-                        <option key={site.id} value={site.id}>{site.name}</option>
-                      ))}
-                    </select>
+              return (
+                <div key={site.id} className="rounded-md border border-neutral-800 bg-neutral-950/30 px-3 py-2.5">
+                  {isSiteEditing ? (
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => void saveAreaEdit()} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-200 hover:border-neutral-500 text-sm">
-                        <Save size={13} /> Save
+                      <input
+                        autoFocus
+                        value={hierarchyDraftName}
+                        onChange={(event) => setHierarchyDraftName(event.target.value)}
+                        className="flex-1 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        placeholder="Site name"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void saveHierarchyEdit()}
+                        disabled={savingSite}
+                        className={`${outlinedActionButtonClasses("positive")} px-2.5 py-1.5 text-sm`}
+                      >
+                        Save
                       </button>
-                      <button type="button" onClick={cancelEditArea} className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-200 text-sm">Cancel</button>
+                      <button
+                        type="button"
+                        onClick={cancelHierarchyEdit}
+                        className={`${outlinedActionButtonClasses("neutral")} px-2.5 py-1.5 text-sm`}
+                      >
+                        Cancel
+                      </button>
                     </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-neutral-100">{site.name}</span>
+                      <span className="text-xs text-neutral-600">{siteAreas.length} {siteAreas.length === 1 ? "area" : "areas"}</span>
+                      <div className="ml-auto inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => beginHierarchyEdit(siteKey, site.name)}
+                          className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/60"
+                          title="Rename site"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleHierarchySiteDelete(site.id)}
+                          className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-red-300 hover:bg-neutral-800/60 transition-colors"
+                          title="Delete site"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-2 ml-2 pl-3 border-l border-neutral-800 space-y-1">
+                    {siteAreas.map((area) => {
+                      const areaKey = `area:${area.id}`;
+                      const isAreaEditing = hierarchyEditKey === areaKey;
+                      const locationCount = locationCountByAreaId.get(area.id) || 0;
+
+                      return (
+                        <div key={area.id}>
+                          {isAreaEditing ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                autoFocus
+                                value={hierarchyDraftName}
+                                onChange={(event) => setHierarchyDraftName(event.target.value)}
+                                className="flex-1 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                                placeholder="Area name"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void saveHierarchyEdit()}
+                                disabled={savingArea}
+                                className={`${outlinedActionButtonClasses("positive")} px-2.5 py-1.5 text-sm`}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelHierarchyEdit}
+                                className={`${outlinedActionButtonClasses("neutral")} px-2.5 py-1.5 text-sm`}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-neutral-300 font-medium">{area.name}</span>
+                              <span className="text-xs text-neutral-600">{locationCount} {locationCount === 1 ? "location" : "locations"}</span>
+                              <div className="ml-auto inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => beginHierarchyEdit(areaKey, area.name)}
+                                  className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/60"
+                                  title="Rename area"
+                                >
+                                  <Edit3 size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleHierarchyAreaDelete(area.id)}
+                                  className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-red-300 hover:bg-neutral-800/60 transition-colors"
+                                  title="Delete area"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {hierarchyEditKey === `area:new:${site.id}` ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          autoFocus
+                          value={hierarchyDraftName}
+                          onChange={(event) => setHierarchyDraftName(event.target.value)}
+                          className="flex-1 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                          placeholder="New area name"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void saveHierarchyEdit()}
+                          disabled={savingArea}
+                          className={`${outlinedActionButtonClasses("positive")} px-2.5 py-1.5 text-sm`}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelHierarchyEdit}
+                          className={`${outlinedActionButtonClasses("neutral")} px-2.5 py-1.5 text-sm`}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => beginHierarchyEdit(`area:new:${site.id}`, "")}
+                        data-tour="locations-add-area"
+                        className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200 py-0.5"
+                      >
+                        <Plus size={12} />
+                        Add area
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-200">{(sites.length > 1 ? `${area.site_name || "Site"} / ` : "") + area.name}</p>
-                    </div>
-                    <div className="inline-flex items-center gap-2">
-                      <button type="button" onClick={() => startEditArea(area)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm">
-                        <Edit3 size={13} /> Edit
-                      </button>
-                      <button type="button" onClick={() => { setConfirmDeleteAreaId(area.id); setDeleteAreaMoveToId(""); }} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70 text-sm">
-                        <Trash2 size={13} /> Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
+                </div>
+              );
+            })}
+
+            {hierarchyEditKey === "site:new" ? (
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  autoFocus
+                  value={hierarchyDraftName}
+                  onChange={(event) => setHierarchyDraftName(event.target.value)}
+                  className="w-full max-w-sm bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  placeholder="New site name"
+                />
+                <button
+                  type="button"
+                  onClick={() => void saveHierarchyEdit()}
+                  disabled={savingSite}
+                  className={`${outlinedActionButtonClasses("positive")} px-2.5 py-1.5 text-sm`}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelHierarchyEdit}
+                  className={`${outlinedActionButtonClasses("neutral")} px-2.5 py-1.5 text-sm`}
+                >
+                  Cancel
+                </button>
               </div>
-            );
-          })}
-        </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => beginHierarchyEdit("site:new", "")}
+                data-tour="locations-add-site"
+                className="inline-flex items-center gap-1 text-sm text-emerald-300 hover:text-emerald-200 mt-1"
+              >
+                <Plus size={13} />
+                Add site
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       {addingOpen && (
@@ -969,7 +1025,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 <option value="">{areas.length > 1 ? "Select area..." : "Default area"}</option>
                 {areas.map((area) => (
                   <option key={area.id} value={area.id}>
-                    {(sites.length > 1 ? `${area.site_name || "Site"} / ` : "") + area.name}
+                    {formatAreaLabel(area)}
                   </option>
                 ))}
               </select>
@@ -1067,7 +1123,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                   <option value="">Select area...</option>
                   {areas.map((area) => (
                     <option key={area.id} value={area.id}>
-                      {(sites.length > 1 ? `${area.site_name || "Site"} / ` : "") + area.name}
+                      {formatAreaLabel(area)}
                     </option>
                   ))}
                 </select>
@@ -1141,16 +1197,51 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             search={search}
             onSearchChange={setSearch}
             placeholder="Search locations…"
-            loading={loading}
             action={
-              <button
-                data-tour="locations-add-location-button"
-                onClick={() => { setAddingOpen(true); setError(""); setNotice(""); }}
-                className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
-              >
-                <Plus size={14} />
-                Add Location
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {hasMultipleSites && (
+                  <select
+                    data-tour="locations-site-filter"
+                    value={siteFilterId}
+                    onChange={(event) => {
+                      const nextSiteId = event.target.value;
+                      setSiteFilterId(nextSiteId);
+                      if (!nextSiteId) return;
+                      const selectedArea = areaById.get(areaFilterId);
+                      if (!selectedArea || selectedArea.site_id !== nextSiteId) {
+                        setAreaFilterId("");
+                      }
+                    }}
+                    className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  >
+                    <option value="">All sites</option>
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>{site.name}</option>
+                    ))}
+                  </select>
+                )}
+
+                <select
+                  data-tour="locations-area-filter"
+                  value={areaFilterId}
+                  onChange={(event) => setAreaFilterId(event.target.value)}
+                  className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                >
+                  <option value="">All areas</option>
+                  {scopedAreas.map((area) => (
+                    <option key={area.id} value={area.id}>{formatAreaLabel(area)}</option>
+                  ))}
+                </select>
+
+                <button
+                  data-tour="locations-add-location-button"
+                  onClick={() => { setAddingOpen(true); setError(""); setNotice(""); }}
+                  className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
+                >
+                  <Plus size={14} />
+                  Add Location
+                </button>
+              </div>
             }
           />
 
@@ -1244,7 +1335,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         noneOptionLabel="No target area"
         moveOptions={areas
           .filter((area) => area.id !== confirmDeleteArea?.id)
-          .map((area) => ({ id: area.id, name: (sites.length > 1 ? `${area.site_name || "Site"} / ` : "") + area.name }))}
+          .map((area) => ({ id: area.id, name: formatAreaLabel(area) }))}
         moveToId={deleteAreaMoveToId}
         onMoveToIdChange={setDeleteAreaMoveToId}
         step="confirm"

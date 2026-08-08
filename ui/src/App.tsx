@@ -17,7 +17,7 @@ import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay
 import { HierarchyIntroTour } from "./components/onboarding/HierarchyIntroTour";
 import { RERUN_HIERARCHY_INTRO_EVENT } from "./lib/onboarding";
 
-const HIERARCHY_INTRO_STORAGE_KEY_PREFIX = "stowge:hierarchy-intro-seen:v2:";
+const HIERARCHY_INTRO_STORAGE_KEY_PREFIX = "stowge:hierarchy-intro-seen:v3:";
 
 function hierarchyIntroSeenKey(userId: string): string {
   return `${HIERARCHY_INTRO_STORAGE_KEY_PREFIX}${userId}`;
