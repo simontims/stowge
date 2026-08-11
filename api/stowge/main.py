@@ -138,6 +138,9 @@ def _run_startup_migrations():
             user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
             if "collection_nav_order" not in user_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN collection_nav_order TEXT NULL"))
+            user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
+            if "shortcut_filters" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN shortcut_filters TEXT NULL"))
 
     tables = set(inspect(engine).get_table_names())
 

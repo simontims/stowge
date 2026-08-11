@@ -9,6 +9,7 @@ import { AddPage } from "./pages/AddPage";
 import { EditPage } from "./pages/EditPage";
 import { SystemPage } from "./pages/SystemPage";
 import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
+import { SettingsShortcutsPage } from "./pages/SettingsShortcutsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { UNAUTHORIZED_EVENT, OFFLINE_EVENT } from "./lib/api";
 import { type CurrentUser } from "./lib/types";
@@ -251,6 +252,7 @@ export default function App() {
           <Route path="/parts/new"  element={<AddPage />} />
           <Route path="/parts/:itemId/edit" element={<EditPage />} />
           <Route path="/collections" element={<SettingsCollectionsPage />} />
+          <Route path="/settings" element={<SettingsShortcutsPage />} />
           <Route path="/add"        element={<AddPage />} />
           <Route path="/scan"       element={<Navigate to="/add" replace />} />
           <Route path="/system"     element={currentUser.role === "admin" ? <SystemPage /> : <Navigate to="/items" replace />} />

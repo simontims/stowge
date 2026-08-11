@@ -42,6 +42,20 @@ export interface CurrentUser {
   preferred_add_location_id: string | null;
   last_open_collection: string | null;
   collection_nav_order: string[];
+  shortcut_filters: Array<{
+    id: string;
+    name: string;
+    query: string;
+    collection: string | null;
+    statuses: string[];
+    status: string | null;
+    site_id: string | null;
+    area_id: string | null;
+    location_id: string | null;
+    quantity_min: number | null;
+    quantity_max: number | null;
+    pinned: boolean;
+  }>;
   created_at: string | null;
   last_login_at: string | null;
   show_hierarchy_intro?: boolean;

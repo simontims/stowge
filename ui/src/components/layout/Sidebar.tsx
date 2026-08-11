@@ -1,12 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import clsx from "clsx";
-import { COLLECTIONS_NAV_UPDATED_EVENT, navItems, topNavItems } from "../../config/nav";
+import {
+  COLLECTIONS_NAV_UPDATED_EVENT,
+  USER_NAV_PREFERENCES_UPDATED_EVENT,
+  navItems,
+  topNavItems,
+} from "../../config/nav";
 import { apiRequest } from "../../lib/api";
 import { useCurrentUser } from "../../lib/UserContext";
 import { TablerIcon } from "../ui/TablerIcon";
 import type { CurrentUser } from "../../lib/types";
+import {
+  buildShortcutFilterSearch,
+  isShortcutFilterActive,
+  type ShortcutFilter,
+} from "../../lib/shortcutFilters";
 
 interface CollectionNavItem {
   id: string;
@@ -25,6 +35,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const currentUser = useCurrentUser();
   const [collections, setCollections] = useState<CollectionNavItem[]>([]);
   const [collectionNavOrder, setCollectionNavOrder] = useState<string[]>([]);
+  const [shortcutFilters, setShortcutFilters] = useState<ShortcutFilter[]>([]);
   const [draggingCollectionId, setDraggingCollectionId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ targetId: string; position: "before" | "after" } | null>(null);
 
@@ -127,10 +138,15 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         if (active) {
           setCollections(data || []);
           setCollectionNavOrder(Array.isArray(me.collection_nav_order) ? me.collection_nav_order : []);
+          const pinnedShortcuts = Array.isArray(me.shortcut_filters)
+            ? me.shortcut_filters.filter((row) => row.pinned)
+            : [];
+          setShortcutFilters(pinnedShortcuts);
         }
       } catch {
         if (active) {
           setCollections([]);
+          setShortcutFilters([]);
         }
       }
     }
@@ -142,9 +158,11 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
     };
 
     window.addEventListener(COLLECTIONS_NAV_UPDATED_EVENT, refreshCollections);
+    window.addEventListener(USER_NAV_PREFERENCES_UPDATED_EVENT, refreshCollections);
     return () => {
       active = false;
       window.removeEventListener(COLLECTIONS_NAV_UPDATED_EVENT, refreshCollections);
+      window.removeEventListener(USER_NAV_PREFERENCES_UPDATED_EVENT, refreshCollections);
     };
   }, []);
 
@@ -301,6 +319,35 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                           )}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {!collapsed && item.route === "/collections" && shortcutFilters.length > 0 && (
+                    <div className="mt-3 space-y-1 px-2">
+                      <div className="ml-5 text-[10px] uppercase tracking-wider text-neutral-600">Shortcuts</div>
+                      {shortcutFilters.map((shortcut) => {
+                        const isActive =
+                          location.pathname === "/items" && isShortcutFilterActive(shortcut, location.search);
+
+                        return (
+                          <NavLink
+                            key={shortcut.id}
+                            to={{
+                              pathname: "/items",
+                              search: buildShortcutFilterSearch(shortcut),
+                            }}
+                            className={clsx(
+                              "ml-5 flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                              isActive
+                                ? "bg-neutral-800/80 text-neutral-100"
+                                : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
+                            )}
+                          >
+                            <Filter size={13} className="shrink-0" />
+                            <span className="truncate">{shortcut.name}</span>
+                          </NavLink>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

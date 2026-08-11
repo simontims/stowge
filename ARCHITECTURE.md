@@ -177,6 +177,10 @@ stowge/
 - role (admin or user)
 - theme
 - preferred_add_collection_id
+- preferred_add_location_id
+- last_open_collection
+- collection_nav_order (JSON array of collection ids)
+- shortcut_filters (JSON array of user-defined item filter shortcuts)
 - password_hash (bcrypt)
 
 ### Session (sessions table)

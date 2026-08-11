@@ -27,11 +27,22 @@ def list_collections(db: Session = Depends(get_db), me: User = Depends(current_u
 
 @router.get("/api/items/bootstrap")
 def get_items_bootstrap(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    status_rows = (
+        db.query(Part.status)
+        .filter(Part.is_deleted == 0)
+        .filter(Part.status.isnot(None))
+        .distinct()
+        .order_by(Part.status.asc())
+        .all()
+    )
+    statuses = [str(status).strip() for (status,) in status_rows if str(status or "").strip()]
+
     return {
         "collections": list_collections_payload(db),
         "sites": list_sites_payload(db),
         "areas": list_areas_payload(db),
         "locations": list_locations_payload(db),
+        "statuses": statuses,
         "ai_settings": list_public_ai_settings_payload(db),
     }
 

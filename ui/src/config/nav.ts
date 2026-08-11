@@ -1,5 +1,6 @@
 import {
   Layers,
+  SlidersHorizontal,
   Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -16,8 +17,10 @@ export const topNavItems: NavItem[] = [
 ];
 
 export const navItems: NavItem[] = [
+  { label: "Settings", route: "/settings", icon: SlidersHorizontal },
   { label: "System", route: "/system", icon: Settings, requiresAdmin: true },
 ];
 
 export const COLLECTIONS_NAV_UPDATED_EVENT = "stowge:collections-nav-updated";
+export const USER_NAV_PREFERENCES_UPDATED_EVENT = "stowge:user-nav-preferences-updated";
 

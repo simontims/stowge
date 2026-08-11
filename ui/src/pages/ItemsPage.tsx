@@ -254,6 +254,12 @@ export function ItemsPage() {
   const isMobile = windowWidth < MOBILE_BREAKPOINT;
 
   const collectionFilter = searchParams.get("collection")?.trim() || "";
+  const statusFilter = searchParams.get("status")?.trim() || "";
+  const siteIdFilter = searchParams.get("site_id")?.trim() || "";
+  const areaIdFilter = searchParams.get("area_id")?.trim() || "";
+  const locationIdFilter = searchParams.get("location_id")?.trim() || "";
+  const quantityMinFilter = searchParams.get("quantity_min")?.trim() || "";
+  const quantityMaxFilter = searchParams.get("quantity_max")?.trim() || "";
   const isUncollectedFilter = collectionFilter === "__none";
   const collectionLabel = isUncollectedFilter ? "No collection" : collectionFilter;
   const activeCollectionOption = useMemo(
@@ -296,12 +302,56 @@ export function ItemsPage() {
 
   // Reload items whenever debounced search, collection filter, or sort changes
   useEffect(() => {
-    void loadParts({ q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection });
-  }, [debouncedSearch, collectionFilter, sortKey, sortDirection]);
+    void loadParts({
+      q: debouncedSearch,
+      collection: collectionFilter,
+      status: statusFilter,
+      siteId: siteIdFilter,
+      areaId: areaIdFilter,
+      locationId: locationIdFilter,
+      quantityMin: quantityMinFilter,
+      quantityMax: quantityMaxFilter,
+      sortKey,
+      sortDir: sortDirection,
+    });
+  }, [
+    debouncedSearch,
+    collectionFilter,
+    statusFilter,
+    siteIdFilter,
+    areaIdFilter,
+    locationIdFilter,
+    quantityMinFilter,
+    quantityMaxFilter,
+    sortKey,
+    sortDirection,
+  ]);
 
   // Keep a ref to current load params so the SSE handler always uses fresh values
-  const loadParamsRef = useRef({ q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection });
-  loadParamsRef.current = { q: debouncedSearch, collection: collectionFilter, sortKey, sortDir: sortDirection };
+  const loadParamsRef = useRef({
+    q: debouncedSearch,
+    collection: collectionFilter,
+    status: statusFilter,
+    siteId: siteIdFilter,
+    areaId: areaIdFilter,
+    locationId: locationIdFilter,
+    quantityMin: quantityMinFilter,
+    quantityMax: quantityMaxFilter,
+    sortKey,
+    sortDir: sortDirection,
+  });
+  loadParamsRef.current = {
+    q: debouncedSearch,
+    collection: collectionFilter,
+    status: statusFilter,
+    siteId: siteIdFilter,
+    areaId: areaIdFilter,
+    locationId: locationIdFilter,
+    quantityMin: quantityMinFilter,
+    quantityMax: quantityMaxFilter,
+    sortKey,
+    sortDir: sortDirection,
+  };
 
   function showDeletedToast(id: string, name: string) {
     toast("Item deleted", {
@@ -382,7 +432,19 @@ export function ItemsPage() {
     };
   }, []);
 
-  async function loadParts(params?: { q?: string; collection?: string; sortKey?: ItemSortKey; sortDir?: "asc" | "desc"; background?: boolean }) {
+  async function loadParts(params?: {
+    q?: string;
+    collection?: string;
+    status?: string;
+    siteId?: string;
+    areaId?: string;
+    locationId?: string;
+    quantityMin?: string;
+    quantityMax?: string;
+    sortKey?: ItemSortKey;
+    sortDir?: "asc" | "desc";
+    background?: boolean;
+  }) {
     const background = params?.background ?? false;
 
     if (!background) {
@@ -393,6 +455,12 @@ export function ItemsPage() {
       const qs = new URLSearchParams();
       if (params?.q?.trim()) qs.set("q", params.q.trim());
       if (params?.collection) qs.set("collection", params.collection);
+      if (params?.status) qs.set("status", params.status);
+      if (params?.siteId) qs.set("site_id", params.siteId);
+      if (params?.areaId) qs.set("area_id", params.areaId);
+      if (params?.locationId) qs.set("location_id", params.locationId);
+      if (params?.quantityMin) qs.set("quantity_min", params.quantityMin);
+      if (params?.quantityMax) qs.set("quantity_max", params.quantityMax);
       if (params?.sortKey) qs.set("sort_by", params.sortKey);
       if (params?.sortDir) qs.set("sort_dir", params.sortDir);
       const url = `/api/items${qs.size ? `?${qs.toString()}` : ""}`;

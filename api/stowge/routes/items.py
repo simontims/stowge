@@ -17,7 +17,7 @@ from ..helpers.events import parts_events_since, publish_inventory_change
 from ..helpers.serializers import (contents_count_by_item_id, serialize_part_detail,
                                    serialize_part_list)
 from ..images import b64_from_stored_paths, cleanup_asset_paths
-from ..models import (Collection, ItemContentsEntry, Location, Part,
+from ..models import (Area, Collection, ItemContentsEntry, Location, Part,
                       PartImage, User)
 from ..openai_id import identify as openai_identify
 from .ai_settings import resolve_llm_config_for_request
@@ -91,12 +91,22 @@ def list_parts(
     collection: Optional[str] = None,
     location: Optional[str] = None,
     status: Optional[str] = None,
+    site_id: Optional[str] = None,
+    area_id: Optional[str] = None,
+    location_id: Optional[str] = None,
+    quantity_min: Optional[int] = Query(default=None, ge=0),
+    quantity_max: Optional[int] = Query(default=None, ge=0),
     sort_by: Optional[str] = None,
     sort_dir: Optional[str] = None,
     db: Session = Depends(get_db),
     me: User = Depends(current_user),
 ):
-    query = db.query(Part).outerjoin(Location, Part.location_id == Location.id).filter(Part.is_deleted == 0)
+    query = (
+        db.query(Part)
+        .outerjoin(Location, Part.location_id == Location.id)
+        .outerjoin(Area, Location.area_id == Area.id)
+        .filter(Part.is_deleted == 0)
+    )
 
     if q:
         term = f"%{q.strip()}%"
@@ -119,7 +129,27 @@ def list_parts(
         query = query.filter(Location.name.ilike(location))
 
     if status:
-        query = query.filter(Part.status == status)
+        status_values = [s.strip() for s in str(status).split(",") if s.strip()]
+        if status_values:
+            if len(status_values) == 1:
+                query = query.filter(Part.status == status_values[0])
+            else:
+                query = query.filter(Part.status.in_(status_values))
+
+    if location_id:
+        query = query.filter(Part.location_id == location_id)
+
+    if area_id:
+        query = query.filter(Location.area_id == area_id)
+
+    if site_id:
+        query = query.filter(Area.site_id == site_id)
+
+    if quantity_min is not None:
+        query = query.filter(Part.quantity >= quantity_min)
+
+    if quantity_max is not None:
+        query = query.filter(Part.quantity <= quantity_max)
 
     _valid_sort_keys = {"name", "collection", "location", "status"}
     sort_key = sort_by if sort_by in _valid_sort_keys else "name"

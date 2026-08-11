@@ -60,6 +60,80 @@ def serialize_user(user: User) -> dict:
         except Exception:
             parsed_collection_nav_order = []
 
+    parsed_shortcut_filters: list[dict] = []
+
+    def _optional_non_negative_int(value: object) -> int | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            parsed = int(text)
+        except Exception:
+            return None
+        return parsed if parsed >= 0 else None
+
+    def _normalize_status(value: object) -> str | None:
+        normalized = str(value or "").strip()
+        return normalized or None
+
+    if user.shortcut_filters:
+        try:
+            raw_shortcuts = json.loads(user.shortcut_filters)
+            if isinstance(raw_shortcuts, list):
+                for entry in raw_shortcuts:
+                    if not isinstance(entry, dict):
+                        continue
+                    entry_id = str(entry.get("id") or "").strip()
+                    entry_name = str(entry.get("name") or "").strip()
+                    if not entry_id or not entry_name:
+                        continue
+                    entry_query = str(entry.get("query") or "").strip()
+                    entry_collection = str(entry.get("collection") or "").strip() or None
+                    entry_statuses: list[str] = []
+                    raw_statuses = entry.get("statuses")
+                    if isinstance(raw_statuses, list):
+                        seen_statuses: set[str] = set()
+                        for status_entry in raw_statuses:
+                            normalized_status = _normalize_status(status_entry)
+                            if not normalized_status or normalized_status in seen_statuses:
+                                continue
+                            seen_statuses.add(normalized_status)
+                            entry_statuses.append(normalized_status)
+
+                    entry_status = _normalize_status(entry.get("status"))
+                    if not entry_statuses and entry_status:
+                        entry_statuses = [entry_status]
+                    entry_site_id = str(entry.get("site_id") or "").strip() or None
+                    entry_area_id = str(entry.get("area_id") or "").strip() or None
+                    entry_location_id = str(entry.get("location_id") or "").strip() or None
+                    entry_quantity_min = _optional_non_negative_int(entry.get("quantity_min"))
+                    entry_quantity_max = _optional_non_negative_int(entry.get("quantity_max"))
+                    if (
+                        entry_quantity_min is not None
+                        and entry_quantity_max is not None
+                        and entry_quantity_min > entry_quantity_max
+                    ):
+                        entry_quantity_min, entry_quantity_max = entry_quantity_max, entry_quantity_min
+
+                    parsed_shortcut_filters.append({
+                        "id": entry_id,
+                        "name": entry_name,
+                        "query": entry_query,
+                        "collection": entry_collection,
+                        "statuses": entry_statuses,
+                        "status": entry_statuses[0] if len(entry_statuses) == 1 else None,
+                        "site_id": entry_site_id,
+                        "area_id": entry_area_id,
+                        "location_id": entry_location_id,
+                        "quantity_min": entry_quantity_min,
+                        "quantity_max": entry_quantity_max,
+                        "pinned": bool(entry.get("pinned")),
+                    })
+        except Exception:
+            parsed_shortcut_filters = []
+
     return {
         "id": user.id,
         "email": user.username,
@@ -71,6 +145,7 @@ def serialize_user(user: User) -> dict:
         "preferred_add_location_id": user.preferred_add_location_id,
         "last_open_collection": user.last_open_collection,
         "collection_nav_order": parsed_collection_nav_order,
+        "shortcut_filters": parsed_shortcut_filters,
         "created_at": utc_iso(user.created_at),
         "last_login_at": utc_iso(user.last_login_at),
     }
