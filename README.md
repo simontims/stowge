@@ -22,162 +22,41 @@ Unlimited custom collections
 - Random cables (mystery box of 'probably important someday')
 
 Unlimited custom locations with optional hierarchy
-- Site: Home, Storage Unit, Boat
-- Area: Garage, Loft, Engine Bay
-- Location: Shelf 2, Box #7, Port locker
+- Site: Home, Storage Unit, Office
+- Area: Garage, Loft, Cabinet
+- Location: Shelf 2, Box #7, Top drawer
 
-Hierarchy remains optional in day-to-day use:
+Hierarchy is optional:
 - If you only have one Site and one Area, pickers show only Locations.
 - If you have one Site and multiple Areas, pickers show Area + Location.
 - If you have multiple Sites, pickers show Site + Area + Location.
 
 
-## Quick Start (Docker host)
-### 1) Create persistent folders
-You'll need a location for the database and another to save the asset files (only photos right now).
-They might be in the same place, or you might use a local M.2 drive for the database and a remote NAS path for the images.
+## Quick Start
 
-### 2) Copy the compose file, edit for your use and start your container
-https://github.com/simontims/stowge/blob/main/docker-compose.prod.yml
+### 1. Prepare persistent storage
 
-The compose file uses the `simontims/stowge` image. Two tags are available:
-- `:latest` — latest stable release, built for **linux/amd64 and linux/arm64** (recommended)
-- `:edge` — latest commit on `main`, built for **linux/amd64 and linux/arm64**
+Create host folders for the database and image assets. They can be on the same disk, or assets can live on network storage.
 
-Specific semver tags (e.g. `:1`, `:1.2`, `:1.2.3`) are also published for each release and are multi-arch.
+### 2. Start the container
 
-Set `IMAGE_URL_SECRET` in the compose file to a strong random secret.
-The other settings should be self-explanatory.
-
-### 3) First login
-Visit the UI; on first run you'll be asked to create an admin user and password.
-
-### Recovering admin access
-If you lose access to your admin account, use the `stowge` CLI. You can run it directly from the host (replace `{container-name}` with the name from your compose file):
+Download [docker-compose.prod.yml](docker-compose.prod.yml) as `compose.yaml`, update its volume paths, and replace `IMAGE_URL_SECRET` with a strong random value. Then run, from the folder containing the compose:
 
 ```bash
-docker exec -it {container-name} stowge users list
-docker exec -it {container-name} stowge reset-password --email admin@example.com
-docker exec -it {container-name} stowge admin create --email admin@example.com
+docker compose up -d
 ```
 
-Or from a shell inside the container (`docker exec -it {container-name} bash`):
+The default image is `simontims/stowge:latest`, built for `linux/amd64` and `linux/arm64`. Open <http://localhost:18090/>.
 
-```bash
-stowge users list
-stowge reset-password --email admin@example.com
-stowge admin create --email admin@example.com
-```
+### 3. Create the administrator
 
-You will be prompted to enter and confirm the new password.
+On first visit, Stowge prompts you to create an administrator account. You can then add Collections and Locations, start adding items, and optionally configure an AI provider under `System > AI`.
 
-### Import and Export
-In `System > Tools`, you can:
-- **Export to CSV** — download your inventory with optional scope (active/deleted/all) and collection/location filters. Includes name, description, collection, location, status, quantity, contents, and timestamps.
-- **Import from CSV** — upload a CSV with columns for name, description, collection, location, status, and quantity. The importer previews what will be imported and identifies any collections or locations that don't exist yet, offering to create them automatically.
+For image tags, environment settings, HTTPS, upgrades, backups, restores, and account recovery, see [Deployment](docs/DEPLOYMENT.md).
 
-### Location hierarchy migration behavior
-On upgrade to the Site/Area/Location schema:
-- a default Site named `Home` is created automatically
-- a default Area named `General` is created automatically
-- all existing Locations are automatically assigned to `General`
-- existing Location IDs, names, and item assignments are preserved
+## Import and Export
 
-No user action is required for this migration.
-
-### Backup and restore
-In `System > Status > Maintenance`, use `Backup / Restore` to:
-- create a backup archive in `/assets/backups`
-- optionally include only asset files referenced by the database
-- browse available backups and inspect manifest details
-- download a backup archive from the browser
-- test and run restore with validation and progress feedback
-
-Backups are written as:
-- `stowge_YYYY-MM-DD_HH-MM-SS-ffffff.tar.gz`
-
-Each archive includes:
-- `manifest.json`
-- `db/stowge.db`
-- optional `assets/` files when selected at backup time
-
-Restore safety notes:
-- current data is overwritten
-- existing assets are deleted before restore
-- all active sessions are invalidated at completion (users are logged out)
-
-### 5) Configure AI models in app (optional)
-Go to `System > AI` and add one or more LLM providers/models,
-set API keys, and choose a default model for `Add`.
-
-### 6) Add Collections and Locations (optional)
-Visit the Collections and Locations areas, and experiment. Sites and Areas can
-be configured when needed, but if your setup is simple the UI keeps location
-selection flat and fast.
-
-### 7) Start adding items!
-
-## Local Dev Quickstart
-
-### Windows one-command run
-From the repository root:
-
-```powershell
-.\scripts\run.ps1
-```
-
-Or with CMD:
-
-```bat
-scripts\run.cmd
-```
-
-Optional flags:
-- `-SkipInstall` to skip `pip install`
-- `-SkipUiBuild` to skip UI build
-- `-Reload` to run uvicorn with auto-reload
-- `-FreshSetup` to reset local `data/stowge.db` so first-run admin setup is shown again
-
-### Unix/macOS one-command run
-From the repository root:
-
-```bash
-chmod +x ./scripts/run.sh
-./scripts/run.sh
-```
-
-Optional flags:
-- `--skip-install` to skip `pip install`
-- `--skip-ui-build` to skip UI build
-- `--reload` to run uvicorn with auto-reload
-- `--fresh-setup` to reset local `data/stowge.db` so first-run admin setup is shown again
-
-### Frontend hot-reload dev
-Run the api and frontend separately for hot-reload:
-
-```bash
-# Terminal 1 — api
-./scripts/run.sh --skip-ui-build
-
-# Terminal 2 — frontend (proxies /api to :18090)
-cd ui && npm run dev
-```
-
-Then open: http://localhost:5173/
-
-### Cross-platform Docker dev
-```bash
-docker compose up -d --build
-```
-Then open: http://localhost:18090/
-
-The local run scripts automatically:
-- create a default `.env` if missing
-- generate `JWT_SECRET` if it is missing, placeholder, or too short
-- create `api/.venv` if missing
-- install api dependencies
-- install/build UI from `ui/` to `ui/dist`
-- start FastAPI on `http://localhost:18090`
+Under `System > Tools`, export inventory to CSV with collection, location, and status filters. The CSV importer previews changes, identifies missing Collections or Locations, and can create them during import.
 
 ## API Documentation
 
@@ -189,36 +68,17 @@ instance's exact version.
 - ReDoc (reference): `/external-api/redoc`
 - OpenAPI JSON: `/external-api/openapi.json`
 
-### Optional: Generate docs artifacts from code (contributors/CI)
+The live documentation is generated by the running app and always matches its version. Contributors can find artifact-generation instructions in [Development](docs/DEVELOPMENT.md).
 
-If you are just running Stowge via container, you do not need this step.
-The live docs endpoints above are generated and served by the running app.
+## Documentation
 
-From the repository root:
-
-```powershell
-C:/dev/stowge/api/.venv/Scripts/python.exe scripts/generate_api_docs.py
-```
-
-Or with a Python on PATH:
-
-```bash
-python scripts/generate_api_docs.py
-```
-
-This command generates repository artifacts used for review/diff and CI checks:
-
-- `docs/api/openapi.json`
-- `docs/api/endpoints.md`
-
-These files are derived from the external FastAPI app schema so they stay aligned with implemented integrator routes.
-Pull request CI also verifies these generated files are current.
+- [Deployment](docs/DEPLOYMENT.md): container configuration, upgrades, backups, restores, and recovery
+- [Development](docs/DEVELOPMENT.md): Windows, Linux, macOS, hot reload, tests, and builds
+- [Architecture](ARCHITECTURE.md): system structure and design
+- [Contributing](CONTRIBUTING.md): contribution workflow and project conventions
+- [Roadmap](ROADMAP.md): planned work
 
 ## License
 
 Stowge is released under the [MIT License](LICENSE).
 Third-party library notices: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)
-
-## UI Conventions
-
-For frontend action-color and button-style conventions, see [ui/UI_CONVENTIONS.md](ui/UI_CONVENTIONS.md).
