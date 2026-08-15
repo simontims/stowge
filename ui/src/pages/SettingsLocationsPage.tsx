@@ -15,7 +15,11 @@ import { useResourceList } from "../hooks/useResourceList";
 import { useDirtyState } from "../hooks/useDirtyState";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
-import { RERUN_HIERARCHY_INTRO_EVENT, TOUR_OPEN_ADD_LOCATION_FORM_EVENT } from "../lib/onboarding";
+import {
+  RERUN_HIERARCHY_INTRO_EVENT,
+  TOUR_CLOSE_ADD_LOCATION_FORM_EVENT,
+  TOUR_OPEN_ADD_LOCATION_FORM_EVENT,
+} from "../lib/onboarding";
 
 interface LocationRecord {
   id: string;
@@ -151,8 +155,16 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       setNotice("");
     }
 
+    function handleTourCloseAddLocationForm() {
+      setAddingOpen(false);
+    }
+
     window.addEventListener(TOUR_OPEN_ADD_LOCATION_FORM_EVENT, handleTourOpenAddLocationForm);
-    return () => window.removeEventListener(TOUR_OPEN_ADD_LOCATION_FORM_EVENT, handleTourOpenAddLocationForm);
+    window.addEventListener(TOUR_CLOSE_ADD_LOCATION_FORM_EVENT, handleTourCloseAddLocationForm);
+    return () => {
+      window.removeEventListener(TOUR_OPEN_ADD_LOCATION_FORM_EVENT, handleTourOpenAddLocationForm);
+      window.removeEventListener(TOUR_CLOSE_ADD_LOCATION_FORM_EVENT, handleTourCloseAddLocationForm);
+    };
   }, []);
 
   async function loadHierarchyOptions() {

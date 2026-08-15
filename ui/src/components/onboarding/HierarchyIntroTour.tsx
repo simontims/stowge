@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EVENTS, Joyride, STATUS, type EventData, type Step } from "react-joyride";
-import { TOUR_OPEN_ADD_LOCATION_FORM_EVENT } from "../../lib/onboarding";
+import {
+  TOUR_CLOSE_ADD_LOCATION_FORM_EVENT,
+  TOUR_OPEN_ADD_LOCATION_FORM_EVENT,
+} from "../../lib/onboarding";
 
 interface HierarchyIntroTourProps {
   open: boolean;
@@ -115,6 +118,10 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
         target: "[data-tour='locations-add-location-button']",
         placement: "left",
         skipBeacon: true,
+        before: async () => {
+          window.dispatchEvent(new CustomEvent(TOUR_CLOSE_ADD_LOCATION_FORM_EVENT));
+          await new Promise((resolve) => window.setTimeout(resolve, 120));
+        },
         title: "Add Locations",
         content: (
           <p className="text-sm leading-6">
@@ -141,6 +148,10 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
         target: "[data-tour='locations-area-filter']",
         placement: "bottom",
         skipBeacon: true,
+        before: async () => {
+          window.dispatchEvent(new CustomEvent(TOUR_CLOSE_ADD_LOCATION_FORM_EVENT));
+          await new Promise((resolve) => window.setTimeout(resolve, 120));
+        },
         title: "Filter your Locations",
         content: (
           <p className="text-sm leading-6">
