@@ -17,6 +17,7 @@ interface AiConfig {
   provider: string;
   model: string;
   api_base: string | null;
+  api_key_masked?: string;
   is_default: boolean;
   is_validated: boolean;
   validated_at: string | null;
@@ -43,8 +44,18 @@ interface ModelOptionGroups {
   all: string[];
 }
 
+const MANUAL_MODEL_VALUE = "__manual_model__";
+
 interface ProvidersCatalogResponse {
   providers: ProviderOption[];
+}
+
+interface ModelDiscoveryResponse {
+  supported: boolean;
+  models: string[];
+  recommended_models: string[];
+  unverified_models: string[];
+  message: string;
 }
 
 interface ValidationInputSnapshot {
@@ -142,6 +153,23 @@ function buildValidationSignature(snapshot: ValidationInputSnapshot): string {
   });
 }
 
+function buildDiscoverySignature(provider: string, apiKey: string, apiBase: string): string {
+  return JSON.stringify({
+    provider: provider.trim().toLowerCase(),
+    api_key: apiKey.trim(),
+    api_base: apiBase.trim(),
+  });
+}
+
+function formatApiKeyPlaceholder(maskedKey: string | undefined): string {
+  if (!maskedKey) return "Enter provider API key";
+  const hyphenIndex = maskedKey.indexOf("-");
+  if (hyphenIndex >= 0) {
+    return `${maskedKey.slice(0, hyphenIndex + 1)}...${maskedKey.slice(-4)}`;
+  }
+  return maskedKey;
+}
+
 interface AiSectionProps {
   embedded?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -160,6 +188,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
   const [addingOpen, setAddingOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<NewConfigForm>(EMPTY_FORM);
+  const [addDiscovery, setAddDiscovery] = useState<ModelDiscoveryResponse | null>(null);
+  const [addDiscoverySignature, setAddDiscoverySignature] = useState<string | null>(null);
+  const [addManualModel, setAddManualModel] = useState(false);
   const [search, setSearch] = useState("");
   const { sortKey, sortDirection, handleSort } = useTableSort<AiSortKey>("name");
 
@@ -168,13 +199,18 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
-  const [validationErrorById, setValidationErrorById] = useState<Record<string, string | undefined>>({});
+  const [, setValidationErrorById] = useState<Record<string, string | undefined>>({});
   const [providerLogoFailedByProvider, setProviderLogoFailedByProvider] = useState<Record<string, boolean>>({});
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editDiscovery, setEditDiscovery] = useState<ModelDiscoveryResponse | null>(null);
+  const [editDiscoverySignature, setEditDiscoverySignature] = useState<string | null>(null);
+  const [editManualModel, setEditManualModel] = useState(false);
+  const [discoveringContext, setDiscoveringContext] = useState<"add" | "edit" | null>(null);
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [confirmDeleteConfig, setConfirmDeleteConfig] = useState<AiConfig | null>(null);
+  const [replacementDefaultId, setReplacementDefaultId] = useState("");
   const [editForm, setEditForm] = useState<EditConfigForm>({
     name: "",
     provider: "",
@@ -355,6 +391,17 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     [editForm.provider, providerOptions]
   );
 
+  const currentAddDiscoverySignature = useMemo(
+    () => buildDiscoverySignature(form.provider, form.api_key, form.api_base),
+    [form.provider, form.api_key, form.api_base]
+  );
+  const currentEditDiscoverySignature = useMemo(
+    () => buildDiscoverySignature(editForm.provider, editForm.api_key, editForm.api_base),
+    [editForm.provider, editForm.api_key, editForm.api_base]
+  );
+  const currentAddDiscovery = addDiscoverySignature === currentAddDiscoverySignature ? addDiscovery : null;
+  const currentEditDiscovery = editDiscoverySignature === currentEditDiscoverySignature ? editDiscovery : null;
+
   useEffect(() => {
     void loadProviderCatalog();
     void loadConfigs();
@@ -399,13 +446,11 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       const data = await apiRequest<ProvidersCatalogResponse>("/api/admin/settings/ai/providers");
       if (data.providers?.length) {
         setProviderOptions(data.providers);
-        const firstProvider = data.providers[0];
-        const firstModel = firstProvider.models[0] || "";
         setForm((current) => ({
           ...current,
-          provider: current.provider || firstProvider.value,
-          model: current.model || firstModel,
-          api_base: current.api_base || firstProvider.api_base,
+          provider: (data.providers.find((provider) => provider.value === current.provider) || data.providers[0]).value,
+          model: current.model || (data.providers.find((provider) => provider.value === current.provider) || data.providers[0]).models[0] || "",
+          api_base: (data.providers.find((provider) => provider.value === current.provider) || data.providers[0]).api_base,
         }));
       }
     } catch {
@@ -474,6 +519,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
         }),
       });
       setForm(EMPTY_FORM);
+      setAddDiscovery(null);
+      setAddDiscoverySignature(null);
+      setAddManualModel(false);
       setAddingOpen(false);
       setNotice("AI model configuration added.");
       await loadConfigs();
@@ -481,6 +529,70 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       setError((err as Error).message || "Failed to add AI model configuration.");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function discoverModels(context: "add" | "edit") {
+    const values = context === "add" ? form : editForm;
+    if (!values.provider.trim() || !values.api_key.trim() || !values.api_base.trim()) {
+      toast.error("Provider, API key, and API base are required to find models.");
+      return;
+    }
+
+    setDiscoveringContext(context);
+    try {
+      const result = await apiRequest<ModelDiscoveryResponse>("/api/admin/settings/ai/models/discover", {
+        method: "POST",
+        body: JSON.stringify({
+          provider: values.provider.trim(),
+          api_key: values.api_key.trim(),
+          api_base: values.api_base.trim(),
+        }),
+      });
+      const signature = buildDiscoverySignature(values.provider, values.api_key, values.api_base);
+      const preferredModel = result.recommended_models[0] || result.models[0] || "";
+
+      if (context === "add") {
+        setAddDiscovery(result);
+        setAddDiscoverySignature(signature);
+        setAddManualModel(!result.supported || result.models.length === 0);
+        if (preferredModel) {
+          setForm((current) => ({
+            ...current,
+            model: result.models.includes(current.model) ? current.model : preferredModel,
+          }));
+        }
+      } else {
+        setEditDiscovery(result);
+        setEditDiscoverySignature(signature);
+        setEditManualModel(!result.supported || result.models.length === 0);
+        if (preferredModel) {
+          setEditForm((current) => ({
+            ...current,
+            model: result.models.includes(current.model) ? current.model : preferredModel,
+          }));
+        }
+      }
+
+      if (result.supported && result.models.length > 0) {
+        toast.success(result.message);
+      } else {
+        toast.info(result.message || "Enter the model ID manually.");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to discover models.";
+      if (context === "add") {
+        setAddDiscovery(null);
+        setAddDiscoverySignature(null);
+        setAddManualModel(true);
+      } else {
+        setEditDiscovery(null);
+        setEditDiscoverySignature(null);
+        setEditManualModel(true);
+      }
+      toast.error("Unable to find models", { description: message });
+    } finally {
+      setDiscoveringContext(null);
     }
   }
 
@@ -576,6 +688,12 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     }
   }
 
+  function openDeleteConfirmation(config: AiConfig) {
+    const replacement = configs.find((candidate) => candidate.id !== config.id) || null;
+    setReplacementDefaultId(replacement?.id || "");
+    setConfirmDeleteConfig(config);
+  }
+
   function startEdit(config: AiConfig) {
     const provider = getProviderOption(config.provider) ?? {
       value: config.provider,
@@ -607,6 +725,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       : null;
 
     setEditingId(config.id);
+    setEditDiscovery(null);
+    setEditDiscoverySignature(null);
+    setEditManualModel(false);
     setInitialEditForm(snapshot);
     setEditForm(snapshot);
     setInitialValidationState(!!config.is_validated);
@@ -620,6 +741,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
     setInitialValidationState(false);
     setValidatedSignature(null);
     setValidatedAtDraft(null);
+    setEditDiscovery(null);
+    setEditDiscoverySignature(null);
+    setEditManualModel(false);
   }
 
   async function handleUnsavedSave() {
@@ -663,7 +787,6 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           evidence_enabled: editForm.evidence_enabled,
           ai_max_edge: editForm.ai_max_edge,
           ai_quality: editForm.ai_quality,
-          validation_state: isValidationCurrent ? "validated" : "not_validated",
         }),
       });
       cancelEdit();
@@ -722,9 +845,12 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   setForm((v) => ({
                     ...v,
                     provider: nextProvider.value,
-                    model: nextDefaultModel || v.model,
-                    api_base: nextProvider.api_base || v.api_base,
+                    model: nextProvider.value === "azure" ? "" : nextDefaultModel || v.model,
+                    api_base: nextProvider.api_base,
                   }));
+                  setAddDiscovery(null);
+                  setAddDiscoverySignature(null);
+                  setAddManualModel(nextProvider.value === "azure");
                 }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
@@ -738,31 +864,16 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
-              <select
-                value={form.model}
-                onChange={(e) => setForm((v) => ({ ...v, model: e.target.value }))}
+              <span className="text-xs uppercase tracking-wide text-neutral-500">API Base</span>
+              <input
+                value={form.api_base}
+                onChange={(e) => {
+                  setForm((v) => ({ ...v, api_base: e.target.value }));
+                  setAddDiscovery(null);
+                  setAddDiscoverySignature(null);
+                }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              >
-                {addModelOptions.recommended.length > 0 && (
-                  <optgroup label="Recommended">
-                    {addModelOptions.recommended.map((model) => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {addModelOptions.all.length > 0 && (
-                  <optgroup label={addModelOptions.recommended.length > 0 ? "All Models" : "Models"}>
-                    {addModelOptions.all.map((model) => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+              />
             </label>
 
             <label className="block sm:col-span-2">
@@ -770,19 +881,74 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <input
                 type="password"
                 value={form.api_key}
-                onChange={(e) => setForm((v) => ({ ...v, api_key: e.target.value }))}
+                onChange={(e) => {
+                  setForm((v) => ({ ...v, api_key: e.target.value }));
+                  setAddDiscovery(null);
+                  setAddDiscoverySignature(null);
+                }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                 placeholder="Enter provider API key"
               />
             </label>
 
+            <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void discoverModels("add")}
+                disabled={discoveringContext === "add" || !form.api_key.trim() || !form.api_base.trim()}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 px-3 text-sm font-medium text-blue-300 hover:bg-blue-900/30 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {discoveringContext === "add" ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
+                {discoveringContext === "add" ? "Checking..." : "Check key and find models"}
+              </button>
+            </div>
+
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">API Base</span>
-              <input
-                value={form.api_base}
-                onChange={(e) => setForm((v) => ({ ...v, api_base: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              />
+              <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
+              <div className="mt-1 flex items-center gap-3">
+                <select
+                  value={addManualModel ? MANUAL_MODEL_VALUE : form.model}
+                  onChange={(e) => {
+                    if (e.target.value === MANUAL_MODEL_VALUE) {
+                      setAddManualModel(true);
+                      setForm((v) => ({ ...v, model: "" }));
+                      return;
+                    }
+                    setAddManualModel(false);
+                    setForm((v) => ({ ...v, model: e.target.value }));
+                  }}
+                  className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                >
+                  <option value={MANUAL_MODEL_VALUE}>Set model manually</option>
+                  {(currentAddDiscovery?.recommended_models || addModelOptions.recommended).length > 0 && (
+                    <optgroup label={currentAddDiscovery ? "Recommended for image identification" : "Recommended"}>
+                      {(currentAddDiscovery?.recommended_models || addModelOptions.recommended).map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {(currentAddDiscovery?.unverified_models || addModelOptions.all).length > 0 && (
+                    <optgroup label={currentAddDiscovery ? "Other discovered models" : "Models"}>
+                      {(currentAddDiscovery?.unverified_models || addModelOptions.all).map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {addManualModel && (
+                  <input
+                    value={form.model}
+                    onChange={(e) => setForm((v) => ({ ...v, model: e.target.value }))}
+                    className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    placeholder={form.provider === "azure" ? "azure/YOUR_DEPLOYMENT_NAME" : `${form.provider}/model-id`}
+                  />
+                )}
+              </div>
+              {currentAddDiscovery && (
+                <p className="mt-1 text-xs text-neutral-600">
+                  {currentAddDiscovery.models.length} models discovered for this key. Validate after saving to confirm inference access.
+                </p>
+              )}
             </label>
 
             {/* Advanced */}
@@ -854,12 +1020,15 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               className="inline-flex h-8 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
-              {creating ? "Saving..." : "Save"}
+              {creating ? "Validating..." : "Save"}
             </button>
             <button
               onClick={() => {
                 setAddingOpen(false);
                 setForm(EMPTY_FORM);
+                setAddDiscovery(null);
+                setAddDiscoverySignature(null);
+                setAddManualModel(false);
                 setError("");
               }}
               className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm leading-none font-medium"
@@ -907,7 +1076,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                     Edit
                   </button>
                   <button
-                    onClick={() => setConfirmDeleteConfig(cfg)}
+                    onClick={() => openDeleteConfirmation(cfg)}
                     disabled={isDeleting}
                     className={tableActionButtonClasses("danger-hover")}
                   >
@@ -958,36 +1127,25 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               </div>
             </div>
 
-            <div className="shrink-0 flex items-center gap-4">
-              <div className="text-right text-sm leading-tight">
-                <div className="text-neutral-400">
-                  {validatingId === editingConfig.id
-                    ? "Validating..."
-                    : isValidationCurrent && validatedAtDraft
-                      ? `Last validated ${formatRelativeTime(validatedAtDraft)}`
-                      : "Not validated"}
-                </div>
-                <div className="text-neutral-300 mt-1">Tested {editForm.model}</div>
-              </div>
-              {isValidationCurrent ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/70 text-emerald-300 bg-emerald-950/40 text-sm font-medium">
-                  <CheckCircle2 size={14} />
-                  Validated
-                </span>
-              ) : validatingId === editingConfig.id ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-500/70 text-blue-300 bg-blue-950/40 text-sm font-medium">
+            <div className="shrink-0 flex items-center gap-3 text-sm">
+              {validatingId === editingConfig.id ? (
+                <span className="inline-flex items-center gap-1.5 text-blue-300">
                   <Loader2 size={14} className="animate-spin" />
                   Validating...
                 </span>
-              ) : validationErrorById[editingConfig.id] ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-500/70 text-red-300 bg-red-950/40 text-sm font-medium">
-                  Validation failed
-                </span>
+              ) : isValidationCurrent && validatedAtDraft ? (
+                <span className="text-neutral-300">Last validated: {formatRelativeTime(validatedAtDraft)}</span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-700 text-neutral-300 bg-neutral-900 text-sm font-medium">
-                  Not validated
-                </span>
+                <span className="text-neutral-400">Not validated</span>
               )}
+              <button
+                type="button"
+                onClick={() => void validateConfig(editingConfig.id)}
+                disabled={validatingId === editingConfig.id || savingEdit}
+                className="text-blue-300 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Re-validate
+              </button>
             </div>
           </div>
 
@@ -1024,8 +1182,11 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                     ...v,
                     provider: nextProvider.value,
                     model: nextDefaultModel || v.model,
-                    api_base: nextProvider.api_base || v.api_base,
+                    api_base: nextProvider.api_base,
                   }));
+                  setEditDiscovery(null);
+                  setEditDiscoverySignature(null);
+                  setEditManualModel(nextProvider.value === "azure");
                 }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               >
@@ -1039,50 +1200,91 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
-              <select
-                value={editForm.model}
-                onChange={(e) => setEditForm((v) => ({ ...v, model: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-              >
-                {editModelOptions.recommended.length > 0 && (
-                  <optgroup label="Recommended">
-                    {editModelOptions.recommended.map((model) => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {editModelOptions.all.length > 0 && (
-                  <optgroup label={editModelOptions.recommended.length > 0 ? "All Models" : "Models"}>
-                    {editModelOptions.all.map((model) => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </label>
-
-            <label className="block sm:col-span-2">
               <span className="text-xs uppercase tracking-wide text-neutral-500">API Base</span>
               <input
                 value={editForm.api_base}
-                onChange={(e) => setEditForm((v) => ({ ...v, api_base: e.target.value }))}
+                onChange={(e) => {
+                  setEditForm((v) => ({ ...v, api_base: e.target.value }));
+                  setEditDiscovery(null);
+                  setEditDiscoverySignature(null);
+                }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
               />
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">API Key (leave blank to keep current)</span>
+              <span className="text-xs uppercase tracking-wide text-neutral-500">API Key</span>
               <input
                 type="password"
                 value={editForm.api_key}
-                onChange={(e) => setEditForm((v) => ({ ...v, api_key: e.target.value }))}
+                onChange={(e) => {
+                  setEditForm((v) => ({ ...v, api_key: e.target.value }));
+                  setEditDiscovery(null);
+                  setEditDiscoverySignature(null);
+                }}
                 className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                placeholder={formatApiKeyPlaceholder(editingConfig.api_key_masked)}
               />
+            </label>
+
+            <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void discoverModels("edit")}
+                disabled={discoveringContext === "edit" || !editForm.api_key.trim() || !editForm.api_base.trim()}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 px-3 text-sm font-medium text-blue-300 hover:bg-blue-900/30 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {discoveringContext === "edit" ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
+                {discoveringContext === "edit" ? "Checking..." : "Check key and find models"}
+              </button>
+            </div>
+
+            <label className="block sm:col-span-2">
+              <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
+              <div className="mt-1 flex items-center gap-3">
+                <select
+                  value={editManualModel ? MANUAL_MODEL_VALUE : editForm.model}
+                  onChange={(e) => {
+                    if (e.target.value === MANUAL_MODEL_VALUE) {
+                      setEditManualModel(true);
+                      setEditForm((v) => ({ ...v, model: "" }));
+                      return;
+                    }
+                    setEditManualModel(false);
+                    setEditForm((v) => ({ ...v, model: e.target.value }));
+                  }}
+                  className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                >
+                  <option value={MANUAL_MODEL_VALUE}>Set model manually</option>
+                  {(currentEditDiscovery?.recommended_models || editModelOptions.recommended).length > 0 && (
+                    <optgroup label={currentEditDiscovery ? "Recommended for image identification" : "Recommended"}>
+                      {(currentEditDiscovery?.recommended_models || editModelOptions.recommended).map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {(currentEditDiscovery?.unverified_models || editModelOptions.all).length > 0 && (
+                    <optgroup label={currentEditDiscovery ? "Other discovered models" : "Models"}>
+                      {(currentEditDiscovery?.unverified_models || editModelOptions.all).map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {editManualModel && (
+                  <input
+                    value={editForm.model}
+                    onChange={(e) => setEditForm((v) => ({ ...v, model: e.target.value }))}
+                    className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    placeholder={editForm.provider === "azure" ? "azure/YOUR_DEPLOYMENT_NAME" : `${editForm.provider}/model-id`}
+                  />
+                )}
+              </div>
+              <p className="mt-1 text-xs text-neutral-600">
+                {currentEditDiscovery
+                  ? `${currentEditDiscovery.models.length} models discovered for this key.`
+                  : "The current model remains available without refreshing discovery."}
+              </p>
             </label>
 
             {/* Advanced */}
@@ -1152,18 +1354,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             saving={savingEdit}
             onSave={() => void saveEdit()}
             onCancel={cancelEdit}
-            onDelete={() => setConfirmDeleteConfig(editingConfig)}
+            onDelete={() => openDeleteConfirmation(editingConfig)}
             deleteDisabled={savingEdit}
-            extraActions={
-              <button
-                onClick={() => void validateConfig(editingConfig.id)}
-                disabled={validatingId === editingConfig.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 text-blue-300 hover:text-blue-200 hover:bg-blue-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <CheckCircle2 size={14} />
-                {validatingId === editingConfig.id ? "Validating..." : "Validate"}
-              </button>
-            }
+            savingLabel="Validating..."
           />
         </section>
       )}
@@ -1179,6 +1372,28 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             <p className="text-sm text-neutral-300">
               Permanently delete <span className="font-medium text-neutral-100">{confirmDeleteConfig.name}</span>? This cannot be undone.
             </p>
+            {confirmDeleteConfig.id === defaultId && (
+              <label className="block text-sm text-neutral-300">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">New default model</span>
+                {configs.filter((config) => config.id !== confirmDeleteConfig.id).length > 0 ? (
+                  <select
+                    value={replacementDefaultId}
+                    onChange={(event) => setReplacementDefaultId(event.target.value)}
+                    className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  >
+                    {configs
+                      .filter((config) => config.id !== confirmDeleteConfig.id)
+                      .map((config) => (
+                        <option key={config.id} value={config.id}>{config.name}</option>
+                      ))}
+                  </select>
+                ) : (
+                  <span className="mt-1 block text-xs text-amber-300">
+                    Add another AI model before deleting the default.
+                  </span>
+                )}
+              </label>
+            )}
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={() => setConfirmDeleteConfig(null)}
@@ -1190,11 +1405,27 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <button
                 onClick={async () => {
                   const cfg = confirmDeleteConfig;
+                  const hasReplacement = configs.some((config) => config.id !== cfg.id);
+                  if (cfg.id === defaultId && hasReplacement) {
+                    if (!replacementDefaultId) return;
+                    try {
+                      await apiRequest(`/api/admin/settings/ai/${replacementDefaultId}/default`, { method: "POST" });
+                    } catch (err) {
+                      setError((err as Error).message || "Failed to set the replacement default model.");
+                      return;
+                    }
+                  }
                   setConfirmDeleteConfig(null);
+                  setReplacementDefaultId("");
                   await removeConfig(cfg);
                   if (editingId === cfg.id) cancelEdit();
                 }}
-                disabled={deletingId === confirmDeleteConfig.id}
+                disabled={
+                  deletingId === confirmDeleteConfig.id ||
+                  (confirmDeleteConfig.id === defaultId &&
+                    configs.some((config) => config.id !== confirmDeleteConfig.id) &&
+                    !replacementDefaultId)
+                }
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
               >
                 <Trash2 size={14} />

@@ -57,9 +57,9 @@ def test_validate_draft_uses_unsaved_form_values_and_saved_key_fallback(isolated
     payload = response.json()
     assert payload["ok"] is True
     assert payload["provider"] == "openai"
-    assert payload["model"] == "openai/gpt-4.1-mini"
+    assert payload["model"] == "gpt-4.1-mini"
 
-    assert captured["model"] == "openai/gpt-4.1-mini"
+    assert captured["model"] == "gpt-4.1-mini"
     assert captured["api_key"] == "saved-secret"
     assert captured["api_base"] == "https://draft.example/v1"
 
@@ -108,6 +108,138 @@ def test_validate_draft_returns_400_when_no_api_key_available(isolated_client, i
 
     assert response.status_code == 400
     assert response.json()["detail"] == "api_key is required"
+
+
+def test_validate_repairs_legacy_openai_model_prefix(isolated_client, isolated_db, monkeypatch):
+    cookies = auth_cookies_isolated(isolated_db, "ai_validate_legacy_model@example.com", role="admin")
+    llm = _create_llm_config(isolated_db)
+    captured: dict[str, object] = {}
+
+    def fake_run(model: str, api_key: str, api_base: str | None) -> str:
+        captured["model"] = model
+        return "OK"
+
+    monkeypatch.setattr("stowge.routes.ai_settings.run_llm_validation", fake_run)
+
+    response = isolated_client.post(
+        f"/api/admin/settings/ai/{llm.id}/validate",
+        cookies=cookies,
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured["model"] == "gpt-4o-mini"
+    assert response.json()["model"] == "gpt-4o-mini"
+
+    db = isolated_db()
+    try:
+        refreshed = db.query(LLMConfig).filter(LLMConfig.id == llm.id).first()
+        assert refreshed is not None
+        assert refreshed.model == "gpt-4o-mini"
+    finally:
+        db.close()
+
+
+def test_create_validates_before_persisting(isolated_client, isolated_db, monkeypatch):
+    cookies = auth_cookies_isolated(isolated_db, "ai_create_validates@example.com", role="admin")
+    captured: dict[str, object] = {}
+
+    def fake_run(model: str, api_key: str, api_base: str | None) -> str:
+        captured.update(model=model, api_key=api_key, api_base=api_base)
+        return "OK"
+
+    monkeypatch.setattr("stowge.routes.ai_settings.run_llm_validation", fake_run)
+
+    response = isolated_client.post(
+        "/api/admin/settings/ai",
+        cookies=cookies,
+        json={
+            "name": "Validated AI",
+            "provider": "openai",
+            "model": "openai/gpt-4o-mini",
+            "api_key": "create-secret",
+            "api_base": "https://api.openai.com/v1",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured == {
+        "model": "gpt-4o-mini",
+        "api_key": "create-secret",
+        "api_base": "https://api.openai.com/v1",
+    }
+    assert response.json()["is_validated"] is True
+
+
+def test_update_validates_before_persisting(isolated_client, isolated_db, monkeypatch):
+    cookies = auth_cookies_isolated(isolated_db, "ai_update_validates@example.com", role="admin")
+    llm = _create_llm_config(isolated_db)
+    captured: dict[str, object] = {}
+
+    def fake_run(model: str, api_key: str, api_base: str | None) -> str:
+        captured.update(model=model, api_key=api_key, api_base=api_base)
+        return "OK"
+
+    monkeypatch.setattr("stowge.routes.ai_settings.run_llm_validation", fake_run)
+
+    response = isolated_client.patch(
+        f"/api/admin/settings/ai/{llm.id}",
+        cookies=cookies,
+        json={"model": "openai/gpt-4.1-mini"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert captured == {
+        "model": "gpt-4.1-mini",
+        "api_key": "saved-secret",
+        "api_base": "https://api.openai.com/v1",
+    }
+    assert response.json()["is_validated"] is True
+
+
+def test_create_saves_as_unvalidated_when_validation_fails(isolated_client, isolated_db, monkeypatch):
+    cookies = auth_cookies_isolated(isolated_db, "ai_create_unvalidated@example.com", role="admin")
+
+    def fail_validation(model: str, api_key: str, api_base: str | None) -> str:
+        raise RuntimeError("provider rejected request")
+
+    monkeypatch.setattr("stowge.routes.ai_settings.run_llm_validation", fail_validation)
+
+    response = isolated_client.post(
+        "/api/admin/settings/ai",
+        cookies=cookies,
+        json={
+            "name": "Unvalidated AI",
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "api_key": "create-secret",
+            "api_base": "https://api.openai.com/v1",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["is_validated"] is False
+    assert response.json()["validated_at"] is None
+
+
+def test_update_saves_as_unvalidated_when_validation_fails(isolated_client, isolated_db, monkeypatch):
+    cookies = auth_cookies_isolated(isolated_db, "ai_update_unvalidated@example.com", role="admin")
+    llm = _create_llm_config(isolated_db, validated_at=datetime.now(timezone.utc))
+
+    def fail_validation(model: str, api_key: str, api_base: str | None) -> str:
+        raise RuntimeError("provider rejected request")
+
+    monkeypatch.setattr("stowge.routes.ai_settings.run_llm_validation", fail_validation)
+
+    response = isolated_client.patch(
+        f"/api/admin/settings/ai/{llm.id}",
+        cookies=cookies,
+        json={"model": "gpt-4.1-mini"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["is_validated"] is False
+    assert response.json()["validated_at"] is None
+    assert response.json()["model"] == "gpt-4.1-mini"
 
 
 def test_patch_validation_state_persists_validated_and_not_validated(isolated_client, isolated_db):
@@ -164,7 +296,7 @@ def test_patch_validation_state_validated_overrides_reset_when_model_changes(iso
 
     assert response.status_code == 200, response.text
     payload = response.json()
-    assert payload["model"] == "openai/gpt-4.1-mini"
+    assert payload["model"] == "gpt-4.1-mini"
     assert payload["is_validated"] is True
     assert payload["validated_at"] is not None
 

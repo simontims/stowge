@@ -1,5 +1,8 @@
 """AI provider metadata, model catalogs, and LLM utility functions."""
 
+from urllib.parse import urlparse
+
+import httpx
 from sqlalchemy.orm import Session
 
 from ..models import LLMConfig
@@ -95,6 +98,20 @@ AI_IDENTIFY_BLOCKLIST_SUBSTRINGS = (
     "search",
 )
 
+OPENAI_COMPATIBLE_DISCOVERY_PROVIDERS = {
+    "openai",
+    "groq",
+    "mistral",
+    "xai",
+    "openrouter",
+}
+
+
+class ModelDiscoveryError(Exception):
+    def __init__(self, message: str, status_code: int = 400):
+        super().__init__(message)
+        self.status_code = status_code
+
 
 # ---------------------------------------------------------------------------
 # Utility Functions
@@ -108,8 +125,170 @@ def normalize_model(value: str) -> str:
     return value.strip()
 
 
+def normalize_model_for_provider(provider: str, model: str) -> str:
+    value = normalize_model(model)
+    if normalize_provider(provider) == "openai" and value.lower().startswith("openai/"):
+        return value[len("openai/"):]
+    return value
+
+
 def default_api_base_for_provider(provider: str) -> str | None:
     return AI_PROVIDER_META.get(provider, {}).get("api_base")
+
+
+def _validated_api_base(api_base: str) -> str:
+    value = api_base.strip().rstrip("/")
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ModelDiscoveryError("API base must be a valid HTTP or HTTPS URL.")
+    return value
+
+
+def _versioned_models_url(api_base: str, version: str) -> str:
+    if api_base.endswith(f"/{version}"):
+        return f"{api_base}/models"
+    return f"{api_base}/{version}/models"
+
+
+def _normalize_discovered_model(provider: str, model_id: str) -> str:
+    value = model_id.strip()
+    if provider == "openai":
+        return normalize_model_for_provider(provider, value)
+    if provider == "gemini":
+        value = value.removeprefix("models/")
+    prefix = f"{provider}/"
+    if value.lower().startswith(prefix):
+        return value
+    return f"{prefix}{value}"
+
+
+def _known_vision_models(provider: str) -> set[str]:
+    output: set[str] = set()
+    try:
+        import litellm
+
+        for model_name, metadata in (getattr(litellm, "model_cost", {}) or {}).items():
+            if not isinstance(model_name, str) or not isinstance(metadata, dict):
+                continue
+            if str(metadata.get("litellm_provider") or "").strip().lower() != provider:
+                continue
+            if metadata.get("supports_vision") is True:
+                output.add(_normalize_model_key(provider, model_name))
+    except Exception:
+        pass
+    return output
+
+
+def _request_discovery_page(
+    client: httpx.Client,
+    url: str,
+    *,
+    headers: dict[str, str],
+    params: dict[str, str] | None = None,
+) -> dict:
+    try:
+        response = client.get(url, headers=headers, params=params)
+    except httpx.TimeoutException as exc:
+        raise ModelDiscoveryError("The provider timed out while listing models.") from exc
+    except httpx.HTTPError as exc:
+        raise ModelDiscoveryError("Unable to connect to the provider model API.") from exc
+
+    if response.status_code in {401, 403}:
+        raise ModelDiscoveryError("The provider rejected the API key.", 400)
+    if response.status_code == 429:
+        raise ModelDiscoveryError("The provider rate-limited model discovery. Try again shortly.", 429)
+    if response.status_code >= 400:
+        raise ModelDiscoveryError("The provider could not list models.")
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise ModelDiscoveryError("The provider returned an invalid model list.") from exc
+    if not isinstance(payload, dict):
+        raise ModelDiscoveryError("The provider returned an invalid model list.")
+    return payload
+
+
+def discover_provider_models(provider: str, api_key: str, api_base: str) -> dict:
+    provider = normalize_provider(provider)
+    if provider == "azure":
+        return {
+            "supported": False,
+            "models": [],
+            "recommended_models": [],
+            "unverified_models": [],
+            "message": "Azure deployment discovery requires Azure management credentials. Enter the deployment name manually.",
+        }
+    if provider not in AI_PROVIDER_META:
+        raise ModelDiscoveryError("Unsupported AI provider.")
+    if not api_key.strip():
+        raise ModelDiscoveryError("API key is required.")
+
+    base = _validated_api_base(api_base)
+    raw_model_ids: list[str] = []
+    timeout = httpx.Timeout(15.0, connect=5.0)
+
+    with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+        if provider in OPENAI_COMPATIBLE_DISCOVERY_PROVIDERS:
+            payload = _request_discovery_page(
+                client,
+                f"{base}/models",
+                headers={"Authorization": f"Bearer {api_key.strip()}"},
+            )
+            raw_model_ids = [str(row.get("id") or "") for row in payload.get("data", []) if isinstance(row, dict)]
+        elif provider == "anthropic":
+            url = _versioned_models_url(base, "v1")
+            after_id = ""
+            while True:
+                params = {"limit": "100"}
+                if after_id:
+                    params["after_id"] = after_id
+                payload = _request_discovery_page(
+                    client,
+                    url,
+                    headers={"x-api-key": api_key.strip(), "anthropic-version": "2023-06-01"},
+                    params=params,
+                )
+                rows = payload.get("data", [])
+                raw_model_ids.extend(str(row.get("id") or "") for row in rows if isinstance(row, dict))
+                if not payload.get("has_more") or not payload.get("last_id"):
+                    break
+                after_id = str(payload["last_id"])
+        elif provider == "gemini":
+            url = _versioned_models_url(base, "v1beta")
+            page_token = ""
+            while True:
+                params = {"key": api_key.strip(), "pageSize": "1000"}
+                if page_token:
+                    params["pageToken"] = page_token
+                payload = _request_discovery_page(client, url, headers={}, params=params)
+                rows = payload.get("models", [])
+                raw_model_ids.extend(
+                    str(row.get("name") or "")
+                    for row in rows
+                    if isinstance(row, dict) and "generateContent" in (row.get("supportedGenerationMethods") or [])
+                )
+                page_token = str(payload.get("nextPageToken") or "")
+                if not page_token:
+                    break
+
+    models = sorted(
+        {
+            _normalize_discovered_model(provider, model_id)
+            for model_id in raw_model_ids
+            if model_id.strip() and not any(token in model_id.lower() for token in AI_IDENTIFY_BLOCKLIST_SUBSTRINGS)
+        }
+    )
+    known_vision = _known_vision_models(provider)
+    recommended = [model for model in models if _normalize_model_key(provider, model) in known_vision]
+    unverified = [model for model in models if model not in recommended]
+    return {
+        "supported": True,
+        "models": models,
+        "recommended_models": recommended,
+        "unverified_models": unverified,
+        "message": f"Found {len(models)} model{'s' if len(models) != 1 else ''}.",
+    }
 
 
 def run_llm_validation(model: str, api_key: str, api_base: str | None) -> str:

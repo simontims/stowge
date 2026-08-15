@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session
 
 from ..auth import current_user, require_admin
 from ..db import get_db
-from ..helpers.ai_providers import (AI_PROVIDER_META, default_api_base_for_provider,
-                                    litellm_models_by_provider, normalize_model,
+from ..helpers.ai_providers import (AI_PROVIDER_META, ModelDiscoveryError,
+                                    default_api_base_for_provider,
+                                    discover_provider_models,
+                                    litellm_models_by_provider, normalize_model_for_provider,
                                     normalize_provider, recommended_models_for_provider,
                                     resolve_llm_config, run_llm_validation)
 from ..helpers.serializers import (list_public_ai_settings_payload,
@@ -73,11 +75,32 @@ def list_ai_providers_catalog(me: User = Depends(require_admin)):
     return {"providers": providers}
 
 
+@router.post("/api/admin/settings/ai/models/discover")
+def discover_ai_models(payload: dict, me: User = Depends(require_admin)):
+    provider = normalize_provider(str(payload.get("provider") or ""))
+    api_key = str(payload.get("api_key") or "").strip()
+    api_base = str(payload.get("api_base") or "").strip()
+
+    if not provider:
+        raise HTTPException(status_code=400, detail="provider is required")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="api_key is required")
+    if not api_base:
+        api_base = default_api_base_for_provider(provider) or ""
+    if not api_base:
+        raise HTTPException(status_code=400, detail="api_base is required")
+
+    try:
+        return discover_provider_models(provider, api_key, api_base)
+    except ModelDiscoveryError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
 @router.post("/api/admin/settings/ai")
 def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = Depends(require_admin)):
     name = str(payload.get("name") or "").strip()
     provider = normalize_provider(str(payload.get("provider") or ""))
-    model = normalize_model(str(payload.get("model") or ""))
+    model = normalize_model_for_provider(provider, str(payload.get("model") or ""))
     api_key = str(payload.get("api_key") or "").strip()
     api_base = str(payload.get("api_base") or "").strip()
     is_default = bool(payload.get("is_default", False))
@@ -96,6 +119,13 @@ def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = D
     if not api_base:
         raise HTTPException(status_code=400, detail="api_base is required")
 
+    validated_at = None
+    try:
+        run_llm_validation(model, api_key, api_base)
+        validated_at = datetime.now(timezone.utc)
+    except Exception:
+        pass
+
     cfg = LLMConfig(
         name=name,
         provider=provider,
@@ -106,6 +136,7 @@ def create_ai_setting(payload: dict, db: Session = Depends(get_db), me: User = D
         evidence_enabled=1 if evidence_enabled else 0,
         ai_max_edge=int(payload.get("ai_max_edge") or 1600),
         ai_quality=int(payload.get("ai_quality") or 85),
+        validated_at=validated_at,
         updated_at=datetime.now(timezone.utc),
     )
     db.add(cfg)
@@ -146,7 +177,10 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
         provider_updated = True
 
     if "model" in payload:
-        next_model = normalize_model(str(payload.get("model") or ""))
+        next_model = normalize_model_for_provider(
+            next_provider if "provider" in payload else cfg.provider,
+            str(payload.get("model") or ""),
+        )
         if not next_model:
             raise HTTPException(status_code=400, detail="model is required")
         if cfg.model != next_model:
@@ -170,6 +204,17 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
 
     if not (cfg.api_base or "").strip():
         raise HTTPException(status_code=400, detail="api_base is required")
+
+    should_validate = (
+        payload.get("validation_state") is None
+        and any(field in payload for field in ("provider", "model", "api_key", "api_base"))
+    )
+    if should_validate:
+        try:
+            run_llm_validation(cfg.model, cfg.api_key, cfg.api_base)
+            cfg.validated_at = datetime.now(timezone.utc)
+        except Exception:
+            cfg.validated_at = None
 
     if bool(payload.get("is_default", False)):
         db.query(LLMConfig).filter(LLMConfig.id != cfg.id).update({"is_default": 0})
@@ -198,7 +243,7 @@ def update_ai_setting(config_id: str, payload: dict, db: Session = Depends(get_d
         cfg.validated_at = datetime.now(timezone.utc)
     elif validation_state == "not_validated":
         cfg.validated_at = None
-    elif validation_needs_reset:
+    elif validation_needs_reset and not should_validate:
         cfg.validated_at = None
 
     cfg.updated_at = datetime.now(timezone.utc)
@@ -228,8 +273,10 @@ def validate_ai_setting(config_id: str, db: Session = Depends(get_db), me: User 
         raise HTTPException(status_code=404, detail="AI config not found")
 
     try:
-        preview = run_llm_validation(cfg.model, cfg.api_key, cfg.api_base)
+        model = normalize_model_for_provider(cfg.provider, cfg.model)
+        preview = run_llm_validation(model, cfg.api_key, cfg.api_base)
 
+        cfg.model = model
         cfg.validated_at = datetime.now(timezone.utc)
         cfg.updated_at = datetime.now(timezone.utc)
         db.commit()
@@ -254,7 +301,7 @@ def validate_ai_setting_draft(config_id: str, payload: dict, db: Session = Depen
         raise HTTPException(status_code=404, detail="AI config not found")
 
     provider = normalize_provider(str(payload.get("provider") or cfg.provider or ""))
-    model = normalize_model(str(payload.get("model") or cfg.model or ""))
+    model = normalize_model_for_provider(provider, str(payload.get("model") or cfg.model or ""))
     api_base = str(payload.get("api_base") or cfg.api_base or "").strip()
     api_key_input = str(payload.get("api_key") or "").strip()
     api_key = api_key_input or (cfg.api_key or "")
@@ -343,7 +390,7 @@ def identify(
     ai = openai_identify(
         b64s,
         llm_config={
-            "model": cfg.model,
+            "model": normalize_model_for_provider(cfg.provider, cfg.model),
             "api_key": cfg.api_key,
             "api_base": cfg.api_base,
         },

@@ -103,6 +103,8 @@ npm run build
 npm run test
 ```
 
+AI provider discovery tests must mock upstream HTTP responses. Tests must not call live provider APIs, require real API keys, or include submitted credentials in error assertions or captured output.
+
 ## Generated API documentation
 
 The external API schema is generated from code. Regenerate review and CI artifacts after changing that API:

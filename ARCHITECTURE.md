@@ -49,7 +49,7 @@ stowge/
 				v
 [FastAPI Backend]
 	 |           \
-	 |            \---> [AI Provider APIs (OpenAI-compatible)]
+	 |            \---> [AI Provider APIs]
 	 |
 	 +---> [SQLite Database]
 	 |
@@ -79,6 +79,7 @@ stowge/
 - Description: Converts one to five uploaded photos into AI candidate suggestions and evidence/context with optional collection hinting.
 - Technologies: OpenAI-compatible chat completion pattern via configured provider/model keys.
 - Notes: As currently implemented, identify processing is in-memory. Photo files are persisted only on item save.
+- Model discovery: Admins can explicitly submit unsaved provider credentials to the api to list available models before saving an AI configuration. Credentials remain server-side for the provider request and are not persisted by discovery or returned to the browser. Azure deployment discovery remains manual because it requires management-plane credentials beyond the inference API key.
 
 ## 4. Data Stores
 
@@ -99,10 +100,11 @@ stowge/
 
 ## 5. External Integrations / APIs
 
-- AI Providers (OpenAI-compatible endpoints)
+- AI Providers
 	- Purpose: Item photo identification and candidate generation.
 	- Integration method: HTTPS REST requests via api.
 	- Supported provider metadata includes OpenAI, Anthropic, Gemini, Azure OpenAI, Groq, Mistral, xAI, and OpenRouter.
+	- Model discovery uses OpenAI-compatible model endpoints where available and native Anthropic/Gemini endpoints. Discovered models known by LiteLLM to support vision are prioritized; unknown models remain selectable but require normal inference validation.
 
 ## 6. API Design (Current)
 
@@ -125,6 +127,7 @@ stowge/
 	- GET /api/sites
 	- GET /api/areas
 	- GET /api/locations
+	- POST /api/admin/settings/ai/models/discover → list models using unsaved provider credentials (admin, no persistence)
 	- POST /api/identify
 	- POST /api/images/store
 	- POST /api/images/discard

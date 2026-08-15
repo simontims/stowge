@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ..auth import current_user
 from ..constraints import MIN_NAME_LENGTH, require_name
 from ..db import get_db
+from ..helpers.ai_providers import normalize_model_for_provider
 from ..helpers.events import parts_events_since, publish_inventory_change
 from ..helpers.serializers import (contents_count_by_item_id, serialize_part_detail,
                                    serialize_part_list)
@@ -441,7 +442,7 @@ def rescan_part(
     ai = openai_identify(
         b64s,
         llm_config={
-            "model": cfg.model,
+            "model": normalize_model_for_provider(cfg.provider, cfg.model),
             "api_key": cfg.api_key,
             "api_base": cfg.api_base,
         },

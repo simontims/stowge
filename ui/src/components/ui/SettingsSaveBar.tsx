@@ -11,6 +11,7 @@ interface SettingsSaveBarProps {
   onDelete?: () => void;
   deleteDisabled?: boolean;
   extraActions?: ReactNode;
+  savingLabel?: string;
 }
 
 export function SettingsSaveBar({
@@ -21,6 +22,7 @@ export function SettingsSaveBar({
   onDelete,
   deleteDisabled,
   extraActions,
+  savingLabel = "Saving...",
 }: SettingsSaveBarProps) {
   return (
     <div className={["flex items-center gap-2", onDelete ? "justify-between" : "justify-end"].join(" ")}>
@@ -57,7 +59,7 @@ export function SettingsSaveBar({
           ].join(" ")}
         >
           <Save size={14} />
-          {saving ? "Saving..." : "Save"}
+          {saving ? savingLabel : "Save"}
         </button>
       </div>
     </div>
