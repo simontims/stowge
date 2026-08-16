@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Tag, Package, HardDrive, Image, Database, Archive } from "lucide-react";
+import { Tag, HardDrive, Image, Database, Archive } from "lucide-react";
 import cronstrue from "cronstrue";
 import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -39,6 +39,7 @@ interface StatusMetrics {
     item_count: number;
     asset_count: number;
     disk_bytes: number;
+    db_bytes: number;
   };
 }
 
@@ -467,7 +468,6 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const [restoreSummaryManifest, setRestoreSummaryManifest] = useState<BackupManifest | null>(null);
   const restoreApplyButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const rows = useMemo(() => metrics?.collections ?? [], [metrics]);
   const totalBackupBytes = useMemo(() => {
     return backups.reduce((sum, backup) => sum + backup.size_bytes, 0);
   }, [backups]);
@@ -1131,20 +1131,11 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
           <p className="text-xs text-neutral-400 flex items-center gap-1.5">
-            <Package size={14} />
-            Collections
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : rows.length}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Inventory groups configured</p>
-        </article>
-
-        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
             <Tag size={14} />
             Items
           </p>
           <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : (metrics?.totals.item_count ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Across all collections</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Total</p>
         </article>
 
         <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
@@ -1162,23 +1153,31 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
             Backups
           </p>
           <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{backupsLoading ? "--" : backups.length}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">{backupsLoading ? "Loading backup storage" : `${formatBytes(totalBackupBytes)} total archive storage`}</p>
+          <p className="mt-1 text-[11px] text-neutral-500">{backupsLoading ? "Loading backup storage" : `${formatBytes(totalBackupBytes)} disk space used`}</p>
+        </article>
+
+        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
+          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+            <Database size={14} />
+            Database size
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.db_bytes ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Size of the SQLite database file</p>
         </article>
 
         <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
           <p className="text-xs text-neutral-400 flex items-center gap-1.5">
             <HardDrive size={14} />
-            Disk space
+            Asset storage
           </p>
           <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.disk_bytes ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Used by database and assets</p>
+          <p className="mt-1 text-[11px] text-neutral-500">Disk space used by assets</p>
         </article>
       </section>
 
       <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-neutral-100">Maintenance</h2>
-          <p className="mt-1 text-xs text-neutral-500">Configure automated schedules and run maintenance tasks manually any time.</p>
         </div>
 
         {maintenanceError && (

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..asset_paths import location_image_variant_paths, location_photo_variant_paths
 from ..auth import current_user
-from ..db import get_db
+from ..db import DATABASE_FILE, get_db
 from ..images import assets_dir
 from ..models import Collection, Location, Part, PartImage, User
 
@@ -201,6 +201,8 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
         .scalar() or 0
     )
 
+    db_bytes = os.path.getsize(DATABASE_FILE) if DATABASE_FILE and os.path.isfile(DATABASE_FILE) else 0
+
     return {
         "server": "ok",
         "collections": rows,
@@ -218,5 +220,6 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
             "item_count": total_items + uncollected_item_count + recycle_bin_item_count,
             "asset_count": total_assets + uncollected_asset_count + recycle_bin_asset_count,
             "disk_bytes": total_disk_bytes,
+            "db_bytes": db_bytes,
         },
     }

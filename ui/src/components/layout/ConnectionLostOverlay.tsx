@@ -13,7 +13,7 @@ export function ConnectionLostOverlay() {
       <div className="connection-lost-spinner h-14 w-14 rounded-full border-4 border-neutral-700 border-t-[#29B6F6] animate-spin" />
 
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-neutral-100">Connection Lost</h2>
+        <h2 className="text-base font-bold text-neutral-100">Connection Lost</h2>
         <p className="mt-2 text-sm text-neutral-400">Attempting to reconnect to the server...</p>
       </div>
     </div>
