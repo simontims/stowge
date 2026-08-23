@@ -1,4 +1,8 @@
 @import "tailwindcss";
+
+.react-joyride__spotlight path {
+  transition: none !important;
+}
 @config "../tailwind.config.js";
 
 :root {

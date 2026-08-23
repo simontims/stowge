@@ -108,9 +108,6 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
             <p>
               Add Areas inside each Site, for example <strong>Garage</strong>, <strong>Attic</strong>, or <strong>Shed</strong>.
             </p>
-            <p>
-              Most users can start with the default Site named <strong>Home</strong>.
-            </p>
           </div>
         ),
       },
@@ -219,6 +216,9 @@ export function HierarchyIntroTour({ open, isAdmin, onComplete }: HierarchyIntro
           border: "1px solid #404040",
           borderRadius: 10,
           boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+        },
+        floater: {
+          transition: "none",
         },
         tooltipTitle: {
           fontSize: "0.95rem",
