@@ -4,6 +4,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { StatusMessage } from "../components/ui/StatusMessage";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
+import { toast } from "sonner";
 
 interface ImageSettingsData {
   store_original: boolean;
@@ -101,7 +102,7 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
       });
       setSaved(data);
       setForm(data);
-      setNotice("Settings saved.");
+      toast.success("Image settings saved.");
     } catch (err) {
       setError((err as Error).message || "Failed to save image settings.");
       throw err;

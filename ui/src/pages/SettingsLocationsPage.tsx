@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Compass, Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { IconColorPicker } from "../components/ui/IconColorPicker";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -104,6 +105,9 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<LocationForm>(EMPTY_FORM);
   const [initialEditForm, setInitialEditForm] = useState<LocationForm>(EMPTY_FORM);
+  const [editAreaSearch, setEditAreaSearch] = useState("");
+  const [editAreaQuery, setEditAreaQuery] = useState("");
+  const [editAreaDropdownOpen, setEditAreaDropdownOpen] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -279,7 +283,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
           method: "POST",
           body: JSON.stringify({ name, description: null }),
         });
-        setNotice("Site created.");
+        toast.success("Site created.");
       } else if (hierarchyEditKey.startsWith("site:")) {
         const siteId = hierarchyEditKey.slice("site:".length);
         setSavingSite(true);
@@ -287,7 +291,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
           method: "PATCH",
           body: JSON.stringify({ name }),
         });
-        setNotice("Site updated.");
+        toast.success("Site updated.");
       } else if (hierarchyEditKey.startsWith("area:new:")) {
         const siteId = hierarchyEditKey.slice("area:new:".length);
         setSavingArea(true);
@@ -295,7 +299,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
           method: "POST",
           body: JSON.stringify({ name, description: null, site_id: siteId || null }),
         });
-        setNotice("Area created.");
+        toast.success("Area created.");
       } else if (hierarchyEditKey.startsWith("area:")) {
         const areaId = hierarchyEditKey.slice("area:".length);
         const area = areaById.get(areaId);
@@ -307,7 +311,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             site_id: area?.site_id || null,
           }),
         });
-        setNotice("Area updated.");
+        toast.success("Area updated.");
       }
 
       cancelHierarchyEdit();
@@ -387,12 +391,19 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     };
     setInitialEditForm(snapshot);
     setEditForm(snapshot);
+    const area = snapshot.area_id ? areaById.get(snapshot.area_id) : null;
+    setEditAreaSearch(area ? formatAreaLabel(area) : "");
+    setEditAreaQuery("");
+    setEditAreaDropdownOpen(false);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditForm(EMPTY_FORM);
     setInitialEditForm(EMPTY_FORM);
+    setEditAreaSearch("");
+    setEditAreaQuery("");
+    setEditAreaDropdownOpen(false);
     closePrompt();
   }
 
@@ -513,7 +524,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       });
 
       cancelEdit();
-      setNotice("Location updated.");
+      toast.success("Location updated.");
       await loadLocations();
     } catch (err) {
       setError((err as Error).message || "Failed to update location.");
@@ -663,10 +674,21 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         ),
       },
       {
-        key: "area_id",
-        header: "Location",
+        key: "site_id",
+        header: "Site",
         render: (row) => (
-          <span className="text-neutral-400">{formatLocationBreadcrumb(row.area_id)}</span>
+          <span className="text-neutral-400">
+            {row.site_name || (row.site_id ? siteById.get(row.site_id)?.name : null) || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "area_id",
+        header: "Area",
+        render: (row) => (
+          <span className="text-neutral-400">
+            {row.area_name || (row.area_id ? areaById.get(row.area_id)?.name : null) || "Unassigned"}
+          </span>
         ),
       },
       {
@@ -717,7 +739,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         },
       },
     ],
-    [deletingId, formatLocationBreadcrumb]
+    [areaById, deletingId, formatLocationBreadcrumb, siteById]
   );
 
   const emptyMessage = useMemo(() => {
@@ -1125,20 +1147,46 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               />
             </label>
             {areas.length > 1 && (
-              <label className="block sm:col-span-2">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Area</span>
-                <select
-                  value={editForm.area_id}
-                  onChange={(e) => setEditForm((v) => ({ ...v, area_id: e.target.value }))}
+              <label className="relative block sm:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">Site / Area</span>
+                <input
+                  value={editAreaSearch}
+                  onFocus={() => {
+                    setEditAreaQuery("");
+                    setEditAreaDropdownOpen(true);
+                  }}
+                  onChange={(e) => {
+                    const searchValue = e.target.value;
+                    setEditAreaSearch(searchValue);
+                    setEditAreaQuery(searchValue);
+                    setEditForm((v) => ({ ...v, area_id: "" }));
+                  }}
+                  onBlur={() => window.setTimeout(() => setEditAreaDropdownOpen(false), 150)}
+                  placeholder="Search site or area..."
                   className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-                >
-                  <option value="">Select area...</option>
-                  {areas.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {formatAreaLabel(area)}
-                    </option>
-                  ))}
-                </select>
+                />
+                {editAreaDropdownOpen && (
+                  <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-950 py-1 shadow-lg">
+                    {areas
+                      .filter((area) => formatAreaLabel(area).toLowerCase().includes(editAreaQuery.trim().toLowerCase()))
+                      .map((area) => (
+                        <button
+                          key={area.id}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setEditAreaSearch(formatAreaLabel(area));
+                            setEditAreaQuery("");
+                            setEditForm((v) => ({ ...v, area_id: area.id }));
+                            setEditAreaDropdownOpen(false);
+                          }}
+                          className="block w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"
+                        >
+                          {formatAreaLabel(area)}
+                        </button>
+                      ))}
+                  </div>
+                )}
               </label>
             )}
             <div className="sm:col-span-2 flex items-center gap-3">

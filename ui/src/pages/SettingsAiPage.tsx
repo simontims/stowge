@@ -523,7 +523,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       setAddDiscoverySignature(null);
       setAddManualModel(false);
       setAddingOpen(false);
-      setNotice("AI model configuration added.");
+      toast.success("AI model configuration added.");
       await loadConfigs();
     } catch (err) {
       setError((err as Error).message || "Failed to add AI model configuration.");
@@ -790,7 +790,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
         }),
       });
       cancelEdit();
-      setNotice("AI model configuration updated.");
+      toast.success("AI model configuration updated.");
       await loadConfigs();
     } catch (err) {
       setError((err as Error).message || "Failed to update AI model configuration.");

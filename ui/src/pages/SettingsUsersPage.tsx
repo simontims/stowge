@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Edit3, Plus, Save, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusMessage } from "../components/ui/StatusMessage";
 import { ListToolbar } from "../components/ui/ListToolbar";
@@ -190,7 +191,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       });
       setNewUser(EMPTY_NEW_USER);
       setAddingOpen(false);
-      setNotice("User created.");
+      toast.success("User created.");
       await loadUsers();
     } catch (err) {
       setError((err as Error).message || "Failed to create user.");
@@ -261,7 +262,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
         }),
       });
       closeEditNow();
-      setNotice("User updated.");
+      toast.success("User updated.");
       await loadUsers();
     } catch (err) {
       setError((err as Error).message || "Failed to update user.");
