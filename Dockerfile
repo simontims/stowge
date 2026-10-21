@@ -22,9 +22,10 @@ ENV APP_VERSION=${APP_VERSION}
 
 WORKDIR /app
 
-# System deps (Pillow, bcrypt, curl for healthcheck)
+# System deps (Pillow, bcrypt, curl for healthcheck, latest CA bundle)
 RUN apt-get update && apt-get install -y --no-install-recommends \
   build-essential \
+  ca-certificates \
   libjpeg-dev \
   zlib1g-dev \
   curl \
