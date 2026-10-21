@@ -110,6 +110,19 @@ def write_asset(base_dir: Path, rel_path: str, content: bytes = b"x") -> Path:
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def clear_client_cookies():
+    """
+    Clear the shared client's cookie jar before each test.
+
+    Login tests leave a session cookie in the jar. With httpx2 (preferred by
+    Starlette's TestClient when installed) the jar cookie wins over per-request
+    cookies, so a stale session from an earlier test causes 401s.
+    """
+    client.cookies.clear()
+    yield
+
+
 @pytest.fixture
 def isolated_db():
     """
