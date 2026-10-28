@@ -13,7 +13,7 @@ license file.
 
 ### fastapi
 
-- Version used: `>=0.116.1,<1.0`
+- Version used: `>=0.162.0,<1.0`
 - License: MIT
 - Copyright notice: Copyright (c) 2018 Sebastián Ramírez
 - Official source: https://pypi.org/project/fastapi/
@@ -21,7 +21,7 @@ license file.
 
 ### uvicorn
 
-- Version used: `uvicorn[standard]==0.42.0`
+- Version used: `uvicorn[standard]==0.54.0`
 - License: BSD-3-Clause
 - Copyright notice: Copyright (c) 2017-present Encode OSS Ltd
 - Official source: https://pypi.org/project/uvicorn/
@@ -29,7 +29,7 @@ license file.
 
 ### python-multipart
 
-- Version used: `==0.0.22`
+- Version used: `==0.0.32`
 - License: Apache-2.0
 - Copyright notice: See upstream license file
 - Official source: https://pypi.org/project/python-multipart/
@@ -37,7 +37,7 @@ license file.
 
 ### SQLAlchemy
 
-- Version used: `==2.0.48`
+- Version used: `==2.1.6`
 - License: MIT
 - Copyright notice: Copyright (C) 2005-2026 the SQLAlchemy authors and contributors
 - Official source: https://pypi.org/project/SQLAlchemy/
@@ -53,7 +53,7 @@ license file.
 
 ### Pillow
 
-- Version used: `==12.1.1`
+- Version used: `==13.0.0`
 - License: MIT-CMU (PIL-style)
 - Copyright notice:
 	- Copyright (c) 1997-2011 Secret Labs AB
@@ -64,7 +64,7 @@ license file.
 
 ### litellm
 
-- Version used: `==1.83.10`
+- Version used: `==1.106.5`
 - License: MIT (with repository-specific carve-out for `enterprise/` directory)
 - Copyright notice: Copyright (c) 2023 Berri AI
 - Official source: https://pypi.org/project/litellm/
@@ -74,7 +74,7 @@ license file.
 
 ### httpx
 
-- Version used: `>=0.28.0`
+- Version used: `>=0.28.1`
 - License: BSD-3-Clause
 - Copyright notice: See upstream license file
 - Official source: https://pypi.org/project/httpx/
@@ -82,11 +82,19 @@ license file.
 
 ### slowapi
 
-- Version used: `>=0.1.9`
+- Version used: `>=0.1.10`
 - License: MIT
 - Copyright notice: See upstream license file
 - Official source: https://pypi.org/project/slowapi/
 - License reference: https://github.com/laurents/slowapi/blob/master/LICENSE
+
+### croniter
+
+- Version used: `>=6.2.4`
+- License: MIT
+- Copyright notice: See upstream license file
+- Official source: https://pypi.org/project/croniter/
+- License reference: https://github.com/pallets-eco/croniter/blob/main/LICENSE
 
 ---
 
@@ -94,7 +102,7 @@ license file.
 
 ### @tabler/icons-react
 
-- Version used: `^3.41.0`
+- Version used: `^3.49.0`
 - License: MIT
 - Copyright notice: Copyright (c) 2020-2024 Paweł Kuna
 - Official source: https://www.npmjs.com/package/@tabler/icons-react
@@ -102,7 +110,7 @@ license file.
 
 ### @uiw/react-color-sketch
 
-- Version used: `^2.10.1`
+- Version used: `^2.10.3`
 - License: MIT
 - Copyright notice: Copyright (c) 2021 uiw
 - Official source: https://www.npmjs.com/package/@uiw/react-color-sketch
@@ -118,7 +126,7 @@ license file.
 
 ### cronstrue
 
-- Version used: `^3.14.0`
+- Version used: `^3.37.0`
 - License: MIT
 - Copyright notice: Copyright (c) 2017 Brady Holt
 - Official source: https://www.npmjs.com/package/cronstrue
@@ -126,7 +134,7 @@ license file.
 
 ### lucide-react
 
-- Version used: `^0.577.0`
+- Version used: `^1.61.0`
 - License: ISC
 - Copyright notice: See upstream license file
 - Official source: https://www.npmjs.com/package/lucide-react
@@ -134,7 +142,7 @@ license file.
 
 ### react
 
-- Version used: `^19.2.4`
+- Version used: `^19.3.1`
 - License: MIT
 - Copyright notice: Copyright (c) Meta Platforms, Inc. and affiliates
 - Official source: https://www.npmjs.com/package/react
@@ -142,7 +150,7 @@ license file.
 
 ### react-dom
 
-- Version used: `^19.2.4`
+- Version used: `^19.3.1`
 - License: MIT
 - Copyright notice: Copyright (c) Meta Platforms, Inc. and affiliates
 - Official source: https://www.npmjs.com/package/react-dom
@@ -150,7 +158,7 @@ license file.
 
 ### react-router-dom
 
-- Version used: `^7.13.1`
+- Version used: `^7.18.4`
 - License: MIT
 - Copyright notice: See upstream license file
 - Official source: https://www.npmjs.com/package/react-router-dom
@@ -163,3 +171,11 @@ license file.
 - Copyright notice: See upstream license file
 - Official source: https://www.npmjs.com/package/react-joyride
 - License reference: https://github.com/gilbarbara/react-joyride/blob/main/LICENSE
+
+### sonner
+
+- Version used: `^2.0.8`
+- License: MIT
+- Copyright notice: See upstream license file
+- Official source: https://www.npmjs.com/package/sonner
+- License reference: https://github.com/emilkowalski/sonner/blob/main/LICENSE.md

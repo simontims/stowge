@@ -6,8 +6,8 @@ This guide covers local Stowge development on Windows, Linux, and macOS. For the
 
 Local development requires:
 
-- Python 3
-- Node.js and npm
+- Python 3.11 or newer (the container uses Python 3.12)
+- Node.js 24 LTS (24.15.0 or newer) and npm; `ui/.nvmrc` selects Node 24
 - Git
 
 Docker is optional and is only required for the container-based workflow.
@@ -104,6 +104,18 @@ npm run test
 ```
 
 AI provider discovery tests must mock upstream HTTP responses. Tests must not call live provider APIs, require real API keys, or include submitted credentials in error assertions or captured output.
+
+## Updating dependencies
+
+Keep `api/requirements.txt` and `api/constraints.txt` aligned when updating the
+backend. LiteLLM currently requires OpenAI below version 3 and
+importlib-metadata below version 9. Pydantic also requires an exact matching
+pydantic-core version; resolve and test these updates together.
+
+For frontend updates, commit both `ui/package.json` and `ui/package-lock.json`.
+Preserve the release-age policy and disabled install scripts in `ui/.npmrc`,
+then verify a clean install with `npm ci --ignore-scripts` and run the UI
+validation commands above.
 
 ## Generated API documentation
 
