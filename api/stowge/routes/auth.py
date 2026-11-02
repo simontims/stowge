@@ -16,7 +16,10 @@ from ..auth import (SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE,
                     hash_password, require_admin, verify_password)
 from ..db import get_db
 from ..helpers.serializers import serialize_user
+from ..helpers.shortcut_style import parse_color, parse_icon
 from ..models import Area, Collection, Location, Site, User
+from ..whats_new import (WELCOME_VERSION, clamp_cursor, cursor_for_new_account,
+                         history)
 
 router = APIRouter()
 
@@ -48,6 +51,7 @@ def setup_first_admin(request: Request, payload: dict, db: Session = Depends(get
         last_name=last_name,
         password_hash=hash_password(password),
         role="admin",
+        last_seen_note=cursor_for_new_account(),
     )
     db.add(user)
     db.commit()
@@ -235,6 +239,12 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
                 if quantity_min is not None and quantity_max is not None and quantity_min > quantity_max:
                     raise HTTPException(status_code=400, detail="shortcut filter quantity_min cannot exceed quantity_max")
 
+                try:
+                    shortcut_icon = parse_icon(entry.get("icon"))
+                    shortcut_color = parse_color(entry.get("color"))
+                except ValueError as exc:
+                    raise HTTPException(status_code=400, detail=f"shortcut filter {exc}")
+
                 if shortcut_id in seen_ids:
                     continue
                 seen_ids.add(shortcut_id)
@@ -271,11 +281,52 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
                     "quantity_min": quantity_min,
                     "quantity_max": quantity_max,
                     "pinned": bool(entry.get("pinned")),
+                    "icon": shortcut_icon,
+                    "color": shortcut_color,
                 })
 
             u.shortcut_filters = json.dumps(normalized_shortcuts) if normalized_shortcuts else None
         else:
             raise HTTPException(status_code=400, detail="shortcut_filters must be an array or null")
+    db.commit()
+    db.refresh(u)
+    return serialize_user(u)
+
+
+@router.get("/api/whats-new")
+def get_whats_new(me: User = Depends(current_user)):
+    """Full What's New history (newest first), with which notes are still unread for this user."""
+    return {"notes": history(me.last_seen_note or 0)}
+
+
+@router.post("/api/me/whats-new/seen")
+def mark_whats_new_seen(payload: dict | None = None, db: Session = Depends(get_db), me: User = Depends(current_user)):
+    """Move the What's New cursor. Body ``{"seq": n}`` marks notes up to n as seen; no body marks all.
+
+    The cursor only moves forward and never past the newest note. Idempotent.
+    """
+    requested = None
+    if payload and payload.get("seq") is not None:
+        try:
+            requested = int(payload["seq"])
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="seq must be an integer")
+    u = db.query(User).filter(User.id == me.id).first()
+    if not u:
+        raise HTTPException(status_code=401, detail="User not found")
+    u.last_seen_note = clamp_cursor(u.last_seen_note or 0, requested)
+    db.commit()
+    db.refresh(u)
+    return serialize_user(u)
+
+
+@router.post("/api/me/welcome/seen")
+def mark_welcome_seen(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    """Record that the user has seen the current welcome flow (idempotent)."""
+    u = db.query(User).filter(User.id == me.id).first()
+    if not u:
+        raise HTTPException(status_code=401, detail="User not found")
+    u.welcome_seen_version = max(int(u.welcome_seen_version or 0), WELCOME_VERSION)
     db.commit()
     db.refresh(u)
     return serialize_user(u)
@@ -306,6 +357,7 @@ def create_user(payload: dict, db: Session = Depends(get_db), me: User = Depends
         last_name=last_name,
         password_hash=hash_password(password),
         role=role,
+        last_seen_note=cursor_for_new_account(),
     )
     db.add(u)
     db.commit()

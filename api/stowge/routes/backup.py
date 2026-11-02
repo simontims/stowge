@@ -297,6 +297,17 @@ def restore_cancel(payload: dict, me: User = Depends(require_admin)):
     return {"ok": True}
 
 
+def _migrate_restored_database() -> None:
+    """Bring a freshly restored database up to the current schema.
+
+    Startup migrations only run at boot, so a restored backup from an older release would
+    otherwise keep its old tables (for example no users.last_seen_note) until the next restart.
+    """
+    from ..main import init_db  # noqa: PLC0415 (main imports this module)
+
+    init_db()
+
+
 @router.post("/api/admin/backups/restore/apply")
 def restore_apply(payload: dict, me: User = Depends(require_admin)):
     validation_id = str(payload.get("validation_id") or "").strip()
@@ -320,6 +331,9 @@ def restore_apply(payload: dict, me: User = Depends(require_admin)):
                 includes_assets=bool(ctx.get("includes_assets")),
                 progress_callback=lambda **kwargs: update_backup_operation(op_id, **kwargs),
             )
+
+            update_backup_operation(op_id, stage="migrate", progress=95, message="Updating restored database to this version")
+            _migrate_restored_database()
 
             db = SessionLocal()
             try:

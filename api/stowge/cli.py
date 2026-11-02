@@ -36,6 +36,7 @@ def cmd_help(_args=None):
 def cmd_admin_create(args):
     from stowge.auth import hash_password  # noqa: PLC0415
     from stowge.models import User  # noqa: PLC0415
+    from stowge.whats_new import cursor_for_new_account  # noqa: PLC0415
 
     email = args.email.strip().lower()
 
@@ -61,6 +62,7 @@ def cmd_admin_create(args):
             username=email,
             password_hash=hash_password(password),
             role="admin",
+            last_seen_note=cursor_for_new_account(),
         )
         db.add(user)
         db.commit()

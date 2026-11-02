@@ -28,6 +28,8 @@ class User(Base):
     last_open_collection = Column(String, nullable=True)
     collection_nav_order = Column(Text, nullable=True)
     shortcut_filters = Column(Text, nullable=True)
+    last_seen_note = Column(Integer, nullable=False, default=0)  # What's New cursor: highest note seq dealt with
+    welcome_seen_version = Column(Integer, nullable=False, default=0)  # welcome flow version seen; 0 = never
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
 

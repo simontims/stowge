@@ -80,18 +80,6 @@ def _json_schema_five(include_evidence: bool) -> Dict[str, Any]:
         },
     }
 
-_ALLOWED_COLLECTIONS = {
-    "module",
-    "ic",
-    "connector",
-    "sensor",
-    "passive",
-    "devboard",
-    "cable",
-    "tool",
-    "unknown",
-}
-
 _JSON_ONLY_INSTRUCTION = (
     "Return STRICT JSON only. No markdown, no code fences, no commentary. JSON only."
 )
@@ -153,7 +141,7 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dic
     unknown = bool(obj.get("unknown", False))
     name = str(obj.get("name", "")).strip()
     description = str(obj.get("description", "")).strip()
-    collection = str(obj.get("collection", "unknown")).strip().lower()
+    collection = str(obj.get("collection", "unknown")).strip().lower() or "unknown"
     evidence = str(obj.get("evidence", "")).strip()
 
     try:
@@ -162,8 +150,6 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dic
         confidence = 0.0
 
     confidence = max(0.0, min(1.0, confidence))
-    if collection not in _ALLOWED_COLLECTIONS:
-        collection = "unknown"
 
     if not name:
         # If name missing, force unknown

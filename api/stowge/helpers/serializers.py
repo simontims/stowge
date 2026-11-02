@@ -11,9 +11,11 @@ from ..datetime_utils import utc_iso
 from ..image_signing import sign as sign_image
 from ..image_signing import ttl_seconds
 from ..datetime_utils import now_utc
+from ..whats_new import whats_new_for_user
 from ..models import (ApiKey, Area, Collection, ItemContentsEntry, LLMConfig,
                       Location, Part, PartImage, Site, User)
 from .ai_providers import resolve_llm_config
+from .shortcut_style import lenient_color, lenient_icon
 
 
 def signed_image_url(image_id: str, variant: str) -> str:
@@ -130,6 +132,8 @@ def serialize_user(user: User) -> dict:
                         "quantity_min": entry_quantity_min,
                         "quantity_max": entry_quantity_max,
                         "pinned": bool(entry.get("pinned")),
+                        "icon": lenient_icon(entry.get("icon")),
+                        "color": lenient_color(entry.get("color")),
                     })
         except Exception:
             parsed_shortcut_filters = []
@@ -146,6 +150,7 @@ def serialize_user(user: User) -> dict:
         "last_open_collection": user.last_open_collection,
         "collection_nav_order": parsed_collection_nav_order,
         "shortcut_filters": parsed_shortcut_filters,
+        "whats_new": whats_new_for_user(user.last_seen_note or 0, user.welcome_seen_version or 0),
         "created_at": utc_iso(user.created_at),
         "last_login_at": utc_iso(user.last_login_at),
     }

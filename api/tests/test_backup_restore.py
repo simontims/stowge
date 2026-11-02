@@ -180,6 +180,49 @@ class TestBackupRestoreApi:
         post = client.get("/api/admin/backups", cookies=cookies)
         assert post.status_code == 401
 
+    def test_restore_apply_migrates_the_restored_database(self, tmp_path, monkeypatch):
+        """A backup from an older release must be brought up to date right after restore, not at the next boot."""
+        from stowge.routes import backup as backup_routes
+
+        calls = []
+        monkeypatch.setattr(backup_routes, "_migrate_restored_database", lambda: calls.append("migrated"))
+        monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
+        cookies = auth_cookies("restore-migrate-admin@example.com", role="admin")
+
+        create = client.post("/api/admin/backups/create", json={"include_assets": False}, cookies=cookies)
+        create_op = _wait_for_operation_done(create.json().get("operation_id"), cookies)
+        filename = (create_op.get("result") or {}).get("filename")
+        test_restore = client.post(f"/api/admin/backups/{filename}/restore-test", cookies=cookies)
+        test_op = _wait_for_operation_done(test_restore.json().get("operation_id"), cookies)
+        validation_id = (test_op.get("result") or {}).get("validation_id")
+
+        apply_restore = client.post(
+            "/api/admin/backups/restore/apply", json={"validation_id": validation_id}, cookies=cookies
+        )
+        assert apply_restore.status_code == 200
+        for _ in range(100):
+            if client.get("/api/admin/backups", cookies=cookies).status_code == 401:
+                break
+            time.sleep(0.05)
+        assert calls == ["migrated"]
+
+    def test_migrate_restored_database_adds_missing_columns(self, tmp_path, monkeypatch):
+        from sqlalchemy import create_engine, inspect, text
+
+        from stowge import main as stowge_main
+        from stowge.models import Base
+        from stowge.routes.backup import _migrate_restored_database
+
+        engine = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
+        Base.metadata.create_all(engine)
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users DROP COLUMN last_seen_note"))
+        monkeypatch.setattr(stowge_main, "engine", engine)
+
+        _migrate_restored_database()
+
+        assert "last_seen_note" in {c["name"] for c in inspect(engine).get_columns("users")}
+
     def test_backup_fails_when_space_is_insufficient(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ASSETS_DIR", str(tmp_path))
         monkeypatch.setattr("stowge.backup_restore.disk_free_bytes", lambda _path: 1)

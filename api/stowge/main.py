@@ -21,8 +21,10 @@ from .helpers.ai_providers import default_api_base_for_provider
 from .helpers.maintenance import (MAINTENANCE_TASK_KEYS,
                                   start_maintenance_scheduler_if_needed,
                                   stop_maintenance_scheduler)
-from .models import AppMeta, Area, LLMConfig, Location, MaintenanceSchedule, Site
+from .models import (AppMeta, Area, LLMConfig, Location, MaintenanceSchedule,
+                     Site, User)
 from .rate_limit import limiter
+from .whats_new import WELCOME_VERSION
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -51,6 +53,7 @@ OPENAPI_TAGS = [
 
 _MAINTENANCE_DEFAULTS_SEED_KEY = "maintenance_defaults_seeded_v1"
 _SITE_AREA_DEFAULTS_SEED_KEY = "site_area_defaults_seeded_v1"
+_WELCOME_BACKFILL_KEY = "welcome_seen_backfill_v1"
 _MAINTENANCE_TASK_DEFAULTS: dict[str, dict[str, str]] = {
     "vacuum": {"cron": "0 3 * * 0"},
     "orphaned_images_cleanup": {"cron": "0 4 * * 0"},
@@ -76,6 +79,26 @@ def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
 
 def _default_api_base_for_provider_local(provider: str) -> str | None:
     return default_api_base_for_provider(provider)
+
+
+def backfill_welcome_seen() -> int:
+    """Mark the welcome flow as seen for accounts that have already logged in (once only).
+
+    The first-login locations guide used to be remembered per browser. Anyone who has logged in
+    has been shown it, so don't repeat it now that "seen" lives on the user. Accounts that have
+    never logged in keep it pending. Returns how many accounts were updated.
+    """
+    updated = 0
+    with Session(bind=engine) as db:
+        if db.query(AppMeta).filter(AppMeta.key == _WELCOME_BACKFILL_KEY).first():
+            return 0
+        for user in db.query(User).filter(User.last_login_at.isnot(None)).all():
+            if (user.welcome_seen_version or 0) < WELCOME_VERSION:
+                user.welcome_seen_version = WELCOME_VERSION
+                updated += 1
+        db.add(AppMeta(key=_WELCOME_BACKFILL_KEY, value=str(updated)))
+        db.commit()
+    return updated
 
 
 def _run_startup_migrations():
@@ -141,6 +164,11 @@ def _run_startup_migrations():
             user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
             if "shortcut_filters" not in user_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN shortcut_filters TEXT NULL"))
+            user_columns = {c["name"] for c in inspect(engine).get_columns("users")}
+            if "last_seen_note" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_seen_note INTEGER NOT NULL DEFAULT 0"))
+            if "welcome_seen_version" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN welcome_seen_version INTEGER NOT NULL DEFAULT 0"))
 
     tables = set(inspect(engine).get_table_names())
 
@@ -187,6 +215,9 @@ def _run_startup_migrations():
             if not seeded:
                 db.add(AppMeta(key=_SITE_AREA_DEFAULTS_SEED_KEY, value=APP_VERSION))
             db.commit()
+
+    if "users" in tables and "app_meta" in tables:
+        backfill_welcome_seen()
 
     if "images" in tables:
         image_columns = {c["name"] for c in inspect(engine).get_columns("images")}
