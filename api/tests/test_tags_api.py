@@ -200,3 +200,43 @@ def test_shortcut_filters_json_survives_a_malformed_row_when_a_tag_is_deleted(is
         db.close()
     assert isolated_client.delete(f"/api/tags/{tag['id']}", cookies=cookies).status_code == 200
     assert [f["name"] for f in isolated_client.get("/api/me", cookies=cookies).json()["shortcut_filters"]] == ["m"]
+
+
+def test_tag_names_cannot_contain_the_csv_separator(isolated_client, isolated_db):
+    cookies = _cookies(isolated_db, "semi@example.com")
+    r = isolated_client.post("/api/tags", json={"name": "A;B"}, cookies=cookies)
+    assert r.status_code == 400 and "';'" in r.json()["detail"]
+    tag = _tag(isolated_client, cookies, "Fine")
+    assert isolated_client.patch(f"/api/tags/{tag['id']}", json={"name": "x;y"}, cookies=cookies).status_code == 400
+
+
+def _set_last_open(isolated_db, username, value):
+    db = isolated_db()
+    try:
+        db.query(User).filter(User.username == username).one().last_open_tag = value
+        db.commit()
+    finally:
+        db.close()
+
+
+def _last_open(isolated_client, cookies):
+    return isolated_client.get("/api/me", cookies=cookies).json()["last_open_tag"]
+
+
+def test_renaming_a_tag_updates_last_open_tag_for_users_who_had_it_open(isolated_client, isolated_db):
+    cookies = _cookies(isolated_db, "rename@example.com")
+    tag = _tag(isolated_client, cookies, "Cables")
+    _set_last_open(isolated_db, "rename@example.com", "cables")  # case differs on purpose
+    assert isolated_client.patch(f"/api/tags/{tag['id']}", json={"name": "Leads"}, cookies=cookies).status_code == 200
+    assert _last_open(isolated_client, cookies) == "Leads"
+
+
+def test_deleting_a_tag_clears_last_open_tag(isolated_client, isolated_db):
+    cookies = _cookies(isolated_db, "gone@example.com")
+    tag = _tag(isolated_client, cookies, "Cables")
+    other = _tag(isolated_client, cookies, "Tools")
+    _set_last_open(isolated_db, "gone@example.com", "Cables")
+    assert isolated_client.delete(f"/api/tags/{other['id']}", cookies=cookies).status_code == 200
+    assert _last_open(isolated_client, cookies) == "Cables"  # other tags do not touch it
+    assert isolated_client.delete(f"/api/tags/{tag['id']}", cookies=cookies).status_code == 200
+    assert _last_open(isolated_client, cookies) is None

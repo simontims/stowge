@@ -336,10 +336,10 @@ class TestPinnedFilters:
         by_name = {f["name"]: f for f in filters}
         assert by_name["Mine 1"]["tag_id"] == ids["tools"]
         assert by_name["Mine 2"]["tag_id"] == "__none"
-        assert by_name["Mine 3"]["tag_id"] is None
+        assert "Mine 3" not in by_name  # its collection no longer exists: dropped, not turned into "show everything"
         assert by_name["Mine 4"]["tag_id"] is None
         assert all("collection" not in f for f in filters)
-        assert len(filters) == 5  # 1 migrated + 4 dicts; the junk string is dropped
+        assert len(filters) == 4  # 1 migrated + Mine 1, 2, 4; the dead-collection filter and the junk string are dropped
 
     def test_a_user_near_the_cap_gets_what_fits_and_the_rest_is_counted(self, tmp_path, monkeypatch):
         def build(old):
@@ -659,3 +659,24 @@ class TestRestoreOfAnOldBackup:
             assert restored_copy.execute("SELECT name FROM collections").fetchall() == [("Restored",)]
         finally:
             restored_copy.close()
+
+
+class TestFailedMigrationCleansUp:
+    def test_a_failing_transaction_leaves_no_copy_behind_so_a_crash_loop_cannot_fill_the_disk(self, tmp_path, monkeypatch):
+        path = tmp_path / "stowge.db"
+        old = OldDb(path)
+        old.collection("Tools")
+        old.user("u@example.com")
+        old.close()
+        engine = create_engine(f"sqlite:///{path}")
+        monkeypatch.setattr(stowge_main, "engine", engine)
+
+        def boom(*_a, **_k):
+            raise RuntimeError("step failed")
+
+        monkeypatch.setattr(tags_migration, "_migrate", boom)
+        for _ in range(3):
+            with pytest.raises(RuntimeError, match="step failed"):
+                stowge_main.init_db()
+        assert pre_copies(tmp_path) == []
+        assert scalar(engine, "SELECT COUNT(*) FROM app_meta WHERE key = :k", k=FLAG) == 0

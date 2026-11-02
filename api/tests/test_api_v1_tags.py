@@ -170,7 +170,7 @@ def test_item_tag_filter_is_repeatable_and_supports_none(api):
     assert names("tag=__none") == ["Neither"]
     assert names("tag=Ghost") == []
     assert names("q=bbb") == ["Both"]  # search matches tag names
-    assert names("collection=Aaa") == ["Both", "Neither", "OnlyA"]  # the old filter is not applied
+    assert client.get(f"{BASE}/items?collection=Aaa", headers=h).status_code == 400  # refused, not silently ignored
 
 
 def test_tag_item_count_and_delete_untag_items_and_clean_users(api):
@@ -187,3 +187,18 @@ def test_tag_item_count_and_delete_untag_items_and_clean_users(api):
     assert client.get(f"{BASE}/items", headers=h).json()[0]["tags"] == []
     me = client.get("/api/me", cookies=admin).json()
     assert me["preferred_add_tag_ids"] == [] and me["shortcut_filters"] == []
+
+
+def test_listing_items_with_the_old_collection_parameter_is_refused_not_ignored(api):
+    client, _admin, key = api
+    h = key()
+    r = client.get(f"{BASE}/items?collection=Electronics", headers=h)
+    assert r.status_code == 400 and r.json()["detail"] == REMOVED
+    assert client.get(f"{BASE}/items?tag=Electronics", headers=h).status_code == 200
+
+
+def test_tag_ids_in_an_external_write_is_refused_and_semicolons_in_names_too(api):
+    client, _admin, key = api
+    h = key()
+    assert client.post(f"{BASE}/items", json={"name": "Thing", "tag_ids": ["x"]}, headers=h).status_code == 400
+    assert client.post(f"{BASE}/tags", json={"name": "A;B"}, headers=h).status_code == 400

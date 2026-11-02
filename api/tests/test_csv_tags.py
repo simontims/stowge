@@ -95,12 +95,12 @@ def test_export_then_import_round_trips_the_tags(isolated_client, isolated_db):
 
 # ------------------------------ import ------------------------------
 
-def test_import_splits_tags_on_semicolons_and_commas_and_reports_missing_ones(isolated_client, isolated_db):
+def test_import_splits_tags_on_semicolons_only_and_reports_missing_ones(isolated_client, isolated_db):
     cookies = _admin(isolated_db)
     _tag(isolated_client, cookies, "Electronics")
-    text = _csv(["name", "tags"], [["One", "Electronics; Brand New"], ["Two", "brand new, Spare parts"], ["Three", ""]])
+    text = _csv(["name", "tags"], [["One", "Electronics; Brand New"], ["Two", "brand new; Spare parts, misc"], ["Three", ""]])
     preview = _preview(isolated_client, cookies, text)
-    assert preview["missing_tags"] == ["Brand New", "Spare parts"]  # case-insensitive de-dup, existing one excluded
+    assert preview["missing_tags"] == ["Brand New", "Spare parts, misc"]  # case-insensitive de-dup, existing one excluded
     assert "missing_collections" not in preview
     assert preview["item_count"] == 3
 
@@ -118,7 +118,7 @@ def test_import_without_create_tags_is_refused_and_imports_nothing(isolated_clie
 def test_import_with_create_tags_creates_them_and_tags_the_items(isolated_client, isolated_db):
     cookies = _admin(isolated_db)
     existing = _tag(isolated_client, cookies, "Electronics")
-    text = _csv(["name", "tags"], [["One", "electronics; To Sell"], ["Two", "To Sell,Spare"]])
+    text = _csv(["name", "tags"], [["One", "electronics; To Sell"], ["Two", "To Sell; Spare"]])
     r = _confirm(isolated_client, cookies, text, "?create_tags=true")
     assert r.status_code == 200, r.text
     assert r.json()["imported"] == 2 and r.json()["tags_created"] == 2 and "collections_created" not in r.json()
@@ -154,3 +154,12 @@ def test_create_collections_parameter_is_gone(isolated_client, isolated_db):
     text = _csv(["name", "tags"], [["Row", "Needed"]])
     r = _confirm(isolated_client, cookies, text, "?create_collections=true")
     assert r.status_code == 400  # the old flag does not create tags
+
+
+def test_a_tag_name_with_a_comma_survives_export_and_import(isolated_client, isolated_db):
+    cookies = _admin(isolated_db, "csv_comma@example.com")
+    cables, tools = _tag(isolated_client, cookies, "Cables, misc"), _tag(isolated_client, cookies, "Tools")
+    _item(isolated_client, cookies, "Spool", [cables, tools])
+    exported = isolated_client.get("/api/export/csv", cookies=cookies).text
+    preview = _preview(isolated_client, cookies, exported)
+    assert preview["missing_tags"] == []  # "Cables, misc" was not split into "Cables" and "misc"

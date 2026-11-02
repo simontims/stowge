@@ -23,13 +23,13 @@ VALID_STATUSES = {"draft", "confirmed"}
 
 
 def _split_tags(tags_value: str, legacy_collection: str) -> list[str]:
-    """Tag names from a ``tags`` cell (split on ';' or ',') plus a legacy ``collection`` cell (one tag).
+    """Tag names from a ``tags`` cell (split on ';' only, so names may contain commas) plus a legacy ``collection`` cell (one tag).
 
     Names are trimmed and de-duplicated case-insensitively (first spelling wins).
     """
     names: list[str] = []
     seen: set[str] = set()
-    candidates = [part for chunk in tags_value.split(";") for part in chunk.split(",")]
+    candidates = tags_value.split(";")
     if legacy_collection.strip():
         candidates.append(legacy_collection)
     for candidate in candidates:

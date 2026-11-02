@@ -121,11 +121,20 @@ def run_tags_migration(engine: Engine) -> bool:
         user_count = int(conn.execute(text("SELECT COUNT(*) FROM users")).scalar() or 0)
         item_count = int(conn.execute(text("SELECT COUNT(*) FROM parts")).scalar() or 0)
 
-    if user_count or item_count:
-        pre_migration_copy(engine)
+    copy_path = pre_migration_copy(engine) if (user_count or item_count) else None
 
-    with engine.begin() as conn:
-        _migrate(conn, tables)
+    try:
+        with engine.begin() as conn:
+            _migrate(conn, tables)
+    except Exception:
+        # Nothing changed (single transaction). Remove this attempt's copy so a crash loop
+        # does not fill the disk with one copy per start.
+        if copy_path:
+            try:
+                os.remove(copy_path)
+            except OSError:
+                pass
+        raise
     return True
 
 
@@ -240,6 +249,10 @@ def _migrate(conn, tables: set[str]) -> None:
                     entry["tag_id"] = "__none"
                 elif legacy:
                     tag = survivor_by_lower.get(legacy.lower())
+                    if tag is None and not entry.get("tag_id"):
+                        # The collection no longer exists: keeping the filter would turn it into
+                        # "show everything", so it is dropped.
+                        continue
                     entry["tag_id"] = tag["id"] if tag else entry.get("tag_id")
                 else:
                     entry.setdefault("tag_id", None)

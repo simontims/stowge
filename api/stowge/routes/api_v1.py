@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -21,9 +21,9 @@ from ..helpers.serializers import (
     tag_item_counts,
     tags_by_item_id,
 )
-from ..models import Area, Location, Part, Site, Tag
+from ..models import Area, Location, Part, Site, Tag, User
 from .items import item_has_tag_matching, apply_tag_filter, set_item_tags
-from .tags import delete_tag_and_references, find_tag_by_name
+from .tags import delete_tag_and_references, find_tag_by_name, require_tag_name
 
 router = APIRouter()
 
@@ -31,8 +31,10 @@ COLLECTION_REMOVED_DETAIL = "collection is no longer supported; use tags"
 
 
 def _reject_collection(payload: dict) -> None:
-    if "collection" in payload:
+    if "collection" in payload or "collection_id" in payload:
         raise HTTPException(status_code=400, detail=COLLECTION_REMOVED_DETAIL)
+    if "tag_ids" in payload:
+        raise HTTPException(status_code=400, detail="tag_ids is not supported here; send tag names in tags")
 
 
 def _resolve_tag_names(db: Session, raw: object) -> list[str]:
@@ -167,7 +169,10 @@ def v1_list_items(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["items.read"])),
+    request: Request = None,  # type: ignore[assignment]
 ):
+    if request is not None and "collection" in request.query_params:
+        raise HTTPException(status_code=400, detail=COLLECTION_REMOVED_DETAIL)
     return _list_items(
         db,
         q=q,
@@ -343,7 +348,7 @@ def v1_create_tag(
     db: Session = Depends(get_db),
     _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["tags.write"])),
 ):
-    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+    name = require_tag_name(payload.get("name"))
     icon = str(payload.get("icon") or "").strip() or None
     color = str(payload.get("color") or "").strip() or None
     description = str(payload.get("description") or "").strip() or None
@@ -370,10 +375,14 @@ def v1_update_tag(
         raise HTTPException(status_code=404, detail="Tag not found")
 
     if "name" in payload:
-        name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+        name = require_tag_name(payload.get("name"))
         if find_tag_by_name(db, name, exclude_id=tag_id):
             raise HTTPException(status_code=400, detail="Tag name already exists")
+        old_name = row.name
         row.name = name
+        if old_name != name:
+            for user in db.query(User).filter(func.lower(User.last_open_tag) == old_name.lower()).all():
+                user.last_open_tag = name
 
     if "icon" in payload:
         row.icon = str(payload.get("icon") or "").strip() or None

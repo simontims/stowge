@@ -22,6 +22,14 @@ from ..models import ItemTag, Part, Tag, User
 router = APIRouter()
 
 
+def require_tag_name(raw: object) -> str:
+    """Validated tag name. ';' is the separator in CSV import/export, so it cannot be part of a name."""
+    name = require_name(raw, min_length=MIN_NAME_LENGTH)
+    if ";" in name:
+        raise HTTPException(status_code=400, detail="Tag names cannot contain ';'")
+    return name
+
+
 def find_tag_by_name(db: Session, name: str, exclude_id: str | None = None) -> Tag | None:
     """Case-insensitive lookup (same folding as the unique index on lower(name))."""
     query = db.query(Tag).filter(func.lower(Tag.name) == func.lower(name))
@@ -32,6 +40,10 @@ def find_tag_by_name(db: Session, name: str, exclude_id: str | None = None) -> T
 
 def forget_tag_for_users(db: Session, tag_id: str) -> None:
     """Remove a deleted tag from every user's sticky tags and delete the pinned filters that point at it."""
+    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    if tag:
+        for user in db.query(User).filter(func.lower(User.last_open_tag) == tag.name.lower()).all():
+            user.last_open_tag = None
     for user in db.query(User).filter((User.preferred_add_tag_ids.isnot(None)) | (User.shortcut_filters.isnot(None))).all():
         if user.preferred_add_tag_ids:
             kept = [t for t in parse_preferred_tag_ids(user.preferred_add_tag_ids) if t != tag_id]
@@ -88,7 +100,7 @@ def get_items_bootstrap(db: Session = Depends(get_db), me: User = Depends(curren
 
 @router.post("/api/tags")
 def create_tag(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
-    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+    name = require_tag_name(payload.get("name"))
     icon = str(payload.get("icon") or "").strip() or None
     color = str(payload.get("color") or "").strip() or None
     description = str(payload.get("description") or "").strip() or None
@@ -110,10 +122,15 @@ def update_tag(tag_id: str, payload: dict, db: Session = Depends(get_db), me: Us
         raise HTTPException(status_code=404, detail="Tag not found")
 
     if "name" in payload:
-        name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+        name = require_tag_name(payload.get("name"))
         if find_tag_by_name(db, name, exclude_id=tag_id):
             raise HTTPException(status_code=400, detail="Tag name already exists")
+        old_name = tag.name
         tag.name = name
+        if old_name != name:
+            # last_open_tag holds the tag NAME: follow a rename so the post-login route still works.
+            for user in db.query(User).filter(func.lower(User.last_open_tag) == old_name.lower()).all():
+                user.last_open_tag = name
 
     if "icon" in payload:
         tag.icon = str(payload.get("icon") or "").strip() or None
