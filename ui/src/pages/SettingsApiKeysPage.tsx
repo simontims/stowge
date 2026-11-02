@@ -67,17 +67,17 @@ interface ApiKeySectionProps {
 
 const SCOPE_OPTIONS: Array<{ key: string; label: string; description: string; availableNow: boolean }> = [
   { key: "items.read", label: "Read Items", description: "List, search, and fetch item details", availableNow: true },
-  { key: "collections.read", label: "Read Collections", description: "Browse collection metadata", availableNow: true },
+  { key: "tags.read", label: "Read Tags", description: "Browse tags", availableNow: true },
   { key: "locations.read", label: "Read Locations", description: "Browse location metadata", availableNow: true },
   { key: "items.write", label: "Write Items", description: "Create and update items", availableNow: true },
   { key: "items.delete", label: "Delete Items", description: "Delete items", availableNow: true },
-  { key: "collections.write", label: "Write Collections", description: "Create and update collections", availableNow: true },
-  { key: "collections.delete", label: "Delete Collections", description: "Delete collections", availableNow: true },
+  { key: "tags.write", label: "Write Tags", description: "Create and update tags", availableNow: true },
+  { key: "tags.delete", label: "Delete Tags", description: "Delete tags", availableNow: true },
   { key: "locations.write", label: "Write Locations", description: "Create and update locations", availableNow: true },
   { key: "locations.delete", label: "Delete Locations", description: "Delete locations", availableNow: true },
 ];
 
-const READ_SCOPE_KEYS = ["items.read", "collections.read", "locations.read"];
+const READ_SCOPE_KEYS = ["items.read", "tags.read", "locations.read"];
 const EXTERNAL_API_DOCS_PATH = "/external-api/docs";
 
 const EMPTY_FORM: CreateApiKeyForm = {

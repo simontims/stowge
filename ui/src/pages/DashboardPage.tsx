@@ -10,7 +10,7 @@ import { stageLabel, preflightTitle, restoreStepState } from "../lib/statusMappi
 import { formatBytes } from "../lib/format";
 import { useTableSort } from "../hooks/useTableSort";
 
-interface CollectionStatusRow {
+interface TagStatusRow {
   id: string;
   name: string;
   icon: string | null;
@@ -20,7 +20,8 @@ interface CollectionStatusRow {
   disk_bytes: number;
 }
 
-interface UncollectedStats {
+interface UntaggedStats {
+  name?: string;
   item_count: number;
   asset_count: number;
   disk_bytes: number;
@@ -28,13 +29,13 @@ interface UncollectedStats {
 
 interface StatusMetrics {
   server: "ok";
-  collections: CollectionStatusRow[];
+  tags: TagStatusRow[];
   recycle_bin: {
     item_count: number;
     asset_count: number;
     disk_bytes: number;
   };
-  uncollected: UncollectedStats;
+  untagged: UntaggedStats;
   totals: {
     item_count: number;
     asset_count: number;
@@ -510,11 +511,11 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   async function loadMetrics() {
     setMetricsLoading(true);
     try {
-      const data = await apiRequest<StatusMetrics>("/api/status/collections");
+      const data = await apiRequest<StatusMetrics>("/api/status/tags");
       setMetrics(data);
       setLoadError("");
     } catch (err) {
-      setLoadError((err as Error).message || "Failed to load collection metrics.");
+      setLoadError((err as Error).message || "Failed to load tag metrics.");
     } finally {
       setMetricsLoading(false);
     }

@@ -13,7 +13,9 @@ import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { buildCenteredExcerpt, splitMatchSegments } from "../lib/itemSearch";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
-import { type LocationOption, type CollectionOption } from "../lib/types";
+import { type ItemTag, type LocationOption, type Tag } from "../lib/types";
+import { UNTAGGED, listTags } from "../lib/tags";
+import { TagChips } from "../components/ui/TagChips";
 import { imageStateSignature } from "../lib/format";
 
 const MOBILE_BREAKPOINT = 1024; // lg breakpoint
@@ -24,7 +26,7 @@ interface Part {
   id: string;
   name: string;
   description: string | null;
-  collection: string | null;
+  tags: ItemTag[];
   location: string | null;
   status: string;
   quantity: number;
@@ -44,7 +46,7 @@ export interface PartDetail {
   id: string;
   name: string;
   description: string | null;
-  collection: string | null;
+  tags: ItemTag[];
   location_id: string | null;
   location: string | null;
   status: string;
@@ -64,7 +66,6 @@ export interface PartDetail {
 export interface PartEditForm {
   name: string;
   description: string;
-  collection: string;
   location_id: string;
   status: "draft" | "confirmed";
   quantity: number;
@@ -74,7 +75,6 @@ export interface PartEditForm {
 const EMPTY_EDIT_FORM: PartEditForm = {
   name: "",
   description: "",
-  collection: "",
   location_id: "",
   status: "draft",
   quantity: 1,
@@ -84,7 +84,6 @@ function toEditForm(part: PartDetail): PartEditForm {
   return {
     name: part.name ?? "",
     description: part.description ?? "",
-    collection: part.collection ?? "",
     location_id: part.location_id ?? "",
     status: part.status === "confirmed" ? "confirmed" : "draft",
     quantity: part.quantity ?? 1,
@@ -95,7 +94,6 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
   return (
     a.name.trim() === b.name.trim() &&
     a.description.trim() === b.description.trim() &&
-    a.collection.trim() === b.collection.trim() &&
     a.location_id === b.location_id &&
     a.status === b.status &&
     a.quantity === b.quantity
@@ -103,7 +101,7 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
 }
 
 
-type ItemSortKey = "name" | "collection" | "location" | "status";
+type ItemSortKey = "name" | "tags" | "location" | "status";
 
 function getColumnWidth(values: Array<string | null | undefined>, minimum: number, maximum: number): string {
   const longest = values.reduce((currentMax, value) => {
@@ -180,31 +178,40 @@ function renderItemNameContent(
   );
 }
 
-function matchesActiveCollectionFilter(part: Part, collection?: string): boolean {
-  if (!collection) return true;
-  if (collection === "__none") return !part.collection;
-  return (part.collection || "").toLowerCase() === collection.toLowerCase();
+function matchesActiveTagFilter(part: Part, tag?: string): boolean {
+  if (!tag) return true;
+  const tags = part.tags ?? [];
+  if (tag === UNTAGGED) return tags.length === 0;
+  return tags.some((entry) => entry.name.toLowerCase() === tag.toLowerCase());
+}
+
+/** Tag names in the order the server sorts by: alphabetical, so the first one is the sort value. */
+function tagNames(part: Pick<Part, "tags">): string[] {
+  return (part.tags ?? []).map((tag) => tag.name);
 }
 
 function matchesActiveSearch(part: Part, q?: string): boolean {
   const term = (q || "").trim().toLowerCase();
   if (!term) return true;
-  return [part.name, part.description || "", part.collection || "", part.location || "", part.status]
+  return [part.name, part.description || "", tagNames(part).join(" "), part.location || "", part.status]
     .some((value) => value.toLowerCase().includes(term));
 }
 
 function compareParts(a: Part, b: Part, sortKey?: ItemSortKey, sortDir?: "asc" | "desc"): number {
-  const key: ItemSortKey = sortKey && ["name", "collection", "location", "status"].includes(sortKey) ? sortKey : "name";
+  const key: ItemSortKey = sortKey && ["name", "tags", "location", "status"].includes(sortKey) ? sortKey : "name";
   const dir = sortDir === "desc" ? -1 : 1;
-  const left = ((a[key] as string | null) || "").toLowerCase();
-  const right = ((b[key] as string | null) || "").toLowerCase();
+  const valueOf = (part: Part) => (key === "tags" ? tagNames(part)[0] : (part[key] as string | null)) || "";
+  const left = valueOf(a).toLowerCase();
+  const right = valueOf(b).toLowerCase();
+  // Untagged items go last when sorting by tags, in either direction.
+  if (key === "tags" && (!left || !right) && left !== right) return left ? -1 : 1;
   return left.localeCompare(right) * dir;
 }
 
 export function ItemsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
 
   // Sync search when ?q= param changes (e.g. navigating from topbar search)
@@ -231,7 +238,7 @@ export function ItemsPage() {
   const [initialImageSignature, setInitialImageSignature] = useState("");
   const [savingDetail, setSavingDetail] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
+  const [tagOptions, setTagOptions] = useState<Tag[]>([]);
 
   const [unsavedPromptOpen, setUnsavedPromptOpen] = useState(false);
   const [deletingPartFromModal, setDeletingPartFromModal] = useState(false);
@@ -253,39 +260,51 @@ export function ItemsPage() {
 
   const isMobile = windowWidth < MOBILE_BREAKPOINT;
 
-  const collectionFilter = searchParams.get("collection")?.trim() || "";
+  const tagFilter = searchParams.get("tag")?.trim() || "";
   const statusFilter = searchParams.get("status")?.trim() || "";
   const siteIdFilter = searchParams.get("site_id")?.trim() || "";
   const areaIdFilter = searchParams.get("area_id")?.trim() || "";
   const locationIdFilter = searchParams.get("location_id")?.trim() || "";
   const quantityMinFilter = searchParams.get("quantity_min")?.trim() || "";
   const quantityMaxFilter = searchParams.get("quantity_max")?.trim() || "";
-  const isUncollectedFilter = collectionFilter === "__none";
-  const collectionLabel = isUncollectedFilter ? "No collection" : collectionFilter;
-  const activeCollectionOption = useMemo(
-    () => collectionOptions.find((option) => option.name === collectionFilter) ?? null,
-    [collectionFilter, collectionOptions]
+  const isUntaggedFilter = tagFilter === UNTAGGED;
+  const tagLabel = isUntaggedFilter ? "No tag" : tagFilter;
+  const activeTagOption = useMemo(
+    () => tagOptions.find((option) => option.name.toLowerCase() === tagFilter.toLowerCase()) ?? null,
+    [tagFilter, tagOptions]
   );
 
-  // Debounced collection filter — reduces write traffic on PATCH /api/me
-  const debouncedCollectionFilter = useDebounce(collectionFilter, 300);
+  // Debounced tag filter — reduces write traffic on PATCH /api/me
+  const debouncedTagFilter = useDebounce(tagFilter, 300);
 
-  const collectionFilterSavedRef = useRef<string | null>(null);
+  const tagFilterSavedRef = useRef<string | null>(null);
   selectedPartIdRef.current = selectedPartId;
 
   useEffect(() => {
-    if (collectionFilterSavedRef.current === null) {
-      collectionFilterSavedRef.current = debouncedCollectionFilter;
+    if (tagFilterSavedRef.current === null) {
+      tagFilterSavedRef.current = debouncedTagFilter;
       return;
     }
-    if (debouncedCollectionFilter === collectionFilterSavedRef.current) return;
-    collectionFilterSavedRef.current = debouncedCollectionFilter;
-    const debouncedIsUncollected = debouncedCollectionFilter === "__none";
+    if (debouncedTagFilter === tagFilterSavedRef.current) return;
+    tagFilterSavedRef.current = debouncedTagFilter;
+    const debouncedIsUntagged = debouncedTagFilter === UNTAGGED;
     void apiRequest("/api/me", {
       method: "PATCH",
-      body: JSON.stringify({ last_open_collection: debouncedIsUncollected ? null : (debouncedCollectionFilter || null) }),
+      body: JSON.stringify({ last_open_tag: debouncedIsUntagged ? null : (debouncedTagFilter || null) }),
     }).catch(() => {});
-  }, [debouncedCollectionFilter]);
+  }, [debouncedTagFilter]);
+
+  function changeTagFilter(value: string) {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set("tag", value);
+        else next.delete("tag");
+        return next;
+      },
+      { replace: true }
+    );
+  }
 
   const hasDirtyChanges = useMemo(() => {
     if (selectedPartId === null) return false;
@@ -297,14 +316,14 @@ export function ItemsPage() {
 
   useEffect(() => {
     void loadLocations();
-    void loadCollectionOptions();
+    void loadTagOptions();
   }, []);
 
-  // Reload items whenever debounced search, collection filter, or sort changes
+  // Reload items whenever debounced search, tag filter, or sort changes
   useEffect(() => {
     void loadParts({
       q: debouncedSearch,
-      collection: collectionFilter,
+      tag: tagFilter,
       status: statusFilter,
       siteId: siteIdFilter,
       areaId: areaIdFilter,
@@ -316,7 +335,7 @@ export function ItemsPage() {
     });
   }, [
     debouncedSearch,
-    collectionFilter,
+    tagFilter,
     statusFilter,
     siteIdFilter,
     areaIdFilter,
@@ -330,7 +349,7 @@ export function ItemsPage() {
   // Keep a ref to current load params so the SSE handler always uses fresh values
   const loadParamsRef = useRef({
     q: debouncedSearch,
-    collection: collectionFilter,
+    tag: tagFilter,
     status: statusFilter,
     siteId: siteIdFilter,
     areaId: areaIdFilter,
@@ -342,7 +361,7 @@ export function ItemsPage() {
   });
   loadParamsRef.current = {
     q: debouncedSearch,
-    collection: collectionFilter,
+    tag: tagFilter,
     status: statusFilter,
     siteId: siteIdFilter,
     areaId: areaIdFilter,
@@ -434,7 +453,7 @@ export function ItemsPage() {
 
   async function loadParts(params?: {
     q?: string;
-    collection?: string;
+    tag?: string;
     status?: string;
     siteId?: string;
     areaId?: string;
@@ -454,7 +473,7 @@ export function ItemsPage() {
     try {
       const qs = new URLSearchParams();
       if (params?.q?.trim()) qs.set("q", params.q.trim());
-      if (params?.collection) qs.set("collection", params.collection);
+      if (params?.tag) qs.set("tag", params.tag);
       if (params?.status) qs.set("status", params.status);
       if (params?.siteId) qs.set("site_id", params.siteId);
       if (params?.areaId) qs.set("area_id", params.areaId);
@@ -485,12 +504,11 @@ export function ItemsPage() {
     }
   }
 
-  async function loadCollectionOptions() {
+  async function loadTagOptions() {
     try {
-      const data = await apiRequest<CollectionOption[]>("/api/collections");
-      setCollectionOptions(data || []);
+      setTagOptions((await listTags()) || []);
     } catch {
-      setCollectionOptions([]);
+      setTagOptions([]);
     }
   }
 
@@ -545,7 +563,7 @@ export function ItemsPage() {
       }
 
       const matchesView =
-        matchesActiveCollectionFilter(restoredItem, params.collection) &&
+        matchesActiveTagFilter(restoredItem, params.tag) &&
         matchesActiveSearch(restoredItem, params.q);
 
       setParts((current) => {
@@ -636,7 +654,6 @@ export function ItemsPage() {
           body: JSON.stringify({
             name: trimmedName,
             description: editForm.description.trim() || null,
-            collection: editForm.collection.trim() || null,
             location_id: editForm.location_id || null,
             status: editForm.status,
             quantity: editForm.quantity,
@@ -664,16 +681,6 @@ export function ItemsPage() {
       const refreshed = await apiRequest<PartDetail>(`/api/items/${selectedPartId}`);
       const refreshedForm = toEditForm(refreshed);
 
-      const noLongerMatchesCollectionFilter =
-        (isUncollectedFilter && !!refreshed.collection) ||
-        (!isUncollectedFilter && !!collectionFilter && refreshed.collection !== collectionFilter);
-
-      if (noLongerMatchesCollectionFilter) {
-        setParts((current) => current.filter((p) => p.id !== refreshed.id));
-        closeModalNow();
-        return true;
-      }
-
       setSelectedPart(refreshed);
       setDraftImages(refreshed.images);
       setInitialImageSignature(imageStateSignature(refreshed.images));
@@ -686,7 +693,7 @@ export function ItemsPage() {
             ? {
                 ...p,
                 name: refreshed.name,
-                collection: refreshed.collection,
+                tags: refreshed.tags,
                 location: refreshed.location,
                 status: refreshed.status,
                 quantity: refreshed.quantity,
@@ -809,7 +816,7 @@ export function ItemsPage() {
   const columnWidths = useMemo(
     () => ({
       name: getColumnWidth(parts.map((part) => part.name), 18, 34),
-      collection: getColumnWidth(parts.map((part) => part.collection), 14, 26),
+      tags: getColumnWidth(parts.map((part) => tagNames(part).join(", ")), 14, 34),
       location: getColumnWidth(parts.map((part) => part.location), 14, 26),
       status: getColumnWidth(parts.map((part) => part.status), 10, 14),
     }),
@@ -850,15 +857,11 @@ export function ItemsPage() {
         render: (row) => renderItemNameContent(row, activeResultQuery, desktopDescriptionExcerptLength, `desktop-${row.id}`, true),
       },
       {
-        key: "collection",
-        header: "Collection",
+        key: "tags",
+        header: "Tags",
         sortable: true,
-        width: columnWidths.collection,
-        render: (row) => (
-          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
-            {row.collection || "-"}
-          </span>
-        ),
+        width: columnWidths.tags,
+        render: (row) => <TagChips tags={row.tags} emptyLabel="-" />,
       },
       {
         key: "location",
@@ -901,22 +904,22 @@ export function ItemsPage() {
     if (error) {
       return error;
     }
-    if (collectionFilter && search.trim()) {
-      return `No items in ${collectionLabel} match your search.`;
+    if (tagFilter && search.trim()) {
+      return `No items tagged ${tagLabel} match your search.`;
     }
-    if (collectionFilter) {
-      return `No items found in ${collectionLabel}.`;
+    if (tagFilter) {
+      return isUntaggedFilter ? "No untagged items." : `No items tagged ${tagLabel}.`;
     }
     if (search.trim()) {
       return "No items match your search.";
     }
     return "No items yet. Add your first one above.";
-  }, [collectionFilter, error, loading, search]);
+  }, [error, isUntaggedFilter, loading, search, tagFilter, tagLabel]);
 
   return (
     <div className="space-y-5 h-full flex flex-col">
       <PageHeader
-        title={collectionLabel || "Items"}
+        title={tagLabel || "Items"}
       />
 
       <TablePaneLayout
@@ -940,39 +943,48 @@ export function ItemsPage() {
             >
               <div
                 className={`space-y-4 flex-1 min-h-0 flex flex-col overflow-hidden ${
-                  collectionFilter ? "" : "p-4"
+                  tagFilter ? "" : "p-4"
                 }`}
               >
                 <ListToolbar
                   search={search}
                   onSearchChange={setSearch}
-                  placeholder={collectionFilter ? "Search by name and description" : "Search items, locations, collections…"}
+                  placeholder={tagFilter ? "Search by name and description" : "Search items, locations, tags…"}
                   loading={loading}
                   action={
-                    <button
-                      onClick={() => {
-                        if (!collectionFilter) {
-                          navigate("/add");
-                          return;
-                        }
-
-                        const nextSearch = new URLSearchParams();
-                        if (activeCollectionOption?.id) {
-                          nextSearch.set("collection_id", activeCollectionOption.id);
-                        } else {
-                          nextSearch.set("collection", collectionFilter);
-                        }
-
-                        navigate({
-                          pathname: "/add",
-                          search: nextSearch.toString(),
-                        });
-                      }}
-                      className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
-                    >
-                      <Plus size={14} />
-                      Add Item
-                    </button>
+                    <>
+                      <select
+                        aria-label="Filter by tag"
+                        value={tagFilter}
+                        onChange={(event) => changeTagFilter(event.target.value)}
+                        className="bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500 max-w-[10rem]"
+                      >
+                        <option value="">Any tag</option>
+                        <option value={UNTAGGED}>Untagged</option>
+                        {tagOptions.map((option) => (
+                          <option key={option.id} value={option.name}>{option.name}</option>
+                        ))}
+                        {tagFilter && !isUntaggedFilter && !activeTagOption && (
+                          <option value={tagFilter}>{tagFilter}</option>
+                        )}
+                      </select>
+                      <button
+                        onClick={() => {
+                          if (!tagFilter || isUntaggedFilter) {
+                            navigate("/add");
+                            return;
+                          }
+                          navigate({
+                            pathname: "/add",
+                            search: new URLSearchParams({ tag: activeTagOption?.name ?? tagFilter }).toString(),
+                          });
+                        }}
+                        className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
+                      >
+                        <Plus size={14} />
+                        Add Item
+                      </button>
+                    </>
                   }
                 />
 
@@ -1021,9 +1033,7 @@ export function ItemsPage() {
                                         </div>
                                       </div>
                                       <div className="mt-1 flex flex-wrap gap-1.5">
-                                        <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
-                                          {row.collection || "No collection"}
-                                        </span>
+                                        <TagChips tags={row.tags} emptyLabel="No tags" small />
                                         <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
                                           {row.location || "No location"}
                                         </span>
@@ -1075,7 +1085,6 @@ export function ItemsPage() {
             savingDetail={savingDetail}
             deletingPartFromModal={deletingPartFromModal}
             locations={locations}
-            collectionOptions={collectionOptions}
             hasDirtyChanges={hasDirtyChanges}
             onEditChange={setEditForm}
             onSave={async () => {

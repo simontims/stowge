@@ -19,13 +19,13 @@ def _create_key(isolated_client, admin_cookies, scopes):
 
 
 def _seed_inventory(isolated_client, admin_cookies):
-    collection_resp = isolated_client.post(
-        "/api/collections",
+    tag_resp = isolated_client.post(
+        "/api/tags",
         json={"name": "Tools", "description": "Garage tools"},
         cookies=admin_cookies,
     )
-    assert collection_resp.status_code == 200, collection_resp.text
-    collection_id = collection_resp.json()["id"]
+    assert tag_resp.status_code == 200, tag_resp.text
+    tag_id = tag_resp.json()["id"]
 
     location_resp = isolated_client.post(
         "/api/locations",
@@ -40,7 +40,7 @@ def _seed_inventory(isolated_client, admin_cookies):
         json={
             "name": "Socket Wrench",
             "description": "Engine tools",
-            "collection": "Tools",
+            "tag_ids": [tag_id],
             "location_id": location_id,
             "status": "confirmed",
             "quantity": 2,
@@ -50,7 +50,7 @@ def _seed_inventory(isolated_client, admin_cookies):
     assert item_resp.status_code == 200, item_resp.text
     item_id = item_resp.json()["id"]
 
-    return collection_id, location_id, item_id
+    return tag_id, location_id, item_id
 
 
 def test_external_v1_read_operations_and_scope_enforcement(isolated_client, isolated_db):
@@ -66,24 +66,26 @@ def test_external_v1_read_operations_and_scope_enforcement(isolated_client, isol
     assert len(payload) == 1
     assert payload[0]["name"] == "Socket Wrench"
 
-    collections_denied = isolated_client.get(f"{EXTERNAL_BASE}/collections", headers=headers)
-    assert collections_denied.status_code == 403
+    tags_denied = isolated_client.get(f"{EXTERNAL_BASE}/tags", headers=headers)
+    assert tags_denied.status_code == 403
+    assert tags_denied.json()["detail"]["missing_scopes"] == ["tags.read"]
 
 
-def test_external_v1_collections_locations_nested_and_item_detail(isolated_client, isolated_db):
+def test_external_v1_tags_locations_nested_and_item_detail(isolated_client, isolated_db):
     admin_cookies = auth_cookies_isolated(isolated_db, "v1-admin-2@example.com", role="admin")
-    collection_id, location_id, item_id = _seed_inventory(isolated_client, admin_cookies)
+    tag_id, location_id, item_id = _seed_inventory(isolated_client, admin_cookies)
 
     key = _create_key(
         isolated_client,
         admin_cookies,
-        ["items.read", "collections.read", "locations.read"],
+        ["items.read", "tags.read", "locations.read"],
     )
     headers = {"Authorization": f"Bearer {key}"}
 
-    collections = isolated_client.get(f"{EXTERNAL_BASE}/collections", headers=headers)
-    assert collections.status_code == 200, collections.text
-    assert len(collections.json()) == 1
+    tags = isolated_client.get(f"{EXTERNAL_BASE}/tags", headers=headers)
+    assert tags.status_code == 200, tags.text
+    assert len(tags.json()) == 1
+    assert tags.json()[0]["item_count"] == 1
 
     locations = isolated_client.get(f"{EXTERNAL_BASE}/locations", headers=headers)
     assert locations.status_code == 200, locations.text
@@ -92,17 +94,19 @@ def test_external_v1_collections_locations_nested_and_item_detail(isolated_clien
     item_detail = isolated_client.get(f"{EXTERNAL_BASE}/items/{item_id}", headers=headers)
     assert item_detail.status_code == 200, item_detail.text
     assert item_detail.json()["id"] == item_id
+    assert item_detail.json()["tags"] == ["Tools"]
+    assert "collection" not in item_detail.json()
 
-    collection_items = isolated_client.get(f"{EXTERNAL_BASE}/collections/{collection_id}/items", headers=headers)
-    assert collection_items.status_code == 200, collection_items.text
-    assert len(collection_items.json()) == 1
+    tag_items = isolated_client.get(f"{EXTERNAL_BASE}/items?tag=tools", headers=headers)
+    assert tag_items.status_code == 200, tag_items.text
+    assert len(tag_items.json()) == 1
 
     location_items = isolated_client.get(f"{EXTERNAL_BASE}/locations/{location_id}/items", headers=headers)
     assert location_items.status_code == 200, location_items.text
     assert len(location_items.json()) == 1
 
 
-def test_external_v1_full_crud_for_items_collections_and_locations(isolated_client, isolated_db):
+def test_external_v1_full_crud_for_items_tags_and_locations(isolated_client, isolated_db):
     admin_cookies = auth_cookies_isolated(isolated_db, "v1-admin-3@example.com", role="admin")
 
     key = _create_key(
@@ -112,9 +116,9 @@ def test_external_v1_full_crud_for_items_collections_and_locations(isolated_clie
             "items.read",
             "items.write",
             "items.delete",
-            "collections.read",
-            "collections.write",
-            "collections.delete",
+            "tags.read",
+            "tags.write",
+            "tags.delete",
             "locations.read",
             "locations.write",
             "locations.delete",
@@ -122,29 +126,29 @@ def test_external_v1_full_crud_for_items_collections_and_locations(isolated_clie
     )
     headers = {"Authorization": f"Bearer {key}"}
 
-    create_collection = isolated_client.post(
-        f"{EXTERNAL_BASE}/collections",
+    create_tag = isolated_client.post(
+        f"{EXTERNAL_BASE}/tags",
         json={"name": "Bins", "description": "Storage bins"},
         headers=headers,
     )
-    assert create_collection.status_code == 200, create_collection.text
-    collection_id = create_collection.json()["id"]
+    assert create_tag.status_code == 200, create_tag.text
+    tag_id = create_tag.json()["id"]
 
-    list_collections = isolated_client.get(f"{EXTERNAL_BASE}/collections", headers=headers)
-    assert list_collections.status_code == 200, list_collections.text
-    assert any(row["id"] == collection_id for row in list_collections.json())
+    list_tags = isolated_client.get(f"{EXTERNAL_BASE}/tags", headers=headers)
+    assert list_tags.status_code == 200, list_tags.text
+    assert any(row["id"] == tag_id for row in list_tags.json())
 
-    get_collection = isolated_client.get(f"{EXTERNAL_BASE}/collections/{collection_id}", headers=headers)
-    assert get_collection.status_code == 200, get_collection.text
-    assert get_collection.json()["name"] == "Bins"
+    get_tag = isolated_client.get(f"{EXTERNAL_BASE}/tags/{tag_id}", headers=headers)
+    assert get_tag.status_code == 200, get_tag.text
+    assert get_tag.json()["name"] == "Bins"
 
-    patch_collection = isolated_client.patch(
-        f"{EXTERNAL_BASE}/collections/{collection_id}",
+    patch_tag = isolated_client.patch(
+        f"{EXTERNAL_BASE}/tags/{tag_id}",
         json={"description": "Organized storage bins"},
         headers=headers,
     )
-    assert patch_collection.status_code == 200, patch_collection.text
-    assert patch_collection.json()["description"] == "Organized storage bins"
+    assert patch_tag.status_code == 200, patch_tag.text
+    assert patch_tag.json()["description"] == "Organized storage bins"
 
     create_location = isolated_client.post(
         f"{EXTERNAL_BASE}/locations",
@@ -174,7 +178,7 @@ def test_external_v1_full_crud_for_items_collections_and_locations(isolated_clie
         f"{EXTERNAL_BASE}/items",
         json={
             "name": "Cable Ties",
-            "collection": "Bins",
+            "tags": ["bins"],
             "location_id": location_id,
             "status": "confirmed",
             "quantity": 10,
@@ -191,6 +195,7 @@ def test_external_v1_full_crud_for_items_collections_and_locations(isolated_clie
     get_item = isolated_client.get(f"{EXTERNAL_BASE}/items/{item_id}", headers=headers)
     assert get_item.status_code == 200, get_item.text
     assert get_item.json()["name"] == "Cable Ties"
+    assert get_item.json()["tags"] == ["Bins"]
 
     patch_item = isolated_client.patch(
         f"{EXTERNAL_BASE}/items/{item_id}",
@@ -210,15 +215,15 @@ def test_external_v1_full_crud_for_items_collections_and_locations(isolated_clie
     assert deleted_item_list.status_code == 200, deleted_item_list.text
     assert all(row["id"] != item_id for row in deleted_item_list.json())
 
-    delete_collection = isolated_client.delete(f"{EXTERNAL_BASE}/collections/{collection_id}", headers=headers)
-    assert delete_collection.status_code == 200, delete_collection.text
+    delete_tag = isolated_client.delete(f"{EXTERNAL_BASE}/tags/{tag_id}", headers=headers)
+    assert delete_tag.status_code == 200, delete_tag.text
 
-    deleted_collection_get = isolated_client.get(f"{EXTERNAL_BASE}/collections/{collection_id}", headers=headers)
-    assert deleted_collection_get.status_code == 404, deleted_collection_get.text
+    deleted_tag_get = isolated_client.get(f"{EXTERNAL_BASE}/tags/{tag_id}", headers=headers)
+    assert deleted_tag_get.status_code == 404, deleted_tag_get.text
 
-    deleted_collection_list = isolated_client.get(f"{EXTERNAL_BASE}/collections", headers=headers)
-    assert deleted_collection_list.status_code == 200, deleted_collection_list.text
-    assert all(row["id"] != collection_id for row in deleted_collection_list.json())
+    deleted_tag_list = isolated_client.get(f"{EXTERNAL_BASE}/tags", headers=headers)
+    assert deleted_tag_list.status_code == 200, deleted_tag_list.text
+    assert all(row["id"] != tag_id for row in deleted_tag_list.json())
 
     delete_location = isolated_client.delete(f"{EXTERNAL_BASE}/locations/{location_id}", headers=headers)
     assert delete_location.status_code == 200, delete_location.text
@@ -319,7 +324,9 @@ def test_external_docs_expose_only_external_surface(isolated_client):
     paths = set(openapi["paths"].keys())
 
     assert "/v1/items" in paths
-    assert "/v1/collections" in paths
+    assert "/v1/tags" in paths
+    assert "/v1/collections" not in paths
+    assert not any(path.startswith("/v1/collections") for path in paths)
     assert "/v1/locations" in paths
     assert "/v1/sites" in paths
     assert "/v1/areas" in paths

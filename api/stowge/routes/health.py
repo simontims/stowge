@@ -1,4 +1,4 @@
-"""Health checks, version, status, and status/collections metrics."""
+"""Health checks, version, status, and status/tags metrics."""
 
 import os
 
@@ -10,7 +10,7 @@ from ..asset_paths import location_image_variant_paths, location_photo_variant_p
 from ..auth import current_user
 from ..db import DATABASE_FILE, get_db
 from ..images import assets_dir
-from ..models import Collection, Location, Part, PartImage, User
+from ..models import ItemTag, Location, Part, PartImage, Tag, User
 
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
 
@@ -63,48 +63,43 @@ def status(db: Session = Depends(get_db)):
     return {"needs_setup": db.query(User).count() == 0}
 
 
-@router.get("/api/status/collections")
-def status_collections(db: Session = Depends(get_db), me: User = Depends(current_user)):
-    collections = db.query(Collection).order_by(Collection.name.asc()).all()
+def status_tags(db: Session = Depends(get_db), me: User = Depends(current_user)):
+    """Per-tag item/image/disk metrics.
 
-    item_count_rows = (
-        db.query(Part.collection, func.count(Part.id))
-        .filter(Part.collection.isnot(None))
+    An item with several tags counts once per tag; items with no tag are grouped as "No tag".
+    The totals count every item (and file) once.
+    """
+    tags = db.query(Tag).order_by(Tag.name.asc()).all()
+
+    tag_ids_by_item: dict[str, list[str]] = {}
+    for item_id, tag_id in (
+        db.query(ItemTag.item_id, ItemTag.tag_id)
+        .join(Part, Part.id == ItemTag.item_id)
         .filter(Part.is_deleted == 0)
-        .group_by(Part.collection)
         .all()
-    )
-    item_counts = {
-        str(collection_name): int(count)
-        for collection_name, count in item_count_rows
-        if collection_name
-    }
+    ):
+        tag_ids_by_item.setdefault(str(item_id), []).append(str(tag_id))
 
-    asset_count_rows = (
-        db.query(Part.collection, func.count(PartImage.id))
-        .join(Part, Part.id == PartImage.part_id)
-        .filter(Part.collection.isnot(None))
-        .filter(Part.is_deleted == 0)
-        .group_by(Part.collection)
-        .all()
-    )
-    asset_counts = {
-        str(collection_name): int(count)
-        for collection_name, count in asset_count_rows
-        if collection_name
-    }
+    active_item_ids = {str(item_id) for (item_id,) in db.query(Part.id).filter(Part.is_deleted == 0).all()}
 
-    asset_size_rows = (
-        db.query(Part.collection, Part.is_deleted, PartImage.path_thumb, PartImage.path_display, PartImage.path_original)
+    asset_rows = (
+        db.query(Part.id, Part.is_deleted, PartImage.path_thumb, PartImage.path_display, PartImage.path_original)
         .join(Part, Part.id == PartImage.part_id)
         .all()
     )
     base_assets_dir = assets_dir()
-    disk_bytes: dict[str, int] = {}
-    uncollected_bytes = 0
+    item_asset_count: dict[str, int] = {}
+    item_bytes: dict[str, int] = {}
     recycle_bin_bytes = 0
+    recycle_bin_asset_count = 0
     seen_paths: set[str] = set()
-    for collection_name, is_deleted, path_thumb, path_display, path_original in asset_size_rows:
+    for item_id, is_deleted, path_thumb, path_display, path_original in asset_rows:
+        item_id = str(item_id)
+        deleted = int(is_deleted or 0) == 1
+        if deleted:
+            recycle_bin_asset_count += 1
+        else:
+            item_asset_count[item_id] = item_asset_count.get(item_id, 0) + 1
         for rel_path in (path_thumb, path_display, path_original):
             if not rel_path:
                 continue
@@ -120,15 +115,10 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
             except OSError:
                 size = 0
 
-            if int(is_deleted or 0) == 1:
+            if deleted:
                 recycle_bin_bytes += size
-                continue
-
-            if collection_name:
-                key = str(collection_name)
-                disk_bytes[key] = disk_bytes.get(key, 0) + size
             else:
-                uncollected_bytes += size
+                item_bytes[item_id] = item_bytes.get(item_id, 0) + size
 
     location_photo_bytes = 0
     location_photo_paths = db.query(Location.photo_path).filter(Location.photo_path.isnot(None)).all()
@@ -150,76 +140,50 @@ def status_collections(db: Session = Depends(get_db), me: User = Depends(current
             except OSError:
                 pass
 
-    rows = []
-    total_items = 0
-    total_assets = 0
-    total_disk_bytes = location_photo_bytes + location_icon_bytes + uncollected_bytes + recycle_bin_bytes
+    per_tag: dict[str, dict[str, int]] = {tag.id: {"item_count": 0, "asset_count": 0, "disk_bytes": 0} for tag in tags}
+    untagged = {"item_count": 0, "asset_count": 0, "disk_bytes": 0}
+    for item_id in active_item_ids:
+        buckets = [per_tag[t] for t in tag_ids_by_item.get(item_id, []) if t in per_tag] or [untagged]
+        for bucket in buckets:
+            bucket["item_count"] += 1
+            bucket["asset_count"] += item_asset_count.get(item_id, 0)
+            bucket["disk_bytes"] += item_bytes.get(item_id, 0)
 
-    for collection in collections:
-        name = collection.name
-        item_count = int(item_counts.get(name, 0))
-        asset_count = int(asset_counts.get(name, 0))
-        collection_bytes = int(disk_bytes.get(name, 0))
-
-        total_items += item_count
-        total_assets += asset_count
-        total_disk_bytes += collection_bytes
-
-        rows.append(
-            {
-                "id": collection.id,
-                "name": name,
-                "icon": collection.icon,
-                "color": collection.color,
-                "item_count": item_count,
-                "asset_count": asset_count,
-                "disk_bytes": collection_bytes,
-            }
-        )
-
-    uncollected_item_count = int(
-        db.query(func.count(Part.id))
-        .filter(Part.collection.is_(None))
-        .filter(Part.is_deleted == 0)
-        .scalar() or 0
-    )
-    uncollected_asset_count = int(
-        db.query(func.count(PartImage.id))
-        .join(Part, Part.id == PartImage.part_id)
-        .filter(Part.collection.is_(None))
-        .filter(Part.is_deleted == 0)
-        .scalar() or 0
-    )
+    rows = [
+        {
+            "id": tag.id,
+            "name": tag.name,
+            "icon": tag.icon,
+            "color": tag.color,
+            **per_tag[tag.id],
+        }
+        for tag in tags
+    ]
 
     recycle_bin_item_count = int(
         db.query(func.count(Part.id)).filter(Part.is_deleted == 1).scalar() or 0
-    )
-    recycle_bin_asset_count = int(
-        db.query(func.count(PartImage.id))
-        .join(Part, Part.id == PartImage.part_id)
-        .filter(Part.is_deleted == 1)
-        .scalar() or 0
     )
 
     db_bytes = os.path.getsize(DATABASE_FILE) if DATABASE_FILE and os.path.isfile(DATABASE_FILE) else 0
 
     return {
         "server": "ok",
-        "collections": rows,
+        "tags": rows,
         "recycle_bin": {
             "item_count": recycle_bin_item_count,
             "asset_count": recycle_bin_asset_count,
             "disk_bytes": recycle_bin_bytes,
         },
-        "uncollected": {
-            "item_count": uncollected_item_count,
-            "asset_count": uncollected_asset_count,
-            "disk_bytes": uncollected_bytes,
-        },
+        "untagged": {"name": "No tag", **untagged},
         "totals": {
-            "item_count": total_items + uncollected_item_count + recycle_bin_item_count,
-            "asset_count": total_assets + uncollected_asset_count + recycle_bin_asset_count,
-            "disk_bytes": total_disk_bytes,
+            "item_count": len(active_item_ids) + recycle_bin_item_count,
+            "asset_count": sum(item_asset_count.values()) + recycle_bin_asset_count,
+            "disk_bytes": sum(item_bytes.values()) + location_photo_bytes + location_icon_bytes + recycle_bin_bytes,
             "db_bytes": db_bytes,
         },
     }
+
+
+router.add_api_route("/api/status/tags", status_tags, methods=["GET"])
+# Hidden path kept so a cached UI bundle keeps loading the dashboard; the payload is the per-tag one.
+router.add_api_route("/api/status/collections", status_tags, methods=["GET"], include_in_schema=False)

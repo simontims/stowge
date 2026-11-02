@@ -1,6 +1,6 @@
 from conftest import auth_cookies_isolated
 
-from stowge.models import Collection, LLMConfig, Location
+from stowge.models import LLMConfig, Location, Tag
 
 
 def test_items_bootstrap_returns_add_page_dependencies(isolated_client, isolated_db):
@@ -8,7 +8,7 @@ def test_items_bootstrap_returns_add_page_dependencies(isolated_client, isolated
 
     db = isolated_db()
     try:
-        collection = Collection(name="Electronics", icon="cpu", color="#60a5fa", description="Devices")
+        tag = Tag(name="Electronics", icon="cpu", color="#60a5fa", description="Devices")
         location = Location(name="Garage", description="Main shelves")
         llm = LLMConfig(
             name="Primary AI",
@@ -21,9 +21,9 @@ def test_items_bootstrap_returns_add_page_dependencies(isolated_client, isolated
             ai_max_edge=1600,
             ai_quality=85,
         )
-        db.add_all([collection, location, llm])
+        db.add_all([tag, location, llm])
         db.commit()
-        db.refresh(collection)
+        db.refresh(tag)
         db.refresh(location)
         db.refresh(llm)
     finally:
@@ -34,8 +34,10 @@ def test_items_bootstrap_returns_add_page_dependencies(isolated_client, isolated
     assert response.status_code == 200, response.text
     payload = response.json()
 
-    assert [entry["name"] for entry in payload["collections"]] == ["Electronics"]
+    assert [entry["name"] for entry in payload["tags"]] == ["Electronics"]
     assert [entry["name"] for entry in payload["locations"]] == ["Garage"]
+    assert "collections" not in payload
+    assert [(h["name"], h["is_default"]) for h in payload["hints"]] == [("Default", True)]
     assert payload["ai_settings"]["default_llm_id"] == llm.id
     assert len(payload["ai_settings"]["configs"]) == 1
     assert payload["ai_settings"]["configs"][0]["name"] == "Primary AI"
@@ -43,20 +45,21 @@ def test_items_bootstrap_returns_add_page_dependencies(isolated_client, isolated
     assert payload["ai_settings"]["configs"][0]["ai_quality"] == 85
 
 
-def test_items_bootstrap_collection_count_excludes_soft_deleted_items(isolated_client, isolated_db):
+def test_items_bootstrap_tag_count_excludes_soft_deleted_items(isolated_client, isolated_db):
     cookies = auth_cookies_isolated(isolated_db, "bootstrap_count_test@example.com", role="admin")
 
     db = isolated_db()
     try:
-        collection = Collection(name="Tools", icon="wrench", color="#60a5fa", description="Workshop tools")
-        db.add(collection)
+        tag = Tag(name="Tools", icon="wrench", color="#60a5fa", description="Workshop tools")
+        db.add(tag)
         db.commit()
+        tag_id = tag.id
     finally:
         db.close()
 
     create_response = isolated_client.post(
         "/api/items",
-        json={"name": "Socket Set", "collection": "Tools", "status": "confirmed"},
+        json={"name": "Socket Set", "tag_ids": [tag_id], "status": "confirmed"},
         cookies=cookies,
     )
     assert create_response.status_code == 200, create_response.text
@@ -69,5 +72,5 @@ def test_items_bootstrap_collection_count_excludes_soft_deleted_items(isolated_c
     assert response.status_code == 200, response.text
     payload = response.json()
 
-    tools = next(entry for entry in payload["collections"] if entry["name"] == "Tools")
+    tools = next(entry for entry in payload["tags"] if entry["name"] == "Tools")
     assert tools["item_count"] == 0

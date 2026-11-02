@@ -25,10 +25,33 @@ export interface AreaOption {
   description?: string | null;
 }
 
-export interface CollectionOption {
+export interface Tag {
   id: string;
   name: string;
-  ai_hint?: string | null;
+  icon: string | null;
+  color: string | null;
+  description: string | null;
+  item_count: number;
+}
+
+/** The slim tag shape carried on every item. */
+export interface ItemTag {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+export interface AiHint {
+  id: string;
+  name: string;
+  text: string;
+  is_default: boolean;
+}
+
+export interface TagsMigrationInfo {
+  collections_converted: number;
+  filters_skipped: number;
 }
 
 export interface CurrentUser {
@@ -38,15 +61,17 @@ export interface CurrentUser {
   lastname: string;
   role: string;
   theme: string;
-  preferred_add_collection_id: string | null;
+  /** null = the Default hint. */
+  preferred_add_hint_id: string | null;
+  preferred_add_tag_ids: string[];
   preferred_add_location_id: string | null;
-  last_open_collection: string | null;
-  collection_nav_order: string[];
+  /** Name of the tag last opened on the Items page. */
+  last_open_tag: string | null;
   shortcut_filters: Array<{
     id: string;
     name: string;
     query: string;
-    collection: string | null;
+    tag_id: string | null;
     statuses: string[];
     status: string | null;
     site_id: string | null;
@@ -91,4 +116,6 @@ export interface WhatsNewState {
   unseen_interrupt_count: number;
   /** True until the user has seen the current welcome flow. */
   welcome_pending: boolean;
+  /** What the collections-to-tags migration did for this database. */
+  tags_migration?: TagsMigrationInfo;
 }

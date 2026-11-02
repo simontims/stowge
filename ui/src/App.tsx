@@ -8,8 +8,8 @@ import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { AddPage } from "./pages/AddPage";
 import { EditPage } from "./pages/EditPage";
 import { SystemPage } from "./pages/SystemPage";
-import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
-import { SettingsShortcutsPage } from "./pages/SettingsShortcutsPage";
+import { TagsPage } from "./pages/TagsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { WhatsNewPage } from "./pages/WhatsNewPage";
 import { LoginPage } from "./pages/LoginPage";
 import { UNAUTHORIZED_EVENT, OFFLINE_EVENT, apiRequest } from "./lib/api";
@@ -27,12 +27,12 @@ function needsWelcome(user: CurrentUser): boolean {
   return Boolean(user.whats_new?.welcome_pending);
 }
 
-function resolvePostLoginRoute(user: CurrentUser): string {
-  const lastCollection = user.last_open_collection?.trim();
-  if (lastCollection) {
-    return `/items?collection=${encodeURIComponent(lastCollection)}`;
+export function resolvePostLoginRoute(user: CurrentUser): string {
+  const lastTag = user.last_open_tag?.trim();
+  if (lastTag) {
+    return `/items?tag=${encodeURIComponent(lastTag)}`;
   }
-  return "/collections";
+  return "/tags";
 }
 
 export default function App() {
@@ -247,8 +247,9 @@ export default function App() {
           <Route path="/items/:itemId/edit" element={<EditPage />} />
           <Route path="/parts/new"  element={<AddPage />} />
           <Route path="/parts/:itemId/edit" element={<EditPage />} />
-          <Route path="/collections" element={<SettingsCollectionsPage />} />
-          <Route path="/settings" element={<SettingsShortcutsPage />} />
+          <Route path="/tags" element={<TagsPage />} />
+          <Route path="/collections" element={<Navigate to="/tags" replace />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/release-notes" element={<WhatsNewPage />} />
           <Route path="/whats-new" element={<Navigate to="/release-notes" replace />} />
           <Route path="/add"        element={<AddPage />} />

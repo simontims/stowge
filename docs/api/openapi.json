@@ -35,19 +35,22 @@
             }
           },
           {
-            "name": "collection",
+            "name": "tag",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Collection"
+              "title": "Tag"
             }
           },
           {
@@ -315,13 +318,13 @@
         }
       }
     },
-    "/v1/collections": {
+    "/v1/tags": {
       "get": {
         "tags": [
-          "collections"
+          "tags"
         ],
-        "summary": "List collections",
-        "operationId": "v1_list_collections_v1_collections_get",
+        "summary": "List tags",
+        "operationId": "v1_list_tags_v1_tags_get",
         "security": [
           {
             "API Key": []
@@ -375,10 +378,10 @@
       },
       "post": {
         "tags": [
-          "collections"
+          "tags"
         ],
-        "summary": "Create collection",
-        "operationId": "v1_create_collection_v1_collections_post",
+        "summary": "Create tag",
+        "operationId": "v1_create_tag_v1_tags_post",
         "security": [
           {
             "API Key": []
@@ -418,13 +421,13 @@
         }
       }
     },
-    "/v1/collections/{collection_id}": {
+    "/v1/tags/{tag_id}": {
       "get": {
         "tags": [
-          "collections"
+          "tags"
         ],
-        "summary": "Get collection",
-        "operationId": "v1_get_collection_v1_collections__collection_id__get",
+        "summary": "Get tag",
+        "operationId": "v1_get_tag_v1_tags__tag_id__get",
         "security": [
           {
             "API Key": []
@@ -432,12 +435,12 @@
         ],
         "parameters": [
           {
-            "name": "collection_id",
+            "name": "tag_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Collection Id"
+              "title": "Tag Id"
             }
           }
         ],
@@ -464,10 +467,10 @@
       },
       "patch": {
         "tags": [
-          "collections"
+          "tags"
         ],
-        "summary": "Update collection",
-        "operationId": "v1_update_collection_v1_collections__collection_id__patch",
+        "summary": "Update tag",
+        "operationId": "v1_update_tag_v1_tags__tag_id__patch",
         "security": [
           {
             "API Key": []
@@ -475,12 +478,12 @@
         ],
         "parameters": [
           {
-            "name": "collection_id",
+            "name": "tag_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Collection Id"
+              "title": "Tag Id"
             }
           }
         ],
@@ -519,10 +522,10 @@
       },
       "delete": {
         "tags": [
-          "collections"
+          "tags"
         ],
-        "summary": "Delete collection",
-        "operationId": "v1_delete_collection_v1_collections__collection_id__delete",
+        "summary": "Delete tag",
+        "operationId": "v1_delete_tag_v1_tags__tag_id__delete",
         "security": [
           {
             "API Key": []
@@ -530,96 +533,12 @@
         ],
         "parameters": [
           {
-            "name": "collection_id",
+            "name": "tag_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Collection Id"
-            }
-          },
-          {
-            "name": "move_to_collection_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Move To Collection Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/collections/{collection_id}/items": {
-      "get": {
-        "tags": [
-          "collections"
-        ],
-        "summary": "List collection items",
-        "operationId": "v1_list_collection_items_v1_collections__collection_id__items_get",
-        "security": [
-          {
-            "API Key": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "collection_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Collection Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
+              "title": "Tag Id"
             }
           }
         ],
@@ -1618,8 +1537,8 @@
       "description": "Read, create, update, and delete inventory items"
     },
     {
-      "name": "collections",
-      "description": "Read, create, update, and delete collections"
+      "name": "tags",
+      "description": "Read, create, update, and delete tags"
     },
     {
       "name": "locations",

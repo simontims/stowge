@@ -26,7 +26,7 @@ describe("WelcomeTour restart", () => {
     const { rerender } = render(<WelcomeTour run isAdmin={false} onFinish={() => {}} />);
     await screen.findByText("Add items fast");
     await userEvent.click(screen.getByText(/^Next/));
-    await screen.findByText("Collections").catch(() => undefined);
+    await screen.findByText("Tags").catch(() => undefined);
 
     rerender(<WelcomeTour run={false} isAdmin={false} onFinish={() => {}} />);
     rerender(<WelcomeTour run isAdmin={false} onFinish={() => {}} />);

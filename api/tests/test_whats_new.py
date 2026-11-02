@@ -20,6 +20,14 @@ def note(id, severity="interrupt", version="0.11.0", **extra):
     return {"id": id, "severity": severity, "version": version, "title": f"Title {id}", "summary": f"Summary {id}", **extra}
 
 
+@pytest.fixture(autouse=True)
+def mechanism_tests_use_only_preview_notes(request, monkeypatch):
+    """The mechanism tests count notes from STOWGE_PREVIEW_NOTES alone, whatever ships in NOTES."""
+    if request.node.cls is not None and request.node.cls.__name__ == "TestShippedNotes":
+        return
+    monkeypatch.setattr(whats_new, "NOTES", ())
+
+
 @pytest.fixture
 def three(monkeypatch):
     """a (seq 1, interrupt), b (seq 2, dot), c (seq 3, interrupt)."""
@@ -36,10 +44,53 @@ def _ids(me):
     return [n["id"] for n in me["whats_new"]["unseen"]]
 
 
-class TestRegistry:
-    def test_release_1_ships_no_notes(self, monkeypatch):
+class TestShippedNotes:
+    """The notes this build actually ships (release 0.12.0)."""
+
+    def test_notes_in_order(self, monkeypatch):
         monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
-        assert whats_new.NOTES == ()
+        assert [(n.seq, n.id, n.severity, n.version, n.date) for n in whats_new.all_notes()] == [
+            (1, "welcome-tour", "dot", "0.11.0", "2026-11-02"),
+            (2, "filter-icons", "dot", "0.11.0", "2026-11-02"),
+            (3, "tags-and-hints", "interrupt", "0.12.0", "2026-11-02"),
+        ]
+        assert whats_new.latest_seq() == 3
+
+    def test_note_copy(self, monkeypatch):
+        monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
+        by_id = {n.id: n for n in whats_new.all_notes()}
+        assert by_id["welcome-tour"].title == "Welcome to Stowge tour"
+        assert by_id["welcome-tour"].summary == "New users get a short tour. Replay it any time from your user menu."
+        assert by_id["filter-icons"].title == "Icons and colours for shortcut filters"
+        assert by_id["filter-icons"].summary == "Choose an icon and a colour for each filter in Settings."
+        assert by_id["tags-and-hints"].title == "Collections are now tags"
+        assert by_id["tags-and-hints"].summary == (
+            "Your collections became tags, and an item can have several. "
+            "AI hints are now a separate list. Your menu looks the same."
+        )
+
+    def test_existing_account_sees_all_three_and_one_interrupt(self, monkeypatch):
+        monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
+        me = _me(auth_cookies("wn_shipped_existing@example.com"))  # cursor 0
+        assert _ids(me) == ["welcome-tour", "filter-icons", "tags-and-hints"]
+        assert me["whats_new"]["unseen_interrupt_count"] == 1
+
+    def test_new_account_starts_at_the_latest_note(self, monkeypatch):
+        monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
+        admin = auth_cookies("wn_shipped_admin@example.com", role="admin")
+        r = client.post("/api/users", cookies=admin,
+                        json={"email": "wn_shipped_new@example.com", "password": "Pass1234!", "role": "user"})
+        assert r.status_code == 200
+        assert r.json()["whats_new"]["unseen"] == []
+
+    def test_me_reports_zero_tags_migration_on_a_database_that_never_had_collections(self, monkeypatch):
+        me = _me(auth_cookies("wn_shipped_zero@example.com"))
+        assert me["whats_new"]["tags_migration"] == {"collections_converted": 0, "filters_skipped": 0}
+
+
+class TestRegistry:
+    def test_mechanism_tests_start_with_an_empty_registry(self, monkeypatch):
+        monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
         assert whats_new.all_notes() == []
         assert whats_new.latest_seq() == 0
 

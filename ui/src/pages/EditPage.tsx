@@ -20,7 +20,9 @@ import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { buildLocationDisplayLabel } from "../lib/locationHierarchy";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 import { useNumericField } from "../hooks/useNumericField";
-import { type LocationOption, type CollectionOption } from "../lib/types";
+import { type ItemTag, type LocationOption, type Tag } from "../lib/types";
+import { TagPicker } from "../components/ui/TagPicker";
+import { listTags } from "../lib/tags";
 import { imageStateSignature } from "../lib/format";
 
 // ---------------------------------------------------------------------------
@@ -52,7 +54,7 @@ interface PartDetail {
   is_deleted: boolean;
   name: string;
   description: string | null;
-  collection: string | null;
+  tags: ItemTag[];
   location_id: string | null;
   location: string | null;
   status: string;
@@ -67,7 +69,7 @@ interface PartDetail {
 interface EditForm {
   name: string;
   description: string;
-  collection: string;
+  tag_ids: string[];
   location_id: string;
   status: "draft" | "confirmed";
   quantity: number;
@@ -94,7 +96,7 @@ function toEditForm(part: PartDetail): EditForm {
   return {
     name: part.name ?? "",
     description: part.description ?? "",
-    collection: part.collection ?? "",
+    tag_ids: (part.tags ?? []).map((tag) => tag.id),
     location_id: part.location_id ?? "",
     status: part.status === "confirmed" ? "confirmed" : "draft",
     quantity: part.quantity ?? 1,
@@ -111,7 +113,7 @@ function isSameForm(a: EditForm, b: EditForm): boolean {
   return (
     a.name.trim() === b.name.trim() &&
     a.description.trim() === b.description.trim() &&
-    a.collection.trim() === b.collection.trim() &&
+    [...a.tag_ids].sort().join(",") === [...b.tag_ids].sort().join(",") &&
     a.location_id === b.location_id &&
     a.status === b.status &&
     a.quantity === b.quantity &&
@@ -295,7 +297,7 @@ export function EditPage() {
 
   function navigateAfterEditExit() {
     if (returnToRecycleBin) {
-      navigate("/collections", { state: { openRecycleBin: true } });
+      navigate("/tags", { state: { openRecycleBin: true } });
       return;
     }
     navigate(-1);
@@ -305,8 +307,8 @@ export function EditPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const [form, setForm] = useState<EditForm>({ name: "", description: "", collection: "", location_id: "", status: "draft", quantity: 1, contents: [] });
-  const [initialForm, setInitialForm] = useState<EditForm>({ name: "", description: "", collection: "", location_id: "", status: "draft", quantity: 1, contents: [] });
+  const [form, setForm] = useState<EditForm>({ name: "", description: "", tag_ids: [], location_id: "", status: "draft", quantity: 1, contents: [] });
+  const [initialForm, setInitialForm] = useState<EditForm>({ name: "", description: "", tag_ids: [], location_id: "", status: "draft", quantity: 1, contents: [] });
   const formQuantityField = useNumericField(
     form.quantity,
     (v) => setForm((f) => ({ ...f, quantity: v })),
@@ -314,7 +316,7 @@ export function EditPage() {
   );
 
   const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [collectionOptions, setCollectionOptions] = useState<CollectionOption[]>([]);
+  const [tagOptions, setTagOptions] = useState<Tag[]>([]);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -421,10 +423,10 @@ export function EditPage() {
     setLoading(true);
     setLoadError("");
     try {
-      const [partData, locs, colls] = await Promise.all([
+      const [partData, locs, tagList] = await Promise.all([
         apiRequest<PartDetail>(`/api/items/${id}${restoreOnSave ? "?include_deleted=true" : ""}`),
         apiRequest<LocationOption[]>("/api/locations"),
-        apiRequest<CollectionOption[]>("/api/collections"),
+        listTags(),
       ]);
       setPart(partData);
       setImages(partData.images);
@@ -434,12 +436,9 @@ export function EditPage() {
       const normalized = { ...mapped };
 
       if (restoreOnSave && partData.is_deleted) {
-        const hasCollection = normalized.collection && colls.some((c) => c.name === normalized.collection);
         const hasLocation = normalized.location_id && locs.some((l) => l.id === normalized.location_id);
 
-        if (!hasCollection) {
-          normalized.collection = "";
-        }
+        normalized.tag_ids = normalized.tag_ids.filter((id) => tagList.some((tag) => tag.id === id));
         if (!hasLocation) {
           normalized.location_id = "";
         }
@@ -448,7 +447,7 @@ export function EditPage() {
       setForm(normalized);
       setInitialForm(mapped);
       setLocations(locs || []);
-      setCollectionOptions(colls || []);
+      setTagOptions(tagList || []);
 
       const primaryIdx = partData.images.findIndex((img) => img.is_primary);
       setActiveImageIdx(primaryIdx >= 0 ? primaryIdx : 0);
@@ -486,7 +485,7 @@ export function EditPage() {
           body: JSON.stringify({
             name: trimmedName,
             description: form.description.trim() || null,
-            collection: form.collection.trim() || null,
+            tag_ids: form.tag_ids,
             location_id: form.location_id || null,
             status: form.status,
             quantity: form.quantity,
@@ -1067,21 +1066,16 @@ export function EditPage() {
               />
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="space-y-1 block">
-                <span className="text-xs text-neutral-500 uppercase tracking-wide">Collection</span>
-                <select
-                  value={form.collection}
-                  onChange={(e) => setForm((f) => ({ ...f, collection: e.target.value }))}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                >
-                  <option value="">No collection</option>
-                  {collectionOptions.map((c) => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                </select>
-              </label>
+            <div className="space-y-1">
+              <span className="text-xs text-neutral-500 uppercase tracking-wide">Tags</span>
+              <TagPicker
+                tags={tagOptions}
+                selectedIds={form.tag_ids}
+                onChange={(ids) => setForm((f) => ({ ...f, tag_ids: ids }))}
+              />
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="space-y-1 block">
                 <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
                 <select

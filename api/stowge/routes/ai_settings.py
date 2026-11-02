@@ -11,6 +11,7 @@ from fastapi import (APIRouter, Depends, File, HTTPException, Query,
                      UploadFile)
 from sqlalchemy.orm import Session
 
+from ..ai_hints import resolve_hint_context
 from ..auth import current_user, require_admin
 from ..db import get_db
 from ..helpers.ai_providers import (AI_PROVIDER_META, ModelDiscoveryError,
@@ -22,7 +23,7 @@ from ..helpers.ai_providers import (AI_PROVIDER_META, ModelDiscoveryError,
 from ..helpers.serializers import (list_public_ai_settings_payload,
                                    serialize_llm_admin, serialize_llm_public)
 from ..images import process_for_identify
-from ..models import Collection, LLMConfig, User
+from ..models import LLMConfig, User
 from ..openai_id import identify as openai_identify
 
 router = APIRouter()
@@ -357,7 +358,7 @@ def delete_ai_setting(config_id: str, db: Session = Depends(get_db), me: User = 
 def identify(
     mode: Literal["one", "three", "five"] = "one",
     llm_id: Optional[str] = Query(default=None),
-    collection_id: Optional[str] = Query(default=None),
+    hint_id: Optional[str] = Query(default=None),
     images: List[UploadFile] = File(...),
     me: User = Depends(current_user),
     db: Session = Depends(get_db),
@@ -369,22 +370,13 @@ def identify(
     if not cfg:
         raise HTTPException(status_code=400, detail="No AI models configured. Add one under Settings / AI.")
 
+    hint_context = resolve_hint_context(db, hint_id)
+
     b64s = process_for_identify(
         images,
         max_edge=cfg.ai_max_edge if cfg.ai_max_edge is not None else 1600,
         quality=cfg.ai_quality if cfg.ai_quality is not None else 85,
     )
-
-    collection_context: Optional[str] = None
-    if collection_id:
-        selected_collection = db.query(Collection).filter(Collection.id == collection_id).first()
-        if not selected_collection:
-            raise HTTPException(status_code=400, detail="Invalid collection_id")
-
-        context_parts = [f"Collection name: {selected_collection.name}"]
-        if (selected_collection.ai_hint or "").strip():
-            context_parts.append(f"Collection hint: {selected_collection.ai_hint.strip()}")
-        collection_context = "\n".join(context_parts)
 
     ai_mode = mode if mode in ("one", "three", "five") else "one"
     ai = openai_identify(
@@ -396,7 +388,7 @@ def identify(
         },
         mode=ai_mode,
         include_evidence=bool(cfg.evidence_enabled),
-        collection_context=collection_context,
+        hint_context=hint_context,
     )
 
     return {

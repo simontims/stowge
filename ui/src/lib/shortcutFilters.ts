@@ -2,7 +2,8 @@ export interface ShortcutFilter {
   id: string;
   name: string;
   query: string;
-  collection: string | null;
+  /** A tag id, UNTAGGED for items without a tag, or null for any. */
+  tag_id: string | null;
   statuses: string[];
   status: string | null;
   site_id: string | null;
@@ -70,7 +71,7 @@ export function normalizeShortcutFilter(input: Partial<ShortcutFilter>): Shortcu
     id: trimText(input.id),
     name: trimText(input.name),
     query: trimText(input.query),
-    collection: trimText(input.collection) || null,
+    tag_id: trimText(input.tag_id) || null,
     statuses,
     status: statuses.length === 1 ? statuses[0] : null,
     site_id: trimText(input.site_id) || null,
@@ -90,10 +91,23 @@ export function normalizeShortcutFilter(input: Partial<ShortcutFilter>): Shortcu
   };
 }
 
-export function buildShortcutFilterParams(filter: ShortcutFilter): URLSearchParams {
+/** Tag id used by a filter (and `tag=` in the Items URL) for items that have no tag. */
+export const UNTAGGED = "__none";
+
+/** Just what is needed to turn a filter's tag id into the tag name the Items URL uses. */
+export type TagRef = { id: string; name: string };
+
+function tagParamFor(filter: ShortcutFilter, tags: readonly TagRef[]): string {
+  const tagId = trimText(filter.tag_id);
+  if (!tagId) return "";
+  if (tagId === UNTAGGED) return UNTAGGED;
+  return tags.find((tag) => tag.id === tagId)?.name ?? "";
+}
+
+export function buildShortcutFilterParams(filter: ShortcutFilter, tags: readonly TagRef[] = []): URLSearchParams {
   const params = new URLSearchParams();
   const query = trimText(filter.query);
-  const collection = trimText(filter.collection);
+  const tag = tagParamFor(filter, tags);
   const statusList = normalizeStatuses(filter.statuses, filter.status);
   const siteId = trimText(filter.site_id);
   const areaId = trimText(filter.area_id);
@@ -104,8 +118,8 @@ export function buildShortcutFilterParams(filter: ShortcutFilter): URLSearchPara
   if (query) {
     params.set("q", query);
   }
-  if (collection) {
-    params.set("collection", collection);
+  if (tag) {
+    params.set("tag", tag);
   }
   if (statusList.length === 1) {
     params.set("status", statusList[0]);
@@ -131,17 +145,21 @@ export function buildShortcutFilterParams(filter: ShortcutFilter): URLSearchPara
   return params;
 }
 
-export function buildShortcutFilterSearch(filter: ShortcutFilter): string {
-  return buildShortcutFilterParams(filter).toString();
+export function buildShortcutFilterSearch(filter: ShortcutFilter, tags: readonly TagRef[] = []): string {
+  return buildShortcutFilterParams(filter, tags).toString();
 }
 
-export function isShortcutFilterActive(filter: ShortcutFilter, currentSearch: string): boolean {
+export function isShortcutFilterActive(
+  filter: ShortcutFilter,
+  currentSearch: string,
+  tags: readonly TagRef[] = [],
+): boolean {
   const current = new URLSearchParams(currentSearch);
-  const target = buildShortcutFilterParams(filter);
+  const target = buildShortcutFilterParams(filter, tags);
 
   const keys = [
     "q",
-    "collection",
+    "tag",
     "status",
     "site_id",
     "area_id",
@@ -151,4 +169,36 @@ export function isShortcutFilterActive(filter: ShortcutFilter, currentSearch: st
   ];
 
   return keys.every((key) => ((current.get(key) || "").trim() === (target.get(key) || "").trim()));
+}
+
+/** Where a pinned filter can be dropped: before/after another filter, or at the end of the list. */
+export const END_OF_LIST = "__end__";
+
+/** Move one pinned filter and return the whole filter list in its new order. Unpinned filters keep
+ *  their slots, so only the pinned ones change places. Returns null when nothing would move. */
+export function reorderPinnedFilters(
+  all: readonly ShortcutFilter[],
+  sourceId: string,
+  targetId: string,
+  position: "before" | "after",
+): ShortcutFilter[] | null {
+  const pinned = all.filter((row) => row.pinned);
+  const sourceIdx = pinned.findIndex((row) => row.id === sourceId);
+  if (sourceIdx < 0) return null;
+
+  const [moved] = pinned.splice(sourceIdx, 1);
+  let insertIdx: number;
+  if (targetId === END_OF_LIST) {
+    insertIdx = pinned.length;
+  } else {
+    const targetIdx = pinned.findIndex((row) => row.id === targetId);
+    if (targetIdx < 0) return null;
+    insertIdx = position === "after" ? targetIdx + 1 : targetIdx;
+  }
+  pinned.splice(insertIdx, 0, moved);
+
+  let next = 0;
+  const result = all.map((row) => (row.pinned ? pinned[next++] : row));
+  const unchanged = result.every((row, idx) => row === all[idx]);
+  return unchanged ? null : result;
 }

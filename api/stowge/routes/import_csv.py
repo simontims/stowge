@@ -12,13 +12,32 @@ from ..auth import require_admin
 from ..constraints import MIN_NAME_LENGTH
 from ..db import get_db
 from ..helpers.events import publish_inventory_change
-from ..models import Area, Collection, Location, Part, Site, User
+from ..models import Area, ItemTag, Location, Part, Site, Tag, User
 
 router = APIRouter()
 
 REQUIRED_COLUMNS = {"name"}
-SUPPORTED_COLUMNS = {"name", "description", "collection", "site", "area", "location", "status", "quantity"}
+# "collection" is only read from old export files; it is treated as one tag.
+SUPPORTED_COLUMNS = {"name", "description", "tags", "collection", "site", "area", "location", "status", "quantity"}
 VALID_STATUSES = {"draft", "confirmed"}
+
+
+def _split_tags(tags_value: str, legacy_collection: str) -> list[str]:
+    """Tag names from a ``tags`` cell (split on ';' or ',') plus a legacy ``collection`` cell (one tag).
+
+    Names are trimmed and de-duplicated case-insensitively (first spelling wins).
+    """
+    names: list[str] = []
+    seen: set[str] = set()
+    candidates = [part for chunk in tags_value.split(";") for part in chunk.split(",")]
+    if legacy_collection.strip():
+        candidates.append(legacy_collection)
+    for candidate in candidates:
+        name = candidate.strip()
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
+            names.append(name)
+    return names
 
 
 def _parse_csv(content: str) -> tuple[list[dict], list[str]]:
@@ -77,7 +96,7 @@ def _parse_csv(content: str) -> tuple[list[dict], list[str]]:
         rows.append({
             "name": name,
             "description": row.get("description", "").strip() or None,
-            "collection": row.get("collection", "").strip() or None,
+            "tags": _split_tags(row.get("tags", ""), row.get("collection", "")),
             "site": row.get("site", "").strip() or None,
             "area": row.get("area", "").strip() or None,
             "location": row.get("location", "").strip() or None,
@@ -88,13 +107,22 @@ def _parse_csv(content: str) -> tuple[list[dict], list[str]]:
     return rows, errors
 
 
+def _unique_tag_names(rows: list[dict]) -> list[str]:
+    """Distinct tag names across all rows, case-insensitively (first spelling wins), in file order."""
+    names: dict[str, str] = {}
+    for row in rows:
+        for name in row["tags"]:
+            names.setdefault(name.lower(), name)
+    return list(names.values())
+
+
 @router.post("/api/import/csv/preview")
 def preview_import(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     me: User = Depends(require_admin),
 ):
-    """Parse CSV and return preview with missing collections/locations."""
+    """Parse CSV and return preview with missing tags/locations."""
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a .csv file")
 
@@ -112,17 +140,16 @@ def preview_import(
     if not rows and parse_errors:
         raise HTTPException(status_code=400, detail=parse_errors[0])
 
-    # Gather unique collections and hierarchy values from the CSV
-    csv_collections = {r["collection"] for r in rows if r["collection"]}
+    # Gather unique tags and hierarchy values from the CSV
+    csv_tags = _unique_tag_names(rows)
     csv_sites = {r["site"] for r in rows if r["site"]}
     csv_areas = {r["area"] for r in rows if r["area"]}
     csv_locations = {r["location"] for r in rows if r["location"]}
 
     # Check which exist (case-insensitive)
-    existing_collections: set[str] = set()
-    if csv_collections:
-        db_collections = db.query(Collection.name).all()
-        existing_collections = {c.name.lower() for c in db_collections}
+    existing_tags: set[str] = set()
+    if csv_tags:
+        existing_tags = {name.lower() for (name,) in db.query(Tag.name).all()}
 
     existing_sites: set[str] = set()
     if csv_sites:
@@ -139,8 +166,8 @@ def preview_import(
         db_locations = db.query(Location.name).all()
         existing_locations = {loc.name.lower() for loc in db_locations}
 
-    missing_collections = sorted(
-        [c for c in csv_collections if c.lower() not in existing_collections]
+    missing_tags = sorted(
+        [t for t in csv_tags if t.lower() not in existing_tags]
     )
     missing_sites = sorted(
         [s for s in csv_sites if s.lower() not in existing_sites]
@@ -155,7 +182,7 @@ def preview_import(
     return {
         "item_count": len(rows),
         "parse_errors": parse_errors,
-        "missing_collections": missing_collections,
+        "missing_tags": missing_tags,
         "missing_sites": missing_sites,
         "missing_areas": missing_areas,
         "missing_locations": missing_locations,
@@ -165,14 +192,14 @@ def preview_import(
 @router.post("/api/import/csv/confirm")
 def confirm_import(
     file: UploadFile = File(...),
-    create_collections: bool = False,
+    create_tags: bool = False,
     create_sites: bool = False,
     create_areas: bool = False,
     create_locations: bool = False,
     db: Session = Depends(get_db),
     me: User = Depends(require_admin),
 ):
-    """Import items from CSV, optionally creating missing collections/sites/areas/locations."""
+    """Import items from CSV, optionally creating missing tags/sites/areas/locations."""
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a .csv file")
 
@@ -190,9 +217,9 @@ def confirm_import(
     if not rows:
         raise HTTPException(status_code=400, detail="No valid items found in CSV")
 
-    # Build lookup maps for existing collections and locations (case-insensitive)
-    db_collections = db.query(Collection).all()
-    collection_map: dict[str, Collection] = {c.name.lower(): c for c in db_collections}
+    # Build lookup maps for existing tags and locations (case-insensitive)
+    db_tags = db.query(Tag).all()
+    tag_map: dict[str, Tag] = {t.name.lower(): t for t in db_tags}
 
     db_sites = db.query(Site).all()
     site_map: dict[str, Site] = {site.name.lower(): site for site in db_sites}
@@ -204,21 +231,21 @@ def confirm_import(
     location_map: dict[str, Location] = {loc.name.lower(): loc for loc in db_locations}
 
     # Determine what needs to be created
-    csv_collections = {r["collection"] for r in rows if r["collection"]}
+    csv_tags = _unique_tag_names(rows)
     csv_sites = {r["site"] for r in rows if r["site"]}
     csv_areas = {r["area"] for r in rows if r["area"]}
     csv_locations = {r["location"] for r in rows if r["location"]}
 
-    missing_collections = [c for c in csv_collections if c.lower() not in collection_map]
+    missing_tags = [t for t in csv_tags if t.lower() not in tag_map]
     missing_sites = [s for s in csv_sites if s.lower() not in site_map]
     missing_areas = [a for a in csv_areas if a.lower() not in area_map]
     missing_locations = [loc for loc in csv_locations if loc.lower() not in location_map]
 
-    if missing_collections and not create_collections:
+    if missing_tags and not create_tags:
         raise HTTPException(
             status_code=400,
-            detail=f"Missing collections: {', '.join(sorted(missing_collections))}. "
-                   "Set create_collections=true to create them.",
+            detail=f"Missing tags: {', '.join(sorted(missing_tags))}. "
+                   "Set create_tags=true to create them.",
         )
 
     if missing_locations and not create_locations:
@@ -242,12 +269,12 @@ def confirm_import(
                    "Set create_areas=true to create them.",
         )
 
-    # Create missing collections
-    for coll_name in missing_collections:
-        new_coll = Collection(name=coll_name)
-        db.add(new_coll)
+    # Create missing tags
+    for tag_name in missing_tags:
+        new_tag = Tag(name=tag_name)
+        db.add(new_tag)
         db.flush()
-        collection_map[coll_name.lower()] = new_coll
+        tag_map[tag_name.lower()] = new_tag
 
     # Create missing sites
     for site_name in missing_sites:
@@ -304,17 +331,9 @@ def confirm_import(
             if loc:
                 location_id = loc.id
 
-        # Resolve collection name (use the existing name's casing)
-        collection_name: Optional[str] = None
-        if row["collection"]:
-            coll = collection_map.get(row["collection"].lower())
-            if coll:
-                collection_name = coll.name
-
         part = Part(
             name=row["name"],
             description=row["description"],
-            collection=collection_name,
             location_id=location_id,
             status=row["status"],
             quantity=row["quantity"],
@@ -323,6 +342,10 @@ def confirm_import(
         )
         db.add(part)
         db.flush()
+        for tag_name in row["tags"]:
+            tag = tag_map.get(tag_name.lower())
+            if tag is not None:
+                db.add(ItemTag(item_id=part.id, tag_id=tag.id))
         created_ids.append(part.id)
 
     db.commit()
@@ -334,7 +357,7 @@ def confirm_import(
     return {
         "imported": len(created_ids),
         "parse_errors": parse_errors,
-        "collections_created": len(missing_collections),
+        "tags_created": len(missing_tags),
         "sites_created": len(missing_sites),
         "areas_created": len(missing_areas),
         "locations_created": len(missing_locations),

@@ -61,7 +61,7 @@ stowge/
 ### 3.1 Frontend Application
 
 - Name: Stowge Web UI (PWA-capable)
-- Description: Main user interface for authentication, inventory management, Add Item workflows (AI-assisted and manual), collections, locations, users, and AI settings.
+- Description: Main user interface for authentication, inventory management, Add Item workflows (AI-assisted and manual), tags, AI hints, locations, users, and AI settings.
 - Technologies: React, TypeScript, Vite, Tailwind-style utility CSS, lucide-react icons.
 - Runtime/Deployment: Source in `ui/`, builds to `ui/dist/`, served by api as static files.
 
@@ -76,7 +76,7 @@ stowge/
 ### 3.3 AI Identification Module
 
 - Name: Identify Pipeline
-- Description: Converts one to five uploaded photos into AI candidate suggestions and evidence/context with optional collection hinting.
+- Description: Converts one to five uploaded photos into AI candidate suggestions and evidence/context with an optional AI hint (one hint per run; the built-in Default hint when none is chosen).
 - Technologies: OpenAI-compatible chat completion pattern via configured provider/model keys.
 - Notes: As currently implemented, identify processing is in-memory. Photo files are persisted only on item save.
 - Model discovery: Admins can explicitly submit unsaved provider credentials to the api to list available models before saving an AI configuration. Credentials remain server-side for the provider request and are not persisted by discovery or returned to the browser. Azure deployment discovery remains manual because it requires management-plane credentials beyond the inference API key.
@@ -87,8 +87,10 @@ stowge/
 
 - Name: Application DB
 - Type: SQLite (current local and compose defaults)
-- Purpose: Persistent state for users, items, images, collections, hierarchical locations, and AI config metadata.
-- Key tables: users, sessions, parts, item_contents, maintenance_schedules, part_images, collections, sites, areas, locations, llm_configs.
+- Purpose: Persistent state for users, items, images, tags, AI hints, hierarchical locations, and AI config metadata.
+- Key tables: users, sessions, parts, item_contents, maintenance_schedules, part_images, tags, item_tags, ai_hints, sites, areas, locations, llm_configs, app_meta.
+- Legacy tables kept (unread and unwritten) for roll-back safety until a cleanup release: `collections`, `parts.collection`, and the `users` collection columns.
+- Schema changes run in `api/stowge/main.py` (`_run_startup_migrations`). The release 2 collections-to-tags migration lives in `api/stowge/tags_migration.py` (see section 12a).
 - Stub tables (schema present, no routes yet): external_identities, api_keys.
 
 ### 4.2 File Storage
@@ -123,18 +125,20 @@ stowge/
 	- GET /api/items/{id}
 	- PATCH /api/items/{id}
 	- DELETE /api/items/{id}
-	- GET /api/collections
+	- GET /api/tags, POST /api/tags, PATCH /api/tags/{id}, DELETE /api/tags/{id}  → tag CRUD (any signed-in user)
+	- GET /api/hints, POST /api/hints, PATCH /api/hints/{id}, DELETE /api/hints/{id}  → AI hint CRUD (Default cannot be deleted or renamed)
+	- GET /api/status/tags         → per-tag item/image/disk metrics (items without tags grouped as "No tag")
 	- GET /api/sites
 	- GET /api/areas
 	- GET /api/locations
 	- POST /api/admin/settings/ai/models/discover → list models using unsaved provider credentials (admin, no persistence)
-	- POST /api/identify
+	- POST /api/identify          → optional `hint_id` (blank = Default hint; unknown = 400)
 	- POST /api/images/store
 	- POST /api/images/discard
 	- GET /api/events/items        → SSE stream (authenticated via session cookie)
-	- GET /api/export/csv          → CSV download (admin, supports scope/collection/location filters)
-	- POST /api/import/csv/preview → Parse CSV and report missing collections/locations (admin)
-	- POST /api/import/csv/confirm → Import items from CSV, optionally creating missing collections/locations (admin)
+	- GET /api/export/csv          → CSV download (admin, supports scope/tag/location filters; `tag` is repeatable, columns include `tags` joined with `; `)
+	- POST /api/import/csv/preview → Parse CSV and report missing tags/locations (admin)
+	- POST /api/import/csv/confirm → Import items from CSV, optionally creating missing tags/locations (admin); reads `tags` (split on `;` or `,`) and, for old files, a `collection` column as one tag
 
 ## 7. Security Considerations
 
@@ -179,11 +183,13 @@ stowge/
 - last_name
 - role (admin or user)
 - theme
-- preferred_add_collection_id
+- preferred_add_hint_id (sticky AI hint on Add; null = Default)
+- preferred_add_tag_ids (JSON array of sticky tag ids on Add)
 - preferred_add_location_id
-- last_open_collection
-- collection_nav_order (JSON array of collection ids)
-- shortcut_filters (JSON array of user-defined item filter shortcuts)
+- last_open_tag (name of the tag last opened; post-login route)
+- shortcut_filters (JSON array of user-defined item filter shortcuts; `tag_id` is a tag id, `__none` for untagged, or null; max 100)
+- last_seen_note / welcome_seen_version (What's New cursor, welcome tour)
+- legacy, unread and unwritten: preferred_add_collection_id, last_open_collection, collection_nav_order
 - password_hash (bcrypt)
 
 ### Session (sessions table)
@@ -223,7 +229,7 @@ For future user-managed API keys for scripts and automation.
 - id
 - name
 - description
-- collection
+- tags (many, through item_tags)
 - location_id
 - status (draft or confirmed)
 - ai_primary
@@ -254,13 +260,35 @@ For future user-managed API keys for scripts and automation.
 - last_error
 - updated_at
 
-### Collection
+### Tag (tags table)
+
+- id (migrated tags keep their collection id)
+- name (case-insensitively unique: unique index on lower(name))
+- icon
+- color
+- description
+- created_at / updated_at
+- Item counts are computed (soft-deleted items excluded), never stored.
+
+### Item Tag (item_tags table)
+
+- item_id (FK -> parts.id)
+- tag_id (FK -> tags.id)
+- primary key (item_id, tag_id); index on tag_id
+
+### AI Hint (ai_hints table)
 
 - id
-- name
-- icon
-- description
-- ai_hint
+- name (case-insensitively unique)
+- text (may be empty; sent to the model as `Hint: <text>`)
+- is_default (exactly one row, the built-in "Default": cannot be deleted or renamed, text is editable)
+- created_at / updated_at
+
+### Collection (legacy, collections table)
+
+Kept unread and unwritten since the tags release. Removed in a later cleanup release.
+
+- id, name, icon, color, description, ai_hint
 
 ### Site
 
@@ -296,7 +324,9 @@ For future user-managed API keys for scripts and automation.
 
 ## 10. Known Architectural Decisions
 
-- Terminology is standardized on Collection/Collections (legacy Category naming removed from active routes and UI).
+- Items are grouped by optional, many-per-item Tags (release 0.12.0). Collections no longer exist in the API or UI; the legacy table and `parts.collection` column remain, unwritten, until a cleanup release.
+- AI hints are a separate list (name + text) with a built-in Default; Identify uses exactly one hint per run. Tags carry no AI hint.
+- The external API made a clean break: `/v1/collections*`, the item `collection` field and `collections.*` scopes were removed; see `docs/api/MIGRATING-collections-to-tags.md`.
 - Item photos are persisted only at save time to avoid orphan storage from abandoned Add flows.
 - Backend currently remains a single FastAPI service (no microservice split).
 - SQLite is the default persistence layer in current deployment patterns.
@@ -318,16 +348,31 @@ For future user-managed API keys for scripts and automation.
 - Existing Location IDs, names, and item-to-location assignments are preserved.
 - UI pickers collapse hierarchy levels when only one Site/Area exists to keep simple setups fast.
 
+## 12a. Collections to Tags Migration (release 0.12.0)
+
+`api/stowge/tags_migration.py`, called at the end of `_run_startup_migrations`. One-way, automatic, runs once (flag `tags_migration_v1` in `app_meta`) in a single transaction, after `create_all` has made the new tables.
+
+1. If the database has users or items, a consistent copy is written first (SQLite backup API) as `<db>.pre-tags-<UTC timestamp>`. If that fails, the migration aborts, the flag stays unset and startup raises.
+2. The Default hint is created. Each collection with a non-empty `ai_hint` becomes an `ai_hints` row named after it (identical texts share one row; a clashing name gets ` (2)`, ` (3)`, ...).
+3. Each collection becomes a tag with the same id, name, icon, colour and description. Names that differ only by case merge into the first by `created_at`; their items move to the survivor.
+4. Items get `item_tags` rows by matching the old `parts.collection` name case-insensitively.
+5. Per user: pinned shortcut filters are created for each tag (in `collection_nav_order`, the rest in creation order) and placed before the user's own filters, capped at 100 (the overflow is counted in `tags_migration_filters_skipped`, never an error); old filters with `collection` switch to `tag_id`; `preferred_add_collection_id` becomes `preferred_add_hint_id` plus `preferred_add_tag_ids`; `last_open_collection` becomes `last_open_tag`.
+6. API key scopes `collections.*` become `tags.*`.
+7. `tags_migration_collections_converted` (count before merging) feeds the What's New tour via `/api/me` `whats_new.tags_migration`.
+
+Restoring an older backup runs it again (restore calls `init_db`). `validate_backup_database_schema` does not require the new tables, so older backups remain restorable.
+
 ## 13. Project Identification
 
 - Project Name: Stowge
 - Repository URL: https://github.com/simontims/stowge
 - Primary Image Registry: https://hub.docker.com/r/simontims/stowge
-- Date of Last Update: 2026-06-07
+- Date of Last Update: 2026-11-02
 
 ## 14. Glossary
 
-- Collection: Domain grouping for items (for example Electronic Parts, Sailing Gear, Houseplants).
+- Tag: Optional label on an item; an item can have several (for example Electronics, To Sell). Pinned shortcut filters put favourite tags in the menu.
+- AI hint: Named text sent to the AI with each photo; pick one on the Add screen (Default when none).
 - Item: Inventory record; represented by Part model/table in api.
 - Identify: AI-assisted suggestion flow based on uploaded photos.
 - Stored Image: Persisted image variant set attached to an item after save.

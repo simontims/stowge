@@ -9,7 +9,7 @@ def test_admin_can_create_list_and_revoke_api_key(isolated_client, isolated_db):
         json={
             "name": "Home Assistant",
             "key_type": "system",
-            "scopes": ["items.read", "collections.read", "locations.read"],
+            "scopes": ["items.read", "tags.read", "locations.read"],
         },
         cookies=admin_cookies,
     )

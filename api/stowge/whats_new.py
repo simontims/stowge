@@ -60,10 +60,40 @@ class Note:
         }
 
 
-# Notes shipped with this build, oldest first. Release 1 ships the mechanism only, so this is empty.
-# To add one: append a Note with the next seq and the release version it ships in, and (for a guided tour) register a component for the
+# Notes shipped with this build, oldest first. To add one: append a Note with the next seq and the release version it ships in, and (for a guided tour) register a component for the
 # same id in ui/src/components/onboarding/whatsNew/registry.ts.
-NOTES: tuple[Note, ...] = ()
+NOTES: tuple[Note, ...] = (
+    Note(
+        id="welcome-tour",
+        seq=1,
+        severity=SEVERITY_DOT,
+        version="0.11.0",
+        date="2026-11-02",
+        title="Welcome to Stowge tour",
+        summary="New users get a short tour. Replay it any time from your user menu.",
+    ),
+    Note(
+        id="filter-icons",
+        seq=2,
+        severity=SEVERITY_DOT,
+        version="0.11.0",
+        date="2026-11-02",
+        title="Icons and colours for shortcut filters",
+        summary="Choose an icon and a colour for each filter in Settings.",
+    ),
+    Note(
+        id="tags-and-hints",
+        seq=3,
+        severity=SEVERITY_INTERRUPT,
+        version="0.12.0",
+        date="2026-11-02",
+        title="Collections are now tags",
+        summary=(
+            "Your collections became tags, and an item can have several. "
+            "AI hints are now a separate list. Your menu looks the same."
+        ),
+    ),
+)
 
 # Test/preview seam: a JSON list of extra notes, appended after NOTES with the next seq numbers.
 # Example: [{"id":"x","severity":"interrupt","version":"0.11.0","title":"T","summary":"S","supersedes":["y"]}].
@@ -131,7 +161,7 @@ def history(last_seen: int) -> list[dict]:
 
 
 def whats_new_for_user(last_seen: int, welcome_seen_version: int) -> dict:
-    """The per-user state the UI needs (part of /api/me)."""
+    """The per-user state the UI needs (part of /api/me). ``tags_migration`` is added by the serializer."""
     unseen = unseen_notes(last_seen)
     return {
         "latest_seq": latest_seq(),

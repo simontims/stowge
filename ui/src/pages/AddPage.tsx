@@ -15,7 +15,13 @@ import { buildLocationDisplayLabel } from "../lib/locationHierarchy";
 import { resizeImage } from "../lib/resizeImage";
 import { useNumericField } from "../hooks/useNumericField";
 import { useCurrentUser } from "../lib/UserContext";
-import { type LocationOption, type CollectionOption } from "../lib/types";
+import { type AiHint, type LocationOption, type Tag } from "../lib/types";
+import { resolveHintId, validTagIds } from "../lib/tags";
+import { TagPicker } from "../components/ui/TagPicker";
+import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
+
+/** How long Add waits after the last change before saving the sticky tags / hint choice. */
+const STICKY_SAVE_DELAY_MS = 400;
 
 interface IdentifyCandidate {
   name?: string;
@@ -23,7 +29,6 @@ interface IdentifyCandidate {
   evidence?: string;
   confidence?: number;
   unknown?: boolean;
-  collection?: string;
 }
 
 interface IdentifyResponse {
@@ -65,7 +70,8 @@ interface AiSettingsResponse {
 }
 
 interface AddPageBootstrapResponse {
-  collections: CollectionOption[];
+  tags: Tag[];
+  hints: AiHint[];
   locations: LocationOption[];
   ai_settings: AiSettingsResponse;
 }
@@ -74,7 +80,6 @@ interface AddPageBootstrapResponse {
 interface PartDraft {
   name: string;
   description: string;
-  collection_id: string;
   location_id: string;
   status: "draft" | "confirmed";
   quantity: number;
@@ -104,7 +109,6 @@ export function AddPage() {
   const [draft, setDraft] = useState<PartDraft>({
     name: "",
     description: "",
-    collection_id: "",
     location_id: "",
     status: "draft",
     quantity: 1,
@@ -114,10 +118,12 @@ export function AddPage() {
     (v) => setDraft((d) => ({ ...d, quantity: v })),
     { min: 0, fallback: 0 },
   );
-  const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [hints, setHints] = useState<AiHint[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   // Session-level persistent context — survives Save / Discard
-  const [sessionCollectionId, setSessionCollectionId] = useState<string>("");
+  const [sessionTagIds, setSessionTagIds] = useState<string[]>([]);
+  const [sessionHintId, setSessionHintId] = useState<string>("");
   const [sessionLocationId, setSessionLocationId] = useState<string>("");
 
   const [isSaving, setIsSaving] = useState(false);
@@ -130,8 +136,7 @@ export function AddPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const requestedCollectionId = searchParams.get("collection_id")?.trim() || "";
-  const requestedCollectionName = searchParams.get("collection")?.trim().toLowerCase() || "";
+  const requestedTagName = searchParams.get("tag")?.trim().toLowerCase() || "";
 
   const candidates = useMemo(
     () => identifyData?.ai?.candidates ?? [],
@@ -181,11 +186,10 @@ export function AddPage() {
 
     setIdentifyData(null);
     setSelectedIndex(0);
-    // Reset item-level draft fields but keep session context (collection + location)
+    // Reset item-level draft fields but keep session context (tags, hint + location)
     setDraft({
       name: "",
       description: "",
-      collection_id: sessionCollectionId,
       location_id: sessionLocationId,
       status: "draft",
       quantity: 1,
@@ -203,12 +207,13 @@ export function AddPage() {
     try {
       const data = await apiRequest<AddPageBootstrapResponse>("/api/items/bootstrap");
 
-      const collectionData = data.collections || [];
+      const tagData = data.tags || [];
+      const hintData = data.hints || [];
       const locationData = data.locations || [];
       const aiSettings = data.ai_settings || { default_llm_id: null, configs: [] };
 
-      const collectionOptions = collectionData || [];
-      setCollections(collectionOptions);
+      setTags(tagData);
+      setHints(hintData);
       setLocations(locationData || []);
 
       const options = aiSettings.configs || [];
@@ -217,30 +222,27 @@ export function AddPage() {
       const defaultId = aiSettings.default_llm_id || options.find((o) => o.is_default)?.id || options[0]?.id || "";
       setSelectedLlmId(defaultId);
 
-      const preferred = currentUser.preferred_add_collection_id || "";
-      const validPreferred = collectionOptions.some((cat) => cat.id === preferred)
-        ? preferred
-        : "";
-      const requestedCollection =
-        collectionOptions.find((cat) => cat.id === requestedCollectionId) ??
-        collectionOptions.find((cat) => cat.name.trim().toLowerCase() === requestedCollectionName) ??
-        null;
-      const initialCollectionId = requestedCollection?.id || validPreferred;
+      // A tag asked for in the URL (Add Item from a tagged list) wins over the saved tags.
+      const requestedTag = requestedTagName
+        ? tagData.find((tag) => tag.name.trim().toLowerCase() === requestedTagName)
+        : undefined;
+      const initialTagIds = requestedTag ? [requestedTag.id] : validTagIds(tagData, currentUser.preferred_add_tag_ids);
 
       const preferredLocId = currentUser.preferred_add_location_id || "";
       const validLocId = (locationData || []).some((l) => l.id === preferredLocId)
         ? preferredLocId
         : "";
 
-      setSessionCollectionId(initialCollectionId);
+      setSessionTagIds(initialTagIds);
+      setSessionHintId(resolveHintId(hintData, currentUser.preferred_add_hint_id));
       setSessionLocationId(validLocId);
       setDraft((current) => ({
         ...current,
-        collection_id: current.collection_id || initialCollectionId,
         location_id: current.location_id || validLocId,
       }));
     } catch {
-      setCollections([]);
+      setTags([]);
+      setHints([]);
       setLocations([]);
       setLlmOptions([]);
       setSelectedLlmId("");
@@ -259,7 +261,6 @@ export function AddPage() {
     setDraft({
       name: candidate?.name || "Unknown part",
       description: candidate?.description || "",
-      collection_id: sessionCollectionId,
       location_id: sessionLocationId,
       status: "draft",
       quantity: 1,
@@ -286,16 +287,22 @@ export function AddPage() {
     setMode("review");
   }
 
-  async function persistPreferredCollection(collectionId: string) {
+  async function persistPreferences(body: Record<string, unknown>) {
     try {
-      await apiRequest("/api/me", {
-        method: "PATCH",
-        body: JSON.stringify({ preferred_add_collection_id: collectionId || null }),
-      });
+      await apiRequest("/api/me", { method: "PATCH", body: JSON.stringify(body) });
     } catch {
       // Keep Add flow usable even if preference persistence fails.
     }
   }
+
+  // Tags and hint are sticky: the last choice is saved (debounced) and is the start point next time.
+  const saveStickyTags = useDebouncedCallback((ids: string[]) => {
+    void persistPreferences({ preferred_add_tag_ids: ids });
+  }, STICKY_SAVE_DELAY_MS);
+  const saveStickyHint = useDebouncedCallback((hintId: string) => {
+    const isDefault = hints.find((hint) => hint.id === hintId)?.is_default ?? false;
+    void persistPreferences({ preferred_add_hint_id: isDefault || !hintId ? null : hintId });
+  }, STICKY_SAVE_DELAY_MS);
 
   async function persistPreferredLocation(locationId: string) {
     try {
@@ -308,10 +315,14 @@ export function AddPage() {
     }
   }
 
-  function handleSessionCollectionChange(id: string) {
-    setSessionCollectionId(id);
-    setDraft((d) => ({ ...d, collection_id: id }));
-    void persistPreferredCollection(id);
+  function handleSessionTagsChange(ids: string[]) {
+    setSessionTagIds(ids);
+    saveStickyTags(ids);
+  }
+
+  function handleSessionHintChange(id: string) {
+    setSessionHintId(id);
+    saveStickyHint(id);
   }
 
   function handleSessionLocationChange(id: string) {
@@ -401,8 +412,8 @@ export function AddPage() {
       if (selectedLlmId) {
         query.set("llm_id", selectedLlmId);
       }
-      if (draft.collection_id) {
-        query.set("collection_id", draft.collection_id);
+      if (sessionHintId) {
+        query.set("hint_id", sessionHintId);
       }
 
       const data = await apiRequest<IdentifyResponse>(
@@ -488,7 +499,7 @@ export function AddPage() {
       const payload = {
         name: draft.name.trim(),
         description: draft.description,
-        collection: collections.find((cat) => cat.id === draft.collection_id)?.name || null,
+        tag_ids: sessionTagIds,
         status: draft.status,
         quantity: draft.quantity,
         ai_primary: identifyData?.ai || selectedCandidate || null,
@@ -534,32 +545,39 @@ export function AddPage() {
       <PageHeader title="Add item" action={null} />
 
       {/* ── SESSION STRIP ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
+      <div className="space-y-2 mb-4">
         <div>
-          <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Collection</label>
-          <select
-            value={sessionCollectionId}
-            onChange={(e) => handleSessionCollectionChange(e.target.value)}
-            className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-          >
-            <option value="">None</option>
-            {collections.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Tags</label>
+          <TagPicker tags={tags} selectedIds={sessionTagIds} onChange={handleSessionTagsChange} />
         </div>
-        <div>
-          <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Location</label>
-          <select
-            value={sessionLocationId}
-            onChange={(e) => handleSessionLocationChange(e.target.value)}
-            className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
-          >
-            <option value="">None</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{locationLabels.get(l.id) || l.name}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label htmlFor="add-hint" className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">AI hint</label>
+            <select
+              id="add-hint"
+              value={sessionHintId}
+              onChange={(e) => handleSessionHintChange(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+            >
+              {hints.map((h) => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="add-location" className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Location</label>
+            <select
+              id="add-location"
+              value={sessionLocationId}
+              onChange={(e) => handleSessionLocationChange(e.target.value)}
+              className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+            >
+              <option value="">None</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>{locationLabels.get(l.id) || l.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -651,7 +669,7 @@ export function AddPage() {
               </div>
             )}
 
-            {/* Metadata grid — Collection/Location are in the session strip above */}
+            {/* Metadata grid — Tags, hint and location are in the session strip above */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Status</label>

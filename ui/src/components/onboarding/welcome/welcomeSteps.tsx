@@ -2,7 +2,7 @@ import type { Step } from "react-joyride";
 
 /** data-tour attribute values the welcome tour points at. A test checks each one still exists in
  *  the layout source, so renaming a menu item can't silently break the tour. */
-export const WELCOME_TOUR_TARGETS = ["nav-collections", "nav-settings", "nav-system", "user-menu"] as const;
+export const WELCOME_TOUR_TARGETS = ["nav-tags", "nav-settings", "nav-system", "user-menu"] as const;
 
 function target(name: (typeof WELCOME_TOUR_TARGETS)[number]): string {
   return `[data-tour='${name}']`;
@@ -20,19 +20,20 @@ export function buildWelcomeSteps(isAdmin: boolean): Step[] {
       content: (
         <p className="text-sm leading-6">
           On the Items page choose <strong>Add Item</strong> and start with a photo. If an AI provider is set up,
-          Stowge suggests a name and description; otherwise fill the details in yourself.
+          Stowge suggests a name and description; otherwise fill the details in yourself. The Add screen also has
+          an <strong>AI hint</strong> picker, so you can tell the AI what kind of thing you are adding.
         </p>
       ),
     },
     {
-      target: target("nav-collections"),
+      target: target("nav-tags"),
       placement: "right",
       skipBeacon: true,
-      title: "Collections",
+      title: "Tags",
       content: (
         <p className="text-sm leading-6">
-          Collections group your items. Open one to see its items, and pin filters you use often so they
-          sit under it in this menu.
+          Tags group your items, and an item can have several. Open one to see its items, and pin filters you
+          use often so they sit under it in this menu.
         </p>
       ),
     },

@@ -9,8 +9,10 @@ import { WELCOME_TOUR_TARGETS, buildWelcomeSteps } from "../src/components/onboa
 afterEach(cleanup);
 
 describe("WelcomeModal", () => {
-  it("is a dialog titled Welcome to Stowge with a short explanation", () => {
+  it("is a dialog titled Welcome to Stowge with a short explanation (tags, not collections)", () => {
     render(<WelcomeModal onTakeTour={() => {}} onClose={() => {}} />);
+    expect(screen.queryByText(/collections/i)).toBeNull();
+    expect(screen.getByText(/tag them/)).toBeTruthy();
     expect(screen.getByRole("dialog", { name: "Welcome to Stowge" })).toBeTruthy();
     expect(screen.getByText(/keeps track of what you own/)).toBeTruthy();
   });
@@ -40,6 +42,22 @@ describe("welcome tour steps", () => {
     const steps = buildWelcomeSteps(false);
     expect(steps[0].target).toBe("body");
     expect(String(steps[steps.length - 1].target)).toBe("[data-tour='user-menu']");
+  });
+
+  it("the Tags step is built on the renamed nav-tags target (nav-collections is gone)", () => {
+    expect(WELCOME_TOUR_TARGETS).toContain("nav-tags");
+    expect([...WELCOME_TOUR_TARGETS]).not.toContain("nav-collections");
+    const steps = buildWelcomeSteps(false);
+    expect(steps.map((s) => String(s.target))).toContain("[data-tour='nav-tags']");
+    expect(steps.map((s) => String(s.title))).toContain("Tags");
+    expect(steps.map((s) => String(s.title))).not.toContain("Collections");
+  });
+
+  it("the welcome copy mentions tags and the AI hint picker on the Add screen", () => {
+    const text = JSON.stringify(buildWelcomeSteps(true).map((s) => s.content));
+    expect(text).toMatch(/an item can have several/);
+    expect(text).toMatch(/AI hint/);
+    expect(text).not.toMatch(/ollection/);
   });
 
   it("every element the tour points at still exists in the layout source (stops the tour going stale)", () => {

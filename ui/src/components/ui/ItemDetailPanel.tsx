@@ -4,7 +4,8 @@ import { useNumericField } from "../../hooks/useNumericField";
 import { useNavigate } from "react-router-dom";
 import { buildLocationDisplayLabel } from "../../lib/locationHierarchy";
 import type { PartDetail, PartEditForm } from "../../pages/ItemsPage";
-import type { LocationOption, CollectionOption } from "../../lib/types";
+import type { LocationOption } from "../../lib/types";
+import { TagChips } from "./TagChips";
 
 interface ItemDetailPanelProps {
   selectedPart: PartDetail | null;
@@ -15,7 +16,6 @@ interface ItemDetailPanelProps {
   savingDetail: boolean;
   deletingPartFromModal: boolean;
   locations: LocationOption[];
-  collectionOptions: CollectionOption[];
   hasDirtyChanges: boolean;
   onEditChange: (form: PartEditForm) => void;
   onSave: () => Promise<void>;
@@ -35,7 +35,6 @@ export function ItemDetailPanel({
   savingDetail,
   deletingPartFromModal,
   locations,
-  collectionOptions,
   hasDirtyChanges,
   onEditChange,
   onSave,
@@ -236,25 +235,14 @@ export function ItemDetailPanel({
                 />
               </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="space-y-1 block">
-                  <span className="text-xs text-neutral-500 uppercase tracking-wide">Collection</span>
-                  <select
-                    value={editForm.collection}
-                    onChange={(event) =>
-                      onEditChange({ ...editForm, collection: event.target.value })
-                    }
-                    className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
-                  >
-                    <option value="">No collection</option>
-                    {collectionOptions.map((collection) => (
-                      <option key={collection.id} value={collection.name}>
-                        {collection.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <div className="space-y-1">
+                <span className="text-xs text-neutral-500 uppercase tracking-wide">Tags</span>
+                <div>
+                  <TagChips tags={selectedPart?.tags ?? []} emptyLabel="No tags" />
+                </div>
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="space-y-1 block">
                   <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
                   <select

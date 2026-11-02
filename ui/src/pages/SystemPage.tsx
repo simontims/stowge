@@ -3,7 +3,6 @@ import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { DashboardPage } from "./DashboardPage";
-import { SettingsCollectionsPage } from "./SettingsCollectionsPage";
 import { SettingsAiPage } from "./SettingsAiPage";
 import { SettingsImagesPage } from "./SettingsImagesPage";
 import { SettingsLocationsPage } from "./SettingsLocationsPage";
@@ -12,13 +11,12 @@ import { SettingsUsersPage } from "./SettingsUsersPage";
 import { SettingsApiKeysPage } from "./SettingsApiKeysPage";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 
-type Tab = "status" | "collections" | "ai" | "images" | "locations" | "users" | "api_keys" | "tools";
+type Tab = "status" | "ai" | "images" | "locations" | "users" | "api_keys" | "tools";
 
 const DEFAULT_TAB: Tab = "status";
 
 const TABS: Array<{ id: Tab; label: string; description: string }> = [
   { id: "status",      label: "Status",      description: "System health and inventory metrics" },
-  { id: "collections", label: "Collections", description: "Manage inventory collections and AI hints" },
   { id: "locations",   label: "Locations",   description: "Manage storage locations" },
   { id: "ai",          label: "AI",          description: "Configure LLM providers and models" },
   { id: "images",      label: "Images",      description: "Image storage quality and format" },
@@ -43,7 +41,6 @@ export function SystemPage() {
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
   const [savingFromDialog, setSavingFromDialog] = useState(false);
 
-  const collectionsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
   const aiSaveFnRef = useRef<(() => Promise<void>) | null>(null);
   const imagesSaveFnRef = useRef<(() => Promise<void>) | null>(null);
   const locationsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
@@ -52,7 +49,6 @@ export function SystemPage() {
   const toolsSaveFnRef = useRef<(() => Promise<void>) | null>(null);
 
   const saveFnRefMap: Record<Exclude<Tab, "status">, SaveRef> = {
-    collections: collectionsSaveFnRef,
     ai: aiSaveFnRef,
     images: imagesSaveFnRef,
     locations: locationsSaveFnRef,
@@ -173,13 +169,6 @@ export function SystemPage() {
 
       {activeTab === "status" && (
         <DashboardPage embedded />
-      )}
-      {activeTab === "collections" && (
-        <SettingsCollectionsPage
-          embedded
-          onDirtyChange={(dirty) => handleDirtyChange("collections", dirty)}
-          saveFnRef={collectionsSaveFnRef}
-        />
       )}
       {activeTab === "ai" && (
         <SettingsAiPage
