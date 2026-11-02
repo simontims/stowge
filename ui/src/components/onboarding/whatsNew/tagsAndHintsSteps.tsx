@@ -44,7 +44,7 @@ export function buildTagsAndHintsSteps(converted: number, hasPinnedFilter: boole
       title: "Reorder and add",
       content: (
         <p className="text-sm leading-6">
-          Drag a pinned filter to reorder the list. To add more, open Tags and choose <strong>Pin to menu</strong>.
+          Drag a pinned filter to reorder the list. To add more, open Tags and choose <strong>Pin tag filter</strong>.
         </p>
       ),
     },

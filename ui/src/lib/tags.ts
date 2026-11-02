@@ -86,7 +86,7 @@ export function appendPinnedTagFilter(filters: readonly ShortcutFilter[], tag: T
   return [...filters, row];
 }
 
-/** "Pin to menu": add a pinned filter for the tag to the user's shortcut filters. */
+/** "Pin tag filter": add a pinned filter for the tag to the user's shortcut filters. */
 export async function pinTagToMenu(tag: Tag): Promise<"pinned" | "exists"> {
   const me = await apiRequest<CurrentUser>("/api/me");
   const current = (me.shortcut_filters || []).map((row) => normalizeShortcutFilter(row));

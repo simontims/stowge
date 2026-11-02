@@ -118,12 +118,12 @@ describe("tour steps", () => {
     expect(String(steps[2].target)).toContain(FIRST_PINNED_TOUR_TARGET);
   });
 
-  it("the copy covers: multiple tags, menu looks the same, drag + Pin to menu, AI hints in Settings", () => {
+  it("the copy covers: multiple tags, menu looks the same, drag + Pin tag filter, AI hints in Settings", () => {
     const text = JSON.stringify(buildTagsAndHintsSteps(3, true).map((s) => [s.title, s.content]));
     expect(text).toMatch(/several tags/);
     expect(text).toMatch(/menu looks the same/i);
     expect(text).toMatch(/Drag/);
-    expect(text).toMatch(/Pin to menu/);
+    expect(text).toMatch(/Pin tag filter/);
     expect(text).toMatch(/AI hints/);
     expect(text).toMatch(/hint picker/);
   });

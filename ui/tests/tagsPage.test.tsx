@@ -138,29 +138,29 @@ describe("Tags page delete", () => {
   });
 });
 
-describe("Tags page Pin to menu", () => {
+describe("Tags page Pin tag filter", () => {
   it("appends a pinned filter for the tag and keeps the existing filters", async () => {
     const existing = makeFilter("f0", "Drafts", { statuses: ["draft"] });
     const user = makeUser({ shortcut_filters: [existing] as never });
     const mock = setup({}, user);
     const row = (await screen.findByText("Cables")).closest("tr") as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: /Pin to menu/ }));
+    await userEvent.click(within(row).getByRole("button", { name: /Pin tag filter/ }));
 
     await waitFor(() => expect(mock.find("PATCH", "/api/me")).toHaveLength(1));
     const sent = (mock.find("PATCH", "/api/me")[0].body as { shortcut_filters: Array<Record<string, unknown>> }).shortcut_filters;
     expect(sent).toHaveLength(2);
     expect(sent[0].id).toBe("f0");
     expect(sent[1]).toMatchObject({ name: "Cables", tag_id: "t1", pinned: true, icon: "cable", color: "#38bdf8" });
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Cables pinned to menu"));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Filter for Cables pinned to your menu"));
   });
 
   it("does nothing, with a toast, when a filter for that tag already exists", async () => {
     const user = makeUser({ shortcut_filters: [makeFilter("f1", "Cables", { tag_id: "t1" })] as never });
     const mock = setup({}, user);
     const row = (await screen.findByText("Cables")).closest("tr") as HTMLElement;
-    await userEvent.click(within(row).getByRole("button", { name: /Pin to menu/ }));
+    await userEvent.click(within(row).getByRole("button", { name: /Pin tag filter/ }));
 
-    await waitFor(() => expect(toast).toHaveBeenCalledWith("Cables is already in your menu"));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("A filter for Cables is already in your menu"));
     expect(mock.find("PATCH", "/api/me")).toHaveLength(0);
   });
 });

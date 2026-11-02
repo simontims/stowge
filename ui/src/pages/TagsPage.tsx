@@ -180,13 +180,13 @@ export function TagsPage() {
     try {
       const outcome = await pinTagToMenu(tag);
       if (outcome === "exists") {
-        toast(`${tag.name} is already in your menu`);
+        toast(`A filter for ${tag.name} is already in your menu`);
         return;
       }
       window.dispatchEvent(new Event(USER_NAV_PREFERENCES_UPDATED_EVENT));
-      toast.success(`${tag.name} pinned to menu`);
+      toast.success(`Filter for ${tag.name} pinned to your menu`);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to pin to menu.");
+      toast.error((err as Error).message || "Failed to pin the tag filter.");
     }
   }
 
@@ -338,9 +338,9 @@ export function TagsPage() {
               width: "340px",
               render: (row) => (
                 <div className="inline-flex items-center gap-2 justify-end w-full" onClick={(event) => event.stopPropagation()}>
-                  <button onClick={() => void pin(row)} className={`${tableActionButtonClasses("neutral")} whitespace-nowrap`} title="Add a pinned filter for this tag to your menu">
+                  <button onClick={() => void pin(row)} className={`${tableActionButtonClasses("neutral")} whitespace-nowrap`} title="Pin a filter that shows only items with this tag to your menu">
                     <Pin size={13} />
-                    Pin to menu
+                    Pin tag filter
                   </button>
                   <button onClick={() => openEdit(row)} className={tableActionButtonClasses("neutral")}>
                     <Edit3 size={13} />
