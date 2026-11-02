@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, Moon, Sun, User } from "lucide-react";
+import { Compass, Menu, Moon, Sparkles, Sun, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { getStoredTheme, setTheme, type ThemeMode } from "../../lib/theme";
 import { apiRequest } from "../../lib/api";
 import { useCurrentUser } from "../../lib/UserContext";
+import { UnreadDot } from "../ui/UnreadDot";
+import { START_WELCOME_TOUR_EVENT } from "../../lib/onboarding";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -11,6 +14,8 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
   const currentUser = useCurrentUser();
+  const navigate = useNavigate();
+  const hasUnseenNotes = (currentUser.whats_new?.unseen.length ?? 0) > 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getStoredTheme());
   const [version, setVersion] = useState<string>("");
@@ -124,9 +129,13 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
             onClick={() => setMenuOpen((open) => !open)}
             className="inline-flex items-center gap-2 h-8 px-2.5 rounded-full bg-neutral-700 text-neutral-300 hover:bg-neutral-600 hover:text-neutral-100 transition-colors"
             aria-label="User menu"
+            data-tour="user-menu"
             aria-expanded={menuOpen}
           >
-            <User size={14} />
+            <span className="relative inline-flex">
+              <User size={14} />
+              {hasUnseenNotes && <UnreadDot className="absolute -right-1.5 -top-1.5 h-1.5 w-1.5" />}
+            </span>
             <span className="hidden sm:inline max-w-[10rem] truncate text-xs font-medium">
               {displayName}
             </span>
@@ -135,8 +144,34 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
           {menuOpen && (
             <div className="absolute right-0 top-full mt-2 w-44 rounded-md border border-neutral-700 bg-neutral-900 shadow-lg z-20 overflow-hidden">
               <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  window.dispatchEvent(new Event(START_WELCOME_TOUR_EVENT));
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 transition-colors"
+              >
+                <Compass size={14} className="shrink-0 text-neutral-400" />
+                Welcome tour
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/release-notes");
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 transition-colors"
+              >
+                <Sparkles size={14} className="shrink-0 text-neutral-400" />
+                Release notes
+                {hasUnseenNotes && (
+                  <>
+                    <UnreadDot className="ml-auto" />
+                    <span className="sr-only">(new)</span>
+                  </>
+                )}
+              </button>
+              <button
                 onClick={logout}
-                className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-neutral-800 transition-colors"
+                className="w-full border-t border-neutral-800 text-left px-3 py-2 text-sm text-red-300 hover:bg-neutral-800 transition-colors"
               >
                 Logout
               </button>

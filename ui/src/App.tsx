@@ -10,34 +10,21 @@ import { EditPage } from "./pages/EditPage";
 import { SystemPage } from "./pages/SystemPage";
 import { SettingsCollectionsPage } from "./pages/SettingsCollectionsPage";
 import { SettingsShortcutsPage } from "./pages/SettingsShortcutsPage";
+import { WhatsNewPage } from "./pages/WhatsNewPage";
 import { LoginPage } from "./pages/LoginPage";
-import { UNAUTHORIZED_EVENT, OFFLINE_EVENT } from "./lib/api";
+import { UNAUTHORIZED_EVENT, OFFLINE_EVENT, apiRequest } from "./lib/api";
 import { type CurrentUser } from "./lib/types";
 import { UserContext } from "./lib/UserContext";
 import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
-import { HierarchyIntroTour } from "./components/onboarding/HierarchyIntroTour";
-import { RERUN_HIERARCHY_INTRO_EVENT } from "./lib/onboarding";
+import { WelcomeModal } from "./components/onboarding/welcome/WelcomeModal";
+import { WelcomeTour } from "./components/onboarding/welcome/WelcomeTour";
+import { WhatsNewHost } from "./components/onboarding/whatsNew/WhatsNewHost";
+import { START_WELCOME_TOUR_EVENT } from "./lib/onboarding";
 
-const HIERARCHY_INTRO_STORAGE_KEY_PREFIX = "stowge:hierarchy-intro-seen:v3:";
-
-function hierarchyIntroSeenKey(userId: string): string {
-  return `${HIERARCHY_INTRO_STORAGE_KEY_PREFIX}${userId}`;
-}
-
-function hasSeenHierarchyIntro(userId: string): boolean {
-  try {
-    return localStorage.getItem(hierarchyIntroSeenKey(userId)) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function markHierarchyIntroSeen(userId: string): void {
-  try {
-    localStorage.setItem(hierarchyIntroSeenKey(userId), "1");
-  } catch {
-    // Best-effort persistence only.
-  }
+/** The welcome flow is tracked on the user (not per browser), so it doesn't repeat on a new
+ *  browser or address. */
+function needsWelcome(user: CurrentUser): boolean {
+  return Boolean(user.whats_new?.welcome_pending);
 }
 
 function resolvePostLoginRoute(user: CurrentUser): string {
@@ -52,8 +39,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
-  const [showHierarchyIntro, setShowHierarchyIntro] = useState(false);
-  const [introUserId, setIntroUserId] = useState<string | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [tourRunning, setTourRunning] = useState(false);
   const [toastTheme, setToastTheme] = useState<"light" | "dark">(
     () => (document.documentElement.dataset.theme === "light" ? "light" : "dark")
   );
@@ -61,14 +48,12 @@ export default function App() {
     () => (typeof window !== "undefined" ? window.innerWidth < 768 : false)
   );
 
-  function startHierarchyIntroIfNeeded(user: CurrentUser) {
-    if (hasSeenHierarchyIntro(user.id)) {
-      setShowHierarchyIntro(false);
-      setIntroUserId(null);
+  function startWelcomeIfNeeded(user: CurrentUser) {
+    if (!needsWelcome(user)) {
+      setShowWelcome(false);
       return;
     }
-    setShowHierarchyIntro(true);
-    setIntroUserId(user.id);
+    setShowWelcome(true);
   }
 
   useEffect(() => {
@@ -104,7 +89,7 @@ export default function App() {
         if (res.ok) {
           const me = (await res.json()) as CurrentUser;
           setCurrentUser(me);
-          startHierarchyIntroIfNeeded(me);
+          startWelcomeIfNeeded(me);
         }
         setAuthChecked(true);
       })
@@ -186,32 +171,43 @@ export default function App() {
   function handleLogin(user: CurrentUser) {
     const destination = resolvePostLoginRoute(user);
     window.history.replaceState(null, "", destination);
-    startHierarchyIntroIfNeeded(user);
+    startWelcomeIfNeeded(user);
     setCurrentUser(user);
     setAuthChecked(true);
   }
 
-  function handleHierarchyIntroComplete() {
-    if (introUserId) {
-      markHierarchyIntroSeen(introUserId);
-    }
-    setShowHierarchyIntro(false);
-    setIntroUserId(null);
+  /** Record the welcome flow as seen. Hidden locally first, so a failed request can't trap anyone behind it. */
+  function markWelcomeSeen() {
+    void apiRequest<CurrentUser>("/api/me/welcome/seen", { method: "POST" })
+      .then((updated) => setCurrentUser((current) => (current && current.id === updated.id ? updated : current)))
+      .catch(() => {
+        // Best effort: the welcome shows again next session if this failed.
+      });
   }
 
+  function handleWelcomeClose() {
+    setShowWelcome(false);
+    markWelcomeSeen();
+  }
+
+  function handleWelcomeTakeTour() {
+    setShowWelcome(false);
+    markWelcomeSeen();
+    setTourRunning(true);
+  }
+
+  // "Welcome tour" in the user menu starts the tour directly.
   useEffect(() => {
-    function handleRerunHierarchyIntro() {
+    function handleStartTour() {
       if (!currentUser) return;
-      setShowHierarchyIntro(false);
-      setIntroUserId(currentUser.id);
-      // Restart from step 1 even if a previous run was already completed.
-      window.setTimeout(() => {
-        setShowHierarchyIntro(true);
-      }, 0);
+      setShowWelcome(false);
+      setTourRunning(false);
+      // Restart from step 1 even if the tour was already run.
+      window.setTimeout(() => setTourRunning(true), 0);
     }
 
-    window.addEventListener(RERUN_HIERARCHY_INTRO_EVENT, handleRerunHierarchyIntro);
-    return () => window.removeEventListener(RERUN_HIERARCHY_INTRO_EVENT, handleRerunHierarchyIntro);
+    window.addEventListener(START_WELCOME_TOUR_EVENT, handleStartTour);
+    return () => window.removeEventListener(START_WELCOME_TOUR_EVENT, handleStartTour);
   }, [currentUser]);
 
   async function handleLogout() {
@@ -240,7 +236,7 @@ export default function App() {
   }
 
   return (
-    <UserContext.Provider value={{ currentUser }}>
+    <UserContext.Provider value={{ currentUser, setCurrentUser }}>
       <BrowserRouter>
         <AppShell onLogout={handleLogout}>
         <Routes>
@@ -253,6 +249,8 @@ export default function App() {
           <Route path="/parts/:itemId/edit" element={<EditPage />} />
           <Route path="/collections" element={<SettingsCollectionsPage />} />
           <Route path="/settings" element={<SettingsShortcutsPage />} />
+          <Route path="/release-notes" element={<WhatsNewPage />} />
+          <Route path="/whats-new" element={<Navigate to="/release-notes" replace />} />
           <Route path="/add"        element={<AddPage />} />
           <Route path="/scan"       element={<Navigate to="/add" replace />} />
           <Route path="/system"     element={currentUser.role === "admin" ? <SystemPage /> : <Navigate to="/items" replace />} />
@@ -265,10 +263,16 @@ export default function App() {
         theme={toastTheme}
         richColors
       />
-      <HierarchyIntroTour
-        open={showHierarchyIntro}
+      {showWelcome && <WelcomeModal onTakeTour={handleWelcomeTakeTour} onClose={handleWelcomeClose} />}
+      <WelcomeTour
+        run={tourRunning}
         isAdmin={currentUser.role === "admin"}
-        onComplete={handleHierarchyIntroComplete}
+        onFinish={() => setTourRunning(false)}
+      />
+      <WhatsNewHost
+        user={currentUser}
+        onUserChange={setCurrentUser}
+        suppress={showWelcome || tourRunning}
       />
       </BrowserRouter>
     </UserContext.Provider>

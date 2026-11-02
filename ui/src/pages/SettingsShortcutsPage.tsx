@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
+import { IconColorPicker } from "../components/ui/IconColorPicker";
+import { ShortcutIcon } from "../components/ui/ShortcutIcon";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { solidActionButtonClasses, tableActionButtonClasses } from "../components/ui/buttonStyles";
 import { USER_NAV_PREFERENCES_UPDATED_EVENT } from "../config/nav";
@@ -28,6 +30,8 @@ interface ShortcutFormState {
   quantityMin: string;
   quantityMax: string;
   pinned: boolean;
+  icon: string;
+  color: string;
 }
 
 interface ItemsBootstrapPayload {
@@ -52,6 +56,8 @@ const EMPTY_FORM: ShortcutFormState = {
   quantityMin: "",
   quantityMax: "",
   pinned: true,
+  icon: "",
+  color: "",
 };
 
 function newShortcutId(): string {
@@ -118,6 +124,8 @@ function toForm(row: ShortcutFilter): ShortcutFormState {
     quantityMin,
     quantityMax,
     pinned: row.pinned,
+    icon: row.icon || "",
+    color: row.color || "",
   };
 }
 
@@ -151,6 +159,8 @@ function fromForm(form: ShortcutFormState): ShortcutFilter {
     quantity_min: quantityMin,
     quantity_max: quantityMax,
     pinned: form.pinned,
+    icon: form.icon || null,
+    color: form.color || null,
   });
 }
 
@@ -492,7 +502,12 @@ export function SettingsShortcutsPage() {
         key: "name",
         header: "Name",
         sortable: true,
-        render: (row) => <span className="font-medium text-neutral-200">{row.name}</span>,
+        render: (row) => (
+          <span className="inline-flex items-center gap-2 font-medium text-neutral-200">
+            <ShortcutIcon filter={row} size={15} />
+            {row.name}
+          </span>
+        ),
       },
       {
         key: "query",
@@ -647,6 +662,17 @@ export function SettingsShortcutsPage() {
                   placeholder="e.g. m6 screw"
                 />
               </label>
+
+              <div className="flex items-center gap-3 md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+                <IconColorPicker
+                  title={form.name || "Shortcut"}
+                  value={form.icon}
+                  onChange={(name) => updateForm("icon", name)}
+                  color={form.color}
+                  onColorChange={(hex) => updateForm("color", hex)}
+                />
+              </div>
 
               <label className="block">
                 <span className="text-xs uppercase tracking-wide text-neutral-500">Collection</span>

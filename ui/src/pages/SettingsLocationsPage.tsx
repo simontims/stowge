@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Compass, Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ChevronRight, Edit3, Plus, Save, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { IconColorPicker } from "../components/ui/IconColorPicker";
 import { TablerIcon } from "../components/ui/TablerIcon";
@@ -16,11 +16,6 @@ import { useResourceList } from "../hooks/useResourceList";
 import { useDirtyState } from "../hooks/useDirtyState";
 import { apiRequest } from "../lib/api";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
-import {
-  RERUN_HIERARCHY_INTRO_EVENT,
-  TOUR_CLOSE_ADD_LOCATION_FORM_EVENT,
-  TOUR_OPEN_ADD_LOCATION_FORM_EVENT,
-} from "../lib/onboarding";
 
 interface LocationRecord {
   id: string;
@@ -150,25 +145,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
   useEffect(() => {
     void loadLocations();
     void loadHierarchyOptions();
-  }, []);
-
-  useEffect(() => {
-    function handleTourOpenAddLocationForm() {
-      setAddingOpen(true);
-      setError("");
-      setNotice("");
-    }
-
-    function handleTourCloseAddLocationForm() {
-      setAddingOpen(false);
-    }
-
-    window.addEventListener(TOUR_OPEN_ADD_LOCATION_FORM_EVENT, handleTourOpenAddLocationForm);
-    window.addEventListener(TOUR_CLOSE_ADD_LOCATION_FORM_EVENT, handleTourCloseAddLocationForm);
-    return () => {
-      window.removeEventListener(TOUR_OPEN_ADD_LOCATION_FORM_EVENT, handleTourOpenAddLocationForm);
-      window.removeEventListener(TOUR_CLOSE_ADD_LOCATION_FORM_EVENT, handleTourCloseAddLocationForm);
-    };
   }, []);
 
   async function loadHierarchyOptions() {
@@ -809,19 +785,6 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
           />
           <span className="text-sm font-semibold text-neutral-100">Sites &amp; Areas</span>
           <span className="text-xs text-neutral-500 truncate">{hierarchySummary}</span>
-          <span className="ml-auto">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                window.dispatchEvent(new CustomEvent(RERUN_HIERARCHY_INTRO_EVENT));
-              }}
-              className={`${outlinedActionButtonClasses("neutral")} px-2.5 py-1.5 text-xs font-medium`}
-            >
-              <Compass size={12} />
-              Re-run tour
-            </button>
-          </span>
         </div>
 
         {hierarchyExpanded && (

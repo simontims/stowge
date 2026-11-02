@@ -55,8 +55,40 @@ export interface CurrentUser {
     quantity_min: number | null;
     quantity_max: number | null;
     pinned: boolean;
+    icon: string | null;
+    color: string | null;
   }>;
+  whats_new: WhatsNewState;
   created_at: string | null;
   last_login_at: string | null;
   show_hierarchy_intro?: boolean;
+}
+
+export type WhatsNewSeverity = "interrupt" | "dot";
+
+export interface WhatsNewNote {
+  id: string;
+  /** Increasing order number; the user's cursor is the highest seq they have dealt with. */
+  seq: number;
+  /** interrupt = shown once as a card at login; dot = only lights the unread dot. */
+  severity: WhatsNewSeverity;
+  /** Release the change shipped in, e.g. "0.11.0". The What's New page groups by it. */
+  version: string;
+  title: string;
+  summary: string;
+  date: string | null;
+  supersedes: string[];
+}
+
+export interface WhatsNewHistoryNote extends WhatsNewNote {
+  unread: boolean;
+}
+
+export interface WhatsNewState {
+  latest_seq: number;
+  /** Unseen notes, oldest first, with anything a newer unseen note replaces already removed. */
+  unseen: WhatsNewNote[];
+  unseen_interrupt_count: number;
+  /** True until the user has seen the current welcome flow. */
+  welcome_pending: boolean;
 }

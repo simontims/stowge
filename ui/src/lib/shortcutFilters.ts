@@ -11,6 +11,10 @@ export interface ShortcutFilter {
   quantity_min: number | null;
   quantity_max: number | null;
   pinned: boolean;
+  /** Tabler icon name; null = default filter icon. */
+  icon: string | null;
+  /** Hex colour such as #38bdf8; null = default text colour. */
+  color: string | null;
 }
 
 function trimText(value: unknown): string {
@@ -81,6 +85,8 @@ export function normalizeShortcutFilter(input: Partial<ShortcutFilter>): Shortcu
         ? normalizedMin
         : normalizedMax,
     pinned: Boolean(input.pinned),
+    icon: trimText(input.icon) || null,
+    color: trimText(input.color) || null,
   };
 }
 

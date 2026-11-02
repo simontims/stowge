@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Filter, X } from "lucide-react";
+import { X } from "lucide-react";
 import clsx from "clsx";
 import {
   COLLECTIONS_NAV_UPDATED_EVENT,
@@ -10,6 +10,7 @@ import {
 } from "../../config/nav";
 import { apiRequest } from "../../lib/api";
 import { useCurrentUser } from "../../lib/UserContext";
+import { ShortcutIcon } from "../ui/ShortcutIcon";
 import type { CurrentUser } from "../../lib/types";
 import {
   buildShortcutFilterSearch,
@@ -219,7 +220,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
                                   : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300"
                               )}
                             >
-                              <Filter size={13} className="shrink-0" />
+                              <ShortcutIcon filter={shortcut} size={14} />
                               <span className="truncate">{shortcut.name}</span>
                             </NavLink>
                           );
