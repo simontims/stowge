@@ -160,3 +160,24 @@ describe("Item detail panel", () => {
     expect(screen.queryByText("Collection")).toBeNull();
   });
 });
+
+describe("Items page layout is the same however the list is filtered", () => {
+  async function layout(entry: string) {
+    setup(entry);
+    await screen.findByText("Hammer");
+    const search = screen.getByPlaceholderText(/Search/);
+    const pane = search.closest("div.space-y-4") as HTMLElement;
+    return { placeholder: search.getAttribute("placeholder"), paneClass: pane.className };
+  }
+
+  it("has the same search placeholder and no extra padding with a tag filter, a search/location filter, or none", async () => {
+    const tagged = await layout("/items?tag=Cables");
+    cleanup();
+    const searched = await layout("/items?q=usb&area_id=a1&location_id=l1");
+    cleanup();
+    const plain = await layout("/items");
+    expect(searched).toEqual(tagged);
+    expect(plain).toEqual(tagged);
+    expect(tagged.paneClass).not.toMatch(/\bp-4\b/);
+  });
+});

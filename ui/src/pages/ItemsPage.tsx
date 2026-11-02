@@ -942,14 +942,12 @@ export function ItemsPage() {
               }`}
             >
               <div
-                className={`space-y-4 flex-1 min-h-0 flex flex-col overflow-hidden ${
-                  tagFilter ? "" : "p-4"
-                }`}
+                className="space-y-4 flex-1 min-h-0 flex flex-col overflow-hidden"
               >
                 <ListToolbar
                   search={search}
                   onSearchChange={setSearch}
-                  placeholder={tagFilter ? "Search by name and description" : "Search items, locations, tags…"}
+                  placeholder="Search items, locations, tags…"
                   loading={loading}
                   action={
                     <>
