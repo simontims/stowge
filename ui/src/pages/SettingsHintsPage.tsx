@@ -141,7 +141,7 @@ export function SettingsHintsPage() {
         key: "text",
         header: "Text",
         render: (row) => (
-          <span className="block max-w-xl truncate text-neutral-400">{row.text.trim() || "(empty: nothing is sent)"}</span>
+          <span className="block max-w-md truncate text-neutral-400">{row.text.trim() || "(empty: nothing is sent)"}</span>
         ),
       },
     ],

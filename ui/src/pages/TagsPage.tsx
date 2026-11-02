@@ -335,10 +335,10 @@ export function TagsPage() {
             columns={columns}
             actions={{
               header: "",
-              width: "300px",
+              width: "340px",
               render: (row) => (
                 <div className="inline-flex items-center gap-2 justify-end w-full" onClick={(event) => event.stopPropagation()}>
-                  <button onClick={() => void pin(row)} className={tableActionButtonClasses("neutral")} title="Add a pinned filter for this tag to your menu">
+                  <button onClick={() => void pin(row)} className={`${tableActionButtonClasses("neutral")} whitespace-nowrap`} title="Add a pinned filter for this tag to your menu">
                     <Pin size={13} />
                     Pin to menu
                   </button>
