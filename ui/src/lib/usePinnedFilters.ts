@@ -4,7 +4,7 @@ import { apiRequest } from "./api";
 import { UNTAGGED, reorderPinnedFilters, normalizeShortcutFilter, type ShortcutFilter } from "./shortcutFilters";
 import type { CurrentUser, Tag } from "./types";
 
-/** The menu's data: the user's shortcut filters (pinned ones are shown, in list order) and the tag
+/** The menu's data: the user's filters (pinned ones are shown, in list order) and the tag
  *  list used to resolve a filter's tag id to the name in the Items URL. Reloads when tags or
  *  filters change elsewhere in the app. */
 export function usePinnedFilters() {

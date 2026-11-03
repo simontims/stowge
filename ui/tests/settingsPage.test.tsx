@@ -31,15 +31,15 @@ function setup(entry: string, filters: unknown[] = []) {
 }
 
 describe("Settings tabs", () => {
-  it("parses ?tab= and falls back to Shortcuts", () => {
+  it("parses ?tab= and falls back to Filters", () => {
     expect(parseSettingsTab("hints")).toBe("hints");
     expect(parseSettingsTab(null)).toBe("shortcuts");
     expect(parseSettingsTab("bogus")).toBe("shortcuts");
   });
 
-  it("/settings opens Shortcuts by default, with AI hints as the next tab", async () => {
+  it("/settings opens Filters by default, with AI hints as the next tab", async () => {
     setup("/settings");
-    expect(screen.getByRole("tab", { name: "Shortcuts" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Filters" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: "AI hints" }).getAttribute("aria-selected")).toBe("false");
     await screen.findByRole("button", { name: /Add Filter/ });
     expect(screen.queryByText("Sent to the AI with each photo. Pick one on the Add screen.")).toBeNull();
@@ -50,9 +50,9 @@ describe("Settings tabs", () => {
     expect(screen.getByRole("tab", { name: "AI hints" }).getAttribute("aria-selected")).toBe("true");
     expect(await screen.findByText("Sent to the AI with each photo. Pick one on the Add screen.")).toBeTruthy();
 
-    await userEvent.click(screen.getByRole("tab", { name: "Shortcuts" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Filters" }));
     expect(await screen.findByRole("button", { name: /Add Filter/ })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Shortcuts" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Filters" }).getAttribute("aria-selected")).toBe("true");
   });
 });
 
@@ -105,7 +105,7 @@ describe("AI hints tab", () => {
   });
 });
 
-describe("Shortcuts settings Tag select", () => {
+describe("Filters settings Tag select", () => {
   it("offers Any, Untagged and each tag, and stores tag_id", async () => {
     const mock = setup("/settings");
     await userEvent.click(await screen.findByRole("button", { name: /Add Filter/ }));

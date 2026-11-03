@@ -20,7 +20,7 @@ interface PinnedFilterListProps {
   firstItemTourId?: string;
 }
 
-/** The user's pinned shortcut filters as one ordered list, shown under the Tags menu entry. */
+/** The user's pinned filters as one ordered list, shown under the Tags menu entry. */
 export function PinnedFilterList({ filters, tags, draggable = false, onReorder, firstItemTourId }: PinnedFilterListProps) {
   const location = useLocation();
   const [draggingId, setDraggingId] = useState<string | null>(null);

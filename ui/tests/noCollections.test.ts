@@ -19,6 +19,8 @@ const ALLOWED: Array<{ file: string; line: RegExp; why: string }> = [
   { file: "pages/SettingsToolsPage.tsx", line: /Older files with a <span[^>]*>collection<\/span> column still import/, why: "CSV legacy note" },
   { file: "components/onboarding/whatsNew/tagsAndHintsSteps.tsx", line: /./, why: "migration tour copy" },
   { file: "components/onboarding/whatsNew/TagsAndHintsTour.tsx", line: /./, why: "migration tour" },
+  { file: "lib/legacyLinks.ts", line: /./, why: "old ?collection= links keep working" },
+  { file: "App.tsx", line: /LegacyCollectionLink|Old `\?collection=` links/, why: "legacy link upgrade" },
   { file: "lib/types.ts", line: /collections_converted|collections-to-tags migration/, why: "migration info from the API" },
 ];
 

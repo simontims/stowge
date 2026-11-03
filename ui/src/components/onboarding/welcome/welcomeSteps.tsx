@@ -41,10 +41,10 @@ export function buildWelcomeSteps(isAdmin: boolean): Step[] {
       target: target("nav-settings"),
       placement: "right",
       skipBeacon: true,
-      title: "Shortcut filters",
+      title: "Filters",
       content: (
         <p className="text-sm leading-6">
-          Settings is where you build shortcut filters, choose an icon and colour for each, and pin them to the menu.
+          Settings is where you build filters, choose an icon and colour for each, and pin them to the menu.
         </p>
       ),
     },

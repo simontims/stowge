@@ -40,6 +40,21 @@ describe("routes", () => {
     expect(await screen.findByText("Group items with tags. An item can have several.")).toBeTruthy();
   });
 
+  it("an old /items?collection= bookmark opens the same list as ?tag=", async () => {
+    mockApi({
+      "GET /api/me": makeUser(),
+      "GET /healthz": {},
+      "GET /api/tags": [],
+      "GET /api/items": [],
+      "GET /api/locations": [],
+      "PATCH /api/me": makeUser(),
+    });
+    window.history.pushState(null, "", "/items?q=usb&collection=Attic");
+    render(<App />);
+    await waitFor(() => expect(window.location.search).toBe("?q=usb&tag=Attic"));
+    expect(window.location.pathname).toBe("/items");
+  });
+
   it("/ goes to the last open tag's items", async () => {
     mockApi({
       "GET /api/me": makeUser({ last_open_tag: "Cables" }),

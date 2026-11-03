@@ -8,11 +8,11 @@ export type SettingsTab = "shortcuts" | "hints";
 const DEFAULT_TAB: SettingsTab = "shortcuts";
 
 const TABS: Array<{ id: SettingsTab; label: string }> = [
-  { id: "shortcuts", label: "Shortcuts" },
+  { id: "shortcuts", label: "Filters" },
   { id: "hints", label: "AI hints" },
 ];
 
-/** Reads `?tab=`; anything unknown (or missing) is the Shortcuts tab. */
+/** Reads `?tab=`; anything unknown (or missing) is the Filters tab. */
 export function parseSettingsTab(raw: string | null): SettingsTab {
   return TABS.find((tab) => tab.id === raw)?.id ?? DEFAULT_TAB;
 }

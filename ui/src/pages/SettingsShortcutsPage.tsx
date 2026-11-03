@@ -354,7 +354,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
       toast.success(successMessage);
       return true;
     } catch (err) {
-      toast.error((err as Error).message || "Failed to save shortcut filters.");
+      toast.error((err as Error).message || "Failed to save filters.");
       return false;
     }
   }
@@ -382,7 +382,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
       );
       setStatusOptions(mergedStatuses);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to load shortcut filters.");
+      toast.error((err as Error).message || "Failed to load filters.");
     } finally {
       setLoading(false);
     }
@@ -571,12 +571,12 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
 
   const emptyMessage = useMemo(() => {
     if (loading) {
-      return "Loading shortcut filters...";
+      return "Loading filters...";
     }
     if (search.trim()) {
-      return "No shortcut filters match your search.";
+      return "No filters match your search.";
     }
-    return "No shortcut filters yet. Add your first filter.";
+    return "No filters yet. Add your first filter.";
   }, [loading, search]);
 
   const modalOpen = addingOpen || Boolean(editingId);
@@ -677,7 +677,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
               <div className="flex items-center gap-3 md:col-span-2">
                 <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
                 <IconColorPicker
-                  title={form.name || "Shortcut"}
+                  title={form.name || "Filter"}
                   value={form.icon}
                   onChange={(name) => updateForm("icon", name)}
                   color={form.color}

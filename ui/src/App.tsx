@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AppShell } from "./components/layout/AppShell";
 import { ItemsPage } from "./pages/ItemsPage";
@@ -20,11 +20,22 @@ import { WelcomeModal } from "./components/onboarding/welcome/WelcomeModal";
 import { WelcomeTour } from "./components/onboarding/welcome/WelcomeTour";
 import { WhatsNewHost } from "./components/onboarding/whatsNew/WhatsNewHost";
 import { START_WELCOME_TOUR_EVENT } from "./lib/onboarding";
+import { upgradeLegacyCollectionLink } from "./lib/legacyLinks";
 
 /** The welcome flow is tracked on the user (not per browser), so it doesn't repeat on a new
  *  browser or address. */
 function needsWelcome(user: CurrentUser): boolean {
   return Boolean(user.whats_new?.welcome_pending);
+}
+
+/** Old `?collection=` links on the item list and the Add page become `?tag=` links. */
+export function LegacyLinkUpgrade({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const upgraded = ["/items", "/parts", "/add", "/items/new", "/parts/new"].includes(location.pathname)
+    ? upgradeLegacyCollectionLink(location.search)
+    : null;
+  if (upgraded !== null) return <Navigate to={{ pathname: location.pathname, search: upgraded }} replace />;
+  return <>{children}</>;
 }
 
 export function resolvePostLoginRoute(user: CurrentUser): string {
@@ -239,6 +250,7 @@ export default function App() {
     <UserContext.Provider value={{ currentUser, setCurrentUser }}>
       <BrowserRouter>
         <AppShell onLogout={handleLogout}>
+        <LegacyLinkUpgrade>
         <Routes>
           <Route path="/"           element={<Navigate to={resolvePostLoginRoute(currentUser)} replace />} />
           <Route path="/items"      element={<ItemsPage />} />
@@ -258,6 +270,7 @@ export default function App() {
           <Route path="/locations"  element={currentUser.role === "admin" ? <Navigate to="/system?tab=locations" replace /> : <Navigate to="/items" replace />} />
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
+        </LegacyLinkUpgrade>
       </AppShell>
       <Toaster
         position={isMobileToastViewport ? "top-center" : "bottom-right"}
