@@ -38,7 +38,10 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
     missing_sites: string[];
     missing_areas: string[];
     missing_locations: string[];
+    invalid_tags?: string[];
   } | null>(null);
+
+  const invalidTags = preview?.invalid_tags ?? [];
 
   // This page is read-only — never dirty
   useEffect(() => {
@@ -423,6 +426,21 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
                 </div>
               )}
 
+              {invalidTags.length > 0 && (
+                <div className="space-y-1 rounded-md border border-red-800 bg-red-950/30 p-3" role="alert">
+                  <p className="text-sm font-medium text-red-400 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Invalid tag names ({invalidTags.length})
+                  </p>
+                  <p className="text-xs text-neutral-300">
+                    These tag names cannot be used (too short or containing ;): {invalidTags.join(", ")}
+                  </p>
+                  <p className="text-xs text-neutral-400">
+                    Edit the tag names in your CSV file, then choose it again to import.
+                  </p>
+                </div>
+              )}
+
               {(preview.missing_tags.length > 0 || preview.missing_sites.length > 0 || preview.missing_areas.length > 0 || preview.missing_locations.length > 0) && (
                 <p className="text-sm text-neutral-400">
                   These will be created automatically when you confirm the import.
@@ -438,7 +456,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
                     preview.missing_areas.length > 0,
                     preview.missing_locations.length > 0,
                   )}
-                  disabled={importing || preview.item_count === 0}
+                  disabled={importing || preview.item_count === 0 || invalidTags.length > 0}
                   className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
                 >
                   <Upload className="h-4 w-4" />

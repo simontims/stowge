@@ -61,8 +61,11 @@ export function usePinnedFilters() {
         const savedFilters = Array.isArray(saved?.shortcut_filters) ? saved.shortcut_filters : next;
         setCurrentUser({ ...userRef.current, ...(saved && saved.id === userRef.current.id ? saved : {}), shortcut_filters: savedFilters });
       } catch {
-        filtersRef.current = previous;
-        setFilters(previous);
+        // A newer drag may already have replaced this list: only undo our own change.
+        if (filtersRef.current === next) {
+          filtersRef.current = previous;
+          setFilters(previous);
+        }
         toast.error("Could not save the new order");
       }
     },

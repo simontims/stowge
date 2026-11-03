@@ -733,6 +733,35 @@ def test_the_pre_migration_copy_is_private_to_the_owner(tmp_path, monkeypatch):
     assert stat.S_IMODE(os.stat(copies[0]).st_mode) == 0o600
 
 
+def test_a_failing_chmod_neither_aborts_the_migration_nor_leaves_a_stray_copy(tmp_path, monkeypatch):
+    def no_chmod(*args, **kwargs):
+        raise PermissionError("chmod not supported")
+
+    monkeypatch.setattr(tags_migration.os, "chmod", no_chmod)
+    engine = start(tmp_path, monkeypatch, lambda old: (old.collection("Tools"), old.user("u@example.com")))
+    assert meta(engine, FLAG) is not None
+    copies = pre_copies(tmp_path)
+    assert len(copies) == 1
+    assert stat.S_IMODE(os.stat(copies[0]).st_mode) == 0o600  # created private, no chmod needed
+
+
+def test_the_pre_migration_copy_is_created_private_and_numbered_when_the_name_exists(tmp_path, monkeypatch):
+    path = tmp_path / "stowge.db"
+    OldDb(path).close()
+    engine = create_engine(f"sqlite:///{path}")
+    monkeypatch.setattr(tags_migration.os, "chmod", lambda *a, **k: (_ for _ in ()).throw(OSError("no")))
+    first = tags_migration.pre_migration_copy(engine)
+    second = tags_migration.pre_migration_copy(engine)
+    assert first != second
+    for copy in (first, second):
+        assert stat.S_IMODE(os.stat(copy).st_mode) == 0o600
+
+
+def test_last_open_tag_is_stored_stripped(tmp_path, monkeypatch):
+    engine = start(tmp_path, monkeypatch, lambda old: (old.collection("Tools"), old.user("u@example.com", last_open="  Gone  ")))
+    assert scalar(engine, "SELECT last_open_tag FROM users") == "Gone"
+
+
 class TestSemicolonCollectionNames:
     def _build(self, old):
         self.semi = old.collection("Nuts;  Bolts", created=1)

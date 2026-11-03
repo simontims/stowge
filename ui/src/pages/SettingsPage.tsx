@@ -60,7 +60,7 @@ export function SettingsPage() {
               type="button"
               role="tab"
               id={`settings-tab-${tab.id}`}
-              aria-controls={`settings-panel-${tab.id}`}
+              aria-controls="settings-panel"
               aria-selected={isActive}
               tabIndex={isActive ? 0 : -1}
               ref={(el) => {
@@ -81,7 +81,7 @@ export function SettingsPage() {
         })}
       </div>
 
-      <div role="tabpanel" id={`settings-panel-${activeTab}`} aria-labelledby={`settings-tab-${activeTab}`}>
+      <div role="tabpanel" id="settings-panel" tabIndex={0} aria-labelledby={`settings-tab-${activeTab}`}>
         {activeTab === "shortcuts" && <SettingsShortcutsPage embedded />}
         {activeTab === "tags" && <TagsPage embedded />}
         {activeTab === "hints" && <SettingsHintsPage />}

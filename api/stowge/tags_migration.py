@@ -69,11 +69,23 @@ def pre_migration_copy(engine: Engine) -> str | None:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dest = f"{db_file}.pre-tags-{stamp}"
     n = 1
-    while os.path.exists(dest):  # two migrations in the same second (restore right after a start)
-        n += 1
-        dest = f"{db_file}.pre-tags-{stamp}-{n}"
-    src = sqlite3.connect(db_file)
-    dst = sqlite3.connect(dest)
+    while True:  # two migrations in the same second (restore right after a start)
+        try:
+            # Created 0600 up front (holds password and API-key hashes): never wider, even briefly.
+            os.close(os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+            break
+        except FileExistsError:
+            n += 1
+            dest = f"{db_file}.pre-tags-{stamp}-{n}"
+    try:
+        src = sqlite3.connect(db_file)
+        dst = sqlite3.connect(dest)
+    except BaseException:
+        try:
+            os.remove(dest)
+        except OSError:
+            pass
+        raise
     try:
         src.backup(dst)
     except BaseException:
@@ -87,7 +99,10 @@ def pre_migration_copy(engine: Engine) -> str | None:
         raise
     dst.close()
     src.close()
-    os.chmod(dest, 0o600)  # holds password and API-key hashes
+    try:
+        os.chmod(dest, 0o600)  # already created 0600; best effort for filesystems that differ
+    except OSError as exc:
+        logger.warning("Could not set permissions on %s: %s", dest, exc)
     logger.info("Wrote pre-tags database copy: %s", dest)
     return dest
 
@@ -333,7 +348,9 @@ def _migrate(conn, tables: set[str]) -> None:
         last_open = user["last_open_collection"]
         if last_open and str(last_open).strip():
             # last_open_tag holds the tag NAME: follow a ';' rename.
-            updates["last_open_tag"] = renamed_tag_by_lower.get(str(last_open).strip().lower(), str(last_open))
+            updates["last_open_tag"] = renamed_tag_by_lower.get(
+                str(last_open).strip().lower(), str(last_open).strip()
+            )
 
         if updates:
             assignments = ", ".join(f"{col} = :{col}" for col in updates)

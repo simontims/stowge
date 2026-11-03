@@ -294,7 +294,11 @@ export function AddPage() {
   /** Keep UserContext in step with what was saved, so leaving Add and coming back starts from the
    *  latest choices instead of the profile loaded at sign-in. */
   function mergeSavedPreferences(saved: CurrentUser | null | undefined, body: Record<string, unknown>) {
-    const merged = { ...currentUserRef.current, ...body, ...(saved && saved.id === currentUserRef.current.id ? saved : {}) } as CurrentUser;
+    // Only the keys this request sent: a late answer must not roll other fields back to its older snapshot.
+    const fromSaved = saved && saved.id === currentUserRef.current.id ? (saved as unknown as Record<string, unknown>) : {};
+    const mine: Record<string, unknown> = {};
+    for (const key of Object.keys(body)) mine[key] = key in fromSaved ? fromSaved[key] : body[key];
+    const merged = { ...currentUserRef.current, ...mine } as CurrentUser;
     currentUserRef.current = merged; // two saves can finish before the next render
     setCurrentUser(merged);
   }

@@ -230,3 +230,94 @@ describe("U6: legacy ?collection= upgrade keeps hash and state", () => {
     expect(seen!.state).toEqual({ from: "x" });
   });
 });
+
+describe("R3: two quick drags", () => {
+  const three = [makeFilter("f1", "Cables", { tag_id: "t1" }), makeFilter("f2", "Tools", { tag_id: "t2" }), makeFilter("f3", "Misc", { tag_id: "t1" })];
+
+  it("a failed first save does not discard the newer drag's order, and still toasts", async () => {
+    const user = makeUser({ shortcut_filters: three as never });
+    const mock = mockApi({ "GET /api/tags": TAGS, "GET /api/me": user });
+    const base = mock.spy.getMockImplementation()!;
+    const pending: Array<(r: Response) => void> = [];
+    mock.spy.mockImplementation((input, init) =>
+      (init?.method || "GET") === "PATCH" ? new Promise<Response>((resolve) => pending.push(resolve)) : base(input, init),
+    );
+    renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user);
+    const list = await screen.findByRole("list", { name: "Filters" });
+    const names = () => within(list).getAllByRole("link").map((a) => a.textContent);
+    function drag(source: string, target: string) {
+      const store: Record<string, string> = {};
+      const data = { effectAllowed: "", dropEffect: "", setData: (k: string, v: string) => void (store[k] = v), getData: (k: string) => store[k] ?? "" };
+      fireEvent.dragStart(screen.getByTestId(`pinned-${source}`), { dataTransfer: data });
+      for (const type of ["dragOver", "drop"] as const) {
+        const event = createEvent[type](screen.getByTestId(`pinned-${target}`), { dataTransfer: data });
+        Object.defineProperty(event, "clientY", { value: -5 });
+        fireEvent(screen.getByTestId(`pinned-${target}`), event);
+      }
+    }
+    drag("f3", "f1");
+    await waitFor(() => expect(names()).toEqual(["Misc", "Cables", "Tools"]));
+    drag("f2", "f3");
+    await waitFor(() => expect(names()).toEqual(["Tools", "Misc", "Cables"]));
+    expect(pending).toHaveLength(2);
+
+    pending[0](new Response(JSON.stringify({ detail: "boom" }), { status: 500 }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not save the new order"));
+    expect(names()).toEqual(["Tools", "Misc", "Cables"]);
+  });
+});
+
+describe("R4: out-of-order preference saves", () => {
+  it("a late tags answer carrying an older location does not undo the newer location", async () => {
+    const locations = [{ id: "l1", name: "Shed" }];
+    const mock = mockApi({
+      "GET /api/items/bootstrap": { tags: TAGS, hints: HINTS, locations, ai_settings: { default_llm_id: null, configs: [] } },
+    });
+    const base = mock.spy.getMockImplementation()!;
+    const pending: Array<(r: Response) => void> = [];
+    mock.spy.mockImplementation((input, init) =>
+      (init?.method || "GET") === "PATCH" ? new Promise<Response>((resolve) => pending.push(resolve)) : base(input, init),
+    );
+    let latest = makeUser();
+    function Harness() {
+      const [currentUser, setCurrentUser] = useState<CurrentUser>(makeUser());
+      latest = currentUser;
+      return (
+        <UserContext.Provider value={{ currentUser, setCurrentUser }}>
+          <MemoryRouter>
+            <AddPage />
+          </MemoryRouter>
+        </UserContext.Provider>
+      );
+    }
+    render(<Harness />);
+    await userEvent.click(await screen.findByRole("combobox", { name: "Tags" }));
+    await userEvent.click(screen.getByRole("option", { name: "Tools" }));
+    await waitFor(() => expect(pending).toHaveLength(1)); // tags PATCH
+    await userEvent.selectOptions(await screen.findByLabelText(/Location/), "l1");
+    await waitFor(() => expect(pending).toHaveLength(2)); // location PATCH
+
+    const ok = (body: object) => new Response(JSON.stringify({ ...makeUser(), ...body }), { status: 200 });
+    pending[1](ok({ preferred_add_location_id: "l1", preferred_add_tag_ids: [] }));
+    await waitFor(() => expect(latest.preferred_add_location_id).toBe("l1"));
+    pending[0](ok({ preferred_add_tag_ids: ["t2"], preferred_add_location_id: null }));
+    await waitFor(() => expect(latest.preferred_add_tag_ids).toEqual(["t2"]));
+    expect(latest.preferred_add_location_id).toBe("l1");
+  });
+});
+
+describe("R7: one tabpanel that every tab controls", () => {
+  it("aria-controls always points at the existing panel, labelled by the active tab, focusable", async () => {
+    mockApi({ "GET /api/me": makeUser(), "GET /api/tags": TAGS, "GET /api/hints": HINTS, "GET /api/items/bootstrap": { tags: TAGS, hints: HINTS, locations: [], ai_settings: { default_llm_id: null, configs: [] } } });
+    renderWithUser(<SettingsPage />, makeUser(), ["/settings?tab=tags"]);
+    const panel = screen.getByRole("tabpanel");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(document.getElementById(tab.getAttribute("aria-controls") as string)).toBe(panel);
+    }
+    expect(panel.getAttribute("aria-labelledby")).toBe("settings-tab-tags");
+    expect(panel.getAttribute("tabindex")).toBe("0");
+    await userEvent.click(screen.getByRole("tab", { name: "AI hints" }));
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe("settings-tab-hints");
+    expect(screen.getAllByRole("tab").every((t) => document.getElementById(t.getAttribute("aria-controls") as string))).toBe(true);
+  });
+});
