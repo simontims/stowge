@@ -33,6 +33,12 @@ function setup(entry: string, filters: unknown[] = []) {
 }
 
 describe("Settings tabs", () => {
+  it("has a title only, with no description line, like the System page", () => {
+    setup("/settings");
+    const heading = screen.getByRole("heading", { name: "Settings" });
+    expect(heading.parentElement?.querySelector("p")).toBeNull();
+  });
+
   it("parses ?tab= and falls back to Filters", () => {
     expect(parseSettingsTab("hints")).toBe("hints");
     expect(parseSettingsTab("tags")).toBe("tags");

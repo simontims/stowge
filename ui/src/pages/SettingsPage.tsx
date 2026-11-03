@@ -32,10 +32,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Settings"
-        description="Save item filters and pin the important ones to the menu, manage tags, and manage AI hints."
-      />
+      <PageHeader title="Settings" />
 
       <div className="flex border-b border-neutral-800" role="tablist" aria-label="Settings sections">
         {TABS.map((tab) => {
