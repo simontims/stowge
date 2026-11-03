@@ -27,24 +27,24 @@ export function buildTagsAndHintsSteps(converted: number, hasPinnedFilter: boole
       ),
     },
     {
-      target: "[data-tour='nav-tags']",
+      target: "[data-tour='menu-filters']",
       placement: "right",
       skipBeacon: true,
       title: "Your menu looks the same",
       content: (
         <p className="text-sm leading-6">
-          Your old collections are pinned filters under <strong>Tags</strong>, so they sit where they always did.
+          Your old collections are pinned filters under <strong>Filters</strong>, so they sit where they always did.
         </p>
       ),
     },
     {
-      target: hasPinnedFilter ? `[data-tour='${FIRST_PINNED_TOUR_TARGET}']` : "[data-tour='nav-tags']",
+      target: hasPinnedFilter ? `[data-tour='${FIRST_PINNED_TOUR_TARGET}']` : "[data-tour='menu-filters']",
       placement: "right",
       skipBeacon: true,
       title: "Reorder and add",
       content: (
         <p className="text-sm leading-6">
-          Drag a pinned filter to reorder the list. To add more, open Tags and choose <strong>Pin tag filter</strong>.
+          Drag a pinned filter to reorder the list. To add more, open <strong>Settings &gt; Tags</strong> and choose <strong>Pin tag filter</strong>.
         </p>
       ),
     },

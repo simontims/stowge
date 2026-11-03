@@ -2,7 +2,7 @@ import type { Step } from "react-joyride";
 
 /** data-tour attribute values the welcome tour points at. A test checks each one still exists in
  *  the layout source, so renaming a menu item can't silently break the tour. */
-export const WELCOME_TOUR_TARGETS = ["nav-tags", "nav-settings", "nav-system", "user-menu"] as const;
+export const WELCOME_TOUR_TARGETS = ["menu-filters", "nav-settings", "nav-system", "user-menu"] as const;
 
 function target(name: (typeof WELCOME_TOUR_TARGETS)[number]): string {
   return `[data-tour='${name}']`;
@@ -26,14 +26,13 @@ export function buildWelcomeSteps(isAdmin: boolean): Step[] {
       ),
     },
     {
-      target: target("nav-tags"),
+      target: target("menu-filters"),
       placement: "right",
       skipBeacon: true,
-      title: "Tags",
+      title: "Filters",
       content: (
         <p className="text-sm leading-6">
-          Tags group your items, and an item can have several. Open one to see its items, and pin filters you
-          use often so they sit under it in this menu.
+          Filters you pin sit here, one click from any page. Drag them to put the ones you use most at the top.
         </p>
       ),
     },
@@ -41,10 +40,11 @@ export function buildWelcomeSteps(isAdmin: boolean): Step[] {
       target: target("nav-settings"),
       placement: "right",
       skipBeacon: true,
-      title: "Filters",
+      title: "Settings",
       content: (
         <p className="text-sm leading-6">
-          Settings is where you build filters, choose an icon and colour for each, and pin them to the menu.
+          Build filters here and pin them to the menu, manage <strong>Tags</strong> (they group your items, and an
+          item can have several), and keep the <strong>AI hints</strong> that guide the AI.
         </p>
       ),
     },

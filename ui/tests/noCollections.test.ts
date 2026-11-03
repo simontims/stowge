@@ -15,7 +15,7 @@ function sourceFiles(dir: string): string[] {
  *  one-off "collections are now tags" tour, which has to name what changed (plus the API field that
  *  carries the converted count). */
 const ALLOWED: Array<{ file: string; line: RegExp; why: string }> = [
-  { file: "App.tsx", line: /<Route path="\/collections" element=\{<Navigate to="\/tags" replace \/>\} \/>/, why: "redirect" },
+  { file: "App.tsx", line: /<Route path="\/collections" element=\{<Navigate to="\/settings\?tab=tags" replace \/>\} \/>/, why: "redirect" },
   { file: "pages/SettingsToolsPage.tsx", line: /Older files with a <span[^>]*>collection<\/span> column still import/, why: "CSV legacy note" },
   { file: "components/onboarding/whatsNew/tagsAndHintsSteps.tsx", line: /./, why: "migration tour copy" },
   { file: "components/onboarding/whatsNew/TagsAndHintsTour.tsx", line: /./, why: "migration tour" },

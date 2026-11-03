@@ -44,12 +44,13 @@ describe("welcome tour steps", () => {
     expect(String(steps[steps.length - 1].target)).toBe("[data-tour='user-menu']");
   });
 
-  it("the Tags step is built on the renamed nav-tags target (nav-collections is gone)", () => {
-    expect(WELCOME_TOUR_TARGETS).toContain("nav-tags");
+  it("the Filters step points at the menu's Filters heading (nav-tags and nav-collections are gone)", () => {
+    expect(WELCOME_TOUR_TARGETS).toContain("menu-filters");
+    expect([...WELCOME_TOUR_TARGETS]).not.toContain("nav-tags");
     expect([...WELCOME_TOUR_TARGETS]).not.toContain("nav-collections");
     const steps = buildWelcomeSteps(false);
-    expect(steps.map((s) => String(s.target))).toContain("[data-tour='nav-tags']");
-    expect(steps.map((s) => String(s.title))).toContain("Tags");
+    expect(steps.map((s) => String(s.target))).toContain("[data-tour='menu-filters']");
+    expect(steps.map((s) => String(s.title))).toContain("Filters");
     expect(steps.map((s) => String(s.title))).not.toContain("Collections");
   });
 
@@ -61,7 +62,7 @@ describe("welcome tour steps", () => {
   });
 
   it("every element the tour points at still exists in the layout source (stops the tour going stale)", () => {
-    const layout = ["Sidebar.tsx", "Topbar.tsx"]
+    const layout = ["Sidebar.tsx", "Topbar.tsx", "PinnedFilterList.tsx"]
       .map((file) => readFileSync(resolve(__dirname, "../src/components/layout", file), "utf8"))
       .join("\n");
     const nav = readFileSync(resolve(__dirname, "../src/config/nav.ts"), "utf8");

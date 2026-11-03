@@ -21,6 +21,8 @@ function setup(entry: string, filters: unknown[] = []) {
     "PATCH /api/me": user,
     "GET /api/items/bootstrap": { tags: TAGS, sites: [], areas: [], locations: [], statuses: ["draft", "confirmed"], hints: HINTS },
     "GET /api/hints": HINTS,
+    "GET /api/tags": TAGS,
+    "GET /api/items/deleted": [],
     "POST /api/hints": { id: "h3", name: "New", text: "", is_default: false },
     "PATCH /api/hints/h-default": DEFAULT_HINT,
     "PATCH /api/hints/h2": HINTS[1],
@@ -33,6 +35,7 @@ function setup(entry: string, filters: unknown[] = []) {
 describe("Settings tabs", () => {
   it("parses ?tab= and falls back to Filters", () => {
     expect(parseSettingsTab("hints")).toBe("hints");
+    expect(parseSettingsTab("tags")).toBe("tags");
     expect(parseSettingsTab(null)).toBe("shortcuts");
     expect(parseSettingsTab("bogus")).toBe("shortcuts");
   });
@@ -43,6 +46,15 @@ describe("Settings tabs", () => {
     expect(screen.getByRole("tab", { name: "AI hints" }).getAttribute("aria-selected")).toBe("false");
     await screen.findByRole("button", { name: /Add Filter/ });
     expect(screen.queryByText("Sent to the AI with each photo. Pick one on the Add screen.")).toBeNull();
+  });
+
+  it("the tabs are Filters, Tags, AI hints; ?tab=tags shows the tags list with no second page title", async () => {
+    setup("/settings?tab=tags");
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Filters", "Tags", "AI hints"]);
+    expect(screen.getByRole("tab", { name: "Tags" }).getAttribute("aria-selected")).toBe("true");
+    expect(await screen.findByText("Cables")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Add Tag/ })).toBeTruthy();
+    expect(screen.queryByText("Group items with tags. An item can have several.")).toBeNull();
   });
 
   it("?tab=hints opens the AI hints tab, and clicking tabs switches between them", async () => {

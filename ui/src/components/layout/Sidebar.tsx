@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
-import { navItems, topNavItems } from "../../config/nav";
+import { navItems } from "../../config/nav";
 import { useCurrentUser } from "../../lib/UserContext";
 import { usePinnedFilters } from "../../lib/usePinnedFilters";
 import { PinnedFilterList } from "./PinnedFilterList";
@@ -19,10 +19,6 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const { pinned, tags, reorder } = usePinnedFilters();
 
   // Filter nav items based on user role
-  const visibleTopNavItems = useMemo(
-    () => topNavItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
-    [currentUser.role]
-  );
   const visibleNavItems = useMemo(
     () => navItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
     [currentUser.role]
@@ -61,38 +57,9 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
       {/* Nav groups */}
       <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
-        {visibleTopNavItems.length > 0 && (
+        {!collapsed && (
           <div className="mb-4">
-            {visibleTopNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.route}>
-                  <NavLink
-                    to={item.route}
-                    data-tour={`nav-${item.route.replace("/", "")}`}
-                    end={item.route === "/system"}
-                    title={collapsed ? item.label : undefined}
-                    className={() =>
-                      clsx(
-                        "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
-                        collapsed ? "justify-center px-0" : "px-3",
-                        isNavItemActive(item.route)
-                          ? "bg-neutral-800 text-neutral-100"
-                          : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
-                      )
-                    }
-                    aria-label={collapsed ? item.label : undefined}
-                  >
-                    <Icon size={16} className="shrink-0" />
-                    {!collapsed && <span>{item.label}</span>}
-                  </NavLink>
-
-                  {!collapsed && item.route === "/tags" && (
-                    <PinnedFilterList filters={pinned} tags={tags} firstItemTourId={FIRST_PINNED_TOUR_TARGET} draggable onReorder={(src, target, pos) => void reorder(src, target, pos)} />
-                  )}
-                </div>
-              );
-            })}
+            <PinnedFilterList filters={pinned} tags={tags} firstItemTourId={FIRST_PINNED_TOUR_TARGET} draggable onReorder={(src, target, pos) => void reorder(src, target, pos)} />
           </div>
         )}
 

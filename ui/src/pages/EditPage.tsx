@@ -297,7 +297,7 @@ export function EditPage() {
 
   function navigateAfterEditExit() {
     if (returnToRecycleBin) {
-      navigate("/tags", { state: { openRecycleBin: true } });
+      navigate("/settings?tab=tags", { state: { openRecycleBin: true } });
       return;
     }
     navigate(-1);

@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import clsx from "clsx";
-import { navItems, topNavItems } from "../../config/nav";
+import { navItems } from "../../config/nav";
 import { useCurrentUser } from "../../lib/UserContext";
 import { usePinnedFilters } from "../../lib/usePinnedFilters";
 import { PinnedFilterList } from "./PinnedFilterList";
@@ -18,10 +18,6 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
   const { pinned, tags } = usePinnedFilters();
 
   // Filter nav items based on user role
-  const visibleTopNavItems = useMemo(
-    () => topNavItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
-    [currentUser.role]
-  );
   const visibleNavItems = useMemo(
     () => navItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
     [currentUser.role]
@@ -89,34 +85,9 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
 
         {/* Nav groups */}
         <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
-          {visibleTopNavItems.length > 0 && (
-            <div className="mb-4">
-              {visibleTopNavItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.route}>
-                    <NavLink
-                      to={item.route}
-                      end={item.route === "/system"}
-                      className={() =>
-                        clsx(
-                          "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",
-                          isNavItemActive(item.route)
-                            ? "bg-neutral-800 text-neutral-100"
-                            : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
-                        )
-                      }
-                    >
-                      <Icon size={16} className="shrink-0" />
-                      <span>{item.label}</span>
-                    </NavLink>
-
-                    {item.route === "/tags" && <PinnedFilterList filters={pinned} tags={tags} />}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="mb-4">
+            <PinnedFilterList filters={pinned} tags={tags} />
+          </div>
 
           <div className="mb-4">
             {visibleNavItems.map((item) => {

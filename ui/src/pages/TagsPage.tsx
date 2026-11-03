@@ -45,7 +45,7 @@ export function tagDeleteSummary(itemCount: number): string {
   return `${itemCount} items will lose this tag.`;
 }
 
-export function TagsPage() {
+export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const [tags, setTags] = useState<TagRow[]>([]);
@@ -78,7 +78,7 @@ export function TagsPage() {
     const shouldOpen = Boolean((location.state as { openRecycleBin?: boolean } | null)?.openRecycleBin);
     if (!shouldOpen) return;
     setRecycleBinOpen(true);
-    navigate({ pathname: "/tags", search: location.search }, { replace: true, state: null });
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null });
   }, [location.search, location.state, navigate]);
 
   async function loadAll() {
@@ -298,7 +298,7 @@ export function TagsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Tags" description="Group items with tags. An item can have several." />
+      {!embedded && <PageHeader title="Tags" description="Group items with tags. An item can have several." />}
 
       <StatusMessage error={formOpen ? "" : error} notice="" />
 

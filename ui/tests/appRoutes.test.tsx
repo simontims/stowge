@@ -16,9 +16,9 @@ describe("post-login route", () => {
     expect(resolvePostLoginRoute(makeUser({ last_open_tag: "Tools & Bits" }))).toBe("/items?tag=Tools%20%26%20Bits");
   });
 
-  it("falls back to /tags when there is no last tag", () => {
-    expect(resolvePostLoginRoute(makeUser({ last_open_tag: null }))).toBe("/tags");
-    expect(resolvePostLoginRoute(makeUser({ last_open_tag: "  " }))).toBe("/tags");
+  it("falls back to /items when there is no last tag", () => {
+    expect(resolvePostLoginRoute(makeUser({ last_open_tag: null }))).toBe("/items");
+    expect(resolvePostLoginRoute(makeUser({ last_open_tag: "  " }))).toBe("/items");
   });
 });
 
@@ -32,12 +32,13 @@ describe("routes", () => {
     });
   }
 
-  it("/collections redirects to /tags and shows the Tags page", async () => {
+  it.each(["/collections", "/tags"])("%s redirects to Settings > Tags and shows the tags list", async (path) => {
     boot();
-    window.history.pushState(null, "", "/collections");
+    window.history.pushState(null, "", path);
     render(<App />);
-    await waitFor(() => expect(window.location.pathname).toBe("/tags"));
-    expect(await screen.findByText("Group items with tags. An item can have several.")).toBeTruthy();
+    await waitFor(() => expect(window.location.pathname + window.location.search).toBe("/settings?tab=tags"));
+    expect(await screen.findByRole("button", { name: /Add Tag/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Tags" }).getAttribute("aria-selected")).toBe("true");
   });
 
   it("an old /items?collection= bookmark opens the same list as ?tag=", async () => {

@@ -1,5 +1,4 @@
 import {
-  Tags,
   SlidersHorizontal,
   Settings,
 } from "lucide-react";
@@ -11,10 +10,6 @@ export interface NavItem {
   icon: LucideIcon;
   requiresAdmin?: boolean;
 }
-
-export const topNavItems: NavItem[] = [
-  { label: "Tags", route: "/tags", icon: Tags },
-];
 
 export const navItems: NavItem[] = [
   { label: "Settings", route: "/settings", icon: SlidersHorizontal },

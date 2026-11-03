@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { ShortcutIcon } from "../ui/ShortcutIcon";
 import {
@@ -20,13 +20,12 @@ interface PinnedFilterListProps {
   firstItemTourId?: string;
 }
 
-/** The user's pinned filters as one ordered list, shown under the Tags menu entry. */
+/** The "Filters" section of the menu: the user's pinned filters as one ordered list under a heading
+ *  (the heading is not a link; filters, tags and AI hints are managed in Settings). */
 export function PinnedFilterList({ filters, tags, draggable = false, onReorder, firstItemTourId }: PinnedFilterListProps) {
   const location = useLocation();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ targetId: string; position: "before" | "after" } | null>(null);
-
-  if (filters.length === 0) return null;
 
   function finishDrag() {
     setDraggingId(null);
@@ -35,7 +34,12 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
 
   return (
     <>
-    <div className="ml-5 mt-1 text-[10px] uppercase tracking-wider text-neutral-600">Filters</div>
+    <div data-tour="menu-filters" className="ml-5 mt-1 text-[10px] uppercase tracking-wider text-neutral-600">Filters</div>
+    {filters.length === 0 && (
+      <Link to="/settings" className="mx-2 mt-1 block rounded-md px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300">
+        No filters yet. Add one in Settings.
+      </Link>
+    )}
     <ul className="mt-1 space-y-0.5 px-2" aria-label="Pinned filters">
       {filters.map((shortcut, index) => {
         const isActive =

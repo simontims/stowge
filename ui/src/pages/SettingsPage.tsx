@@ -2,13 +2,15 @@ import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SettingsShortcutsPage } from "./SettingsShortcutsPage";
 import { SettingsHintsPage } from "./SettingsHintsPage";
+import { TagsPage } from "./TagsPage";
 
-export type SettingsTab = "shortcuts" | "hints";
+export type SettingsTab = "shortcuts" | "tags" | "hints";
 
 const DEFAULT_TAB: SettingsTab = "shortcuts";
 
 const TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: "shortcuts", label: "Filters" },
+  { id: "tags", label: "Tags" },
   { id: "hints", label: "AI hints" },
 ];
 
@@ -32,7 +34,7 @@ export function SettingsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Settings"
-        description="Save item filters, pin the important ones to the menu, and manage AI hints."
+        description="Save item filters and pin the important ones to the menu, manage tags, and manage AI hints."
       />
 
       <div className="flex border-b border-neutral-800" role="tablist" aria-label="Settings sections">
@@ -59,6 +61,7 @@ export function SettingsPage() {
       </div>
 
       {activeTab === "shortcuts" && <SettingsShortcutsPage embedded />}
+      {activeTab === "tags" && <TagsPage embedded />}
       {activeTab === "hints" && <SettingsHintsPage />}
     </div>
   );

@@ -94,12 +94,12 @@ describe("converted count wording", () => {
 });
 
 describe("tour steps", () => {
-  it("has 4 steps: centre, Tags nav, first pinned filter, centre", () => {
+  it("has 4 steps: centre, Filters heading, first pinned filter, centre", () => {
     const steps = buildTagsAndHintsSteps(3, true);
     expect(steps).toHaveLength(4);
     expect(steps.map((s) => String(s.target))).toEqual([
       "body",
-      "[data-tour='nav-tags']",
+      "[data-tour='menu-filters']",
       `[data-tour='${FIRST_PINNED_TOUR_TARGET}']`,
       "body",
     ]);
@@ -107,8 +107,8 @@ describe("tour steps", () => {
     expect(steps[3].placement).toBe("center");
   });
 
-  it("points step 3 at the Tags nav entry when nothing is pinned", () => {
-    expect(String(buildTagsAndHintsSteps(3, false)[2].target)).toBe("[data-tour='nav-tags']");
+  it("points step 3 at the Filters heading when nothing is pinned", () => {
+    expect(String(buildTagsAndHintsSteps(3, false)[2].target)).toBe("[data-tour='menu-filters']");
   });
 
   it("the TagsAndHintsTour picks the pinned target from the user's filters", async () => {
@@ -128,7 +128,7 @@ describe("tour steps", () => {
     expect(text).toMatch(/hint picker/);
   });
 
-  it("only the first pinned filter in the sidebar carries the step-3 target, and Tags carries nav-tags", async () => {
+  it("only the first pinned filter in the sidebar carries the step-3 target, and the Filters heading carries menu-filters", async () => {
     const filters = [makeFilter("f1", "Cables", { tag_id: "t1" }), makeFilter("f2", "Tools", { tag_id: "t2" })];
     const user = makeUser({ shortcut_filters: filters as never });
     mockApi({ "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")], "GET /api/me": user });
@@ -137,7 +137,7 @@ describe("tour steps", () => {
     expect(document.querySelectorAll(`[data-tour='${FIRST_PINNED_TOUR_TARGET}']`)).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Cables" }).getAttribute("data-tour")).toBe(FIRST_PINNED_TOUR_TARGET);
     expect(screen.getByRole("link", { name: "Tools" }).getAttribute("data-tour")).toBeNull();
-    expect(document.querySelectorAll("[data-tour='nav-tags']")).toHaveLength(1);
+    expect(document.querySelectorAll("[data-tour='menu-filters']")).toHaveLength(1);
   });
 });
 

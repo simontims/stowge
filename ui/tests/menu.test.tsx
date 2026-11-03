@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { Sidebar } from "../src/components/layout/Sidebar";
 import { MobileNavDrawer } from "../src/components/layout/MobileNavDrawer";
-import { topNavItems } from "../src/config/nav";
+import { navItems } from "../src/config/nav";
 import { makeFilter, makeTag, makeUser, mockApi, renderWithUser } from "./testUtils";
 
 afterEach(() => {
@@ -52,13 +52,13 @@ function dragWithY(type: "dragOver" | "drop", el: Element, dt: unknown, clientY:
 }
 
 describe("menu entries", () => {
-  it("has a Tags entry and no Collections entry", () => {
-    expect(topNavItems.map((i) => [i.label, i.route])).toEqual([["Tags", "/tags"]]);
+  it("has no Tags or Collections entry: tags are managed in Settings", () => {
+    expect(navItems.map((i) => i.label)).toEqual(["Settings", "System"]);
   });
 });
 
 describe("Sidebar", () => {
-  it("lists the Tags link, then the pinned filters as one ordered list, under a Filters heading", async () => {
+  it("lists the pinned filters as one ordered list under a Filters heading that is not a link", async () => {
     const { user } = api();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/tags"]);
     await screen.findByRole("list", { name: "Pinned filters" });
@@ -68,11 +68,13 @@ describe("Sidebar", () => {
     expect(screen.getByText("Filters")).toBeTruthy();
     expect(screen.queryByText("Collections")).toBeNull();
 
-    const tagsLink = screen.getByRole("link", { name: "Tags" });
-    expect(tagsLink.getAttribute("data-tour")).toBe("nav-tags");
+    expect(screen.queryByRole("link", { name: "Tags" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Filters" })).toBeNull();
+    const heading = screen.getByText("Filters");
+    expect(heading.getAttribute("data-tour")).toBe("menu-filters");
     const list = screen.getByRole("list", { name: "Pinned filters" });
-    // The list sits directly under the Tags entry.
-    expect(tagsLink.parentElement?.contains(list)).toBe(true);
+    // The heading comes straight before the list.
+    expect(heading.nextElementSibling).toBe(list);
   });
 
   it("links a tag filter to /items?tag=<name> and marks it active on that URL", async () => {
@@ -84,11 +86,13 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: "Cables" }).className).not.toContain("text-neutral-100");
   });
 
-  it("shows no list when nothing is pinned", async () => {
+  it("shows the Filters heading with a pointer to Settings, and no items, when nothing is pinned", async () => {
     const { user, mock } = api([makeFilter("f3", "Hidden", { pinned: false })]);
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user);
     await waitFor(() => expect(mock.find("GET", "/api/me").length).toBeGreaterThan(0));
-    expect(screen.queryByRole("list", { name: "Pinned filters" })).toBeNull();
+    expect(screen.getByText("Filters")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /No filters yet/ }).getAttribute("href")).toBe("/settings");
+    expect(within(screen.getByRole("list", { name: "Pinned filters" })).queryAllByRole("listitem")).toHaveLength(0);
   });
 
   it("drag reorder PATCHes /api/me with shortcut_filters in the new order, unpinned ones staying put", async () => {
@@ -147,12 +151,12 @@ describe("Sidebar", () => {
 });
 
 describe("MobileNavDrawer", () => {
-  it("shows Tags and the same single pinned list, not draggable, under a Filters heading", async () => {
+  it("shows the same single pinned list under a Filters heading, not draggable, and no Tags link", async () => {
     const { user } = api();
     renderWithUser(<MobileNavDrawer open onClose={() => {}} />, user);
     await screen.findByRole("list", { name: "Pinned filters" });
     expect(pinnedNames()).toEqual(["Cables", "Tools", "Drafts"]);
-    expect(screen.getByRole("link", { name: "Tags" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Tags" })).toBeNull();
     expect(screen.queryByText("Shortcuts")).toBeNull();
     expect(screen.getByText("Filters")).toBeTruthy();
     expect(screen.getByTestId("pinned-f1").getAttribute("draggable")).toBe("false");
