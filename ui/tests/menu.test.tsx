@@ -58,13 +58,14 @@ describe("menu entries", () => {
 });
 
 describe("Sidebar", () => {
-  it("lists the Tags link, then the pinned filters as one ordered list, with no Shortcuts heading", async () => {
+  it("lists the Tags link, then the pinned filters as one ordered list, under a Filters heading", async () => {
     const { user } = api();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/tags"]);
     await screen.findByRole("list", { name: "Pinned filters" });
 
     expect(pinnedNames()).toEqual(["Cables", "Tools", "Drafts"]);
     expect(screen.queryByText("Shortcuts")).toBeNull();
+    expect(screen.getByText("Filters")).toBeTruthy();
     expect(screen.queryByText("Collections")).toBeNull();
 
     const tagsLink = screen.getByRole("link", { name: "Tags" });
@@ -146,13 +147,14 @@ describe("Sidebar", () => {
 });
 
 describe("MobileNavDrawer", () => {
-  it("shows Tags and the same single pinned list, not draggable, no Shortcuts heading", async () => {
+  it("shows Tags and the same single pinned list, not draggable, under a Filters heading", async () => {
     const { user } = api();
     renderWithUser(<MobileNavDrawer open onClose={() => {}} />, user);
     await screen.findByRole("list", { name: "Pinned filters" });
     expect(pinnedNames()).toEqual(["Cables", "Tools", "Drafts"]);
     expect(screen.getByRole("link", { name: "Tags" })).toBeTruthy();
     expect(screen.queryByText("Shortcuts")).toBeNull();
+    expect(screen.getByText("Filters")).toBeTruthy();
     expect(screen.getByTestId("pinned-f1").getAttribute("draggable")).toBe("false");
   });
 });

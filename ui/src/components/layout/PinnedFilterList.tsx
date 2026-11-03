@@ -34,6 +34,8 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
   }
 
   return (
+    <>
+    <div className="ml-5 mt-1 text-[10px] uppercase tracking-wider text-neutral-600">Filters</div>
     <ul className="mt-1 space-y-0.5 px-2" aria-label="Pinned filters">
       {filters.map((shortcut, index) => {
         const isActive =
@@ -127,5 +129,6 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
         </li>
       )}
     </ul>
+    </>
   );
 }
