@@ -591,6 +591,8 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
         />
       )}
 
+      {embedded && <p className="text-sm text-neutral-500">Saved searches you can pin to the menu</p>}
+
       <ListToolbar
         search={search}
         onSearchChange={setSearch}

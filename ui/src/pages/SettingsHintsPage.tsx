@@ -152,7 +152,7 @@ export function SettingsHintsPage() {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-neutral-500">Sent to the AI with each photo. Pick one on the Add screen.</p>
+      <p className="text-sm text-neutral-500">Predefined AI hints</p>
 
       <ListToolbar
         search={search}
