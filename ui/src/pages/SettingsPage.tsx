@@ -32,7 +32,7 @@ export function SettingsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Settings"
-        description="Create reusable item filter shortcuts, pin the important ones to the menu, and manage AI hints."
+        description="Save item filters, pin the important ones to the menu, and manage AI hints."
       />
 
       <div className="flex border-b border-neutral-800" role="tablist" aria-label="Settings sections">

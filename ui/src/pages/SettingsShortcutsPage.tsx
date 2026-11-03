@@ -587,7 +587,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
       {!embedded && (
         <PageHeader
           title="Settings"
-          description="Create reusable item filter shortcuts and pin the important ones to navigation."
+          description="Save item filters and pin the important ones to the menu."
         />
       )}
 
