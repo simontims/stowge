@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
+import { Filter } from "lucide-react";
 import clsx from "clsx";
 import { ShortcutIcon } from "../ui/ShortcutIcon";
 import {
@@ -34,7 +35,10 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
 
   return (
     <>
-    <div data-tour="menu-filters" className="ml-5 mt-1 text-[10px] uppercase tracking-wider text-neutral-600">Filters</div>
+    <div data-tour="menu-filters" className="flex items-center gap-3 px-3 py-2 mx-2 text-sm text-neutral-400">
+      <Filter size={16} className="shrink-0" />
+      <span>Filters</span>
+    </div>
     {filters.length === 0 && (
       <Link to="/settings" className="mx-2 mt-1 block rounded-md px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300">
         No filters yet. Add one in Settings.

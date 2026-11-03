@@ -70,8 +70,9 @@ describe("Sidebar", () => {
 
     expect(screen.queryByRole("link", { name: "Tags" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Filters" })).toBeNull();
-    const heading = screen.getByText("Filters");
-    expect(heading.getAttribute("data-tour")).toBe("menu-filters");
+    const heading = screen.getByText("Filters").closest("[data-tour='menu-filters']") as HTMLElement;
+    expect(heading).toBeTruthy();
+    expect(heading.querySelector("svg")).toBeTruthy(); // an icon, like Settings and System
     const list = screen.getByRole("list", { name: "Pinned filters" });
     // The heading comes straight before the list.
     expect(heading.nextElementSibling).toBe(list);
