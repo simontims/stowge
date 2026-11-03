@@ -45,6 +45,13 @@ describe("Tags page list", () => {
     expect(screen.queryByText(/ai hint/i)).toBeNull();
   });
 
+  it("has no separate Icon column: the icon sits beside the name, as in the Filters table", async () => {
+    setup();
+    const nameCell = (await screen.findByText("Cables")).parentElement as HTMLElement;
+    expect(nameCell.querySelector("svg")).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Icon" })).toBeNull();
+  });
+
   it("describes the delete impact in the right words", () => {
     expect(tagDeleteSummary(0)).toBe("No items use this tag.");
     expect(tagDeleteSummary(1)).toBe("1 item will lose this tag.");

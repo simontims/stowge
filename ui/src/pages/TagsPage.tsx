@@ -231,20 +231,15 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const columns = useMemo<Column<TagRow>[]>(
     () => [
       {
-        key: "icon",
-        header: "Icon",
-        className: "w-14",
-        render: (row) => (
-          <span className="flex items-center justify-center w-8 h-8 rounded border border-neutral-800 bg-neutral-900 text-neutral-400">
-            <TablerIcon name={row.icon} size={15} color={row.color} />
-          </span>
-        ),
-      },
-      {
         key: "name",
         header: "Name",
         sortable: true,
-        render: (row) => <span className="font-medium text-neutral-200">{row.name}</span>,
+        render: (row) => (
+          <span className="inline-flex items-center gap-2 font-medium text-neutral-200">
+            <TablerIcon name={row.icon} size={15} color={row.color} />
+            {row.name}
+          </span>
+        ),
       },
       {
         key: "description",
