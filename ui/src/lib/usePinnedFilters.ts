@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { TAGS_NAV_UPDATED_EVENT, USER_NAV_PREFERENCES_UPDATED_EVENT } from "../config/nav";
 import { apiRequest } from "./api";
 import { UNTAGGED, reorderPinnedFilters, normalizeShortcutFilter, type ShortcutFilter } from "./shortcutFilters";
+import { useCurrentUser, useSetCurrentUser } from "./UserContext";
 import type { CurrentUser, Tag } from "./types";
 
 /** The menu's data: the user's filters (pinned ones are shown, in list order) and the tag
@@ -10,6 +12,13 @@ import type { CurrentUser, Tag } from "./types";
 export function usePinnedFilters() {
   const [filters, setFilters] = useState<ShortcutFilter[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const currentUser = useCurrentUser();
+  const setCurrentUser = useSetCurrentUser();
+  // Always the latest list, so a save never sends a list captured earlier.
+  const filtersRef = useRef<ShortcutFilter[]>(filters);
+  filtersRef.current = filters;
+  const userRef = useRef(currentUser);
+  userRef.current = currentUser;
 
   useEffect(() => {
     let active = true;
@@ -38,19 +47,26 @@ export function usePinnedFilters() {
     };
   }, []);
 
-  /** Move a pinned filter and save the new order of `shortcut_filters`. */
+  /** Move a pinned filter and save the new order of `shortcut_filters`. If the save fails the
+   *  menu goes back to the previous order and says so. */
   const reorder = useCallback(
     async (sourceId: string, targetId: string, position: "before" | "after") => {
-      const next = reorderPinnedFilters(filters, sourceId, targetId, position);
+      const previous = filtersRef.current;
+      const next = reorderPinnedFilters(previous, sourceId, targetId, position);
       if (!next) return;
+      filtersRef.current = next;
       setFilters(next);
       try {
-        await apiRequest("/api/me", { method: "PATCH", body: JSON.stringify({ shortcut_filters: next }) });
+        const saved = await apiRequest<CurrentUser>("/api/me", { method: "PATCH", body: JSON.stringify({ shortcut_filters: next }) });
+        const savedFilters = Array.isArray(saved?.shortcut_filters) ? saved.shortcut_filters : next;
+        setCurrentUser({ ...userRef.current, ...(saved && saved.id === userRef.current.id ? saved : {}), shortcut_filters: savedFilters });
       } catch {
-        // Keep the local order; the next drag retries the save.
+        filtersRef.current = previous;
+        setFilters(previous);
+        toast.error("Could not save the new order");
       }
     },
-    [filters],
+    [setCurrentUser],
   );
 
   // A filter whose tag no longer exists would open the unfiltered list, so it stays out of the menu.

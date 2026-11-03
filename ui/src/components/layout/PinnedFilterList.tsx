@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { Filter } from "lucide-react";
 import clsx from "clsx";
@@ -19,12 +19,16 @@ interface PinnedFilterListProps {
   onReorder?: (sourceId: string, targetId: string, position: "before" | "after") => void;
   /** data-tour value for the first filter, so a tour can point at it. */
   firstItemTourId?: string;
+  /** data-tour value for the Filters heading. Only one list on the page may pass it (the desktop
+   *  sidebar), so a tour never sees two elements with the same target. */
+  headingTourId?: string;
 }
 
 /** The "Filters" section of the menu: the user's pinned filters as one ordered list under a heading
  *  (the heading is not a link; filters, tags and AI hints are managed in Settings). */
-export function PinnedFilterList({ filters, tags, draggable = false, onReorder, firstItemTourId }: PinnedFilterListProps) {
+export function PinnedFilterList({ filters, tags, draggable = false, onReorder, firstItemTourId, headingTourId }: PinnedFilterListProps) {
   const location = useLocation();
+  const headingId = useId();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ targetId: string; position: "before" | "after" } | null>(null);
 
@@ -35,16 +39,16 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
 
   return (
     <>
-    <div data-tour="menu-filters" className="flex items-center gap-3 px-3 py-2 mx-2 text-sm text-neutral-400">
+    <h2 id={headingId} data-tour={headingTourId} className="flex items-center gap-3 px-3 py-2 mx-2 text-sm font-normal text-neutral-400">
       <Filter size={16} className="shrink-0" />
       <span>Filters</span>
-    </div>
+    </h2>
     {filters.length === 0 && (
       <Link to="/settings" className="mx-2 mt-1 block rounded-md px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300">
         No filters yet. Add one in Settings.
       </Link>
     )}
-    <ul className="mt-1 space-y-0.5 px-2" aria-label="Pinned filters">
+    <ul className="mt-1 space-y-0.5 px-2" aria-labelledby={headingId}>
       {filters.map((shortcut, index) => {
         const isActive =
           location.pathname === "/items" && isShortcutFilterActive(shortcut, location.search, tags);

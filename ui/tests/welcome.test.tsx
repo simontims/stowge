@@ -72,7 +72,8 @@ describe("welcome tour steps", () => {
         expect(layout).toContain("data-tour={`nav-${item.route.replace(\"/\", \"\")}`}");
         expect(nav).toContain(`route: "/${name.slice(4)}"`);
       } else {
-        expect(layout).toContain(`data-tour="${name}"`);
+        // A literal data-tour, or a TourId prop the sidebar passes to the shared PinnedFilterList.
+        expect(layout.includes(`data-tour="${name}"`) || layout.includes(`TourId="${name}"`)).toBe(true);
       }
     }
     const used = buildWelcomeSteps(true).map((s) => String(s.target));

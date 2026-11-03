@@ -37,11 +37,22 @@ Things to know:
 
 - A request body that still contains `collection` is rejected with HTTP 400
   `{"detail": "collection is no longer supported; use tags"}`. It is not ignored, so a script that has
-  not been updated fails visibly instead of silently losing the tag.
+  not been updated fails visibly instead of silently losing the tag. The same applies to
+  `collection_id` and `tag_ids` in a `/v1` item write body (`tag_ids` is rejected with
+  `"tag_ids is not supported here; send tag names in tags"`: send tag names in `tags`), and to
+  `GET /v1/items?collection=...`, which now returns HTTP 400 with the same
+  `"collection is no longer supported; use tags"` message instead of being ignored.
 - Tag names in `tags` are matched ignoring case (`"tools"` finds `Tools`). A name that does not exist
   is HTTP 400; **tags are never created automatically** by item calls. Create the tag first with
   `POST /v1/tags`.
 - Tag names are unique ignoring case, so `POST /v1/tags` with `tools` fails if `Tools` exists.
+  A tag name needs at least 2 characters and may not contain `;` (the separator in CSV files). A
+  collection whose name contained `;` is migrated with `,` in its place (and repeated spaces
+  collapsed); if that clashes with another tag it gets a ` (2)`, ` (3)`... suffix.
+- CSV import splits the `tags` column on `;` **only** (names may contain commas, so `Cables, misc` is
+  one tag). Names are trimmed and de-duplicated ignoring case. Tags that would be created from a CSV
+  must follow the same name rules; if any does not, the import is refused with HTTP 400 and nothing is
+  imported (the preview lists them as `invalid_tags`).
 - Deleting a tag removes it from every item and returns `{"ok": true, "items_untagged": n}`. The items
   stay. Pinned menu entries and "Add" screen defaults that used the tag are removed for all users.
 - `/v1/collections*` return 404.

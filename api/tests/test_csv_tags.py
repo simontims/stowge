@@ -132,13 +132,13 @@ def test_import_with_create_tags_creates_them_and_tags_the_items(isolated_client
 
 def test_import_reads_the_collection_column_of_an_old_file_as_one_tag(isolated_client, isolated_db):
     cookies = _admin(isolated_db)
-    text = _csv(["name", "collection"], [["Old row", "Electronics; not split"]])
+    text = _csv(["name", "collection"], [["Old row", "Electronics, not split"]])
     preview = _preview(isolated_client, cookies, text)
-    assert preview["missing_tags"] == ["Electronics; not split"]  # one tag, the cell is not split
+    assert preview["missing_tags"] == ["Electronics, not split"]  # one tag, the cell is not split on commas
     r = _confirm(isolated_client, cookies, text, "?create_tags=true")
     assert r.status_code == 200
     item = isolated_client.get("/api/items", cookies=cookies).json()[0]
-    assert [t["name"] for t in item["tags"]] == ["Electronics; not split"]
+    assert [t["name"] for t in item["tags"]] == ["Electronics, not split"]
 
 
 def test_import_with_both_columns_combines_them_without_duplicates(isolated_client, isolated_db):

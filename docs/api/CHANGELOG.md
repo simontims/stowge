@@ -19,7 +19,9 @@ integrations that use collections must move to tags. See
   `GET /v1/collections/{id}/items`. They now return 404.
 - The `collection` field on items (read and write) and the `collection` filter on `GET /v1/items`.
   A request body that contains `collection` is rejected with HTTP 400
-  `"collection is no longer supported; use tags"` (it is not silently ignored).
+  `"collection is no longer supported; use tags"` (it is not silently ignored). The same message
+  is returned for `collection_id`, and `GET /v1/items?collection=...` now returns HTTP 400 with it too.
+  `tag_ids` in a `/v1` write body is also rejected (HTTP 400, send tag names in `tags`).
 - The `collections.read`, `collections.write` and `collections.delete` API key scopes. Creating a key
   with one of them fails with `Unsupported scope`.
 
@@ -35,6 +37,8 @@ integrations that use collections must move to tags. See
 - `tag` filter on `GET /v1/items` (repeatable, all must match; `__none` means untagged; an unknown name
   returns an empty list). `q` also matches tag names.
 - `tags.read`, `tags.write` and `tags.delete` API key scopes.
+- Tag names need at least 2 characters and may not contain `;`, the separator in CSV files. Creating or
+  renaming a tag (or a hint) to a name that is taken is always HTTP 400, also when two requests race.
 
 ### Changed
 
@@ -42,6 +46,11 @@ integrations that use collections must move to tags. See
   `tags.read|write|delete` (the stored scope list is rewritten and de-duplicated), so keys keep working.
 - Existing collections became tags with the **same ids and names**, and each item carries the tag that
   matches its old collection.
+- A collection name containing `;` becomes a tag name with `,` in its place (repeated spaces collapsed,
+  a ` (2)` suffix added on a clash, ignoring case). Items still get the tag of their old collection.
+- CSV import (internal `/api/import/csv/*`, not part of the external API) splits the `tags` column on
+  `;` only, not on `,`, so tag names may contain commas. Names to be created must be valid tag names,
+  otherwise the import is refused with HTTP 400 (the preview lists them as `invalid_tags`).
 
 Internal (not part of the external API, listed for information): the signed-in user's profile
 (`/api/me`) gains `whats_new` (latest note number, unseen notes, whether the welcome tour is pending,

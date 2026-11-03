@@ -5,7 +5,9 @@ at it (monkeypatching ``stowge.main.engine``) and runs the real ``init_db()``.
 """
 import glob
 import json
+import os
 import sqlite3
+import stat
 import time
 
 import pytest
@@ -680,3 +682,85 @@ class TestFailedMigrationCleansUp:
                 stowge_main.init_db()
         assert pre_copies(tmp_path) == []
         assert scalar(engine, "SELECT COUNT(*) FROM app_meta WHERE key = :k", k=FLAG) == 0
+
+
+# ---------------------------------------------------------------------------
+# review fixes: partial copies, copy permissions, ';' in collection names
+# ---------------------------------------------------------------------------
+
+def test_a_failed_pre_migration_copy_leaves_no_partial_file_after_repeated_starts(tmp_path, monkeypatch):
+    paths = {}
+
+    class DiskFullSource:
+        """Source connection whose backup writes some bytes, then dies (disk full)."""
+
+        def __init__(self, real):
+            self.real = real
+
+        def backup(self, target):
+            with open(paths[id(target)], "ab") as partial:
+                partial.write(b"partial")
+            raise OSError("disk full")
+
+        def close(self):
+            self.real.close()
+
+    class FakeSqlite:
+        def connect(self, path):
+            real = sqlite3.connect(path)
+            paths[id(real)] = str(path)
+            return real if ".pre-tags-" in str(path) else DiskFullSource(real)
+
+    path = tmp_path / "stowge.db"
+    old = OldDb(path)
+    old.collection("Tools")
+    old.user("u@example.com")
+    old.close()
+    engine = create_engine(f"sqlite:///{path}")
+    monkeypatch.setattr(stowge_main, "engine", engine)
+    monkeypatch.setattr(tags_migration, "sqlite3", FakeSqlite())
+    for _ in range(3):
+        with pytest.raises(OSError, match="disk full"):
+            stowge_main.init_db()
+        assert pre_copies(tmp_path) == []
+    assert meta(engine, FLAG) is None
+
+
+def test_the_pre_migration_copy_is_private_to_the_owner(tmp_path, monkeypatch):
+    start(tmp_path, monkeypatch, lambda old: (old.collection("Tools"), old.user("u@example.com")))
+    copies = pre_copies(tmp_path)
+    assert len(copies) == 1
+    assert stat.S_IMODE(os.stat(copies[0]).st_mode) == 0o600
+
+
+class TestSemicolonCollectionNames:
+    def _build(self, old):
+        self.semi = old.collection("Nuts;  Bolts", created=1)
+        self.comma = old.collection("Nuts, Bolts", created=2)
+        self.plain = old.collection("Other", created=3)
+        self.i_semi = old.item("a", collection="Nuts;  Bolts")
+        self.i_comma = old.item("b", collection="Nuts, Bolts")
+        old.user("u@example.com", last_open="Nuts;  Bolts")
+
+    @pytest.fixture
+    def engine(self, tmp_path, monkeypatch):
+        return start(tmp_path, monkeypatch, self._build)
+
+    def test_the_separator_is_replaced_and_a_clash_gets_the_suffix_after_it(self, engine):
+        tags = {t["id"]: t["name"] for t in q(engine, "SELECT id, name FROM tags")}
+        assert tags[self.comma] == "Nuts, Bolts"  # untouched, keeps its name even though it comes second
+        assert tags[self.semi] == "Nuts, Bolts (2)"
+        assert tags[self.plain] == "Other"
+        assert not [n for n in tags.values() if ";" in n]
+
+    def test_items_still_match_on_the_original_collection_name(self, engine):
+        links = {(r["item_id"], r["tag_id"]) for r in q(engine, "SELECT * FROM item_tags")}
+        assert links == {(self.i_semi, self.semi), (self.i_comma, self.comma)}
+
+    def test_last_open_tag_follows_the_new_name(self, engine):
+        assert scalar(engine, "SELECT last_open_tag FROM users") == "Nuts, Bolts (2)"
+
+
+def test_a_semicolon_name_without_a_clash_just_loses_the_separator(tmp_path, monkeypatch):
+    engine = start(tmp_path, monkeypatch, lambda old: old.collection("Nuts; Bolts"))
+    assert [t["name"] for t in q(engine, "SELECT name FROM tags")] == ["Nuts, Bolts"]

@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -75,9 +76,18 @@ def pre_migration_copy(engine: Engine) -> str | None:
     dst = sqlite3.connect(dest)
     try:
         src.backup(dst)
-    finally:
+    except BaseException:
+        # A partial copy (disk full) must not stay: every restart would add another one.
         dst.close()
         src.close()
+        try:
+            os.remove(dest)
+        except OSError:
+            pass
+        raise
+    dst.close()
+    src.close()
+    os.chmod(dest, 0o600)  # holds password and API-key hashes
     logger.info("Wrote pre-tags database copy: %s", dest)
     return dest
 
@@ -191,21 +201,40 @@ def _migrate(conn, tables: set[str]) -> None:
     # 4. Tags: same id/name/icon/color/description; names that differ only by case merge into the first.
     survivor_by_lower: dict[str, dict] = {}
     survivor_of_collection: dict[str, str] = {}
+    renamed_tag_by_lower: dict[str, str] = {}  # original collection name (lower) -> new tag name, for ';' renames
     tag_rows: list[dict] = []
+    # Final tag names (lower case) already taken. Collections without ';' keep their name, so a renamed
+    # one that clashes with them gets the suffix, whichever comes first.
+    used_tag_names: set[str] = {
+        str(c["name"] or "").strip().lower() for c in collections if ";" not in str(c["name"] or "")
+    }
     for col in collections:
         name = str(col["name"] or "").strip()
         if not name:
             logger.warning("Skipping collection %s with a blank name", col["id"])
             continue
-        key = name.lower()
+        key = name.lower()  # items, filters and nav order match on the ORIGINAL collection name
         survivor = survivor_by_lower.get(key)
         if survivor is not None:
             logger.warning("Merging collection %r (%s) into tag %r (%s): names differ only by case",
                            name, col["id"], survivor["name"], survivor["id"])
             survivor_of_collection[str(col["id"])] = str(survivor["id"])
             continue
+        # ';' separates tags in CSV import/export, so it cannot be part of a tag name.
+        tag_name = name
+        if ";" in name:
+            tag_name = re.sub(r" {2,}", " ", name.replace(";", ",")).strip()
+            base, n = tag_name, 1
+            while tag_name.lower() in used_tag_names:
+                n += 1
+                tag_name = f"{base} ({n})"
+            logger.warning("Renaming collection %r (%s) to tag %r: tag names cannot contain ';'",
+                           name, col["id"], tag_name)
+        used_tag_names.add(tag_name.lower())
+        if tag_name != name:
+            renamed_tag_by_lower[key] = tag_name
         tag = {
-            "id": str(col["id"]), "name": name, "icon": col["icon"], "color": col["color"],
+            "id": str(col["id"]), "name": tag_name, "icon": col["icon"], "color": col["color"],
             "description": col["description"], "created_at": col["created_at"] or now,
             "updated_at": col["updated_at"] or now,
         }
@@ -303,7 +332,8 @@ def _migrate(conn, tables: set[str]) -> None:
                 logger.warning("User %s: preferred collection %s no longer exists", user["id"], preferred_collection)
         last_open = user["last_open_collection"]
         if last_open and str(last_open).strip():
-            updates["last_open_tag"] = str(last_open)
+            # last_open_tag holds the tag NAME: follow a ';' rename.
+            updates["last_open_tag"] = renamed_tag_by_lower.get(str(last_open).strip().lower(), str(last_open))
 
         if updates:
             assignments = ", ".join(f"{col} = :{col}" for col in updates)

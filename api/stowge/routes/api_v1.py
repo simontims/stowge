@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..api_key_auth import ApiKeyAuthContext, require_api_key_scopes
@@ -21,9 +22,10 @@ from ..helpers.serializers import (
     tag_item_counts,
     tags_by_item_id,
 )
-from ..models import Area, Location, Part, Site, Tag, User
+from ..models import Area, Location, Part, Site, Tag
 from .items import item_has_tag_matching, apply_tag_filter, set_item_tags
-from .tags import delete_tag_and_references, find_tag_by_name, require_tag_name
+from .tags import (delete_tag_and_references, find_tag_by_name,
+                   rename_tag_references, require_tag_name)
 
 router = APIRouter()
 
@@ -358,7 +360,11 @@ def v1_create_tag(
 
     row = Tag(name=name, icon=icon, color=color, description=description)
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the insert
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Tag name already exists")
     db.refresh(row)
     return serialize_tag(row, 0)
 
@@ -381,8 +387,7 @@ def v1_update_tag(
         old_name = row.name
         row.name = name
         if old_name != name:
-            for user in db.query(User).filter(func.lower(User.last_open_tag) == old_name.lower()).all():
-                user.last_open_tag = name
+            rename_tag_references(db, old_name, name)
 
     if "icon" in payload:
         row.icon = str(payload.get("icon") or "").strip() or None
@@ -394,7 +399,11 @@ def v1_update_tag(
         row.description = str(payload.get("description") or "").strip() or None
 
     row.updated_at = datetime.now(timezone.utc)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the update
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Tag name already exists")
     db.refresh(row)
     return serialize_tag(row, tag_item_counts(db, [row.id]).get(row.id, 0))
 

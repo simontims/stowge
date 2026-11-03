@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..ai_hints import ensure_default_hint, hint_by_name
@@ -34,7 +35,11 @@ def create_hint(payload: dict, db: Session = Depends(get_db), me: User = Depends
 
     hint = AiHint(name=name, text=_clean_text(payload.get("text")), is_default=0)
     db.add(hint)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the insert
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Hint name already exists")
     db.refresh(hint)
     return serialize_hint(hint)
 
@@ -60,7 +65,11 @@ def update_hint(hint_id: str, payload: dict, db: Session = Depends(get_db), me: 
         hint.text = _clean_text(payload.get("text"))
 
     hint.updated_at = datetime.now(timezone.utc)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the update
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Hint name already exists")
     db.refresh(hint)
     return serialize_hint(hint)
 

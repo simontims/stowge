@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import require_admin
@@ -13,6 +14,7 @@ from ..constraints import MIN_NAME_LENGTH
 from ..db import get_db
 from ..helpers.events import publish_inventory_change
 from ..models import Area, ItemTag, Location, Part, Site, Tag, User
+from .tags import require_tag_name
 
 router = APIRouter()
 
@@ -116,6 +118,15 @@ def _unique_tag_names(rows: list[dict]) -> list[str]:
     return list(names.values())
 
 
+def _is_valid_tag_name(name: str) -> bool:
+    """Same rules as creating a tag by hand (minimum length, no ';')."""
+    try:
+        require_tag_name(name)
+    except HTTPException:
+        return False
+    return True
+
+
 @router.post("/api/import/csv/preview")
 def preview_import(
     file: UploadFile = File(...),
@@ -166,9 +177,9 @@ def preview_import(
         db_locations = db.query(Location.name).all()
         existing_locations = {loc.name.lower() for loc in db_locations}
 
-    missing_tags = sorted(
-        [t for t in csv_tags if t.lower() not in existing_tags]
-    )
+    new_tags = [t for t in csv_tags if t.lower() not in existing_tags]
+    missing_tags = sorted(t for t in new_tags if _is_valid_tag_name(t))
+    invalid_tags = sorted(t for t in new_tags if not _is_valid_tag_name(t))
     missing_sites = sorted(
         [s for s in csv_sites if s.lower() not in existing_sites]
     )
@@ -183,6 +194,7 @@ def preview_import(
         "item_count": len(rows),
         "parse_errors": parse_errors,
         "missing_tags": missing_tags,
+        "invalid_tags": invalid_tags,
         "missing_sites": missing_sites,
         "missing_areas": missing_areas,
         "missing_locations": missing_locations,
@@ -241,6 +253,14 @@ def confirm_import(
     missing_areas = [a for a in csv_areas if a.lower() not in area_map]
     missing_locations = [loc for loc in csv_locations if loc.lower() not in location_map]
 
+    invalid_tags = [t for t in missing_tags if not _is_valid_tag_name(t)]
+    if invalid_tags:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid tag names: {', '.join(sorted(invalid_tags))}. "
+                   f"Tag names need at least {MIN_NAME_LENGTH} characters and cannot contain ';'.",
+        )
+
     if missing_tags and not create_tags:
         raise HTTPException(
             status_code=400,
@@ -273,7 +293,11 @@ def confirm_import(
     for tag_name in missing_tags:
         new_tag = Tag(name=tag_name)
         db.add(new_tag)
-        db.flush()
+        try:
+            db.flush()
+        except IntegrityError:  # a concurrent request created the same name after the lookup
+            db.rollback()
+            raise HTTPException(status_code=400, detail=f"Tag name already exists: {tag_name}")
         tag_map[tag_name.lower()] = new_tag
 
     # Create missing sites

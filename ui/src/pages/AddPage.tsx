@@ -14,8 +14,8 @@ import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { buildLocationDisplayLabel } from "../lib/locationHierarchy";
 import { resizeImage } from "../lib/resizeImage";
 import { useNumericField } from "../hooks/useNumericField";
-import { useCurrentUser } from "../lib/UserContext";
-import { type AiHint, type LocationOption, type Tag } from "../lib/types";
+import { useCurrentUser, useSetCurrentUser } from "../lib/UserContext";
+import { type AiHint, type CurrentUser, type LocationOption, type Tag } from "../lib/types";
 import { resolveHintId, validTagIds } from "../lib/tags";
 import { TagPicker } from "../components/ui/TagPicker";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
@@ -91,6 +91,10 @@ const MAX_PHOTOS = 5;
 
 export function AddPage() {
   const currentUser = useCurrentUser();
+  const setCurrentUser = useSetCurrentUser();
+  // Debounced saves finish after the render that scheduled them; merge into the latest user.
+  const currentUserRef = useRef(currentUser);
+  currentUserRef.current = currentUser;
   const [searchParams] = useSearchParams();
   const [photos, setPhotos] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -287,9 +291,18 @@ export function AddPage() {
     setMode("review");
   }
 
+  /** Keep UserContext in step with what was saved, so leaving Add and coming back starts from the
+   *  latest choices instead of the profile loaded at sign-in. */
+  function mergeSavedPreferences(saved: CurrentUser | null | undefined, body: Record<string, unknown>) {
+    const merged = { ...currentUserRef.current, ...body, ...(saved && saved.id === currentUserRef.current.id ? saved : {}) } as CurrentUser;
+    currentUserRef.current = merged; // two saves can finish before the next render
+    setCurrentUser(merged);
+  }
+
   async function persistPreferences(body: Record<string, unknown>) {
     try {
-      await apiRequest("/api/me", { method: "PATCH", body: JSON.stringify(body) });
+      const saved = await apiRequest<CurrentUser>("/api/me", { method: "PATCH", body: JSON.stringify(body) });
+      mergeSavedPreferences(saved, body);
     } catch {
       // Keep Add flow usable even if preference persistence fails.
     }
@@ -306,10 +319,9 @@ export function AddPage() {
 
   async function persistPreferredLocation(locationId: string) {
     try {
-      await apiRequest("/api/me", {
-        method: "PATCH",
-        body: JSON.stringify({ preferred_add_location_id: locationId || null }),
-      });
+      const body = { preferred_add_location_id: locationId || null };
+      const saved = await apiRequest<CurrentUser>("/api/me", { method: "PATCH", body: JSON.stringify(body) });
+      mergeSavedPreferences(saved, body);
     } catch {
       // Best effort.
     }

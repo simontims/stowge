@@ -137,8 +137,8 @@ stowge/
 	- POST /api/images/discard
 	- GET /api/events/items        → SSE stream (authenticated via session cookie)
 	- GET /api/export/csv          → CSV download (admin, supports scope/tag/location filters; `tag` is repeatable, columns include `tags` joined with `; `)
-	- POST /api/import/csv/preview → Parse CSV and report missing tags/locations (admin)
-	- POST /api/import/csv/confirm → Import items from CSV, optionally creating missing tags/locations (admin); reads `tags` (split on `;` or `,`) and, for old files, a `collection` column as one tag
+	- POST /api/import/csv/preview → Parse CSV and report missing tags/locations, plus `invalid_tags` (admin)
+	- POST /api/import/csv/confirm → Import items from CSV, optionally creating missing tags/locations (admin); reads `tags` (split on `;` only; names may contain commas) and, for old files, a `collection` column as one tag; tags to be created must pass the same name rules as hand-made ones (min length, no `;`) or the import is refused with 400
 
 ## 7. Security Considerations
 
@@ -352,9 +352,9 @@ Kept unread and unwritten since the tags release. Removed in a later cleanup rel
 
 `api/stowge/tags_migration.py`, called at the end of `_run_startup_migrations`. One-way, automatic, runs once (flag `tags_migration_v1` in `app_meta`) in a single transaction, after `create_all` has made the new tables.
 
-1. If the database has users or items, a consistent copy is written first (SQLite backup API) as `<db>.pre-tags-<UTC timestamp>`. If that fails, the migration aborts, the flag stays unset and startup raises.
+1. If the database has users or items, a consistent copy is written first (SQLite backup API) as `<db>.pre-tags-<UTC timestamp>` (mode 0600). If that fails, the partial file is removed, the migration aborts, the flag stays unset and startup raises.
 2. The Default hint is created. Each collection with a non-empty `ai_hint` becomes an `ai_hints` row named after it (identical texts share one row; a clashing name gets ` (2)`, ` (3)`, ...).
-3. Each collection becomes a tag with the same id, name, icon, colour and description. Names that differ only by case merge into the first by `created_at`; their items move to the survivor.
+3. Each collection becomes a tag with the same id, name, icon, colour and description. Names that differ only by case merge into the first by `created_at`; their items move to the survivor. `;` in a name (the CSV separator) becomes `,` (repeated spaces collapsed; a clash gets ` (2)`, ...) and is logged; ids and item matching keep using the original collection name.
 4. Items get `item_tags` rows by matching the old `parts.collection` name case-insensitively.
 5. Per user: pinned shortcut filters are created for each tag (in `collection_nav_order`, the rest in creation order) and placed before the user's own filters, capped at 100 (the overflow is counted in `tags_migration_filters_skipped`, never an error); old filters with `collection` switch to `tag_id`; `preferred_add_collection_id` becomes `preferred_add_hint_id` plus `preferred_add_tag_ids`; `last_open_collection` becomes `last_open_tag`.
 6. API key scopes `collections.*` become `tags.*`.

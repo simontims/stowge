@@ -27,7 +27,7 @@ function api(filters: unknown[] = FILTERS) {
 }
 
 function pinnedNames() {
-  return within(screen.getByRole("list", { name: "Pinned filters" }))
+  return within(screen.getByRole("list", { name: "Filters" }))
     .getAllByRole("link")
     .map((a) => a.textContent);
 }
@@ -61,7 +61,7 @@ describe("Sidebar", () => {
   it("lists the pinned filters as one ordered list under a Filters heading that is not a link", async () => {
     const { user } = api();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/tags"]);
-    await screen.findByRole("list", { name: "Pinned filters" });
+    await screen.findByRole("list", { name: "Filters" });
 
     expect(pinnedNames()).toEqual(["Cables", "Tools", "Drafts"]);
     expect(screen.queryByText("Shortcuts")).toBeNull();
@@ -73,7 +73,7 @@ describe("Sidebar", () => {
     const heading = screen.getByText("Filters").closest("[data-tour='menu-filters']") as HTMLElement;
     expect(heading).toBeTruthy();
     expect(heading.querySelector("svg")).toBeTruthy(); // an icon, like Settings and System
-    const list = screen.getByRole("list", { name: "Pinned filters" });
+    const list = screen.getByRole("list", { name: "Filters" });
     // The heading comes straight before the list.
     expect(heading.nextElementSibling).toBe(list);
   });
@@ -81,7 +81,7 @@ describe("Sidebar", () => {
   it("links a tag filter to /items?tag=<name> and marks it active on that URL", async () => {
     const { user } = api();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/items?tag=Tools"]);
-    await screen.findByRole("list", { name: "Pinned filters" });
+    await screen.findByRole("list", { name: "Filters" });
     expect(screen.getByRole("link", { name: "Tools" }).getAttribute("href")).toBe("/items?tag=Tools");
     expect(screen.getByRole("link", { name: "Tools" }).className).toContain("text-neutral-100");
     expect(screen.getByRole("link", { name: "Cables" }).className).not.toContain("text-neutral-100");
@@ -93,13 +93,13 @@ describe("Sidebar", () => {
     await waitFor(() => expect(mock.find("GET", "/api/me").length).toBeGreaterThan(0));
     expect(screen.getByText("Filters")).toBeTruthy();
     expect(screen.getByRole("link", { name: /No filters yet/ }).getAttribute("href")).toBe("/settings");
-    expect(within(screen.getByRole("list", { name: "Pinned filters" })).queryAllByRole("listitem")).toHaveLength(0);
+    expect(within(screen.getByRole("list", { name: "Filters" })).queryAllByRole("listitem")).toHaveLength(0);
   });
 
   it("drag reorder PATCHes /api/me with shortcut_filters in the new order, unpinned ones staying put", async () => {
     const { user, mock } = api();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user);
-    await screen.findByRole("list", { name: "Pinned filters" });
+    await screen.findByRole("list", { name: "Filters" });
 
     const dt = dataTransfer();
     const drafts = screen.getByTestId("pinned-f4");
@@ -119,7 +119,7 @@ describe("Sidebar", () => {
   it("dropping on the lower half puts the filter after the target; the end zone appends", async () => {
     const { user, mock } = api();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user);
-    await screen.findByRole("list", { name: "Pinned filters" });
+    await screen.findByRole("list", { name: "Filters" });
 
     const dt = dataTransfer();
     fireEvent.dragStart(screen.getByTestId("pinned-f1"), { dataTransfer: dt });
@@ -141,7 +141,7 @@ describe("Sidebar", () => {
   it("dropping a filter on itself saves nothing", async () => {
     const { user, mock } = api();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user);
-    await screen.findByRole("list", { name: "Pinned filters" });
+    await screen.findByRole("list", { name: "Filters" });
     const dt = dataTransfer();
     fireEvent.dragStart(screen.getByTestId("pinned-f1"), { dataTransfer: dt });
     fireEvent.dragOver(screen.getByTestId("pinned-f1"), { dataTransfer: dt });
@@ -155,7 +155,7 @@ describe("MobileNavDrawer", () => {
   it("shows the same single pinned list under a Filters heading, not draggable, and no Tags link", async () => {
     const { user } = api();
     renderWithUser(<MobileNavDrawer open onClose={() => {}} />, user);
-    await screen.findByRole("list", { name: "Pinned filters" });
+    await screen.findByRole("list", { name: "Filters" });
     expect(pinnedNames()).toEqual(["Cables", "Tools", "Drafts"]);
     expect(screen.queryByRole("link", { name: "Tags" })).toBeNull();
     expect(screen.queryByText("Shortcuts")).toBeNull();

@@ -1,6 +1,38 @@
 import { useEffect, useRef, useState } from "react";
 import { EVENTS, Joyride, STATUS, type EventData, type Step } from "react-joyride";
 
+/** Size of an element as the browser lays it out. Injected in tests, since jsdom has no layout. */
+export type MeasureFn = (el: Element) => { width: number; height: number };
+
+const defaultMeasure: MeasureFn = (el) => el.getBoundingClientRect();
+
+/** True when the element can actually be pointed at: it has a size and is not display:none or
+ *  visibility:hidden. */
+export function isTargetVisible(el: Element | null | undefined, measure: MeasureFn = defaultMeasure): boolean {
+  if (!el) return false;
+  const rect = measure(el);
+  if (!(rect.width > 0 && rect.height > 0)) return false;
+  const view = el.ownerDocument.defaultView;
+  const style = view ? view.getComputedStyle(el) : null;
+  return !(style && (style.display === "none" || style.visibility === "hidden"));
+}
+
+/** Turns every step whose target is missing or invisible (collapsed sidebar, mobile layout) into a
+ *  centred step with the same title and content, so it is still shown rather than skipped. */
+export function resolveSteps(steps: Step[], doc: Document, measure: MeasureFn = defaultMeasure): Step[] {
+  return steps.map((step) => {
+    if (typeof step.target !== "string" || step.target === "body") return step;
+    let el: Element | null = null;
+    try {
+      el = doc.querySelector(step.target);
+    } catch {
+      el = null;
+    }
+    if (isTargetVisible(el, measure)) return step;
+    return { ...step, target: "body", placement: "center" };
+  });
+}
+
 interface GuidedTourProps {
   run: boolean;
   steps: Step[];
@@ -30,8 +62,27 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [run, onFinish]);
 
+  // Targets are re-checked when the tour starts and after every step, since the menu loads its
+  // filters asynchronously and the layout can change while the tour is open.
+  const [resolved, setResolved] = useState<Step[]>(() => resolveSteps(steps, document));
+  function refreshSteps() {
+    const next = resolveSteps(steps, document);
+    setResolved((current) =>
+      current.length === next.length && current.every((s, i) => s.target === next[i].target && s.placement === next[i].placement)
+        ? current
+        : next,
+    );
+  }
+  useEffect(() => {
+    if (run) refreshSteps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, steps, instance]);
+
   function handleEvent(data: EventData) {
-    if (data.type === EVENTS.TARGET_NOT_FOUND) return;
+    if (data.type === EVENTS.TARGET_NOT_FOUND || data.type === EVENTS.STEP_AFTER) {
+      refreshSteps();
+      return;
+    }
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) onFinish();
   }
 
@@ -39,7 +90,7 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
     <Joyride
       key={instance}
       run={run}
-      steps={steps}
+      steps={resolved}
       continuous
       onEvent={handleEvent}
       options={{

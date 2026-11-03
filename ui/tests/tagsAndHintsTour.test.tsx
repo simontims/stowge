@@ -133,7 +133,7 @@ describe("tour steps", () => {
     const user = makeUser({ shortcut_filters: filters as never });
     mockApi({ "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")], "GET /api/me": user });
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user);
-    await screen.findByRole("list", { name: "Pinned filters" });
+    await screen.findByRole("list", { name: "Filters" });
     expect(document.querySelectorAll(`[data-tour='${FIRST_PINNED_TOUR_TARGET}']`)).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Cables" }).getAttribute("data-tour")).toBe(FIRST_PINNED_TOUR_TARGET);
     expect(screen.getByRole("link", { name: "Tools" }).getAttribute("data-tour")).toBeNull();

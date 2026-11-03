@@ -33,7 +33,7 @@ export function LegacyLinkUpgrade({ children }: { children: ReactNode }) {
   const upgraded = ["/items", "/parts", "/add", "/items/new", "/parts/new"].includes(location.pathname)
     ? upgradeLegacyCollectionLink(location.search)
     : null;
-  if (upgraded !== null) return <Navigate to={{ pathname: location.pathname, search: upgraded }} replace />;
+  if (upgraded !== null) return <Navigate to={{ pathname: location.pathname, search: upgraded, hash: location.hash }} state={location.state} replace />;
   return <>{children}</>;
 }
 

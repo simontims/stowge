@@ -17,9 +17,12 @@ function sourceFiles(dir: string): string[] {
 const ALLOWED: Array<{ file: string; line: RegExp; why: string }> = [
   { file: "App.tsx", line: /<Route path="\/collections" element=\{<Navigate to="\/settings\?tab=tags" replace \/>\} \/>/, why: "redirect" },
   { file: "pages/SettingsToolsPage.tsx", line: /Older files with a <span[^>]*>collection<\/span> column still import/, why: "CSV legacy note" },
-  { file: "components/onboarding/whatsNew/tagsAndHintsSteps.tsx", line: /./, why: "migration tour copy" },
-  { file: "components/onboarding/whatsNew/TagsAndHintsTour.tsx", line: /./, why: "migration tour" },
-  { file: "lib/legacyLinks.ts", line: /./, why: "old ?collection= links keep working" },
+  { file: "components/onboarding/whatsNew/tagsAndHintsSteps.tsx", line: /^\s*\/\*\* Title of the first step: states how many collections|there is none to report \(a database that never had collections\)|\/\*\* Steps of the "Collections are now tags" tour/, why: "migration tour doc comments" },
+  { file: "components/onboarding/whatsNew/tagsAndHintsSteps.tsx", line: /"Collections are now tags"|"1 collection is now a tag"|`\$\{converted\} collections are now tags`/, why: "migration tour titles" },
+  { file: "components/onboarding/whatsNew/tagsAndHintsSteps.tsx", line: /Everything that was in a collection now has that tag|Your old collections are pinned filters under/, why: "migration tour body" },
+  { file: "components/onboarding/whatsNew/TagsAndHintsTour.tsx", line: /about collections becoming tags/, why: "migration tour doc comment" },
+  { file: "components/onboarding/whatsNew/TagsAndHintsTour.tsx", line: /tags_migration\?\.collections_converted/, why: "API field with the converted count" },
+  { file: "lib/legacyLinks.ts", line: /`\?collection=Name`|`collection` becomes `tag`|upgradeLegacyCollectionLink|params\.(has|get|delete)\("collection"\)/, why: "old ?collection= links keep working" },
   { file: "App.tsx", line: /LegacyCollectionLink|Old `\?collection=` links/, why: "legacy link upgrade" },
   { file: "lib/types.ts", line: /collections_converted|collections-to-tags migration/, why: "migration info from the API" },
 ];

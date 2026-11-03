@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..ai_hints import ensure_default_hint
@@ -38,12 +39,29 @@ def find_tag_by_name(db: Session, name: str, exclude_id: str | None = None) -> T
     return query.first()
 
 
+def _users_with_last_open_tag(db: Session, name: str) -> list[User]:
+    # Fold both sides in SQLite (like the unique index on lower(name)): Python's lower() also
+    # folds non-ASCII letters, SQLite's does not, so 'Écran' would never match.
+    return db.query(User).filter(func.lower(User.last_open_tag) == func.lower(name)).all()
+
+
+def rename_tag_references(db: Session, old_name: str, new_name: str) -> None:
+    """last_open_tag holds the tag NAME: follow a rename so the post-login route still works."""
+    for user in _users_with_last_open_tag(db, old_name):
+        user.last_open_tag = new_name
+
+
+def clear_last_open_tag(db: Session, name: str) -> None:
+    """Forget a deleted tag's name as every user's last opened tag."""
+    for user in _users_with_last_open_tag(db, name):
+        user.last_open_tag = None
+
+
 def forget_tag_for_users(db: Session, tag_id: str) -> None:
     """Remove a deleted tag from every user's sticky tags and delete the pinned filters that point at it."""
     tag = db.query(Tag).filter(Tag.id == tag_id).first()
     if tag:
-        for user in db.query(User).filter(func.lower(User.last_open_tag) == tag.name.lower()).all():
-            user.last_open_tag = None
+        clear_last_open_tag(db, tag.name)
     for user in db.query(User).filter((User.preferred_add_tag_ids.isnot(None)) | (User.shortcut_filters.isnot(None))).all():
         if user.preferred_add_tag_ids:
             kept = [t for t in parse_preferred_tag_ids(user.preferred_add_tag_ids) if t != tag_id]
@@ -110,7 +128,11 @@ def create_tag(payload: dict, db: Session = Depends(get_db), me: User = Depends(
 
     tag = Tag(name=name, icon=icon, color=color, description=description)
     db.add(tag)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the insert
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Tag name already exists")
     db.refresh(tag)
     return serialize_tag(tag, 0)
 
@@ -128,9 +150,7 @@ def update_tag(tag_id: str, payload: dict, db: Session = Depends(get_db), me: Us
         old_name = tag.name
         tag.name = name
         if old_name != name:
-            # last_open_tag holds the tag NAME: follow a rename so the post-login route still works.
-            for user in db.query(User).filter(func.lower(User.last_open_tag) == old_name.lower()).all():
-                user.last_open_tag = name
+            rename_tag_references(db, old_name, name)
 
     if "icon" in payload:
         tag.icon = str(payload.get("icon") or "").strip() or None
@@ -142,7 +162,11 @@ def update_tag(tag_id: str, payload: dict, db: Session = Depends(get_db), me: Us
         tag.description = str(payload.get("description") or "").strip() or None
 
     tag.updated_at = datetime.now(timezone.utc)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the update
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Tag name already exists")
     db.refresh(tag)
     return serialize_tag(tag, tag_item_counts(db, [tag.id]).get(tag.id, 0))
 
