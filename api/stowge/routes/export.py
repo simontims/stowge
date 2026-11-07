@@ -11,14 +11,16 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth import require_admin
 from ..db import get_db
+from ..helpers.serializers import tags_by_item_id
 from ..models import Area, ItemContentsEntry, Location, Part, Site, User
+from .items import apply_tag_filter
 
 router = APIRouter()
 
 CSV_COLUMNS = [
     "name",
     "description",
-    "collection",
+    "tags",
     "site",
     "area",
     "location",
@@ -48,8 +50,10 @@ def _generate_csv(
     site_map: dict[str, str],
     location_area_map: dict[str, str],
     area_site_map: dict[str, str],
+    item_tags: dict[str, list[dict]] | None = None,
 ):
     """Generator that yields CSV rows for streaming."""
+    item_tags = item_tags or {}
     buf = io.StringIO()
     writer = csv.writer(buf, quoting=csv.QUOTE_ALL)
 
@@ -73,7 +77,7 @@ def _generate_csv(
         row = [
             item.name or "",
             item.description or "",
-            item.collection or "",
+            "; ".join(t["name"] for t in item_tags.get(item.id, [])),
             site_name,
             area_name,
             loc_name,
@@ -92,7 +96,7 @@ def _generate_csv(
 @router.get("/api/export/csv")
 def export_csv(
     scope: str = Query("active", pattern="^(active|deleted|all)$"),
-    collection: Optional[str] = None,
+    tag: Optional[list[str]] = Query(default=None),
     location: Optional[str] = None,
     db: Session = Depends(get_db),
     me: User = Depends(require_admin),
@@ -110,9 +114,8 @@ def export_csv(
         query = query.filter(Part.is_deleted == 1)
     # "all" → no is_deleted filter
 
-    # Collection filter
-    if collection:
-        query = query.filter(Part.collection.ilike(collection))
+    # Tag filter (repeatable, AND; "__none" = untagged)
+    query = apply_tag_filter(db, query, tag)
 
     # Location filter (by name)
     if location:
@@ -120,6 +123,7 @@ def export_csv(
 
     query = query.order_by(Part.name.asc())
     items = query.all()
+    item_tags = tags_by_item_id(db, [p.id for p in items])
 
     # Build location name lookup
     location_ids = {p.location_id for p in items if p.location_id}
@@ -148,7 +152,7 @@ def export_csv(
     filename = f"stowge-export-{today}.csv"
 
     return StreamingResponse(
-        _generate_csv(items, location_map, area_map, site_map, location_area_map, area_site_map),
+        _generate_csv(items, location_map, area_map, site_map, location_area_map, area_site_map, item_tags),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

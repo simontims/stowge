@@ -7,23 +7,100 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_
+from sqlalchemy import exists as sql_exists
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from ..ai_hints import resolve_hint_context
 from ..auth import current_user
 from ..constraints import MIN_NAME_LENGTH, require_name
 from ..db import get_db
 from ..helpers.ai_providers import normalize_model_for_provider
 from ..helpers.events import parts_events_since, publish_inventory_change
 from ..helpers.serializers import (contents_count_by_item_id, serialize_part_detail,
-                                   serialize_part_list)
+                                   serialize_part_list, tags_by_item_id)
 from ..images import b64_from_stored_paths, cleanup_asset_paths
-from ..models import (Area, Collection, ItemContentsEntry, Location, Part,
-                      PartImage, User)
+from ..models import (Area, ItemContentsEntry, ItemTag, Location, Part,
+                      PartImage, Tag, User)
 from ..openai_id import identify as openai_identify
 from .ai_settings import resolve_llm_config_for_request
 
 router = APIRouter()
+
+NO_TAG_FILTER = "__none"
+
+
+def resolve_tag_ids(db: Session, raw: object) -> list[str]:
+    """Validate a ``tag_ids`` payload value: a list of existing tag ids. Duplicates are ignored."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=400, detail="tag_ids must be a list")
+    wanted: list[str] = []
+    for entry in raw:
+        value = str(entry or "").strip()
+        if not value:
+            raise HTTPException(status_code=400, detail="Invalid tag")
+        if value not in wanted:
+            wanted.append(value)
+    if wanted:
+        found = {tag_id for (tag_id,) in db.query(Tag.id).filter(Tag.id.in_(wanted)).all()}
+        if any(tag_id not in found for tag_id in wanted):
+            raise HTTPException(status_code=400, detail="Invalid tag")
+    return wanted
+
+
+def set_item_tags(db: Session, part: Part, tag_ids: list[str]) -> None:
+    """Replace the whole tag list of an item."""
+    db.query(ItemTag).filter(ItemTag.item_id == part.id).delete(synchronize_session=False)
+    db.expire(part, ["tag_links"])
+    for tag_id in tag_ids:
+        db.add(ItemTag(item_id=part.id, tag_id=tag_id))
+
+
+def item_has_tag_matching(term: str):
+    return sql_exists().where(
+        ItemTag.item_id == Part.id,
+        ItemTag.tag_id == Tag.id,
+        Tag.name.ilike(term),
+    )
+
+
+def apply_tag_filter(db: Session, query, tag_values: list[str] | None):
+    """AND over the given tag names (case-insensitive) or ``__none`` (untagged). Unknown name -> no rows."""
+    for raw in tag_values or []:
+        value = str(raw or "").strip()
+        if not value:
+            continue
+        if value == NO_TAG_FILTER:
+            query = query.filter(~sql_exists().where(ItemTag.item_id == Part.id))
+            continue
+        tag_id = db.query(Tag.id).filter(func.lower(Tag.name) == func.lower(value)).scalar()
+        if tag_id is None:
+            return query.filter(Part.id.is_(None))
+        query = query.filter(sql_exists().where(ItemTag.item_id == Part.id, ItemTag.tag_id == tag_id))
+    return query
+
+
+def _serialize_part_rows(db: Session, parts: list[Part]) -> list[dict]:
+    location_ids = {p.location_id for p in parts if p.location_id}
+    location_names: dict[str, str] = {}
+    if location_ids:
+        location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
+        location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
+
+    ids = [p.id for p in parts]
+    contents_counts = contents_count_by_item_id(db, ids)
+    item_tags = tags_by_item_id(db, ids)
+    return [
+        serialize_part_list(
+            p,
+            location_name=(location_names.get(p.location_id) if p.location_id else None),
+            contents_count=contents_counts.get(p.id, 0),
+            tags=item_tags.get(p.id, []),
+        )
+        for p in parts
+    ]
 
 
 @router.post("/api/parts")
@@ -31,15 +108,11 @@ router = APIRouter()
 def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends(current_user)):
     name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
     description = (payload.get("description") or "").strip()
-    collection = (payload.get("collection") or "").strip() or None
+    tag_ids = resolve_tag_ids(db, payload.get("tag_ids"))
     location_id = payload.get("location_id")
     status = payload.get("status") or "draft"
     if status not in ("draft", "confirmed"):
         raise HTTPException(status_code=400, detail="status must be draft|confirmed")
-    if collection:
-        exists = db.query(Collection.id).filter(Collection.name == collection).first()
-        if not exists:
-            raise HTTPException(status_code=400, detail="Invalid collection")
 
     normalized_location_id: Optional[str] = None
     if location_id is not None and str(location_id).strip() != "":
@@ -53,7 +126,6 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
     p = Part(
         name=name,
         description=description or None,
-        collection=collection,
         location_id=normalized_location_id,
         status=status,
         quantity=max(0, int(payload.get("quantity") or 0)),
@@ -63,6 +135,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
     )
     db.add(p)
     db.flush()
+    set_item_tags(db, p, tag_ids)
 
     for idx, s in enumerate(stored_images):
         img = PartImage(
@@ -89,7 +162,7 @@ def create_part(payload: dict, db: Session = Depends(get_db), me: User = Depends
 @router.get("/api/items")
 def list_parts(
     q: Optional[str] = None,
-    collection: Optional[str] = None,
+    tag: Optional[list[str]] = Query(default=None),
     location: Optional[str] = None,
     status: Optional[str] = None,
     site_id: Optional[str] = None,
@@ -115,16 +188,13 @@ def list_parts(
             or_(
                 Part.name.ilike(term),
                 Part.description.ilike(term),
-                Part.collection.ilike(term),
+                item_has_tag_matching(term),
                 Location.name.ilike(term),
                 Part.status.ilike(term),
             )
         )
 
-    if collection == "__none":
-        query = query.filter(Part.collection.is_(None))
-    elif collection:
-        query = query.filter(Part.collection.ilike(collection))
+    query = apply_tag_filter(db, query, tag)
 
     if location:
         query = query.filter(Location.name.ilike(location))
@@ -152,38 +222,32 @@ def list_parts(
     if quantity_max is not None:
         query = query.filter(Part.quantity <= quantity_max)
 
-    _valid_sort_keys = {"name", "collection", "location", "status"}
+    _valid_sort_keys = {"name", "tags", "location", "status"}
     sort_key = sort_by if sort_by in _valid_sort_keys else "name"
     descending = sort_dir == "desc"
 
     if sort_key == "name":
         sort_col = Part.name
-    elif sort_key == "collection":
-        sort_col = Part.collection
+    elif sort_key == "tags":
+        # First tag name (case-insensitive); untagged items last in both directions.
+        sort_col = (
+            select(func.min(func.lower(Tag.name)))
+            .where(ItemTag.item_id == Part.id, ItemTag.tag_id == Tag.id)
+            .correlate(Part)
+            .scalar_subquery()
+        )
     elif sort_key == "location":
         sort_col = Location.name
     else:  # status
         sort_col = Part.status
 
-    query = query.order_by(sort_col.desc() if descending else sort_col.asc())
+    if sort_key == "tags":
+        query = query.order_by(sort_col.is_(None), sort_col.desc() if descending else sort_col.asc(), Part.name.asc())
+    else:
+        query = query.order_by(sort_col.desc() if descending else sort_col.asc())
 
     parts = query.limit(200).all()
-
-    location_ids = {p.location_id for p in parts if p.location_id}
-    location_names: dict[str, str] = {}
-    if location_ids:
-        location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
-        location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
-
-    contents_counts = contents_count_by_item_id(db, [p.id for p in parts])
-    return [
-        serialize_part_list(
-            p,
-            location_name=(location_names.get(p.location_id) if p.location_id else None),
-            contents_count=contents_counts.get(p.id, 0),
-        )
-        for p in parts
-    ]
+    return _serialize_part_rows(db, parts)
 
 
 @router.get("/api/items/deleted")
@@ -200,29 +264,14 @@ def list_deleted_items(
             or_(
                 Part.name.ilike(term),
                 Part.description.ilike(term),
-                Part.collection.ilike(term),
+                item_has_tag_matching(term),
                 Location.name.ilike(term),
                 Part.status.ilike(term),
             )
         )
 
     parts = query.order_by(Part.updated_at.desc()).limit(500).all()
-
-    location_ids = {p.location_id for p in parts if p.location_id}
-    location_names: dict[str, str] = {}
-    if location_ids:
-        location_rows = db.query(Location.id, Location.name).filter(Location.id.in_(location_ids)).all()
-        location_names = {loc_id: loc_name for loc_id, loc_name in location_rows}
-
-    contents_counts = contents_count_by_item_id(db, [p.id for p in parts])
-    return [
-        serialize_part_list(
-            p,
-            location_name=(location_names.get(p.location_id) if p.location_id else None),
-            contents_count=contents_counts.get(p.id, 0),
-        )
-        for p in parts
-    ]
+    return _serialize_part_rows(db, parts)
 
 
 @router.post("/api/items/deleted/purge")
@@ -299,16 +348,8 @@ def update_part(part_id: str, payload: dict, db: Session = Depends(get_db), me: 
         except (TypeError, ValueError):
             raise HTTPException(status_code=400, detail="quantity must be a non-negative integer")
 
-    if "collection" in payload:
-        raw_collection = payload.get("collection")
-        collection = (str(raw_collection).strip() if raw_collection is not None else "")
-        if not collection:
-            p.collection = None
-        else:
-            exists = db.query(Collection.id).filter(Collection.name == collection).first()
-            if not exists:
-                raise HTTPException(status_code=400, detail="Invalid collection")
-            p.collection = collection
+    if "tag_ids" in payload:
+        set_item_tags(db, p, resolve_tag_ids(db, payload.get("tag_ids")))
 
     if "location_id" in payload:
         location_id = payload.get("location_id")
@@ -393,7 +434,8 @@ def restore_part(part_id: str, db: Session = Depends(get_db), me: User = Depends
 
     publish_inventory_change("created", part_id)
     contents_count = contents_count_by_item_id(db, [p.id]).get(p.id, 0)
-    return {"ok": True, "item": serialize_part_list(p, location_name=location_name, contents_count=contents_count)}
+    item_tags = tags_by_item_id(db, [p.id]).get(p.id, [])
+    return {"ok": True, "item": serialize_part_list(p, location_name=location_name, contents_count=contents_count, tags=item_tags)}
 
 
 @router.post("/api/parts/{part_id}/rescan")
@@ -402,6 +444,7 @@ def rescan_part(
     part_id: str,
     mode: Literal["one", "three", "five"] = "three",
     llm_id: Optional[str] = Query(default=None),
+    hint_id: Optional[str] = Query(default=None),
     include_deleted: bool = Query(False),
     db: Session = Depends(get_db),
     me: User = Depends(current_user),
@@ -429,14 +472,7 @@ def rescan_part(
     if not b64s:
         raise HTTPException(status_code=400, detail="Could not read item images")
 
-    collection_context: Optional[str] = None
-    if p.collection:
-        coll = db.query(Collection).filter(Collection.name == p.collection).first()
-        if coll:
-            context_parts = [f"Collection name: {coll.name}"]
-            if (coll.ai_hint or "").strip():
-                context_parts.append(f"Collection hint: {coll.ai_hint.strip()}")
-            collection_context = "\n".join(context_parts)
+    hint_context = resolve_hint_context(db, hint_id)
 
     ai_mode = mode if mode in ("one", "three", "five") else "three"
     ai = openai_identify(
@@ -448,7 +484,7 @@ def rescan_part(
         },
         mode=ai_mode,
         include_evidence=bool(cfg.evidence_enabled),
-        collection_context=collection_context,
+        hint_context=hint_context,
     )
 
     return {

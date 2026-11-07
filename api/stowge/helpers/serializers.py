@@ -5,15 +5,16 @@ import time
 
 from fastapi import HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from ..datetime_utils import utc_iso
 from ..image_signing import sign as sign_image
 from ..image_signing import ttl_seconds
 from ..datetime_utils import now_utc
 from ..whats_new import whats_new_for_user
-from ..models import (ApiKey, Area, Collection, ItemContentsEntry, LLMConfig,
-                      Location, Part, PartImage, Site, User)
+from ..models import (AiHint, ApiKey, Area, ItemContentsEntry, ItemTag,
+                      LLMConfig, Location, Part, PartImage, Site, Tag, User)
+from ..tags_migration import migration_summary
 from .ai_providers import resolve_llm_config
 from .shortcut_style import lenient_color, lenient_icon
 
@@ -52,16 +53,25 @@ def location_icon_url(location_id: str) -> str:
     return f"/api/locations/{location_id}/icon"
 
 
-def serialize_user(user: User) -> dict:
-    parsed_collection_nav_order: list[str] = []
-    if user.collection_nav_order:
-        try:
-            raw_order = json.loads(user.collection_nav_order)
-            if isinstance(raw_order, list):
-                parsed_collection_nav_order = [str(item).strip() for item in raw_order if str(item).strip()]
-        except Exception:
-            parsed_collection_nav_order = []
+def parse_preferred_tag_ids(raw: str | None) -> list[str]:
+    """Stored JSON list of sticky tag ids -> clean list (blank entries and duplicates dropped)."""
+    out: list[str] = []
+    if not raw:
+        return out
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return out
+    if not isinstance(parsed, list):
+        return out
+    for entry in parsed:
+        value = str(entry).strip()
+        if value and value not in out:
+            out.append(value)
+    return out
 
+
+def serialize_user(user: User) -> dict:
     parsed_shortcut_filters: list[dict] = []
 
     def _optional_non_negative_int(value: object) -> int | None:
@@ -92,7 +102,8 @@ def serialize_user(user: User) -> dict:
                     if not entry_id or not entry_name:
                         continue
                     entry_query = str(entry.get("query") or "").strip()
-                    entry_collection = str(entry.get("collection") or "").strip() or None
+                    # Old stored "collection" keys are dropped on read; only tag_id survives.
+                    entry_tag_id = str(entry.get("tag_id") or "").strip() or None
                     entry_statuses: list[str] = []
                     raw_statuses = entry.get("statuses")
                     if isinstance(raw_statuses, list):
@@ -123,7 +134,7 @@ def serialize_user(user: User) -> dict:
                         "id": entry_id,
                         "name": entry_name,
                         "query": entry_query,
-                        "collection": entry_collection,
+                        "tag_id": entry_tag_id,
                         "statuses": entry_statuses,
                         "status": entry_statuses[0] if len(entry_statuses) == 1 else None,
                         "site_id": entry_site_id,
@@ -138,6 +149,12 @@ def serialize_user(user: User) -> dict:
         except Exception:
             parsed_shortcut_filters = []
 
+    whats_new = whats_new_for_user(user.last_seen_note or 0, user.welcome_seen_version or 0)
+    session = object_session(user)
+    whats_new["tags_migration"] = (
+        migration_summary(session) if session is not None else {"collections_converted": 0, "filters_skipped": 0}
+    )
+
     return {
         "id": user.id,
         "email": user.username,
@@ -145,12 +162,12 @@ def serialize_user(user: User) -> dict:
         "lastname": user.last_name or "",
         "role": user.role,
         "theme": user.theme or "dark",
-        "preferred_add_collection_id": user.preferred_add_collection_id,
+        "preferred_add_hint_id": user.preferred_add_hint_id,
+        "preferred_add_tag_ids": parse_preferred_tag_ids(user.preferred_add_tag_ids),
         "preferred_add_location_id": user.preferred_add_location_id,
-        "last_open_collection": user.last_open_collection,
-        "collection_nav_order": parsed_collection_nav_order,
+        "last_open_tag": user.last_open_tag,
         "shortcut_filters": parsed_shortcut_filters,
-        "whats_new": whats_new_for_user(user.last_seen_note or 0, user.welcome_seen_version or 0),
+        "whats_new": whats_new,
         "created_at": utc_iso(user.created_at),
         "last_login_at": utc_iso(user.last_login_at),
     }
@@ -210,20 +227,63 @@ def serialize_area(area: Area, site_name: str | None = None) -> dict:
     }
 
 
-def serialize_collection(collection: Collection, db: Session, item_count: int | None = None) -> dict:
-    if item_count is None:
-        item_count = db.query(Part).filter(Part.collection == collection.name, Part.is_deleted == 0).count()
+def serialize_tag(tag: Tag, item_count: int = 0) -> dict:
     return {
-        "id": collection.id,
-        "name": collection.name,
-        "icon": collection.icon,
-        "color": collection.color,
-        "description": collection.description,
-        "ai_hint": collection.ai_hint,
+        "id": tag.id,
+        "name": tag.name,
+        "icon": tag.icon,
+        "color": tag.color,
+        "description": tag.description,
         "item_count": int(item_count),
-        "created_at": utc_iso(collection.created_at),
-        "updated_at": utc_iso(collection.updated_at),
     }
+
+
+def tag_item_counts(db: Session, tag_ids: list[str] | None = None) -> dict[str, int]:
+    """Active (not soft-deleted) item count per tag id."""
+    query = (
+        db.query(ItemTag.tag_id, func.count(ItemTag.item_id))
+        .join(Part, Part.id == ItemTag.item_id)
+        .filter(Part.is_deleted == 0)
+    )
+    if tag_ids is not None:
+        query = query.filter(ItemTag.tag_id.in_(tag_ids))
+    return {str(tag_id): int(count) for tag_id, count in query.group_by(ItemTag.tag_id).all()}
+
+
+def serialize_hint(hint: AiHint) -> dict:
+    return {
+        "id": hint.id,
+        "name": hint.name,
+        "text": hint.text or "",
+        "is_default": bool(hint.is_default),
+    }
+
+
+def list_hints_payload(db: Session) -> list[dict]:
+    """Default first, then the rest by name (case-insensitive)."""
+    hints = db.query(AiHint).order_by(AiHint.is_default.desc(), func.lower(AiHint.name).asc()).all()
+    return [serialize_hint(h) for h in hints]
+
+
+def tags_by_item_id(db: Session, item_ids: list[str]) -> dict[str, list[dict]]:
+    """``{item_id: [{id, name, icon, color}, ...]}`` ordered by tag name (case-insensitive)."""
+    out: dict[str, list[dict]] = {}
+    if not item_ids:
+        return out
+    # Chunked to stay clear of SQLite's bound-parameter limit.
+    for start in range(0, len(item_ids), 500):
+        chunk = item_ids[start:start + 500]
+        rows = (
+            db.query(ItemTag.item_id, Tag.id, Tag.name, Tag.icon, Tag.color)
+            .join(Tag, Tag.id == ItemTag.tag_id)
+            .filter(ItemTag.item_id.in_(chunk))
+            .all()
+        )
+        for item_id, tag_id, name, icon, color in rows:
+            out.setdefault(str(item_id), []).append({"id": tag_id, "name": name, "icon": icon, "color": color})
+    for tags in out.values():
+        tags.sort(key=lambda t: (str(t["name"]).lower(), str(t["name"])))
+    return out
 
 
 def list_locations_payload(db: Session) -> list[dict]:
@@ -257,18 +317,12 @@ def list_areas_payload(db: Session) -> list[dict]:
     return [serialize_area(area, site_names_by_id.get(area.site_id or "")) for area in areas]
 
 
-def list_collections_payload(db: Session) -> list[dict]:
-    collections = db.query(Collection).order_by(Collection.created_at.asc()).all()
-    if not collections:
+def list_tags_payload(db: Session) -> list[dict]:
+    tags = db.query(Tag).order_by(Tag.created_at.asc(), Tag.name.asc()).all()
+    if not tags:
         return []
-    counts: dict[str, int] = dict(
-        db.query(Part.collection, func.count(Part.id))
-        .filter(Part.collection.in_([col.name for col in collections]))
-        .filter(Part.is_deleted == 0)
-        .group_by(Part.collection)
-        .all()
-    )
-    return [serialize_collection(col, db, item_count=int(counts.get(col.name, 0))) for col in collections]
+    counts = tag_item_counts(db)
+    return [serialize_tag(tag, item_count=counts.get(tag.id, 0)) for tag in tags]
 
 
 def list_public_ai_settings_payload(db: Session) -> dict:
@@ -280,13 +334,25 @@ def list_public_ai_settings_payload(db: Session) -> dict:
     }
 
 
-def serialize_part_list(part: Part, location_name: str | None = None, contents_count: int = 0) -> dict:
+def _tags_for_part(part: Part, tags: list | None) -> list:
+    if tags is not None:
+        return tags
+    session = object_session(part)
+    return tags_by_item_id(session, [part.id]).get(part.id, []) if session is not None else []
+
+
+def serialize_part_list(
+    part: Part,
+    location_name: str | None = None,
+    contents_count: int = 0,
+    tags: list | None = None,
+) -> dict:
     primary_image = next((img for img in part.images if img.is_primary), part.images[0]) if part.images else None
     return {
         "id": part.id,
         "name": part.name,
         "description": part.description,
-        "collection": part.collection,
+        "tags": _tags_for_part(part, tags),
         "location": location_name,
         "status": part.status,
         "quantity": part.quantity if part.quantity is not None else 1,
@@ -296,13 +362,13 @@ def serialize_part_list(part: Part, location_name: str | None = None, contents_c
     }
 
 
-def serialize_part_detail(part: Part, location_name: str | None = None) -> dict:
+def serialize_part_detail(part: Part, location_name: str | None = None, tags: list | None = None) -> dict:
     return {
         "id": part.id,
         "is_deleted": bool(part.is_deleted),
         "name": part.name,
         "description": part.description,
-        "collection": part.collection,
+        "tags": _tags_for_part(part, tags),
         "location_id": part.location_id,
         "location": location_name,
         "status": part.status,

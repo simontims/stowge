@@ -11,7 +11,7 @@ Inventory with a fast, simple user experience and optional AI-assist
 - Add items quickly, photo first from mobile with AI assist
     - or add items slowly and old-skool, you do you
 
-Unlimited custom collections
+Unlimited custom tags (an item can have several)
 - Electronic parts (the original inspiration)
 - Arts and Craft bits
 - Big household items for insurance listings
@@ -50,13 +50,13 @@ The default image is `simontims/stowge:latest`, built for `linux/amd64` and `lin
 
 ### 3. Create the administrator
 
-On first visit, Stowge prompts you to create an administrator account. You can then add Collections and Locations, start adding items, and optionally configure an AI provider under `System > AI`.
+On first visit, Stowge prompts you to create an administrator account. You can then add Tags and Locations, start adding items, and optionally configure an AI provider under `System > AI`.
 
 For image tags, environment settings, HTTPS, upgrades, backups, restores, and account recovery, see [Deployment](docs/DEPLOYMENT.md).
 
 ## Import and Export
 
-Under `System > Tools`, export inventory to CSV with collection, location, and status filters. The CSV importer previews changes, identifies missing Collections or Locations, and can create them during import.
+Under `System > Tools`, export inventory to CSV with tag, location, and status filters (the `tags` column lists an item's tags separated by `; `). The CSV importer previews changes, identifies missing Tags or Locations, and can create them during import. It reads a `tags` column (split on `;` or `,`) and, for files exported by older versions, a `collection` column as a single tag.
 
 ## API Documentation
 

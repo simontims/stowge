@@ -36,11 +36,11 @@ def test_identify_uses_selected_llm_config_without_server_error(isolated_client,
         captured["quality"] = quality
         return ["ZmFrZQ=="]
 
-    def fake_openai_identify(b64s, llm_config, mode, include_evidence, collection_context=None):
+    def fake_openai_identify(b64s, llm_config, mode, include_evidence, hint_context=None):
         captured["llm_config"] = llm_config
         captured["mode"] = mode
         captured["include_evidence"] = include_evidence
-        captured["collection_context"] = collection_context
+        captured["hint_context"] = hint_context
         return {"candidates": [{"name": "Widget", "confidence": 0.9}]}
 
     monkeypatch.setattr("stowge.routes.ai_settings.process_for_identify", fake_process_for_identify)

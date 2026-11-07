@@ -62,6 +62,8 @@ Back up Stowge before upgrading, especially when moving between release versions
 
 When upgrading to the Site/Area/Location schema, Stowge automatically creates a `Home` Site and `General` Area, then assigns existing Locations to that Area. Existing Location IDs, names, and item assignments are preserved.
 
+Upgrading to 0.12.0 turns Collections into Tags and collection AI hints into separate AI hints. This happens automatically on first start and cannot be undone. Before it changes anything Stowge writes a copy of the database next to it, named `stowge.db.pre-tags-<UTC timestamp>` (if the copy cannot be written, startup stops and nothing is changed). Keep that file until you are happy with the result; to roll back, stop the container, delete `stowge.db-wal` and `stowge.db-shm` next to the database (a leftover write-ahead log from the upgraded database would otherwise be replayed onto the old copy), put the `.pre-tags-*` copy back as `stowge.db` and run the previous image. Anything added after the upgrade (items, tags, users, settings) is lost on rollback; only what was in the copy comes back. The copy is readable by its owner only, because it contains password and API-key hashes. It is owned by the container user (uid 1000 in the default setup), so a host admin needs `sudo` or the same uid to copy it back. Restoring an older backup runs the same conversion again. The external API changed at the same time: see [MIGRATING-collections-to-tags.md](api/MIGRATING-collections-to-tags.md).
+
 ## Backup and restore
 
 Use `System > Status > Maintenance` to create, inspect, download, validate, and restore backups. Archives are stored in `/assets/backups` with names in this format:

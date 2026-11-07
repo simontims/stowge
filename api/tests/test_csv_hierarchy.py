@@ -5,7 +5,7 @@ from conftest import auth_cookies_isolated
 
 
 def _csv_text(rows: list[dict[str, str]]) -> str:
-    fieldnames = ["name", "description", "collection", "site", "area", "location", "status", "quantity"]
+    fieldnames = ["name", "description", "tags", "site", "area", "location", "status", "quantity"]
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames)
     writer.writeheader()
@@ -37,19 +37,19 @@ def test_export_csv_includes_site_area_columns(isolated_client, isolated_db):
     assert location_resp.status_code == 200, location_resp.text
     location_id = location_resp.json()["id"]
 
-    collection_resp = isolated_client.post(
-        "/api/collections",
+    tag_resp = isolated_client.post(
+        "/api/tags",
         json={"name": "Tools"},
         cookies=admin_cookies,
     )
-    assert collection_resp.status_code == 200, collection_resp.text
+    assert tag_resp.status_code == 200, tag_resp.text
 
     item_resp = isolated_client.post(
         "/api/items",
         json={
             "name": "Socket Set",
             "description": "Metric",
-            "collection": "Tools",
+            "tag_ids": [tag_resp.json()["id"]],
             "location_id": location_id,
             "status": "confirmed",
             "quantity": 2,
@@ -72,6 +72,9 @@ def test_export_csv_includes_site_area_columns(isolated_client, isolated_db):
     assert rows[0]["site"] == "Home"
     assert rows[0]["area"] == "Garage"
     assert rows[0]["location"] == "Shelf A"
+    assert "tags" in reader.fieldnames
+    assert "collection" not in reader.fieldnames
+    assert rows[0]["tags"] == "Tools"
 
 
 def test_import_csv_preview_and_confirm_support_site_area(isolated_client, isolated_db):
@@ -81,7 +84,7 @@ def test_import_csv_preview_and_confirm_support_site_area(isolated_client, isola
         {
             "name": "Battery Pack",
             "description": "12V",
-            "collection": "Electrics",
+            "tags": "Electrics",
             "site": "Boat",
             "area": "Cabin",
             "location": "Port Locker",
@@ -99,13 +102,13 @@ def test_import_csv_preview_and_confirm_support_site_area(isolated_client, isola
     preview = preview_resp.json()
 
     assert preview["item_count"] == 1
-    assert "Electrics" in preview["missing_collections"]
+    assert "Electrics" in preview["missing_tags"]
     assert "Boat" in preview["missing_sites"]
     assert "Cabin" in preview["missing_areas"]
     assert "Port Locker" in preview["missing_locations"]
 
     confirm_resp = isolated_client.post(
-        "/api/import/csv/confirm?create_collections=true&create_sites=true&create_areas=true&create_locations=true",
+        "/api/import/csv/confirm?create_tags=true&create_sites=true&create_areas=true&create_locations=true",
         files={"file": ("import.csv", csv_text, "text/csv")},
         cookies=admin_cookies,
     )
@@ -113,7 +116,7 @@ def test_import_csv_preview_and_confirm_support_site_area(isolated_client, isola
     result = confirm_resp.json()
 
     assert result["imported"] == 1
-    assert result["collections_created"] == 1
+    assert result["tags_created"] == 1
     assert result["sites_created"] == 1
     assert result["areas_created"] == 1
     assert result["locations_created"] == 1

@@ -17,7 +17,7 @@ from ..auth import (SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE,
 from ..db import get_db
 from ..helpers.serializers import serialize_user
 from ..helpers.shortcut_style import parse_color, parse_icon
-from ..models import Area, Collection, Location, Site, User
+from ..models import Area, Location, AiHint, Site, Tag, User
 from ..whats_new import (WELCOME_VERSION, clamp_cursor, cursor_for_new_account,
                          history)
 
@@ -132,16 +132,34 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
         if theme not in ("dark", "light"):
             raise HTTPException(status_code=400, detail="theme must be dark|light")
         u.theme = theme
-    if "preferred_add_collection_id" in payload:
-        raw_collection_id = payload.get("preferred_add_collection_id")
-        collection_id = (str(raw_collection_id).strip() if raw_collection_id is not None else "")
-        if not collection_id:
-            u.preferred_add_collection_id = None
+    if "preferred_add_hint_id" in payload:
+        raw_hint_id = payload.get("preferred_add_hint_id")
+        hint_id = (str(raw_hint_id).strip() if raw_hint_id is not None else "")
+        if not hint_id:
+            u.preferred_add_hint_id = None
         else:
-            exists = db.query(Collection.id).filter(Collection.id == collection_id).first()
+            exists = db.query(AiHint.id).filter(AiHint.id == hint_id).first()
             if not exists:
-                raise HTTPException(status_code=400, detail="Invalid preferred_add_collection_id")
-            u.preferred_add_collection_id = collection_id
+                raise HTTPException(status_code=400, detail="Invalid preferred_add_hint_id")
+            u.preferred_add_hint_id = hint_id
+    if "preferred_add_tag_ids" in payload:
+        raw_tag_ids = payload.get("preferred_add_tag_ids")
+        if raw_tag_ids is None:
+            u.preferred_add_tag_ids = None
+        elif isinstance(raw_tag_ids, list):
+            wanted: list[str] = []
+            for entry in raw_tag_ids:
+                value = str(entry or "").strip()
+                if not value:
+                    raise HTTPException(status_code=400, detail="Invalid preferred_add_tag_ids")
+                if value not in wanted:
+                    wanted.append(value)
+            known = {tag_id for (tag_id,) in db.query(Tag.id).filter(Tag.id.in_(wanted)).all()} if wanted else set()
+            if any(tag_id not in known for tag_id in wanted):
+                raise HTTPException(status_code=400, detail="Invalid preferred_add_tag_ids")
+            u.preferred_add_tag_ids = json.dumps(wanted) if wanted else None
+        else:
+            raise HTTPException(status_code=400, detail="preferred_add_tag_ids must be an array of tag ids or null")
     if "preferred_add_location_id" in payload:
         raw_loc_id = payload.get("preferred_add_location_id")
         loc_id = (str(raw_loc_id).strip() if raw_loc_id is not None else "")
@@ -152,25 +170,9 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
             if not exists:
                 raise HTTPException(status_code=400, detail="Invalid preferred_add_location_id")
             u.preferred_add_location_id = loc_id
-    if "last_open_collection" in payload:
-        val = payload.get("last_open_collection")
-        u.last_open_collection = str(val).strip() if val else None
-    if "collection_nav_order" in payload:
-        raw_order = payload.get("collection_nav_order")
-        if raw_order is None:
-            u.collection_nav_order = None
-        elif isinstance(raw_order, list):
-            seen: set[str] = set()
-            normalized: list[str] = []
-            for entry in raw_order:
-                value = str(entry).strip()
-                if not value or value in seen:
-                    continue
-                seen.add(value)
-                normalized.append(value)
-            u.collection_nav_order = json.dumps(normalized) if normalized else None
-        else:
-            raise HTTPException(status_code=400, detail="collection_nav_order must be an array of collection ids or null")
+    if "last_open_tag" in payload:
+        val = payload.get("last_open_tag")
+        u.last_open_tag = str(val).strip() if val and str(val).strip() else None
     if "shortcut_filters" in payload:
         raw_shortcuts = payload.get("shortcut_filters")
         if raw_shortcuts is None:
@@ -179,7 +181,7 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
             if len(raw_shortcuts) > 100:
                 raise HTTPException(status_code=400, detail="shortcut_filters cannot contain more than 100 rows")
 
-            collection_names = {name for (name,) in db.query(Collection.name).all()}
+            tag_ids = {tag_id for (tag_id,) in db.query(Tag.id).all()}
             site_ids = {site_id for (site_id,) in db.query(Site.id).all()}
             area_ids = {area_id for (area_id,) in db.query(Area.id).all()}
             location_ids = {location_id for (location_id,) in db.query(Location.id).all()}
@@ -193,7 +195,7 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
                 shortcut_id = str(entry.get("id") or "").strip() or str(uuid.uuid4())
                 shortcut_name = str(entry.get("name") or "").strip()
                 shortcut_query = str(entry.get("query") or "").strip()
-                shortcut_collection = str(entry.get("collection") or "").strip() or None
+                shortcut_tag_id = str(entry.get("tag_id") or "").strip() or None
                 shortcut_status = str(entry.get("status") or "").strip().lower() or None
                 raw_statuses = entry.get("statuses")
                 shortcut_site_id = str(entry.get("site_id") or "").strip() or None
@@ -256,8 +258,8 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
                 if len(shortcut_query) > 200:
                     raise HTTPException(status_code=400, detail="shortcut filter query must be 200 characters or fewer")
 
-                if shortcut_collection and shortcut_collection != "__none" and shortcut_collection not in collection_names:
-                    raise HTTPException(status_code=400, detail=f"Invalid shortcut filter collection: {shortcut_collection}")
+                if shortcut_tag_id and shortcut_tag_id != "__none" and shortcut_tag_id not in tag_ids:
+                    raise HTTPException(status_code=400, detail=f"Invalid shortcut filter tag: {shortcut_tag_id}")
                 for normalized_status in shortcut_statuses:
                     if len(normalized_status) > 50:
                         raise HTTPException(status_code=400, detail="shortcut filter status values must be 50 characters or fewer")
@@ -272,7 +274,7 @@ def update_me(payload: dict, db: Session = Depends(get_db), me: User = Depends(c
                     "id": shortcut_id,
                     "name": shortcut_name,
                     "query": shortcut_query,
-                    "collection": shortcut_collection,
+                    "tag_id": shortcut_tag_id,
                     "statuses": shortcut_statuses,
                     "status": shortcut_statuses[0] if len(shortcut_statuses) == 1 else None,
                     "site_id": shortcut_site_id,

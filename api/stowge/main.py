@@ -24,6 +24,7 @@ from .helpers.maintenance import (MAINTENANCE_TASK_KEYS,
 from .models import (AppMeta, Area, LLMConfig, Location, MaintenanceSchedule,
                      Site, User)
 from .rate_limit import limiter
+from .tags_migration import run_tags_migration
 from .whats_new import WELCOME_VERSION
 
 # ---------------------------------------------------------------------------
@@ -40,7 +41,8 @@ OPENAPI_TAGS = [
     {"name": "locations", "description": "Location management"},
     {"name": "areas", "description": "Area management"},
     {"name": "sites", "description": "Site management"},
-    {"name": "collections", "description": "Collection management"},
+    {"name": "tags", "description": "Tag management"},
+    {"name": "hints", "description": "AI hint management"},
     {"name": "items", "description": "Inventory items"},
     {"name": "images", "description": "Image storage and retrieval"},
     {"name": "ai_settings", "description": "AI provider and model settings"},
@@ -169,6 +171,12 @@ def _run_startup_migrations():
                 conn.execute(text("ALTER TABLE users ADD COLUMN last_seen_note INTEGER NOT NULL DEFAULT 0"))
             if "welcome_seen_version" not in user_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN welcome_seen_version INTEGER NOT NULL DEFAULT 0"))
+            if "preferred_add_hint_id" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN preferred_add_hint_id VARCHAR NULL"))
+            if "preferred_add_tag_ids" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN preferred_add_tag_ids TEXT NULL"))
+            if "last_open_tag" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_open_tag VARCHAR NULL"))
 
     tables = set(inspect(engine).get_table_names())
 
@@ -438,6 +446,9 @@ def _run_startup_migrations():
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_created_by_user_id ON api_keys(created_by_user_id)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_api_keys_revoked_by_user_id ON api_keys(revoked_by_user_id)"))
 
+    # Collections -> tags, collection AI hints -> AI hints. Runs once, after everything above is in place.
+    run_tags_migration(engine)
+
     # Backward compatibility: if legacy OPENAI env vars are present and no model
     # is configured yet, create a default LiteLLM model entry automatically.
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -524,7 +535,7 @@ from .routes.ai_settings import router as ai_settings_router  # noqa: E402
 from .routes.auth import router as auth_router  # noqa: E402
 from .routes.api_keys import router as api_keys_router  # noqa: E402
 from .routes.backup import router as backup_router  # noqa: E402
-from .routes.collections import router as collections_router  # noqa: E402
+from .routes.hints import router as hints_router  # noqa: E402
 from .routes.areas import router as areas_router  # noqa: E402
 from .routes.export import router as export_router  # noqa: E402
 from .routes.health import router as health_router  # noqa: E402
@@ -533,6 +544,7 @@ from .routes.import_csv import router as import_router  # noqa: E402
 from .routes.items import router as items_router  # noqa: E402
 from .routes.locations import router as locations_router  # noqa: E402
 from .routes.sites import router as sites_router  # noqa: E402
+from .routes.tags import router as tags_router  # noqa: E402
 from .external_api import external_api_app  # noqa: E402
 
 app.include_router(health_router, tags=["health"])
@@ -540,7 +552,8 @@ app.include_router(auth_router, tags=["auth"])
 app.include_router(locations_router, tags=["locations"])
 app.include_router(areas_router, tags=["areas"])
 app.include_router(sites_router, tags=["sites"])
-app.include_router(collections_router, tags=["collections"])
+app.include_router(tags_router, tags=["tags"])
+app.include_router(hints_router, tags=["hints"])
 app.include_router(items_router, tags=["items"])
 app.include_router(images_router, tags=["images"])
 app.include_router(ai_settings_router, tags=["ai_settings"])

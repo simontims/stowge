@@ -15,10 +15,9 @@ SYSTEM_PROMPT_BASE = (
     "Prefer a practical inventory name over a perfect part number.\n\n"
     "Return concise results:\n"
     "- unknown: true|false\n"
-    "- name: short label (e.g., \"ESP32-WROOM-32 Dev Module\", \"AMS1117-3.3 Regulator Module\")\n"
+    "- name: short label (e.g., \"Makita 18V Drill Driver\", \"USB-C to HDMI Cable 2m\", \"ESP32-WROOM-32 Dev Module\")\n"
     "- description: 1-3 sentences with key markings/features and what to verify. "
     "Do NOT start the description with 'This is a', 'This is an', 'This is', or similar phrasing — write directly about the item.\n"
-    "- collection: module|ic|connector|sensor|passive|devboard|cable|tool|unknown\n"
     "- confidence: 0..1\n"
 )
 
@@ -29,12 +28,11 @@ def _system_prompt(include_evidence: bool) -> str:
 
 
 def _json_schema_one(include_evidence: bool) -> Dict[str, Any]:
-    required = ["unknown", "name", "description", "collection", "confidence"]
+    required = ["unknown", "name", "description", "confidence"]
     properties: Dict[str, Any] = {
         "unknown": {"type": "boolean"},
         "name": {"type": "string"},
         "description": {"type": "string"},
-        "collection": {"type": "string"},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     }
     if include_evidence:
@@ -141,7 +139,6 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dic
     unknown = bool(obj.get("unknown", False))
     name = str(obj.get("name", "")).strip()
     description = str(obj.get("description", "")).strip()
-    collection = str(obj.get("collection", "unknown")).strip().lower() or "unknown"
     evidence = str(obj.get("evidence", "")).strip()
 
     try:
@@ -161,7 +158,6 @@ def _coerce_and_sanitize_one(obj: Dict[str, Any], include_evidence: bool) -> Dic
         "unknown": unknown,
         "name": name,
         "description": description,
-        "collection": collection,
         "confidence": confidence,
     }
     if include_evidence:
@@ -191,7 +187,6 @@ def _sanitize(mode: Mode, parsed: Dict[str, Any], include_evidence: bool) -> Dic
                     "unknown": True,
                     "name": "Unknown part",
                     "description": "Could not confidently identify from photos.",
-                    "collection": "unknown",
                     "confidence": 0.0,
                 }
             )
@@ -207,7 +202,7 @@ def identify(
     mode: Mode = "one",
     model: Optional[str] = None,
     include_evidence: bool = True,
-    collection_context: Optional[str] = None,
+    hint_context: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     images_b64: list of base64 strings (no data: prefix)
@@ -231,11 +226,11 @@ def identify(
 
     # Build multi-modal message content: instruction + images
     prompt_text = _schema_instruction(mode, include_evidence)
-    if collection_context:
+    if hint_context:
         prompt_text = (
             f"{prompt_text}\n"
-            "User-selected collection context (treat as guidance, not certainty):\n"
-            f"{collection_context}\n"
+            "User-selected context (treat as guidance, not certainty):\n"
+            f"{hint_context}\n"
             "Use this context to improve identification quality."
         )
 

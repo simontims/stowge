@@ -3,8 +3,9 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..api_key_auth import ApiKeyAuthContext, require_api_key_scopes
@@ -13,15 +14,56 @@ from ..db import get_db
 from ..helpers.serializers import (
     contents_count_by_item_id,
     serialize_area,
-    serialize_collection,
     serialize_location,
     serialize_part_detail,
     serialize_part_list,
     serialize_site,
+    serialize_tag,
+    tag_item_counts,
+    tags_by_item_id,
 )
-from ..models import Area, Collection, Location, Part, Site
+from ..models import Area, Location, Part, Site, Tag
+from .items import item_has_tag_matching, apply_tag_filter, set_item_tags
+from .tags import (delete_tag_and_references, find_tag_by_name,
+                   rename_tag_references, require_tag_name)
 
 router = APIRouter()
+
+COLLECTION_REMOVED_DETAIL = "collection is no longer supported; use tags"
+
+
+def _reject_collection(payload: dict) -> None:
+    if "collection" in payload or "collection_id" in payload:
+        raise HTTPException(status_code=400, detail=COLLECTION_REMOVED_DETAIL)
+    if "tag_ids" in payload:
+        raise HTTPException(status_code=400, detail="tag_ids is not supported here; send tag names in tags")
+
+
+def _resolve_tag_names(db: Session, raw: object) -> list[str]:
+    """Tag ids for a list of tag NAMES (case-insensitive). Unknown names are an error, never auto-created."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=400, detail="tags must be a list of tag names")
+    ids: list[str] = []
+    for entry in raw:
+        name = str(entry or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Invalid tag")
+        tag = find_tag_by_name(db, name)
+        if tag is None:
+            raise HTTPException(status_code=400, detail=f"Invalid tag: {name}")
+        if tag.id not in ids:
+            ids.append(tag.id)
+    return ids
+
+
+def _tag_names(db: Session, item_ids: list[str]) -> dict[str, list[str]]:
+    return {item_id: [t["name"] for t in tags] for item_id, tags in tags_by_item_id(db, item_ids).items()}
+
+
+def _detail(db: Session, part: Part, location_name: str | None) -> dict:
+    return serialize_part_detail(part, location_name=location_name, tags=_tag_names(db, [part.id]).get(part.id, []))
 
 
 def _default_area_id(db: Session) -> str | None:
@@ -68,7 +110,7 @@ def _list_items(
     db: Session,
     *,
     q: Optional[str] = None,
-    collection_name: Optional[str] = None,
+    tag_values: Optional[list[str]] = None,
     location_name: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 50,
@@ -82,16 +124,13 @@ def _list_items(
             or_(
                 Part.name.ilike(term),
                 Part.description.ilike(term),
-                Part.collection.ilike(term),
+                item_has_tag_matching(term),
                 Location.name.ilike(term),
                 Part.status.ilike(term),
             )
         )
 
-    if collection_name == "__none":
-        query = query.filter(Part.collection.is_(None))
-    elif collection_name:
-        query = query.filter(Part.collection.ilike(collection_name))
+    query = apply_tag_filter(db, query, tag_values)
 
     if location_name:
         query = query.filter(Location.name.ilike(location_name))
@@ -110,11 +149,13 @@ def _list_items(
         location_names = {location_id: name for location_id, name in location_rows}
 
     counts = contents_count_by_item_id(db, [p.id for p in page])
+    names = _tag_names(db, [p.id for p in page])
     return [
         serialize_part_list(
             p,
             location_name=(location_names.get(p.location_id) if p.location_id else None),
             contents_count=counts.get(p.id, 0),
+            tags=names.get(p.id, []),
         )
         for p in page
     ]
@@ -123,18 +164,21 @@ def _list_items(
 @router.get("/v1/items", tags=["items"], summary="List items")
 def v1_list_items(
     q: Optional[str] = None,
-    collection: Optional[str] = None,
+    tag: Optional[list[str]] = Query(default=None),
     location: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["items.read"])),
+    request: Request = None,  # type: ignore[assignment]
 ):
+    if request is not None and "collection" in request.query_params:
+        raise HTTPException(status_code=400, detail=COLLECTION_REMOVED_DETAIL)
     return _list_items(
         db,
         q=q,
-        collection_name=collection,
+        tag_values=tag,
         location_name=location,
         status=status,
         limit=limit,
@@ -157,7 +201,7 @@ def v1_get_item(
         loc = db.query(Location.id, Location.name).filter(Location.id == part.location_id).first()
         if loc:
             location_name = loc.name
-    return serialize_part_detail(part, location_name=location_name)
+    return _detail(db, part, location_name)
 
 
 @router.post("/v1/items", tags=["items"], summary="Create item")
@@ -166,9 +210,10 @@ def v1_create_item(
     db: Session = Depends(get_db),
     _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["items.write"])),
 ):
+    _reject_collection(payload)
     name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
     description = str(payload.get("description") or "").strip() or None
-    collection = str(payload.get("collection") or "").strip() or None
+    tag_ids = _resolve_tag_names(db, payload.get("tags"))
     location_id = str(payload.get("location_id") or "").strip() or None
     status = payload.get("status") or "draft"
     if status not in ("draft", "confirmed"):
@@ -180,11 +225,6 @@ def v1_create_item(
     except (TypeError, ValueError) as ex:
         raise HTTPException(status_code=400, detail="quantity must be an integer") from ex
 
-    if collection:
-        exists = db.query(Collection.id).filter(Collection.name == collection).first()
-        if not exists:
-            raise HTTPException(status_code=400, detail="Invalid collection")
-
     if location_id:
         exists = db.query(Location.id).filter(Location.id == location_id).first()
         if not exists:
@@ -193,12 +233,13 @@ def v1_create_item(
     part = Part(
         name=name,
         description=description,
-        collection=collection,
         location_id=location_id,
         status=status,
         quantity=quantity,
     )
     db.add(part)
+    db.flush()
+    set_item_tags(db, part, tag_ids)
     db.commit()
     db.refresh(part)
 
@@ -207,7 +248,7 @@ def v1_create_item(
         loc = db.query(Location.id, Location.name).filter(Location.id == part.location_id).first()
         if loc:
             location_name = loc.name
-    return serialize_part_detail(part, location_name=location_name)
+    return _detail(db, part, location_name)
 
 
 @router.patch("/v1/items/{item_id}", tags=["items"], summary="Update item")
@@ -217,6 +258,7 @@ def v1_update_item(
     db: Session = Depends(get_db),
     _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["items.write"])),
 ):
+    _reject_collection(payload)
     part = db.query(Part).filter(Part.id == item_id, Part.is_deleted == 0).first()
     if not part:
         raise HTTPException(status_code=404, detail="Not found")
@@ -227,13 +269,8 @@ def v1_update_item(
     if "description" in payload:
         part.description = str(payload.get("description") or "").strip() or None
 
-    if "collection" in payload:
-        collection = str(payload.get("collection") or "").strip() or None
-        if collection:
-            exists = db.query(Collection.id).filter(Collection.name == collection).first()
-            if not exists:
-                raise HTTPException(status_code=400, detail="Invalid collection")
-        part.collection = collection
+    if "tags" in payload:
+        set_item_tags(db, part, _resolve_tag_names(db, payload.get("tags")))
 
     if "location_id" in payload:
         location_id = str(payload.get("location_id") or "").strip() or None
@@ -264,7 +301,7 @@ def v1_update_item(
         loc = db.query(Location.id, Location.name).filter(Location.id == part.location_id).first()
         if loc:
             location_name = loc.name
-    return serialize_part_detail(part, location_name=location_name)
+    return _detail(db, part, location_name)
 
 
 @router.delete("/v1/items/{item_id}", tags=["items"], summary="Delete item")
@@ -283,80 +320,74 @@ def v1_delete_item(
     return {"ok": True}
 
 
-@router.get("/v1/collections", tags=["collections"], summary="List collections")
-def v1_list_collections(
+@router.get("/v1/tags", tags=["tags"], summary="List tags")
+def v1_list_tags(
     limit: int = Query(default=200, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["collections.read"])),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["tags.read"])),
 ):
-    rows = db.query(Collection).order_by(Collection.created_at.asc()).offset(offset).limit(limit).all()
-    if not rows:
-        return []
-
-    names = [col.name for col in rows]
-    counts = dict(
-        db.query(Part.collection, func.count(Part.id))
-        .filter(Part.collection.in_(names), Part.is_deleted == 0)
-        .group_by(Part.collection)
-        .all()
-    )
-
-    return [serialize_collection(col, db, item_count=int(counts.get(col.name, 0))) for col in rows]
+    rows = db.query(Tag).order_by(Tag.created_at.asc(), Tag.name.asc()).offset(offset).limit(limit).all()
+    counts = tag_item_counts(db, [row.id for row in rows])
+    return [serialize_tag(row, counts.get(row.id, 0)) for row in rows]
 
 
-@router.get("/v1/collections/{collection_id}", tags=["collections"], summary="Get collection")
-def v1_get_collection(
-    collection_id: str,
+@router.get("/v1/tags/{tag_id}", tags=["tags"], summary="Get tag")
+def v1_get_tag(
+    tag_id: str,
     db: Session = Depends(get_db),
-    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["collections.read"])),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["tags.read"])),
 ):
-    row = db.query(Collection).filter(Collection.id == collection_id).first()
+    row = db.query(Tag).filter(Tag.id == tag_id).first()
     if not row:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return serialize_collection(row, db)
+        raise HTTPException(status_code=404, detail="Tag not found")
+    return serialize_tag(row, tag_item_counts(db, [row.id]).get(row.id, 0))
 
 
-@router.post("/v1/collections", tags=["collections"], summary="Create collection")
-def v1_create_collection(
+@router.post("/v1/tags", tags=["tags"], summary="Create tag")
+def v1_create_tag(
     payload: dict,
     db: Session = Depends(get_db),
-    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["collections.write"])),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["tags.write"])),
 ):
-    name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
+    name = require_tag_name(payload.get("name"))
     icon = str(payload.get("icon") or "").strip() or None
     color = str(payload.get("color") or "").strip() or None
     description = str(payload.get("description") or "").strip() or None
-    ai_hint = str(payload.get("ai_hint") or "").strip() or None
 
-    existing = db.query(Collection).filter(Collection.name == name).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Collection name already exists")
+    if find_tag_by_name(db, name):
+        raise HTTPException(status_code=400, detail="Tag name already exists")
 
-    row = Collection(name=name, icon=icon, color=color, description=description, ai_hint=ai_hint)
+    row = Tag(name=name, icon=icon, color=color, description=description)
     db.add(row)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the insert
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Tag name already exists")
     db.refresh(row)
-    return serialize_collection(row, db)
+    return serialize_tag(row, 0)
 
 
-@router.patch("/v1/collections/{collection_id}", tags=["collections"], summary="Update collection")
-def v1_update_collection(
-    collection_id: str,
+@router.patch("/v1/tags/{tag_id}", tags=["tags"], summary="Update tag")
+def v1_update_tag(
+    tag_id: str,
     payload: dict,
     db: Session = Depends(get_db),
-    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["collections.write"])),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["tags.write"])),
 ):
-    row = db.query(Collection).filter(Collection.id == collection_id).first()
+    row = db.query(Tag).filter(Tag.id == tag_id).first()
     if not row:
-        raise HTTPException(status_code=404, detail="Collection not found")
+        raise HTTPException(status_code=404, detail="Tag not found")
 
     if "name" in payload:
-        name = require_name(payload.get("name"), min_length=MIN_NAME_LENGTH)
-        existing = db.query(Collection).filter(Collection.name == name, Collection.id != collection_id).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Collection name already exists")
+        name = require_tag_name(payload.get("name"))
+        if find_tag_by_name(db, name, exclude_id=tag_id):
+            raise HTTPException(status_code=400, detail="Tag name already exists")
+        old_name = row.name
         row.name = name
+        if old_name != name:
+            rename_tag_references(db, old_name, name)
 
     if "icon" in payload:
         row.icon = str(payload.get("icon") or "").strip() or None
@@ -367,55 +398,26 @@ def v1_update_collection(
     if "description" in payload:
         row.description = str(payload.get("description") or "").strip() or None
 
-    if "ai_hint" in payload:
-        row.ai_hint = str(payload.get("ai_hint") or "").strip() or None
-
     row.updated_at = datetime.now(timezone.utc)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent request took the name between the check and the update
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Tag name already exists")
     db.refresh(row)
-    return serialize_collection(row, db)
+    return serialize_tag(row, tag_item_counts(db, [row.id]).get(row.id, 0))
 
 
-@router.delete("/v1/collections/{collection_id}", tags=["collections"], summary="Delete collection")
-def v1_delete_collection(
-    collection_id: str,
-    move_to_collection_id: str | None = None,
+@router.delete("/v1/tags/{tag_id}", tags=["tags"], summary="Delete tag")
+def v1_delete_tag(
+    tag_id: str,
     db: Session = Depends(get_db),
-    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["collections.delete"])),
+    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["tags.delete"])),
 ):
-    row = db.query(Collection).filter(Collection.id == collection_id).first()
+    row = db.query(Tag).filter(Tag.id == tag_id).first()
     if not row:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    target_name: str | None = None
-    if move_to_collection_id:
-        target = db.query(Collection).filter(Collection.id == move_to_collection_id).first()
-        if not target:
-            raise HTTPException(status_code=404, detail="Target collection not found")
-        if target.id == row.id:
-            raise HTTPException(status_code=400, detail="Cannot move items to the same collection")
-        target_name = target.name
-
-    db.query(Part).filter(Part.collection == row.name).update({"collection": target_name}, synchronize_session="fetch")
-    db.delete(row)
-    db.commit()
-
-    return {"ok": True, "target_collection": target_name}
-
-
-@router.get("/v1/collections/{collection_id}/items", tags=["collections"], summary="List collection items")
-def v1_list_collection_items(
-    collection_id: str,
-    limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
-    db: Session = Depends(get_db),
-    _ctx: ApiKeyAuthContext = Depends(require_api_key_scopes(["items.read"])),
-):
-    collection = db.query(Collection).filter(Collection.id == collection_id).first()
-    if not collection:
-        raise HTTPException(status_code=404, detail="Collection not found")
-
-    return _list_items(db, collection_name=collection.name, limit=limit, offset=offset)
+        raise HTTPException(status_code=404, detail="Tag not found")
+    return {"ok": True, "items_untagged": delete_tag_and_references(db, row)}
 
 
 @router.get("/v1/sites", tags=["locations"], summary="List sites")

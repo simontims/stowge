@@ -1,7 +1,7 @@
 import uuid
 
-from sqlalchemy import (JSON, Column, DateTime, ForeignKey, Integer, String,
-                        Text, UniqueConstraint)
+from sqlalchemy import (JSON, Column, DateTime, ForeignKey, Index, Integer,
+                        String, Text, UniqueConstraint, func)
 from sqlalchemy.orm import relationship
 
 from .db import Base
@@ -23,10 +23,14 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="admin")  # admin|user
     theme = Column(String, nullable=False, default="dark")  # dark|light
+    # Legacy collection columns: kept for roll-back safety, unread and unwritten since the tags release.
     preferred_add_collection_id = Column(String, nullable=True)
     preferred_add_location_id = Column(String, nullable=True)
     last_open_collection = Column(String, nullable=True)
     collection_nav_order = Column(Text, nullable=True)
+    preferred_add_hint_id = Column(String, nullable=True)  # null = the Default AI hint
+    preferred_add_tag_ids = Column(Text, nullable=True)  # JSON list of tag ids that are sticky on the Add screen
+    last_open_tag = Column(String, nullable=True)  # tag NAME last opened (post-login route)
     shortcut_filters = Column(Text, nullable=True)
     last_seen_note = Column(Integer, nullable=False, default=0)  # What's New cursor: highest note seq dealt with
     welcome_seen_version = Column(Integer, nullable=False, default=0)  # welcome flow version seen; 0 = never
@@ -38,7 +42,7 @@ class Part(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    collection = Column(String, nullable=True, index=True)
+    collection = Column(String, nullable=True, index=True)  # legacy: unread and unwritten since the tags release
     status = Column(String, nullable=False, default="draft")  # draft|confirmed
     quantity = Column(Integer, nullable=False, default=1)
     location_id = Column(String, ForeignKey("locations.id"), nullable=True, index=True)
@@ -52,6 +56,7 @@ class Part(Base):
     is_deleted = Column(Integer, nullable=False, default=0)  # 0|1 soft-delete flag
 
     images = relationship("PartImage", back_populates="part", cascade="all, delete-orphan")
+    tag_links = relationship("ItemTag", back_populates="part", cascade="all, delete-orphan")
     contents = relationship(
         "ItemContentsEntry",
         back_populates="part",
@@ -170,7 +175,48 @@ class Location(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
 
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))  # migrated tags keep their collection id
+    name = Column(String, nullable=False)
+    icon = Column(String, nullable=True)  # lucide icon name, e.g. 'cpu'
+    color = Column(String, nullable=True)  # CSS colour string, e.g. '#60a5fa'
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+    __table_args__ = (
+        Index("uq_tags_name_lower", func.lower(name), unique=True),
+    )
+
+
+class ItemTag(Base):
+    __tablename__ = "item_tags"
+
+    item_id = Column(String, ForeignKey("parts.id"), primary_key=True)
+    tag_id = Column(String, ForeignKey("tags.id"), primary_key=True, index=True)
+
+    part = relationship("Part", back_populates="tag_links")
+
+
+class AiHint(Base):
+    __tablename__ = "ai_hints"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    text = Column(Text, nullable=False, default="")
+    is_default = Column(Integer, nullable=False, default=0)  # 0|1; exactly one row is the built-in Default
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
+
+    __table_args__ = (
+        Index("uq_ai_hints_name_lower", func.lower(name), unique=True),
+    )
+
+
 class Collection(Base):
+    """Legacy table: kept (unread, unwritten) since the tags release for roll-back safety and migration audit."""
     __tablename__ = "collections"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
