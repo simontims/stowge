@@ -61,8 +61,8 @@ describe("Settings tabs", () => {
     expect(screen.getByRole("tab", { name: "Tags" }).getAttribute("aria-selected")).toBe("true");
     expect(await screen.findByText("Cables")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Add Tag/ })).toBeTruthy();
-    expect(screen.getByText("Group items with tags. An item can have several")).toBeTruthy();
-    expect(screen.queryByText("Group items with tags. An item can have several.")).toBeNull(); // not the page-header version
+    expect(screen.getByText("Items can have one or more tags.")).toBeTruthy();
+    expect(screen.queryByText(/Group items with tags/)).toBeNull();
   });
 
   it("?tab=hints opens the AI hints tab, and clicking tabs switches between them", async () => {

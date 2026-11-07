@@ -294,9 +294,9 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <div className="space-y-5">
       {embedded ? (
-        <p className="text-sm text-neutral-500">Group items with tags. An item can have several</p>
+        <p className="text-sm text-neutral-500">Items can have one or more tags.</p>
       ) : (
-        <PageHeader title="Tags" description="Group items with tags. An item can have several." />
+        <PageHeader title="Tags" description="Items can have one or more tags." />
       )}
 
       <StatusMessage error={formOpen ? "" : error} notice="" />
