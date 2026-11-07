@@ -9,8 +9,10 @@ import { WELCOME_TOUR_TARGETS, buildWelcomeSteps } from "../src/components/onboa
 afterEach(cleanup);
 
 describe("WelcomeModal", () => {
-  it("is a dialog titled Welcome to Stowge with a short explanation", () => {
+  it("is a dialog titled Welcome to Stowge with a short explanation (tags, not collections)", () => {
     render(<WelcomeModal onTakeTour={() => {}} onClose={() => {}} />);
+    expect(screen.queryByText(/collections/i)).toBeNull();
+    expect(screen.getByText(/tag them/)).toBeTruthy();
     expect(screen.getByRole("dialog", { name: "Welcome to Stowge" })).toBeTruthy();
     expect(screen.getByText(/keeps track of what you own/)).toBeTruthy();
   });
@@ -42,8 +44,25 @@ describe("welcome tour steps", () => {
     expect(String(steps[steps.length - 1].target)).toBe("[data-tour='user-menu']");
   });
 
+  it("the Filters step points at the menu's Filters heading (nav-tags and nav-collections are gone)", () => {
+    expect(WELCOME_TOUR_TARGETS).toContain("menu-filters");
+    expect([...WELCOME_TOUR_TARGETS]).not.toContain("nav-tags");
+    expect([...WELCOME_TOUR_TARGETS]).not.toContain("nav-collections");
+    const steps = buildWelcomeSteps(false);
+    expect(steps.map((s) => String(s.target))).toContain("[data-tour='menu-filters']");
+    expect(steps.map((s) => String(s.title))).toContain("Filters");
+    expect(steps.map((s) => String(s.title))).not.toContain("Collections");
+  });
+
+  it("the welcome copy mentions tags and the AI hint picker on the Add screen", () => {
+    const text = JSON.stringify(buildWelcomeSteps(true).map((s) => s.content));
+    expect(text).toMatch(/an item can have several/);
+    expect(text).toMatch(/AI hint/);
+    expect(text).not.toMatch(/ollection/);
+  });
+
   it("every element the tour points at still exists in the layout source (stops the tour going stale)", () => {
-    const layout = ["Sidebar.tsx", "Topbar.tsx"]
+    const layout = ["Sidebar.tsx", "Topbar.tsx", "PinnedFilterList.tsx"]
       .map((file) => readFileSync(resolve(__dirname, "../src/components/layout", file), "utf8"))
       .join("\n");
     const nav = readFileSync(resolve(__dirname, "../src/config/nav.ts"), "utf8");
@@ -53,7 +72,8 @@ describe("welcome tour steps", () => {
         expect(layout).toContain("data-tour={`nav-${item.route.replace(\"/\", \"\")}`}");
         expect(nav).toContain(`route: "/${name.slice(4)}"`);
       } else {
-        expect(layout).toContain(`data-tour="${name}"`);
+        // A literal data-tour, or a TourId prop the sidebar passes to the shared PinnedFilterList.
+        expect(layout.includes(`data-tour="${name}"`) || layout.includes(`TourId="${name}"`)).toBe(true);
       }
     }
     const used = buildWelcomeSteps(true).map((s) => String(s.target));

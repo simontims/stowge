@@ -21,10 +21,10 @@ function makeUser(unseen: WhatsNewNote[] = []): CurrentUser {
     lastname: "B",
     role: "user",
     theme: "dark",
-    preferred_add_collection_id: null,
+    preferred_add_hint_id: null,
+    preferred_add_tag_ids: [],
     preferred_add_location_id: null,
-    last_open_collection: null,
-    collection_nav_order: [],
+    last_open_tag: null,
     shortcut_filters: [],
     whats_new: {
       latest_seq: unseen.length,
@@ -82,9 +82,9 @@ describe("groupByVersion", () => {
   });
 });
 
-describe("release 1", () => {
-  it("ships no guided tours", () => {
-    expect(WHATS_NEW_TOURS).toEqual({});
+describe("tours registry", () => {
+  it("only notes with a registered tour get a Show me; release 2 registers tags-and-hints", () => {
+    expect(Object.keys(WHATS_NEW_TOURS)).toEqual(["tags-and-hints"]);
   });
 });
 

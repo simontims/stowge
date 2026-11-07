@@ -11,8 +11,8 @@ import { solidActionButtonClasses, tableActionButtonClasses } from "../component
 import { USER_NAV_PREFERENCES_UPDATED_EVENT } from "../config/nav";
 import { useTableSort } from "../hooks/useTableSort";
 import { apiRequest } from "../lib/api";
-import type { AreaOption, CollectionOption, CurrentUser, LocationOption, SiteOption } from "../lib/types";
-import { normalizeShortcutFilter, type ShortcutFilter } from "../lib/shortcutFilters";
+import type { AreaOption, CurrentUser, LocationOption, SiteOption, Tag } from "../lib/types";
+import { UNTAGGED, normalizeShortcutFilter, type ShortcutFilter } from "../lib/shortcutFilters";
 
 type ShortcutSortKey = "name" | "query" | "pinned";
 
@@ -20,7 +20,7 @@ interface ShortcutFormState {
   id: string;
   name: string;
   query: string;
-  collection: string;
+  tag_id: string;
   statuses: string[];
   site_id: string;
   area_id: string;
@@ -35,7 +35,7 @@ interface ShortcutFormState {
 }
 
 interface ItemsBootstrapPayload {
-  collections?: CollectionOption[];
+  tags?: Tag[];
   sites?: SiteOption[];
   areas?: AreaOption[];
   locations?: LocationOption[];
@@ -46,7 +46,7 @@ const EMPTY_FORM: ShortcutFormState = {
   id: "",
   name: "",
   query: "",
-  collection: "",
+  tag_id: "",
   statuses: [],
   site_id: "",
   area_id: "",
@@ -114,7 +114,7 @@ function toForm(row: ShortcutFilter): ShortcutFormState {
     id: row.id,
     name: row.name,
     query: row.query,
-    collection: row.collection || "",
+    tag_id: row.tag_id || "",
     statuses,
     site_id: row.site_id || "",
     area_id: row.area_id || "",
@@ -150,7 +150,7 @@ function fromForm(form: ShortcutFormState): ShortcutFilter {
     id: form.id,
     name: form.name,
     query: form.query,
-    collection: form.collection || null,
+    tag_id: form.tag_id || null,
     statuses: form.statuses,
     status: form.statuses.length === 1 ? form.statuses[0] : null,
     site_id: form.site_id || null,
@@ -162,6 +162,13 @@ function fromForm(form: ShortcutFormState): ShortcutFilter {
     icon: form.icon || null,
     color: form.color || null,
   });
+}
+
+/** How a filter's tag shows in the table: the tag name, "Untagged", or "Any tag". */
+function tagScopeLabel(tagId: string | null, tagById: Map<string, Tag>, withAny: boolean): string {
+  if (!tagId) return withAny ? "Any tag" : "";
+  if (tagId === UNTAGGED) return "Untagged";
+  return tagById.get(tagId)?.name ?? (withAny ? "Tag" : "");
 }
 
 function quantitySummary(row: ShortcutFilter): string {
@@ -176,12 +183,12 @@ function quantitySummary(row: ShortcutFilter): string {
   return "Any";
 }
 
-export function SettingsShortcutsPage() {
+export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [loading, setLoading] = useState(false);
   const [modalSaving, setModalSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
-  const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [sites, setSites] = useState<SiteOption[]>([]);
   const [areas, setAreas] = useState<AreaOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -213,6 +220,8 @@ export function SettingsShortcutsPage() {
     return index;
   }, [areas]);
 
+  const tagById = useMemo(() => new Map(tags.map((tag) => [tag.id, tag])), [tags]);
+
   const locationById = useMemo(() => {
     const index = new Map<string, LocationOption>();
     for (const location of locations) {
@@ -231,7 +240,7 @@ export function SettingsShortcutsPage() {
       const parts = [
         row.name,
         row.query,
-        row.collection || "",
+        tagScopeLabel(row.tag_id, tagById, false),
         row.statuses.join(", "),
         row.site_id ? siteById.get(row.site_id)?.name || "" : "",
         row.area_id ? areaById.get(row.area_id)?.name || "" : "",
@@ -345,7 +354,7 @@ export function SettingsShortcutsPage() {
       toast.success(successMessage);
       return true;
     } catch (err) {
-      toast.error((err as Error).message || "Failed to save shortcut filters.");
+      toast.error((err as Error).message || "Failed to save filters.");
       return false;
     }
   }
@@ -361,7 +370,7 @@ export function SettingsShortcutsPage() {
 
       const shortcutRows = normalizeList(me.shortcut_filters || []);
       setShortcuts(shortcutRows);
-      setCollections(bootstrap.collections || []);
+      setTags(bootstrap.tags || []);
       setSites(bootstrap.sites || []);
       setAreas(bootstrap.areas || []);
       setLocations(bootstrap.locations || []);
@@ -373,7 +382,7 @@ export function SettingsShortcutsPage() {
       );
       setStatusOptions(mergedStatuses);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to load shortcut filters.");
+      toast.error((err as Error).message || "Failed to load filters.");
     } finally {
       setLoading(false);
     }
@@ -516,10 +525,10 @@ export function SettingsShortcutsPage() {
         render: (row) => <span className="text-neutral-400">{row.query || "-"}</span>,
       },
       {
-        key: "collection",
+        key: "tag_id",
         header: "Scope",
         render: (row) => {
-          const collection = row.collection === "__none" ? "No collection" : (row.collection || "Any collection");
+          const tag = tagScopeLabel(row.tag_id, tagById, true);
           const status = row.statuses.length > 0 ? `Status: ${row.statuses.join(", ")}` : "Any status";
           const site = row.site_id ? siteById.get(row.site_id)?.name || "Site" : "Any site";
           const area = row.area_id ? areaById.get(row.area_id)?.name || "Area" : "Any area";
@@ -527,7 +536,7 @@ export function SettingsShortcutsPage() {
 
           return (
             <span className="text-neutral-400 text-xs leading-5">
-              {collection} · {status} · {site} / {area} / {location}
+              {tag} · {status} · {site} / {area} / {location}
             </span>
           );
         },
@@ -562,12 +571,12 @@ export function SettingsShortcutsPage() {
 
   const emptyMessage = useMemo(() => {
     if (loading) {
-      return "Loading shortcut filters...";
+      return "Loading filters...";
     }
     if (search.trim()) {
-      return "No shortcut filters match your search.";
+      return "No filters match your search.";
     }
-    return "No shortcut filters yet. Add your first filter.";
+    return "No filters yet. Add your first filter.";
   }, [loading, search]);
 
   const modalOpen = addingOpen || Boolean(editingId);
@@ -575,10 +584,14 @@ export function SettingsShortcutsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Settings"
-        description="Create reusable item filter shortcuts and pin the important ones to navigation."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Settings"
+          description="Save item filters and pin the important ones to the menu."
+        />
+      )}
+
+      {embedded && <p className="text-sm text-neutral-500">Saved searches you can pin to the menu</p>}
 
       <ListToolbar
         search={search}
@@ -666,7 +679,7 @@ export function SettingsShortcutsPage() {
               <div className="flex items-center gap-3 md:col-span-2">
                 <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
                 <IconColorPicker
-                  title={form.name || "Shortcut"}
+                  title={form.name || "Filter"}
                   value={form.icon}
                   onChange={(name) => updateForm("icon", name)}
                   color={form.color}
@@ -675,16 +688,16 @@ export function SettingsShortcutsPage() {
               </div>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Collection</span>
+                <span className="text-xs uppercase tracking-wide text-neutral-500">Tag</span>
                 <select
-                  value={form.collection}
-                  onChange={(event) => updateForm("collection", event.target.value)}
+                  value={form.tag_id}
+                  onChange={(event) => updateForm("tag_id", event.target.value)}
                   className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
                 >
-                  <option value="">Any collection</option>
-                  <option value="__none">No collection</option>
-                  {collections.map((option) => (
-                    <option key={option.id} value={option.name}>{option.name}</option>
+                  <option value="">Any</option>
+                  <option value={UNTAGGED}>Untagged</option>
+                  {tags.map((option) => (
+                    <option key={option.id} value={option.id}>{option.name}</option>
                   ))}
                 </select>
               </label>

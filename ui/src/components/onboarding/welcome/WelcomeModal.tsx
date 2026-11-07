@@ -23,7 +23,7 @@ export function WelcomeModal({ onTakeTour, onClose }: WelcomeModalProps) {
         </div>
         <div className="mt-3 space-y-2 text-sm leading-6 text-neutral-400">
           <p>Stowge keeps track of what you own and where it lives.</p>
-          <p>Add items with a photo and let AI suggest the details, group them into collections, and find them again with search and pinned filters.</p>
+          <p>Add items with a photo and let AI suggest the details, tag them so an item can sit in several groups, and find them again with search and pinned filters.</p>
           <p>The tour takes about a minute. You can replay it any time from your user menu.</p>
         </div>
         <div className="mt-6 flex justify-end gap-2">

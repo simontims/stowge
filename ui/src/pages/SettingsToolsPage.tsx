@@ -5,7 +5,7 @@ import { buildLocationDisplayLabel } from "../lib/locationHierarchy";
 import type { LocationOption } from "../lib/types";
 import { solidActionButtonClasses, outlinedActionButtonClasses } from "../components/ui/buttonStyles";
 
-interface CollectionOption {
+interface TagOption {
   name: string;
 }
 
@@ -16,10 +16,10 @@ interface ToolsSectionProps {
 }
 
 export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, saveFnRef }: ToolsSectionProps = {}) {
-  const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [tags, setTags] = useState<TagOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [scope, setScope] = useState<"active" | "deleted" | "all">("active");
-  const [collection, setCollection] = useState("");
+  const [tag, setTag] = useState("");
   const [location, setLocation] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
@@ -34,11 +34,14 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
   const [preview, setPreview] = useState<{
     item_count: number;
     parse_errors: string[];
-    missing_collections: string[];
+    missing_tags: string[];
     missing_sites: string[];
     missing_areas: string[];
     missing_locations: string[];
+    invalid_tags?: string[];
   } | null>(null);
+
+  const invalidTags = preview?.invalid_tags ?? [];
 
   // This page is read-only — never dirty
   useEffect(() => {
@@ -59,10 +62,10 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
   async function loadFilters() {
     try {
-      const data = await apiRequest<{ collections: CollectionOption[]; locations: LocationOption[] }>(
+      const data = await apiRequest<{ tags: TagOption[]; locations: LocationOption[] }>(
         "/api/items/bootstrap"
       );
-      setCollections(data.collections || []);
+      setTags(data.tags || []);
       setLocations(data.locations || []);
     } catch {
       // Non-critical — filters just won't populate
@@ -112,7 +115,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
   }
 
   async function handleImport(
-    createCollections: boolean,
+    createTags: boolean,
     createSites: boolean,
     createAreas: boolean,
     createLocations: boolean,
@@ -123,7 +126,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
     setImportNotice("");
 
     const params = new URLSearchParams();
-    if (createCollections) params.set("create_collections", "true");
+    if (createTags) params.set("create_tags", "true");
     if (createSites) params.set("create_sites", "true");
     if (createAreas) params.set("create_areas", "true");
     if (createLocations) params.set("create_locations", "true");
@@ -149,7 +152,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
       }
 
       const parts: string[] = [`${data.imported} item${data.imported !== 1 ? "s" : ""} imported`];
-      if (data.collections_created) parts.push(`${data.collections_created} collection${data.collections_created !== 1 ? "s" : ""} created`);
+      if (data.tags_created) parts.push(`${data.tags_created} tag${data.tags_created !== 1 ? "s" : ""} created`);
       if (data.sites_created) parts.push(`${data.sites_created} site${data.sites_created !== 1 ? "s" : ""} created`);
       if (data.areas_created) parts.push(`${data.areas_created} area${data.areas_created !== 1 ? "s" : ""} created`);
       if (data.locations_created) parts.push(`${data.locations_created} location${data.locations_created !== 1 ? "s" : ""} created`);
@@ -160,7 +163,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
       setPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      // Reload filters in case new collections/locations were created
+      // Reload filters in case new tags/locations were created
       void loadFilters();
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Import failed");
@@ -175,7 +178,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
     const params = new URLSearchParams();
     params.set("scope", scope);
-    if (collection) params.set("collection", collection);
+    if (tag) params.set("tag", tag);
     if (location) params.set("location", location);
 
     try {
@@ -235,7 +238,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
         <div>
           <h2 className="text-lg font-medium text-neutral-100">Export to CSV</h2>
           <p className="mt-1 text-sm text-neutral-400">
-            Download your inventory as a CSV file. Includes item name, description, collection,
+            Download your inventory as a CSV file. Includes item name, description, tags,
             location, status, quantity, contents, and timestamps.
           </p>
         </div>
@@ -257,18 +260,18 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
             </select>
           </div>
 
-          {/* Collection Filter */}
+          {/* Tag Filter */}
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-1.5">
-              Collection <span className="text-neutral-500 font-normal">(optional)</span>
+              Tag <span className="text-neutral-500 font-normal">(optional)</span>
             </label>
             <select
-              value={collection}
-              onChange={(e) => setCollection(e.target.value)}
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
               className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
             >
-              <option value="">All collections</option>
-              {collections.map((c) => (
+              <option value="">All tags</option>
+              {tags.map((c) => (
                 <option key={c.name} value={c.name}>
                   {c.name}
                 </option>
@@ -319,14 +322,18 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
             Import items from a CSV file. The file should include columns for{" "}
             <span className="text-neutral-300">name</span> (required),{" "}
             <span className="text-neutral-300">description</span>,{" "}
-            <span className="text-neutral-300">collection</span>,{" "}
+            <span className="text-neutral-300">tags</span> (separate several with <span className="text-neutral-300">;</span>),{" "}
             <span className="text-neutral-300">location</span>,{" "}
             <span className="text-neutral-300">status</span> (draft or confirmed), and{" "}
             <span className="text-neutral-300">quantity</span>.
           </p>
           <p className="mt-2 text-sm text-neutral-500">
-            Collections and locations are matched by name (case-insensitive). If any don't exist yet,
+            Tags and locations are matched by name (case-insensitive). If any don't exist yet,
             you'll be asked whether to create them before the import proceeds.
+          </p>
+          {/* Legacy CSV note: the one place the old name still appears */}
+          <p className="mt-2 text-sm text-neutral-500">
+            Older files with a <span className="text-neutral-300">collection</span> column still import: that value becomes one tag.
           </p>
         </div>
 
@@ -375,13 +382,13 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
                 </div>
               )}
 
-              {preview.missing_collections.length > 0 && (
+              {preview.missing_tags.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-amber-400">
-                    Missing collections ({preview.missing_collections.length})
+                    Missing tags ({preview.missing_tags.length})
                   </p>
                   <p className="text-xs text-neutral-400">
-                    {preview.missing_collections.join(", ")}
+                    {preview.missing_tags.join(", ")}
                   </p>
                 </div>
               )}
@@ -419,7 +426,22 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
                 </div>
               )}
 
-              {(preview.missing_collections.length > 0 || preview.missing_sites.length > 0 || preview.missing_areas.length > 0 || preview.missing_locations.length > 0) && (
+              {invalidTags.length > 0 && (
+                <div className="space-y-1 rounded-md border border-red-800 bg-red-950/30 p-3" role="alert">
+                  <p className="text-sm font-medium text-red-400 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Invalid tag names ({invalidTags.length})
+                  </p>
+                  <p className="text-xs text-neutral-300">
+                    These tag names cannot be used (too short or containing ;): {invalidTags.join(", ")}
+                  </p>
+                  <p className="text-xs text-neutral-400">
+                    Edit the tag names in your CSV file, then choose it again to import.
+                  </p>
+                </div>
+              )}
+
+              {(preview.missing_tags.length > 0 || preview.missing_sites.length > 0 || preview.missing_areas.length > 0 || preview.missing_locations.length > 0) && (
                 <p className="text-sm text-neutral-400">
                   These will be created automatically when you confirm the import.
                 </p>
@@ -429,12 +451,12 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
                 <button
                   type="button"
                   onClick={() => void handleImport(
-                    preview.missing_collections.length > 0,
+                    preview.missing_tags.length > 0,
                     preview.missing_sites.length > 0,
                     preview.missing_areas.length > 0,
                     preview.missing_locations.length > 0,
                   )}
-                  disabled={importing || preview.item_count === 0}
+                  disabled={importing || preview.item_count === 0 || invalidTags.length > 0}
                   className={`${solidActionButtonClasses("positive")} px-3 py-1.5`}
                 >
                   <Upload className="h-4 w-4" />
