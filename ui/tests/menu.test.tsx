@@ -85,6 +85,8 @@ describe("Add Item and All items", () => {
     const add = screen.getByRole("link", { name: "Add Item" });
     expect(add.className).toContain("border-emerald-500/70");
     expect(add.className).not.toContain("bg-emerald-600");
+    expect(add.className).toContain("w-full"); // spans the menu like the rows, not just its label
+    expect((add.parentElement as HTMLElement).className).toContain("px-2");
     const block = screen.getByTestId("menu-primary-links");
     expect(block.className).toContain("shrink-0");
     expect(block.closest(".overflow-y-auto")).toBeNull();
@@ -114,6 +116,7 @@ describe("Add Item and All items", () => {
     const add = screen.getByRole("link", { name: "Add Item" });
     expect(add.getAttribute("title")).toBe("Add Item");
     expect(add.textContent).toBe("");
+    expect((add.parentElement as HTMLElement).className).toContain("justify-center"); // centred in the 64px rail
     const all = screen.getByRole("link", { name: "All items" });
     expect(all.getAttribute("title")).toBe("All items");
     expect(all.textContent).toBe("");
