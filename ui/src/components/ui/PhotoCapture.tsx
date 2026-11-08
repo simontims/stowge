@@ -32,7 +32,7 @@ export function PhotoCapture({
           <button
             onClick={onTakePicture}
             disabled={disabled || atMax}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-border-strong rounded-md text-sm text-body hover:text-on-solid hover:border-border-focus disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-border-strong rounded-md text-sm text-body hover:text-heading hover:border-border-focus disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Camera size={16} />
             Take photo

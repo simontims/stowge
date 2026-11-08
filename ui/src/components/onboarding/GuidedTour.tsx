@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EVENTS, Joyride, STATUS, type EventData, type Step } from "react-joyride";
 
 /** Size of an element as the browser lays it out. Injected in tests, since jsdom has no layout. */
@@ -41,6 +41,17 @@ interface GuidedTourProps {
 
 /** A guided tour (react-joyride) with the app's settings. The X ends the tour (there is no Skip),
  *  Escape ends it, and every run starts at step 1. Shared by the welcome tour and What's New tours. */
+/** Changes whenever the page's data-theme attribute does, so colours read from CSS variables stay current. */
+function useThemeKey(): string {
+  const [key, setKey] = useState(() => document.documentElement.dataset.theme ?? "dark");
+  useEffect(() => {
+    const observer = new MutationObserver(() => setKey(document.documentElement.dataset.theme ?? "dark"));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+  return key;
+}
+
 export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
   // Joyride keeps its step position after the tour is stopped from outside (Escape, the X, the
   // menu item), so the next run would resume part-way. Give every run a fresh instance instead,
@@ -87,9 +98,15 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
   }
 
   // The tour's colours come from the same roles as the rest of the UI, so it follows the theme.
+  const themeKey = useThemeKey();
   const role = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
-  const tooltipBg = role("surface-2");
-  const accent = role("info-600");
+  // Recomputed only when the theme changes (themeKey), not on every render.
+  const colours = useMemo(() => ({
+    tooltipBg: role("surface-2"), accent: role("info-600"), heading: role("heading"), secondary: role("secondary"),
+    borderStrong: role("border-strong"), onSolid: role("on-solid"),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [themeKey]);
+  const { tooltipBg, accent } = colours;
 
   return (
     <Joyride
@@ -104,7 +121,7 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
         backgroundColor: tooltipBg,
         overlayColor: "rgba(0,0,0,0.55)",
         primaryColor: accent,
-        textColor: role("heading"),
+        textColor: colours.heading,
         // One control ends the tour: the X. (Joyride's default X advances a step, which is confusing.)
         closeButtonAction: "skip",
         dismissKeyAction: false,
@@ -114,11 +131,11 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
       }}
       locale={{ back: "Back", close: "Close tour", last: "Done", next: "Next" }}
       styles={{
-        tooltip: { border: `1px solid ${role("border-strong")}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)" },
+        tooltip: { border: `1px solid ${colours.borderStrong}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)" },
         floater: { transition: "none" },
         tooltipTitle: { fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.4rem" },
-        buttonBack: { color: role("secondary") },
-        buttonPrimary: { backgroundColor: accent, color: role("on-solid"), fontWeight: 600 },
+        buttonBack: { color: colours.secondary },
+        buttonPrimary: { backgroundColor: accent, color: colours.onSolid, fontWeight: 600 },
       }}
     />
   );

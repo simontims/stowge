@@ -319,7 +319,7 @@ export function IconColorPicker({
                               className={[
                                 "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border text-xs transition-colors",
                                 value === ""
-                                  ? "border-border-inverse bg-surface-2/60 text-on-solid"
+                                  ? "border-border-inverse bg-surface-2/60 text-heading"
                                   : "border-border-strong text-subtle hover:border-border-focus hover:text-secondary",
                               ].join(" ")}
                             >
@@ -337,7 +337,7 @@ export function IconColorPicker({
                               className={[
                                 "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border transition-colors",
                                 value === name
-                                  ? "border-border-inverse bg-surface-2/60 text-on-solid"
+                                  ? "border-border-inverse bg-surface-2/60 text-heading"
                                   : "border-border-strong text-muted hover:border-border-focus hover:text-body",
                               ].join(" ")}
                             >
