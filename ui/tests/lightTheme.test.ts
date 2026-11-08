@@ -16,4 +16,8 @@ describe("light theme: Add page action bar", () => {
     const bars = addPage.match(/sticky bottom-0[^"]*bg-neutral-900\/95/g) ?? [];
     expect(bars).toHaveLength(2);
   });
+
+  it("the menu's Add Item current-page tint has a light override too, not a muddy dark green", () => {
+    expect(css).toMatch(/:root\[data-theme="light"\] \.\\!bg-emerald-900\\\/50\s*\{[^}]*rgb\(167 243 208\)/);
+  });
 });

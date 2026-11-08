@@ -131,6 +131,9 @@
 :root[data-theme="light"] .bg-emerald-950\/40 {
   background-color: rgb(209 250 229) !important; /* emerald-100 */
 }
+:root[data-theme="light"] .\!bg-emerald-900\/50 {
+  background-color: rgb(167 243 208) !important; /* emerald-200: the current-page tint of the menu's Add Item */
+}
 :root[data-theme="light"] .text-emerald-300 {
   color: rgb(4 120 87) !important; /* emerald-700 */
 }
