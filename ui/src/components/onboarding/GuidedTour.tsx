@@ -86,6 +86,11 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) onFinish();
   }
 
+  // The tour's colours come from the same roles as the rest of the UI, so it follows the theme.
+  const role = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+  const tooltipBg = role("surface-2");
+  const accent = role("info-600");
+
   return (
     <Joyride
       key={instance}
@@ -95,11 +100,11 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
       onEvent={handleEvent}
       options={{
         zIndex: 2000,
-        arrowColor: "#262626",
-        backgroundColor: "#262626",
+        arrowColor: tooltipBg,
+        backgroundColor: tooltipBg,
         overlayColor: "rgba(0,0,0,0.55)",
-        primaryColor: "#2563eb",
-        textColor: "#f5f5f5",
+        primaryColor: accent,
+        textColor: role("heading"),
         // One control ends the tour: the X. (Joyride's default X advances a step, which is confusing.)
         closeButtonAction: "skip",
         dismissKeyAction: false,
@@ -109,11 +114,11 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
       }}
       locale={{ back: "Back", close: "Close tour", last: "Done", next: "Next" }}
       styles={{
-        tooltip: { border: "1px solid #404040", borderRadius: 10, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)" },
+        tooltip: { border: `1px solid ${role("border-strong")}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)" },
         floater: { transition: "none" },
         tooltipTitle: { fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.4rem" },
-        buttonBack: { color: "#d4d4d4" },
-        buttonPrimary: { backgroundColor: "#2563eb", color: "#ffffff", fontWeight: 600 },
+        buttonBack: { color: role("secondary") },
+        buttonPrimary: { backgroundColor: accent, color: role("on-solid"), fontWeight: 600 },
       }}
     />
   );
