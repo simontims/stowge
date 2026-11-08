@@ -19,9 +19,9 @@
   --surface-5: var(--color-neutral-500);
   --surface-6: var(--color-neutral-300);
   --border: var(--color-neutral-800);
-  --border-strong: var(--color-neutral-700);
-  --border-hover: var(--color-neutral-600);
-  --border-focus: var(--color-neutral-500);
+  --border-strong: var(--color-neutral-500);
+  --border-hover: var(--color-neutral-400);
+  --border-focus: var(--color-blue-400);
   --border-inverse: var(--color-neutral-100);
   --border-faint: var(--color-neutral-900);
   --border-bright: var(--color-neutral-300);
@@ -29,11 +29,11 @@
   --body: var(--color-neutral-200);
   --secondary: var(--color-neutral-300);
   --muted: var(--color-neutral-400);
-  --subtle: var(--color-neutral-500);
-  --faint: var(--color-neutral-600);
-  --ghost: var(--color-neutral-800);
+  --subtle: #959595;
+  --faint: #8f8f8f;
+  --ghost: var(--color-neutral-500);
   --disabled-bg: var(--color-neutral-800);
-  --disabled-fg: var(--color-neutral-400);
+  --disabled-fg: var(--color-neutral-500);
   --disabled-border: var(--color-neutral-700);
   --selected: color-mix(in oklab, var(--color-neutral-800) 80%, transparent);
   --accent-muted: var(--color-neutral-400);
@@ -45,7 +45,7 @@
   --success-300: var(--color-emerald-300);
   --success-400: var(--color-emerald-400);
   --success-500: var(--color-emerald-500);
-  --success-600: var(--color-emerald-600);
+  --success-600: var(--color-emerald-700);
   --success-700: var(--color-emerald-700);
   --success-900: var(--color-emerald-900);
   --success-950: var(--color-emerald-950);

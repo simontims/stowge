@@ -310,7 +310,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           <div className="inline-flex items-center gap-2">
             <span>{row.name}</span>
             {row.is_default && (
-              <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-success-600 text-success-700 bg-success-50 dark:border-success-500 dark:text-success-300 dark:bg-success-950/40">
+              <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-success-500 text-success-300 bg-success-950/40">
                 <Star size={11} />
                 Default
               </span>

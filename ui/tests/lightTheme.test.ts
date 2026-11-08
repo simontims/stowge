@@ -188,4 +188,47 @@ describe("disabled controls use the disabled roles, not opacity", () => {
     }
     expect(hits).toEqual([]);
   });
+
+  it("no dark: variants anywhere (the theme is the data-theme attribute, so dark: never fires)", () => {
+    const hits: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+        if (/(?<![\w-])dark:[a-z]/.test(line)) hits.push(`${relative(SRC, file)}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
+});
+
+/** Dark roles that are palette references: Tailwind neutral hexes, to check the dark theme against AA too. */
+const NEUTRAL: Record<string, string> = {
+  "neutral-100": "#f5f5f5", "neutral-200": "#e5e5e5", "neutral-300": "#d4d4d4", "neutral-400": "#a3a3a3",
+  "neutral-500": "#737373", "neutral-600": "#525252", "neutral-700": "#404040", "neutral-800": "#262626",
+  "neutral-900": "#171717", "neutral-950": "#0a0a0a", "blue-400": "#51a2ff",
+};
+function darkHex(role: string): string {
+  const v = dark.get(role) as string;
+  if (v.startsWith("#")) return v;
+  const m = v.match(/var\(--color-([a-z0-9-]+)\)/);
+  return NEUTRAL[m![1]];
+}
+
+describe("dark theme contrast (WCAG AA)", () => {
+  const grounds = ["canvas", "surface", "surface-2"];
+  it.each(["heading", "body", "secondary", "muted", "subtle", "faint"])("text-%s is at least 4.5:1 on canvas, surface and surface-2", (role) => {
+    for (const ground of grounds) expect(contrast(darkHex(role), darkHex(ground))).toBeGreaterThanOrEqual(4.5);
+  });
+  it("control borders (border-strong) and the focus border are at least 3:1 on canvas, surface and surface-2", () => {
+    for (const role of ["border-strong", "border-focus"]) {
+      for (const ground of grounds) expect(contrast(darkHex(role), darkHex(ground))).toBeGreaterThanOrEqual(3);
+    }
+  });
+  it("non-text roles (ghost, surface-5, surface-6) are at least 3:1 on canvas, surface and surface-2", () => {
+    for (const role of ["ghost", "surface-5", "surface-6"]) {
+      for (const ground of grounds) expect(contrast(darkHex(role), darkHex(ground))).toBeGreaterThanOrEqual(3);
+    }
+  });
+  it("white text on the solid success fill is at least 4.5:1", () => {
+    expect(contrast(darkHex("on-solid"), (dark.get("success-600") as string).startsWith("#") ? (dark.get("success-600") as string) : "#007a55")).toBeGreaterThanOrEqual(4.5);
+  });
 });
