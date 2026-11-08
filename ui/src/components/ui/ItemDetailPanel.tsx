@@ -172,7 +172,7 @@ export function ItemDetailPanel({
                           }
                         }}
                         disabled={settingPrimary}
-                        className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border transition-colors"
+                        className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors"
                       >
                         <Star size={10} />
                         {settingPrimary ? "Setting…" : "Make primary"}
@@ -321,7 +321,7 @@ export function ItemDetailPanel({
                 onClick={onSave}
                 disabled={!hasDirtyChanges || savingDetail}
                 className={[
-                  "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border text-sm font-semibold",
+                  "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-sm font-semibold",
                   hasDirtyChanges
                     ? "border-success-500 bg-success-600 text-on-solid hover:bg-success-500"
                     : "border-border-strong bg-surface text-subtle",

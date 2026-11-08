@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Menu, Moon, Sparkles, Sun, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { chooseTheme, setTheme, useTheme, type ThemeMode } from "../../lib/theme";
+import { chooseTheme, setTheme, useTheme } from "../../lib/theme";
 import { ThemeSelector } from "../ui/ThemeSelector";
 import { useCurrentUser } from "../../lib/UserContext";
 import { UnreadDot } from "../ui/UnreadDot";
@@ -88,10 +88,6 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
     onLogout();
   }
 
-  function handleThemeChange(nextTheme: ThemeMode) {
-    chooseTheme(nextTheme);
-  }
-
   return (
     <>
       <header className="h-14 border-b border-border bg-surface flex items-center gap-3 px-4 shrink-0">
@@ -107,7 +103,7 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
         <div className="flex-1" />
 
         <button
-          onClick={() => handleThemeChange(themeMode === "dark" ? "light" : "dark")}
+          onClick={() => chooseTheme(themeMode === "dark" ? "light" : "dark")}
           className="shrink-0 p-1.5 rounded-md text-muted hover:text-heading hover:bg-surface-2 transition-colors"
           aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >

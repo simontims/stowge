@@ -1398,7 +1398,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <button
                 onClick={() => setConfirmDeleteConfig(null)}
                 disabled={deletingId === confirmDeleteConfig.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
               >
                 Cancel
               </button>
@@ -1426,7 +1426,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                     configs.some((config) => config.id !== confirmDeleteConfig.id) &&
                     !replacementDefaultId)
                 }
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
               >
                 <Trash2 size={14} />
                 {deletingId === confirmDeleteConfig.id ? "Deleting..." : "Delete"}
@@ -1463,7 +1463,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={savingEdit}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
               >
                 <Save size={14} />
                 Save

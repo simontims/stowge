@@ -894,7 +894,7 @@ export function EditPage() {
         <button
           onClick={() => void handleDelete()}
           disabled={deleting}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border-strong text-muted hover:text-danger-400 hover:border-danger-500/60 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border text-xs transition-colors"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border-strong text-muted hover:text-danger-400 hover:border-danger-500/60 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-xs transition-colors"
           title="Delete item"
         >
           <Trash2 size={13} />
@@ -944,7 +944,7 @@ export function EditPage() {
                           if (!settingPrimaryId) void handleSetPrimary(img.id);
                         }}
                         disabled={!!settingPrimaryId}
-                        className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border transition-colors"
+                        className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors"
                       >
                         <Star size={12} />
                         {settingPrimaryId === img.id ? "Setting…" : "Make primary"}
@@ -956,7 +956,7 @@ export function EditPage() {
                         if (!deletingImageId) void handleDeleteImage(img.id);
                       }}
                       disabled={!!deletingImageId}
-                      className="absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-danger-600/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border transition-colors opacity-0 group-hover:opacity-100"
+                      className="absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-danger-600/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors opacity-0 group-hover:opacity-100"
                       title="Remove this image"
                     >
                       <Trash2 size={12} />
@@ -1005,14 +1005,14 @@ export function EditPage() {
               <button
                 onClick={() => cameraInputRef.current?.click()}
                 disabled={uploadingImages}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong bg-surface text-secondary hover:text-heading hover:border-border-hover disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border text-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong bg-surface text-secondary hover:text-heading hover:border-border-hover disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-sm transition-colors"
               >
                 <Camera size={13} /> Take photo
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingImages}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong bg-surface text-secondary hover:text-heading hover:border-border-hover disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border text-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong bg-surface text-secondary hover:text-heading hover:border-border-hover disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-sm transition-colors"
               >
                 {uploadingImages ? (
                   <><Loader2 size={13} className="animate-spin" /> Adding…</>
@@ -1179,7 +1179,7 @@ export function EditPage() {
                                 type="button"
                                 onClick={() => saveContentEdit(index)}
                                 disabled={!contentDraft.name.trim()}
-                                className="inline-flex items-center gap-1 rounded-md border border-success-500/70 bg-success-950/30 px-2.5 py-1.5 text-xs text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
+                                className="inline-flex items-center gap-1 rounded-md border border-success-500/70 bg-success-950/30 px-2.5 py-1.5 text-xs text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
                               >
                                 Save
                               </button>
@@ -1250,7 +1250,7 @@ export function EditPage() {
             onClick={() => void handleSave()}
             disabled={!hasDirtyChanges || saving}
             className={[
-              "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border text-sm font-semibold",
+              "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-sm font-semibold",
               hasDirtyChanges
                 ? "border-success-500 bg-success-600 text-on-solid hover:bg-success-500"
                 : "border-border-strong bg-surface text-subtle",
@@ -1276,20 +1276,20 @@ export function EditPage() {
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={handleUnsavedCancel}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border text-sm"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUnsavedDiscard}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border text-sm"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-sm"
               >
                 Discard
               </button>
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={saving}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border text-sm"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-sm"
               >
                 {saving ? "Saving..." : "Save"}
               </button>
@@ -1320,7 +1320,7 @@ export function EditPage() {
                   if (id && !settingPrimaryId) void handleSetPrimary(id);
                 }}
                 disabled={!!settingPrimaryId}
-                className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border transition-colors"
+                className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors"
               >
                 <Star size={11} />
                 {settingPrimaryId === images[activeImageIdx].id ? "Setting…" : "Make primary"}
@@ -1334,7 +1334,7 @@ export function EditPage() {
                   if (id && !deletingImageId) void handleDeleteImage(id);
                 }}
                 disabled={!!deletingImageId}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-danger-600/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-danger-600/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors"
                 title="Remove this image"
               >
                 <Trash2 size={11} />

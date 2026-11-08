@@ -168,4 +168,24 @@ describe("disabled controls use the disabled roles, not opacity", () => {
     }
     expect(hits).toEqual([]);
   });
+
+  it("every disabled colour in ui/src is paired with a not-allowed cursor on the same line", () => {
+    const hits: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+        if (/(?<![\w-])disabled:text-disabled-fg/.test(line) && !/disabled:cursor-not-allowed/.test(line)) hits.push(`${relative(SRC, file)}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it("no disabled:hover overrides, so a disabled control never reverts on hover", () => {
+    const hits: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+        if (/disabled:hover:/.test(line)) hits.push(`${relative(SRC, file)}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
 });

@@ -11,19 +11,27 @@ interface WelcomeModalProps {
 export function WelcomeModal({ onTakeTour, onClose }: WelcomeModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // The parent passes a new onClose on every render; keep the latest in a ref so the effects below run once.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   // Read the welcome text first, keep Tab inside the dialog, and let Escape close it.
   useEffect(() => {
-    headingRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
-      const items = dialogRef.current?.querySelectorAll<HTMLElement>("button, input:not(:disabled), [href]");
-      if (!items || items.length === 0) return;
+      // Real tab stops only: enabled buttons and links, and one radio per group (the checked one).
+      const items = [...(dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input:not(:disabled)") ?? [])]
+        .filter((el) => !(el instanceof HTMLInputElement && el.type === "radio" && !el.checked));
+      if (items.length === 0) return;
       const first = items[0];
       const last = items[items.length - 1];
       const active = document.activeElement;
@@ -37,7 +45,7 @@ export function WelcomeModal({ onTakeTour, onClose }: WelcomeModalProps) {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-[1900] flex items-center justify-center bg-scrim/70 p-4" role="presentation">

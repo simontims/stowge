@@ -551,14 +551,14 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
               <button
                 onClick={deleteModal.close}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void deleteUser(deleteModal.target!)}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
               >
                 <Trash2 size={13} />
                 {deletingId === deleteModal.target.id ? "Deleting..." : "Confirm Delete"}

@@ -59,7 +59,7 @@ export function PhotoCapture({
                 <button
                   onClick={() => onRemovePhoto(idx)}
                   disabled={disabled}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
                   aria-label={`Remove photo ${idx + 1}`}
                 >
                   <X size={8} />
@@ -69,7 +69,7 @@ export function PhotoCapture({
                 <button
                   onClick={() => onRotatePhoto(idx)}
                   disabled={disabled}
-                  className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
+                  className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:cursor-not-allowed disabled:border-disabled-border"
                   aria-label={`Rotate photo ${idx + 1}`}
                 >
                   <RotateCw size={8} />

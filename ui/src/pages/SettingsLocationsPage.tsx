@@ -704,7 +704,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 className={[
                   "inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
                   "border-border-strong text-secondary hover:text-danger-300 hover:border-danger-500/70",
-                  isDeleting ? "opacity-60 cursor-not-allowed" : "",
+                  isDeleting ? "text-disabled-fg border-disabled-border cursor-not-allowed" : "",
                 ].join(" ")}
                 title={`Delete ${row.name}`}
               >

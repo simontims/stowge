@@ -78,9 +78,25 @@ describe("WelcomeModal appearance choice", () => {
     const tour = screen.getByText("Take the tour");
     tour.focus();
     fireEvent.keyDown(document, { key: "Tab" });
-    expect(document.activeElement).toBe(screen.getByRole("radio", { name: "Light" }));
+    expect(document.activeElement).toBe(screen.getByRole("radio", { name: "Dark" })); // the checked radio is the first tab stop
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not steal focus back to the heading when the parent re-renders with a new onClose", async () => {
+    const { rerender } = render(<WelcomeModal onTakeTour={() => {}} onClose={() => {}} />);
+    const dark = screen.getByRole("radio", { name: "Dark" });
+    dark.focus();
+    rerender(<WelcomeModal onTakeTour={() => {}} onClose={() => {}} />);
+    expect(document.activeElement).toBe(dark);
+  });
+
+  it("Shift+Tab from the checked radio does not leave the dialog (only the checked radio is a tab stop)", () => {
+    render(<WelcomeModal onTakeTour={() => {}} onClose={() => {}} />);
+    const dark = screen.getByRole("radio", { name: "Dark" }) as HTMLInputElement; // checked
+    dark.focus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByText("Take the tour"));
   });
 });

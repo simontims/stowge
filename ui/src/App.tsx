@@ -12,6 +12,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { WhatsNewPage } from "./pages/WhatsNewPage";
 import { LoginPage } from "./pages/LoginPage";
 import { UNAUTHORIZED_EVENT, OFFLINE_EVENT, apiRequest } from "./lib/api";
+import { useTheme } from "./lib/theme";
 import { type CurrentUser } from "./lib/types";
 import { UserContext } from "./lib/UserContext";
 import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
@@ -51,9 +52,7 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [tourRunning, setTourRunning] = useState(false);
-  const [toastTheme, setToastTheme] = useState<"light" | "dark">(
-    () => (document.documentElement.dataset.theme === "light" ? "light" : "dark")
-  );
+  const toastTheme = useTheme();
   const [isMobileToastViewport, setIsMobileToastViewport] = useState<boolean>(
     () => (typeof window !== "undefined" ? window.innerWidth < 768 : false)
   );
@@ -65,22 +64,6 @@ export default function App() {
     }
     setShowWelcome(true);
   }
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const syncToastTheme = () => {
-      setToastTheme(root.dataset.theme === "light" ? "light" : "dark");
-    };
-
-    syncToastTheme();
-
-    const observer = new MutationObserver(syncToastTheme);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     const onResize = () => {

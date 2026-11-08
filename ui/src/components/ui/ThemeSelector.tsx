@@ -25,9 +25,8 @@ export function ThemeSelector({ idPrefix, showHint = false }: ThemeSelectorProps
         {OPTIONS.map(({ value, label, Icon }) => (
           <label
             key={value}
-            htmlFor={`${idPrefix}-${value}`}
             className={clsx(
-              "flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border text-sm transition-colors",
+              "relative flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border text-sm transition-colors",
               "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-border-focus",
               theme === value
                 ? "border-border-focus bg-surface-3 text-heading"
