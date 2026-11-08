@@ -33,6 +33,11 @@ interface DataTableProps<T extends object> {
   onSort?: (key: keyof T & string) => void;
   activeRowId?: string;
   tableRef?: React.RefObject<HTMLTableElement | null>;
+  /** Fixed table layout: columns with a width keep it exactly, and a column without one takes the rest.
+   *  Use it where the rows change often (filters), so columns do not jump with the data. */
+  fixedLayout?: boolean;
+  /** Smallest table width in fixed layout, as a CSS length; below it the table scrolls sideways. */
+  minTableWidth?: string;
 }
 
 function shouldIgnoreSortClick(event: MouseEvent<HTMLElement>): boolean {
@@ -54,6 +59,8 @@ export function DataTable<T extends object>({
   onSort,
   activeRowId,
   tableRef,
+  fixedLayout = false,
+  minTableWidth,
 }: DataTableProps<T>) {
   const internalRef = useRef<HTMLTableElement>(null);
   const resolvedRef = tableRef ?? internalRef;
@@ -61,7 +68,11 @@ export function DataTable<T extends object>({
   return (
     <div className="border border-neutral-800 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <table ref={resolvedRef} className="min-w-max w-full text-sm border-collapse">
+        <table
+          ref={resolvedRef}
+          className={clsx(fixedLayout ? "table-fixed w-full" : "min-w-max w-full", "text-sm border-collapse")}
+          style={fixedLayout && minTableWidth ? { minWidth: minTableWidth } : undefined}
+        >
           <thead>
             <tr className="bg-neutral-900 border-b border-neutral-800">
               {columns.map((col) => {

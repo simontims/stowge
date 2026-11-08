@@ -181,3 +181,39 @@ describe("Items page layout is the same however the list is filtered", () => {
     expect(tagged.paneClass).not.toMatch(/\bp-4\b/);
   });
 });
+
+describe("Items table columns keep their widths whatever the list holds", () => {
+  const LONG = [
+    { ...item("i1", "A very long item name that goes on and on and on for a while", [CABLES, TOOLS, { id: "t3", name: "Seasonal decorations", icon: null, color: null }]), location: "Garage shelf number twelve, left side" },
+    item("i2", "Hammer", []),
+  ];
+  const SHORT = [item("i3", "Drill", [])];
+
+  function widths(rows: unknown[]) {
+    mockApi({
+      "GET /api/items": rows,
+      "GET /api/locations": [],
+      "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")],
+      "PATCH /api/me": makeUser(),
+    });
+    renderWithUser(<ItemsPage />, makeUser(), ["/items"]);
+    return screen.findAllByRole("columnheader").then((hs) => ({
+      widths: hs.map((h) => (h as HTMLElement).style.width),
+      table: (hs[0].closest("table") as HTMLElement).className,
+    }));
+  }
+
+  it("column widths do not depend on the longest name, tags or location on the page", async () => {
+    const many = await widths(LONG);
+    cleanup();
+    const one = await widths(SHORT);
+    expect(one.widths).toEqual(many.widths);
+  });
+
+  it("uses a fixed table layout, with Name taking the remaining width", async () => {
+    const { widths: w, table } = await widths(SHORT);
+    expect(table).toContain("table-fixed");
+    expect(w[1]).toBe(""); // Name: no width of its own
+    for (const i of [0, 2, 3, 4, 5]) expect(w[i]).not.toBe("");
+  });
+});

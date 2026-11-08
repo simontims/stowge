@@ -103,15 +103,6 @@ function isSameForm(a: PartEditForm, b: PartEditForm): boolean {
 
 type ItemSortKey = "name" | "tags" | "location" | "status";
 
-function getColumnWidth(values: Array<string | null | undefined>, minimum: number, maximum: number): string {
-  const longest = values.reduce((currentMax, value) => {
-    const normalized = (value || "-").trim();
-    return Math.max(currentMax, normalized.length);
-  }, 0);
-  const target = Math.min(maximum, Math.max(minimum, longest + 4));
-  return `${target}ch`;
-}
-
 function renderHighlightedText(value: string, query: string, keyPrefix: string): ReactNode {
   const segments = splitMatchSegments(value, query);
   return (
@@ -813,20 +804,9 @@ export function ItemsPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [isMobile, parts, selectedPartId, deletingId]);
 
-  const columnWidths = useMemo(
-    () => ({
-      name: getColumnWidth(parts.map((part) => part.name), 18, 34),
-      tags: getColumnWidth(parts.map((part) => tagNames(part).join(", ")), 14, 34),
-      location: getColumnWidth(parts.map((part) => part.location), 14, 26),
-      status: getColumnWidth(parts.map((part) => part.status), 10, 14),
-    }),
-    [parts]
-  );
-
-  const desktopDescriptionExcerptLength = useMemo(() => {
-    const widthChars = Number.parseInt(columnWidths.name, 10);
-    return Number.isFinite(widthChars) ? Math.max(42, widthChars * 2) : 56;
-  }, [columnWidths.name]);
+  // Description excerpt length on desktop. The Name column takes the width that is left, so this is
+  // a fixed length (the text wraps inside the cell).
+  const desktopDescriptionExcerptLength = 64;
 
   const mobileDescriptionExcerptLength = 44;
   const activeResultQuery = debouncedSearch;
@@ -853,23 +833,25 @@ export function ItemsPage() {
         key: "name",
         header: "Name",
         sortable: true,
-        width: columnWidths.name,
-        render: (row) => renderItemNameContent(row, activeResultQuery, desktopDescriptionExcerptLength, `desktop-${row.id}`, true),
+                render: (row) => renderItemNameContent(row, activeResultQuery, desktopDescriptionExcerptLength, `desktop-${row.id}`, true),
       },
       {
         key: "tags",
         header: "Tags",
         sortable: true,
-        width: columnWidths.tags,
+        width: "13rem",
         render: (row) => <TagChips tags={row.tags} emptyLabel="-" />,
       },
       {
         key: "location",
         header: "Location",
         sortable: true,
-        width: columnWidths.location,
+        width: "10rem",
         render: (row) => (
-          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
+          <span
+            className="inline-block max-w-full truncate align-middle text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400"
+            title={row.location || undefined}
+          >
             {row.location || "-"}
           </span>
         ),
@@ -878,7 +860,7 @@ export function ItemsPage() {
         key: "status",
         header: "Status",
         sortable: true,
-        width: columnWidths.status,
+        width: "8rem",
         render: (row) => (
           <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
             {row.status}
@@ -888,13 +870,13 @@ export function ItemsPage() {
       {
         key: "quantity",
         header: "Qty",
-        width: "5ch",
+        width: "4.5rem",
         render: (row) => (
           <span className="text-sm text-neutral-300">{row.quantity}</span>
         ),
       },
     ],
-    [activeResultQuery, columnWidths, desktopDescriptionExcerptLength]
+    [activeResultQuery, desktopDescriptionExcerptLength]
   );
 
   const emptyMessage = useMemo(() => {
@@ -1047,8 +1029,10 @@ export function ItemsPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="min-h-0 h-full overflow-y-auto lg:border-r lg:border-neutral-800 lg:pr-4">
+                    <div className="min-h-0 h-full overflow-y-auto [scrollbar-gutter:stable] lg:border-r lg:border-neutral-800 lg:pr-4">
                       <DataTable
+                        fixedLayout
+                        minTableWidth="52rem"
                         columns={columns}
                         rows={parts}
                         keyField="id"
