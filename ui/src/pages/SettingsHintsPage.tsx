@@ -127,10 +127,10 @@ export function SettingsHintsPage() {
         header: "Name",
         width: "14rem",
         render: (row) => (
-          <span className="inline-flex items-center gap-2 font-medium text-neutral-200">
+          <span className="inline-flex items-center gap-2 font-medium text-body">
             {row.name}
             {row.is_default && (
-              <span className="rounded border border-neutral-700 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-neutral-500">
+              <span className="rounded border border-border-strong px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide text-subtle">
                 Default
               </span>
             )}
@@ -141,7 +141,7 @@ export function SettingsHintsPage() {
         key: "text",
         header: "Text",
         render: (row) => (
-          <span className="block max-w-md truncate text-neutral-400">{row.text.trim() || "(empty: nothing is sent)"}</span>
+          <span className="block max-w-md truncate text-muted">{row.text.trim() || "(empty: nothing is sent)"}</span>
         ),
       },
     ],
@@ -152,7 +152,7 @@ export function SettingsHintsPage() {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-neutral-500">Predefined AI hints</p>
+      <p className="text-sm text-subtle">Predefined AI hints</p>
 
       <ListToolbar
         search={search}
@@ -188,35 +188,35 @@ export function SettingsHintsPage() {
       />
 
       {formOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-label={editing ? "Edit hint" : "Add hint"}
-            className="w-full max-w-xl rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-4"
+            className="w-full max-w-xl rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-4"
           >
-            <h3 className="text-sm font-semibold text-neutral-100">{editing ? "Edit Hint" : "Add Hint"}</h3>
+            <h3 className="text-sm font-semibold text-heading">{editing ? "Edit Hint" : "Add Hint"}</h3>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Name</span>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 disabled={Boolean(editing?.is_default)}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 disabled:opacity-60"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus disabled:opacity-60"
                 placeholder="Electronic parts"
               />
-              {editing?.is_default && <span className="mt-1 block text-xs text-neutral-600">The Default hint cannot be renamed or deleted.</span>}
+              {editing?.is_default && <span className="mt-1 block text-xs text-faint">The Default hint cannot be renamed or deleted.</span>}
             </label>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Text</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Text</span>
               <textarea
                 value={form.text}
                 onChange={(e) => setForm({ ...form, text: e.target.value })}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 min-h-[160px]"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus min-h-[160px]"
                 placeholder="What the AI should know about these items…"
               />
             </label>
-            {formError && <p className="text-sm text-red-400">{formError}</p>}
+            {formError && <p className="text-sm text-danger-400">{formError}</p>}
             <div className="flex items-center justify-end gap-2">
               <button type="button" onClick={closeForm} disabled={saving} className={`${outlinedActionButtonClasses("neutral")} gap-1 px-3 py-1.5 text-sm font-medium`}>
                 Cancel
@@ -235,7 +235,7 @@ export function SettingsHintsPage() {
         title="Delete Hint"
         message={
           <>
-            Delete hint <span className="font-medium text-neutral-100">{deleteTarget?.name || ""}</span>? Anyone who had it
+            Delete hint <span className="font-medium text-heading">{deleteTarget?.name || ""}</span>? Anyone who had it
             selected on the Add screen goes back to Default.
           </>
         }

@@ -41,32 +41,32 @@ export function WhatsNewHost({ user, onUserChange, suppress = false, tours = WHA
   if (ActiveTour) return <ActiveTour onDone={() => setTourId(null)} />;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" role="presentation">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim/70 p-4" role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="whats-new-heading"
-        className="w-full max-w-lg rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-2xl"
+        className="w-full max-w-lg rounded-xl border border-border bg-surface p-5 shadow-2xl"
       >
         <div className="flex items-center gap-2">
-          <Sparkles size={16} className="text-emerald-400" />
-          <h2 id="whats-new-heading" className="text-sm font-semibold text-neutral-100">
+          <Sparkles size={16} className="text-success-400" />
+          <h2 id="whats-new-heading" className="text-sm font-semibold text-heading">
             What&apos;s new
           </h2>
         </div>
 
-        <p className="mt-1 text-sm text-neutral-400">{digestHeading(digest)}</p>
+        <p className="mt-1 text-sm text-muted">{digestHeading(digest)}</p>
 
-        <ul className="mt-4 divide-y divide-neutral-800 border-y border-neutral-800">
+        <ul className="mt-4 divide-y divide-border border-y border-border">
           {digest.interrupts.map((note) => (
             <li key={note.id} className="py-3">
-              <p className="text-sm font-medium text-neutral-100">{note.title}</p>
-              {note.summary && <p className="mt-0.5 text-sm text-neutral-400">{note.summary}</p>}
+              <p className="text-sm font-medium text-heading">{note.title}</p>
+              {note.summary && <p className="mt-0.5 text-sm text-muted">{note.summary}</p>}
               {tours[note.id] && (
                 <button
                   type="button"
                   onClick={() => setTourId(note.id)}
-                  className="mt-2 text-xs font-medium text-emerald-400 hover:text-emerald-300"
+                  className="mt-2 text-xs font-medium text-success-400 hover:text-success-300"
                 >
                   Show me
                 </button>
@@ -76,7 +76,7 @@ export function WhatsNewHost({ user, onUserChange, suppress = false, tours = WHA
         </ul>
 
         {digest.smaller.length > 0 && (
-          <p className="mt-3 text-xs text-neutral-500">
+          <p className="mt-3 text-xs text-subtle">
             Plus {digest.smaller.length} smaller {digest.smaller.length === 1 ? "change" : "changes"} in the release notes.
           </p>
         )}
@@ -89,14 +89,14 @@ export function WhatsNewHost({ user, onUserChange, suppress = false, tours = WHA
               setHidden(true);
               navigate("/release-notes");
             }}
-            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100"
+            className="rounded-md border border-border-strong px-3 py-1.5 text-sm text-secondary transition-colors hover:border-border-hover hover:text-heading"
           >
             View release notes
           </button>
           <button
             type="button"
             onClick={() => void markSeen()}
-            className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-emerald-500"
+            className="rounded-md bg-success-600 px-4 py-1.5 text-sm font-medium text-on-solid transition-colors hover:bg-success-500"
           >
             Got it
           </button>

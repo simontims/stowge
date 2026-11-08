@@ -235,7 +235,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
         header: "Name",
         sortable: true,
         render: (row) => (
-          <span className="inline-flex items-center gap-2 font-medium text-neutral-200">
+          <span className="inline-flex items-center gap-2 font-medium text-body">
             <TablerIcon name={row.icon} size={15} color={row.color} />
             {row.name}
           </span>
@@ -245,7 +245,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
         key: "description",
         header: "Description",
         sortable: true,
-        render: (row) => <span className="text-neutral-400">{row.description?.trim() || "-"}</span>,
+        render: (row) => <span className="text-muted">{row.description?.trim() || "-"}</span>,
       },
       {
         key: "item_count",
@@ -253,7 +253,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
         sortable: true,
         className: "w-20",
         render: (row) => (
-          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
+          <span className="inline-block text-xs bg-surface-2 border border-border-strong rounded px-2 py-0.5 text-secondary">
             {row.item_count}
           </span>
         ),
@@ -264,9 +264,9 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
 
   const recycleBinColumns = useMemo<Column<DeletedItemRow>[]>(
     () => [
-      { key: "name", header: "Name", render: (row) => <span className="font-medium text-neutral-200">{row.name}</span> },
+      { key: "name", header: "Name", render: (row) => <span className="font-medium text-body">{row.name}</span> },
       { key: "tags", header: "Tags", render: (row) => <TagChips tags={row.tags} emptyLabel="-" /> },
-      { key: "location", header: "Location", render: (row) => <span className="text-neutral-400">{row.location || "-"}</span> },
+      { key: "location", header: "Location", render: (row) => <span className="text-muted">{row.location || "-"}</span> },
       {
         key: "actions",
         header: "ACTIONS",
@@ -276,7 +276,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
           <div className="inline-flex items-center gap-2 justify-end w-full" onClick={(event) => event.stopPropagation()}>
             <button
               onClick={() => navigate(`/items/${row.id}/edit`, { state: { restoreOnSave: true, returnToRecycleBin: true } })}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 hover:bg-emerald-900/30 text-xs"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 hover:bg-success-900/30 text-xs"
             >
               Restore
             </button>
@@ -294,7 +294,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <div className="space-y-5">
       {embedded ? (
-        <p className="text-sm text-neutral-500">Items can have one or more tags.</p>
+        <p className="text-sm text-subtle">Items can have one or more tags.</p>
       ) : (
         <PageHeader title="Tags" description="Items can have one or more tags." />
       )}
@@ -358,7 +358,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
             onRowClick={(row) => navigate({ pathname: "/items", search: new URLSearchParams({ tag: row.name }).toString() })}
           />
           {!loadError && (
-            <p className="text-xs text-neutral-600 text-right">
+            <p className="text-xs text-faint text-right">
               {loading ? "Loading…" : `${rows.length} tag${rows.length !== 1 ? "s" : ""}`}
             </p>
           )}
@@ -368,22 +368,22 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
       {recycleBinOpen && (
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-neutral-100">Recycle Bin</h3>
+            <h3 className="text-sm font-semibold text-heading">Recycle Bin</h3>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-neutral-500">
+              <span className="text-xs text-subtle">
                 {filteredDeleted.length} item{filteredDeleted.length !== 1 ? "s" : ""}
               </span>
               <button
                 onClick={() => setEmptyBinOpen(true)}
                 disabled={deletedItems.length === 0}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
               >
                 Empty
               </button>
             </div>
           </div>
           {deletedLoadError ? (
-            <p className="text-sm text-red-400">{deletedLoadError}</p>
+            <p className="text-sm text-danger-400">{deletedLoadError}</p>
           ) : (
             <DataTable columns={recycleBinColumns} rows={filteredDeleted} keyField="id" emptyMessage="Recycle bin is empty." />
           )}
@@ -391,34 +391,34 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
       )}
 
       {formOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-label={editingId ? "Edit tag" : "Add tag"}
-            className="w-full max-w-lg rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-4"
+            className="w-full max-w-lg rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-4"
           >
-            <h3 className="text-sm font-semibold text-neutral-100">{editingId ? "Edit Tag" : "Add Tag"}</h3>
+            <h3 className="text-sm font-semibold text-heading">{editingId ? "Edit Tag" : "Add Tag"}</h3>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Name</span>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Cables"
               />
             </label>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Description</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Description</span>
               <input
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Optional description"
               />
             </label>
             <div className="flex items-center gap-3">
-              <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+              <span className="text-xs uppercase tracking-wide text-subtle shrink-0">Icon</span>
               <IconColorPicker
                 title={form.name}
                 value={form.icon}
@@ -427,7 +427,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
                 onColorChange={(hex) => setForm((f) => ({ ...f, color: hex }))}
               />
             </div>
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-danger-400">{error}</p>}
             <div className="flex items-center justify-end gap-2">
               <button onClick={closeForm} disabled={saving} className={`${outlinedActionButtonClasses("neutral")} gap-1 px-3 py-1.5 text-sm font-medium`}>
                 Cancel
@@ -446,7 +446,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
         title="Delete Tag"
         message={
           <>
-            Delete tag <span className="font-medium text-neutral-100">{deleteTarget?.name || ""}</span>?{" "}
+            Delete tag <span className="font-medium text-heading">{deleteTarget?.name || ""}</span>?{" "}
             {tagDeleteSummary(deleteTarget?.item_count ?? 0)} The items are kept. Filters pinned for this tag are removed.
           </>
         }

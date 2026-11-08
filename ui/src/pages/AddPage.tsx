@@ -563,17 +563,17 @@ export function AddPage() {
       {/* ── SESSION STRIP ─────────────────────────────────────────────────── */}
       <div className="space-y-2 mb-4">
         <div>
-          <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Tags</label>
+          <label className="block text-xs uppercase tracking-wide text-subtle mb-1">Tags</label>
           <TagPicker tags={tags} selectedIds={sessionTagIds} onChange={handleSessionTagsChange} />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label htmlFor="add-hint" className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">AI hint</label>
+            <label htmlFor="add-hint" className="block text-xs uppercase tracking-wide text-subtle mb-1">AI hint</label>
             <select
               id="add-hint"
               value={sessionHintId}
               onChange={(e) => handleSessionHintChange(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+              className="w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
             >
               {hints.map((h) => (
                 <option key={h.id} value={h.id}>{h.name}</option>
@@ -581,12 +581,12 @@ export function AddPage() {
             </select>
           </div>
           <div>
-            <label htmlFor="add-location" className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Location</label>
+            <label htmlFor="add-location" className="block text-xs uppercase tracking-wide text-subtle mb-1">Location</label>
             <select
               id="add-location"
               value={sessionLocationId}
               onChange={(e) => handleSessionLocationChange(e.target.value)}
-              className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+              className="w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
             >
               <option value="">None</option>
               {locations.map((l) => (
@@ -612,12 +612,12 @@ export function AddPage() {
           />
 
           {/* Sticky action bar */}
-          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur">
+          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-border bg-surface/95 backdrop-blur">
             <div className="flex items-center gap-2">
               <button
                 onClick={startManualReview}
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-1.5 px-3 py-2 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-border-strong rounded-md text-sm text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
                 Continue manually
               </button>
@@ -631,7 +631,7 @@ export function AddPage() {
               </button>
             </div>
             {aiSettingsLoaded && llmOptions.length === 0 && (
-              <p className="mt-2 text-xs text-amber-400">No AI model configured — identification unavailable. Add one in System / AI.</p>
+              <p className="mt-2 text-xs text-warning-400">No AI model configured — identification unavailable. Add one in System / AI.</p>
             )}
           </div>
         </div>
@@ -655,82 +655,82 @@ export function AddPage() {
           <div className="space-y-3">
             {/* Name */}
             <div>
-              <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Name</label>
+              <label className="block text-xs uppercase tracking-wide text-subtle mb-1">Name</label>
               <input
                 autoFocus
                 value={draft.name}
                 onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Item name"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Description</label>
+              <label className="block text-xs uppercase tracking-wide text-subtle mb-1">Description</label>
               <textarea
                 rows={3}
                 value={draft.description}
                 onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Optional notes"
               />
             </div>
 
             {/* Evidence from AI */}
             {selectedCandidate?.evidence && (
-              <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3">
-                <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">AI evidence</p>
-                <p className="text-sm text-neutral-400">{selectedCandidate.evidence}</p>
+              <div className="rounded-md border border-border bg-canvas p-3">
+                <p className="text-xs uppercase tracking-wide text-subtle mb-1">AI evidence</p>
+                <p className="text-sm text-muted">{selectedCandidate.evidence}</p>
               </div>
             )}
 
             {/* Metadata grid — Tags, hint and location are in the session strip above */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Status</label>
+                <label className="block text-xs uppercase tracking-wide text-subtle mb-1">Status</label>
                 <select
                   value={draft.status}
                   onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value as "draft" | "confirmed" }))}
-                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="draft">draft</option>
                   <option value="confirmed">confirmed</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-wide text-neutral-500 mb-1">Quantity</label>
+                <label className="block text-xs uppercase tracking-wide text-subtle mb-1">Quantity</label>
                 <input
                   type="number"
                   min={0}
                   {...draftQuantityField}
-                  className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </div>
             </div>
 
-            {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+            {saveError && <p className="text-sm text-danger-400">{saveError}</p>}
           </div>
 
           {/* Sticky review footer */}
-          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-neutral-800 bg-neutral-900/95 backdrop-blur">
+          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-border bg-surface/95 backdrop-blur">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setMode("input"); clearSession(); }}
-                className="inline-flex items-center gap-1 px-3 py-2 border border-neutral-700 rounded-md text-sm text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-2 border border-border-strong rounded-md text-sm text-secondary hover:text-heading hover:border-border-hover transition-colors"
               >
                 ← Back
               </button>
               <button
                 onClick={resetToStart}
-                className="inline-flex items-center px-3 py-2 border border-neutral-700 rounded-md text-sm text-neutral-400 hover:text-neutral-100 hover:border-neutral-600 transition-colors"
+                className="inline-flex items-center px-3 py-2 border border-border-strong rounded-md text-sm text-muted hover:text-heading hover:border-border-hover transition-colors"
               >
                 Discard
               </button>
               <button
                 onClick={savePart}
                 disabled={isSaving}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-4 py-2 rounded-md text-sm font-semibold transition-colors"
               >
                 {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 Save
@@ -742,28 +742,28 @@ export function AddPage() {
 
       {/* AI error modal */}
       {submitError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="rounded-lg border border-red-500/40 bg-neutral-900 p-6 max-w-md w-full space-y-4">
-            <p className="text-sm text-red-300">{submitError}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/60 p-4">
+          <div className="rounded-lg border border-danger-500/40 bg-surface p-6 max-w-md w-full space-y-4">
+            <p className="text-sm text-danger-300">{submitError}</p>
             {(submitErrorProvider || submitErrorModel) && (
-              <p className="text-xs text-neutral-400">Model: {submitErrorProvider} / {submitErrorModel}</p>
+              <p className="text-xs text-muted">Model: {submitErrorProvider} / {submitErrorModel}</p>
             )}
             {submitErrorDetail && (
               <div className="space-y-3">
-                <button type="button" onClick={() => setShowSubmitErrorDetail((v) => !v)} className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100">
+                <button type="button" onClick={() => setShowSubmitErrorDetail((v) => !v)} className="text-sm text-danger-200 underline underline-offset-2 hover:text-danger-100">
                   {showSubmitErrorDetail ? "Hide info" : "More info"}
                 </button>
                 {showSubmitErrorDetail && (
                   <>
-                    <pre className="whitespace-pre-wrap break-words rounded-md bg-black/25 p-3 text-xs text-red-100 max-h-48 overflow-y-auto">{submitErrorDetail}</pre>
-                    <button type="button" onClick={() => { void navigator.clipboard.writeText(`Model: ${submitErrorProvider} / ${submitErrorModel}\n\n${submitErrorDetail}`); setSubmitErrorCopied(true); }} className="text-sm text-red-200 underline underline-offset-2 hover:text-red-100">
+                    <pre className="whitespace-pre-wrap break-words rounded-md bg-scrim/25 p-3 text-xs text-danger-100 max-h-48 overflow-y-auto">{submitErrorDetail}</pre>
+                    <button type="button" onClick={() => { void navigator.clipboard.writeText(`Model: ${submitErrorProvider} / ${submitErrorModel}\n\n${submitErrorDetail}`); setSubmitErrorCopied(true); }} className="text-sm text-danger-200 underline underline-offset-2 hover:text-danger-100">
                       {submitErrorCopied ? "Copied" : "Copy to clipboard"}
                     </button>
                   </>
                 )}
               </div>
             )}
-            <button type="button" onClick={() => { setSubmitError(""); setSubmitErrorDetail(""); setSubmitErrorProvider(""); setSubmitErrorModel(""); setShowSubmitErrorDetail(false); setSubmitErrorCopied(false); }} className="w-full mt-4 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-neutral-100 rounded-md text-sm font-medium transition-colors">
+            <button type="button" onClick={() => { setSubmitError(""); setSubmitErrorDetail(""); setSubmitErrorProvider(""); setSubmitErrorModel(""); setShowSubmitErrorDetail(false); setSubmitErrorCopied(false); }} className="w-full mt-4 px-4 py-2 bg-surface-3 hover:bg-surface-4 text-heading rounded-md text-sm font-medium transition-colors">
               Close
             </button>
           </div>

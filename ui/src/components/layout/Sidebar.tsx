@@ -33,21 +33,21 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   return (
     <aside
       className={clsx(
-        "hidden md:flex flex-col border-r border-neutral-800 bg-neutral-900 transition-[width] duration-200 shrink-0 overflow-hidden",
+        "hidden md:flex flex-col border-r border-border bg-surface transition-[width] duration-200 shrink-0 overflow-hidden",
         collapsed ? "w-16" : "w-60"
       )}
     >
       {/* Logo row */}
       <div
         className={clsx(
-          "flex items-center h-14 border-b border-neutral-800 shrink-0",
+          "flex items-center h-14 border-b border-border shrink-0",
           collapsed ? "justify-center px-0" : "px-4 gap-2"
         )}
       >
         <Link
           to="/items"
           aria-label="Stowge, all items"
-          className={clsx("flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500", collapsed && "justify-center")}
+          className={clsx("flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus", collapsed && "justify-center")}
         >
           <img
             src="/stowgeLogoOptimized.webp"
@@ -55,7 +55,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             className="w-[46px] h-[46px] rounded-md object-cover shrink-0"
           />
           {!collapsed && (
-            <span className="font-semibold text-sm text-neutral-100 tracking-wide -translate-y-[2px]">
+            <span className="font-semibold text-sm text-heading tracking-wide -translate-y-[2px]">
               Stowge
             </span>
           )}
@@ -74,7 +74,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
 
         <div className="mb-4">
           {collapsed && (
-            <div className="border-t border-neutral-800/60 mx-2 mb-1 mt-1" />
+            <div className="border-t border-border/60 mx-2 mb-1 mt-1" />
           )}
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
@@ -90,8 +90,8 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                       "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
                       collapsed ? "justify-center px-0" : "px-3",
                       isNavItemActive(item.route)
-                        ? "bg-neutral-800 text-neutral-100"
-                        : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
+                        ? "bg-surface-2 text-heading"
+                        : "text-muted hover:text-body hover:bg-surface-2/50"
                     )
                   }
                   aria-label={collapsed ? item.label : undefined}
@@ -108,10 +108,10 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
       </nav>
 
       {/* Collapse toggle */}
-      <div className="border-t border-neutral-800 p-2 flex justify-end shrink-0">
+      <div className="border-t border-border p-2 flex justify-end shrink-0">
         <button
           onClick={onToggleCollapse}
-          className="p-1.5 rounded-md text-neutral-600 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
+          className="p-1.5 rounded-md text-faint hover:text-secondary hover:bg-surface-2 transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}

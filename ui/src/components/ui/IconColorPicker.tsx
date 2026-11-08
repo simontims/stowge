@@ -173,15 +173,15 @@ export function IconColorPicker({
       <button
         type="button"
         onClick={openPicker}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-neutral-700 bg-neutral-950 text-neutral-300 hover:border-neutral-500 hover:text-neutral-100 transition-colors text-sm"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border-strong bg-canvas text-secondary hover:border-border-focus hover:text-heading transition-colors text-sm"
       >
         {value ? (
           <>
             <TablerIcon name={value} size={16} color={color || undefined} />
-            <span className="text-neutral-400">{value}</span>
+            <span className="text-muted">{value}</span>
           </>
         ) : (
-          <span className="text-neutral-500">{placeholder}</span>
+          <span className="text-subtle">{placeholder}</span>
         )}
       </button>
 
@@ -189,7 +189,7 @@ export function IconColorPicker({
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <button
             type="button"
-            className="absolute inset-0 bg-black/70"
+            className="absolute inset-0 bg-scrim/70"
             onClick={close}
             aria-label="Close icon picker"
           />
@@ -197,26 +197,26 @@ export function IconColorPicker({
             role="dialog"
             aria-modal="true"
             aria-label="Choose an icon and colour"
-            className="relative z-10 w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[75vh]"
+            className="relative z-10 w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl border border-border bg-surface shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[75vh]"
           >
             <div className="flex items-center justify-between px-4 pt-4 shrink-0">
-              <span className="text-sm font-semibold text-neutral-100">{dialogTitle}</span>
+              <span className="text-sm font-semibold text-heading">{dialogTitle}</span>
               <button
                 type="button"
                 onClick={close}
-                className="text-neutral-500 hover:text-neutral-200 transition-colors"
+                className="text-subtle hover:text-body transition-colors"
                 aria-label="Close"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="flex gap-4 px-4 mt-3 border-b border-neutral-800 shrink-0">
+            <div className="flex gap-4 px-4 mt-3 border-b border-border shrink-0">
               <button
                 type="button"
                 onClick={() => switchTab("icon")}
                 className={"pb-2 text-sm font-medium border-b-2 transition-colors " + (
-                  tab === "icon" ? "border-neutral-300 text-neutral-100" : "border-transparent text-neutral-500 hover:text-neutral-300"
+                  tab === "icon" ? "border-border-bright text-heading" : "border-transparent text-subtle hover:text-secondary"
                 )}
               >
                 Icon
@@ -225,7 +225,7 @@ export function IconColorPicker({
                 type="button"
                 onClick={() => switchTab("color")}
                 className={"pb-2 text-sm font-medium border-b-2 transition-colors " + (
-                  tab === "color" ? "border-neutral-300 text-neutral-100" : "border-transparent text-neutral-500 hover:text-neutral-300"
+                  tab === "color" ? "border-border-bright text-heading" : "border-transparent text-subtle hover:text-secondary"
                 )}
               >
                 Colour
@@ -235,17 +235,17 @@ export function IconColorPicker({
             <div className="h-[27rem] flex-shrink-0">
               {tab === "color" && (
                 <div className="h-full flex flex-col">
-                  <div className="px-4 py-3 border-b border-neutral-800 shrink-0" />
+                  <div className="px-4 py-3 border-b border-border shrink-0" />
                   <div className="flex-1 overflow-y-auto flex gap-4 p-4">
                     <div ref={colorPanelRef} tabIndex={-1} className="flex flex-col items-center gap-2 flex-shrink-0 pt-4 outline-none">
-                      <div className="flex items-center justify-center w-20 h-20 rounded-lg border border-neutral-700 bg-neutral-950">
+                      <div className="flex items-center justify-center w-20 h-20 rounded-lg border border-border-strong bg-canvas">
                         {value ? (
                           <TablerIcon name={value} size={40} color={draftColor || undefined} />
                         ) : (
-                          <span className="text-neutral-600 text-2xl">-</span>
+                          <span className="text-faint text-2xl">-</span>
                         )}
                       </div>
-                      <span className="text-xs text-neutral-500 text-center max-w-[80px] break-words">
+                      <span className="text-xs text-subtle text-center max-w-[80px] break-words">
                         {value || "no icon"}
                       </span>
                     </div>
@@ -263,7 +263,7 @@ export function IconColorPicker({
                         <button
                           type="button"
                           onClick={removeColor}
-                          className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                          className="text-xs text-subtle hover:text-secondary px-3 py-1.5 rounded-md border border-border-strong hover:border-border-hover transition-colors"
                         >
                           Remove colour
                         </button>
@@ -275,39 +275,39 @@ export function IconColorPicker({
 
               {tab === "icon" && (
                 <div className="h-full flex flex-col">
-                  <div className="px-4 py-3 border-b border-neutral-800 shrink-0">
+                  <div className="px-4 py-3 border-b border-border shrink-0">
                     <input
                       ref={iconSearchRef}
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      className="w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       placeholder="Search 6,000+ icons..."
                     />
                   </div>
 
                   <div className="overflow-y-auto p-3 flex-1">
                     {isLoading ? (
-                      <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
+                      <div className="flex items-center justify-center h-32 text-subtle text-sm">
                         Loading icons...
                       </div>
                     ) : (
                       <>
                         {!inSearch && (
-                          <p className="text-[10px] text-neutral-600 uppercase tracking-wider mb-2 px-1">
+                          <p className="text-[10px] text-faint uppercase tracking-wider mb-2 px-1">
                             {showAll
                               ? `All icons (${catalogue?.length ?? 0})`
                               : "Popular icons - type to search all"}
                           </p>
                         )}
                         {inSearch && totalResults > 0 && (
-                          <p className="text-[10px] text-neutral-600 uppercase tracking-wider mb-2 px-1">
+                          <p className="text-[10px] text-faint uppercase tracking-wider mb-2 px-1">
                             {totalResults > 200
                               ? `Showing 200 of ${totalResults} results`
                               : `${totalResults} result${totalResults !== 1 ? "s" : ""}`}
                           </p>
                         )}
                         {inSearch && totalResults === 0 && (
-                          <p className="text-sm text-neutral-500 text-center py-8">No icons match "{query}"</p>
+                          <p className="text-sm text-subtle text-center py-8">No icons match "{query}"</p>
                         )}
 
                         <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-1.5">
@@ -319,12 +319,12 @@ export function IconColorPicker({
                               className={[
                                 "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border text-xs transition-colors",
                                 value === ""
-                                  ? "border-white bg-neutral-800/60 text-white"
-                                  : "border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300",
+                                  ? "border-border-inverse bg-surface-2/60 text-on-solid"
+                                  : "border-border-strong text-subtle hover:border-border-focus hover:text-secondary",
                               ].join(" ")}
                             >
                               <span className="text-base leading-none">-</span>
-                              <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">none</span>
+                              <span className="text-[10px] text-faint truncate w-full text-center px-0.5">none</span>
                             </button>
                           )}
 
@@ -337,12 +337,12 @@ export function IconColorPicker({
                               className={[
                                 "flex flex-col items-center justify-center gap-1 h-14 rounded-lg border transition-colors",
                                 value === name
-                                  ? "border-white bg-neutral-800/60 text-white"
-                                  : "border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200",
+                                  ? "border-border-inverse bg-surface-2/60 text-on-solid"
+                                  : "border-border-strong text-muted hover:border-border-focus hover:text-body",
                               ].join(" ")}
                             >
                               <C size={18} stroke={1.5} color={value === name && draftColor ? draftColor : undefined} />
-                              <span className="text-[10px] text-neutral-600 truncate w-full text-center px-0.5">{name}</span>
+                              <span className="text-[10px] text-faint truncate w-full text-center px-0.5">{name}</span>
                             </button>
                           ))}
                         </div>
@@ -353,7 +353,7 @@ export function IconColorPicker({
                               <button
                                 type="button"
                                 onClick={() => setShowAll(true)}
-                                className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                                className="text-xs text-subtle hover:text-secondary px-3 py-1.5 rounded-md border border-border-strong hover:border-border-hover transition-colors"
                               >
                                 Browse all {catalogue?.length ?? "6,000+"} icons
                               </button>
@@ -362,7 +362,7 @@ export function IconColorPicker({
                               <button
                                 type="button"
                                 onClick={() => setPage((p) => p + 1)}
-                                className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                                className="text-xs text-subtle hover:text-secondary px-3 py-1.5 rounded-md border border-border-strong hover:border-border-hover transition-colors"
                               >
                                 Load more
                               </button>
@@ -374,7 +374,7 @@ export function IconColorPicker({
                                   setShowAll(false);
                                   setPage(1);
                                 }}
-                                className="text-xs text-neutral-500 hover:text-neutral-300 px-3 py-1.5 rounded-md border border-neutral-700 hover:border-neutral-600 transition-colors"
+                                className="text-xs text-subtle hover:text-secondary px-3 py-1.5 rounded-md border border-border-strong hover:border-border-hover transition-colors"
                               >
                                 Show popular only
                               </button>
@@ -388,11 +388,11 @@ export function IconColorPicker({
               )}
             </div>
 
-            <div className="flex justify-end gap-2 px-4 py-3 border-t border-neutral-800 shrink-0 bg-neutral-950/50">
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-border shrink-0 bg-canvas/50">
               <button
                 type="button"
                 onClick={done}
-                className="text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-md transition-colors"
+                className="text-sm font-medium bg-success-600 hover:bg-success-500 text-on-solid px-4 py-1.5 rounded-md transition-colors"
               >
                 Done
               </button>

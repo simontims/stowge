@@ -20,7 +20,7 @@ export function SearchInput({
     <div className={clsx("relative flex items-center", className)}>
       <Search
         size={14}
-        className="absolute left-3 text-neutral-500 pointer-events-none"
+        className="absolute left-3 text-subtle pointer-events-none"
       />
       <input
         type="search"
@@ -28,7 +28,7 @@ export function SearchInput({
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        className="w-full bg-neutral-800 border border-neutral-700 rounded-md pl-8 pr-3 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 outline-none focus:border-neutral-500 focus:ring-1 focus:ring-neutral-600 transition-colors"
+        className="w-full bg-surface-2 border border-border-strong rounded-md pl-8 pr-3 py-1.5 text-sm text-body placeholder:text-subtle outline-none focus:border-border-focus focus:ring-1 focus:ring-border-hover transition-colors"
         aria-label={placeholder}
       />
     </div>

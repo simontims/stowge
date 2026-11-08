@@ -44,9 +44,9 @@ export function MenuPrimaryLinks({ filters, tags, collapsed = false, touch = fal
           onClick={onNavigate}
           className={clsx(
             outlinedActionButtonClasses("positive"),
-            "text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400",
+            "text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-success-400",
             collapsed ? "h-10 w-10 justify-center" : clsx("w-full gap-3 px-3 py-2", touch ? "min-h-11" : "h-10"),
-            addActive && "!bg-emerald-900/50",
+            addActive && "!bg-success-900/50",
           )}
         >
           <Plus size={16} className="shrink-0" aria-hidden="true" />
@@ -61,12 +61,12 @@ export function MenuPrimaryLinks({ filters, tags, collapsed = false, touch = fal
         aria-current={allItemsActive ? "page" : undefined}
         onClick={onNavigate}
         className={clsx(
-          "mt-1 flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500",
+          "mt-1 flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus",
           rowHeight,
           collapsed ? "justify-center px-0" : "px-3",
           allItemsActive
-            ? "bg-neutral-800 text-neutral-100"
-            : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50",
+            ? "bg-surface-2 text-heading"
+            : "text-muted hover:text-body hover:bg-surface-2/50",
         )}
       >
         <List size={16} className="shrink-0" aria-hidden="true" />

@@ -29,7 +29,7 @@ export function ListToolbar({
         className="flex-1 max-w-sm"
       />
       {action}
-      <span className="text-xs text-neutral-600 ml-auto">
+      <span className="text-xs text-faint ml-auto">
         {loading ? "Loading..." : count !== undefined ? `${count} ${countLabel}` : null}
       </span>
     </div>

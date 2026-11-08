@@ -235,8 +235,8 @@ export default function App() {
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <Loader2 size={24} className="text-neutral-500 animate-spin" />
+      <div className="min-h-screen bg-canvas flex items-center justify-center">
+        <Loader2 size={24} className="text-subtle animate-spin" />
       </div>
     );
   }

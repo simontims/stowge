@@ -119,32 +119,32 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
         key: "email",
         header: "Email",
         sortable: true,
-        render: (row) => <span className="text-neutral-200">{row.email}</span>,
+        render: (row) => <span className="text-body">{row.email}</span>,
       },
       {
         key: "firstname",
         header: "Firstname",
         sortable: true,
-        render: (row) => <span className="text-neutral-300">{row.firstname || "-"}</span>,
+        render: (row) => <span className="text-secondary">{row.firstname || "-"}</span>,
       },
       {
         key: "lastname",
         header: "Lastname",
         sortable: true,
-        render: (row) => <span className="text-neutral-300">{row.lastname || "-"}</span>,
+        render: (row) => <span className="text-secondary">{row.lastname || "-"}</span>,
       },
       {
         key: "role",
         header: "Role",
         sortable: true,
-        render: (row) => <span className="text-neutral-300">{row.role}</span>,
+        render: (row) => <span className="text-secondary">{row.role}</span>,
       },
       {
         key: "last_login_at",
         header: "Last Login",
         sortable: true,
         render: (row) => (
-          <span className="text-neutral-500">
+          <span className="text-subtle">
             {row.last_login_at
               ? new Date(row.last_login_at).toLocaleString(undefined, {
                   year: "numeric",
@@ -303,44 +303,44 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       )}
 
       {addingOpen && (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">Add User</h2>
+        <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-heading">Add User</h2>
           <div className="grid gap-3">
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Email</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Email</span>
               <input
                 type="email"
                 value={newUser.email}
                 onChange={(e) => setNewUser((v) => ({ ...v, email: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="user@example.com"
               />
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Firstname</span>
                 <input
                   value={newUser.firstname}
                   onChange={(e) => setNewUser((v) => ({ ...v, firstname: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </label>
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Lastname</span>
                 <input
                   value={newUser.lastname}
                   onChange={(e) => setNewUser((v) => ({ ...v, lastname: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </label>
             </div>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Password</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Password</span>
               <input
                 type="password"
                 value={newUser.password}
                 onChange={(e) => setNewUser((v) => ({ ...v, password: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
             </label>
           </div>
@@ -348,14 +348,14 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
             <button
               onClick={() => void createUser()}
               disabled={isCreating}
-              className="inline-flex h-8 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 rounded-md text-sm leading-none font-medium transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
               {isCreating ? "Saving..." : "Save"}
             </button>
             <button
               onClick={() => { setAddingOpen(false); setNewUser(EMPTY_NEW_USER); setError(""); }}
-              className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm leading-none font-medium"
+              className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover text-sm leading-none font-medium"
             >
               Cancel
             </button>
@@ -364,67 +364,67 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       )}
 
       {editingUser && (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">Edit User</h2>
-          <p className="text-sm text-neutral-500">Editing {editingUser.email}</p>
+        <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-heading">Edit User</h2>
+          <p className="text-sm text-subtle">Editing {editingUser.email}</p>
           <div className="grid gap-3">
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Email</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Email</span>
               <input
                 type="email"
                 value={editForm.email}
                 onChange={(e) => setEditForm((v) => ({ ...v, email: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Firstname</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Firstname</span>
                 <input
                   value={editForm.firstname}
                   onChange={(e) => setEditForm((v) => ({ ...v, firstname: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </label>
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Lastname</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Lastname</span>
                 <input
                   value={editForm.lastname}
                   onChange={(e) => setEditForm((v) => ({ ...v, lastname: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </label>
             </div>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">New Password (optional)</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">New Password (optional)</span>
               <input
                 type="password"
                 value={editForm.password}
                 onChange={(e) => setEditForm((v) => ({ ...v, password: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
             </label>
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Role</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Role</span>
               <select
                 value={editForm.role}
                 onChange={(e) => setEditForm((v) => ({ ...v, role: e.target.value as "admin" | "user" }))}
                 disabled={editingId === currentUserId && editForm.role === "admin"}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus disabled:opacity-60 disabled:cursor-not-allowed"
                 title={editingId === currentUserId && editForm.role === "admin" ? "You cannot demote your own admin role" : ""}
               >
                 <option value="admin">Admin</option>
                 <option value="user">User</option>
               </select>
               {editingId === currentUserId && editForm.role === "admin" && (
-                <p className="text-xs text-neutral-500 mt-1">You cannot change your own role</p>
+                <p className="text-xs text-subtle mt-1">You cannot change your own role</p>
               )}
             </label>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={closeEditNow}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover text-sm font-medium"
             >
               Cancel
             </button>
@@ -434,8 +434,8 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
               className={[
                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
                 isEditDirty
-                  ? "border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200"
-                  : "border-neutral-700 text-neutral-500",
+                  ? "border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200"
+                  : "border-border-strong text-subtle",
               ].join(" ")}
             >
               <Save size={14} />
@@ -507,7 +507,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
             onSort={(key) => handleSort(key as UserSortKey)}
             footer={sortedFilteredUsers.length > 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-2.5 text-right text-xs text-neutral-600">
+                <td colSpan={6} className="px-4 py-2.5 text-right text-xs text-faint">
                   {loading ? "Loading…" : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""}`}
                 </td>
               </tr>
@@ -526,39 +526,39 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
       />
 
       {deleteModal.target && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-neutral-100">Delete User</h3>
+              <h3 className="text-sm font-semibold text-heading">Delete User</h3>
               <button
                 onClick={deleteModal.close}
-                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover"
                 title="Close"
               >
                 <X size={13} />
               </button>
             </div>
 
-            <p className="text-sm text-neutral-300">
-              Delete user <span className="font-medium text-neutral-100">{deleteModal.target.email}</span>?
+            <p className="text-sm text-secondary">
+              Delete user <span className="font-medium text-heading">{deleteModal.target.email}</span>?
             </p>
 
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={deleteModal.close}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void deleteUser(deleteModal.target!)}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-60"
               >
                 <Trash2 size={13} />
                 {deletingId === deleteModal.target.id ? "Deleting..." : "Confirm Delete"}

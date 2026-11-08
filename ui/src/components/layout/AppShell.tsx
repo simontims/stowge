@@ -13,7 +13,7 @@ export function AppShell({ children, onLogout }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-neutral-950 text-neutral-100 overflow-hidden">
+    <div className="flex h-screen bg-canvas text-heading overflow-hidden">
       {/* Desktop sidebar */}
       <Sidebar
         collapsed={collapsed}

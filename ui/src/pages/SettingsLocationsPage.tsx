@@ -612,7 +612,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         render: (row) => {
           if (row.icon) {
             return (
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-700 bg-neutral-900">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-strong bg-surface">
                 <TablerIcon name={row.icon} size={15} color={row.color || undefined} />
               </span>
             );
@@ -623,13 +623,13 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               <img
                 src={row.photo_url}
                 alt={row.name}
-                className="h-8 w-8 rounded-md border border-neutral-700 object-cover"
+                className="h-8 w-8 rounded-md border border-border-strong object-cover"
               />
             );
           }
 
           return (
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-700 bg-neutral-800 text-xs font-semibold text-neutral-400 uppercase">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-strong bg-surface-2 text-xs font-semibold text-muted uppercase">
               {row.name.trim().charAt(0) || "?"}
             </span>
           );
@@ -639,21 +639,21 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         key: "name",
         header: "Name",
         sortable: true,
-        render: (row) => <span className="font-medium text-neutral-200">{row.name}</span>,
+        render: (row) => <span className="font-medium text-body">{row.name}</span>,
       },
       {
         key: "description",
         header: "Description",
         sortable: true,
         render: (row) => (
-          <span className="text-neutral-400">{row.description?.trim() || "-"}</span>
+          <span className="text-muted">{row.description?.trim() || "-"}</span>
         ),
       },
       {
         key: "site_id",
         header: "Site",
         render: (row) => (
-          <span className="text-neutral-400">
+          <span className="text-muted">
             {row.site_name || (row.site_id ? siteById.get(row.site_id)?.name : null) || "-"}
           </span>
         ),
@@ -662,7 +662,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         key: "area_id",
         header: "Area",
         render: (row) => (
-          <span className="text-neutral-400">
+          <span className="text-muted">
             {row.area_name || (row.area_id ? areaById.get(row.area_id)?.name : null) || "Unassigned"}
           </span>
         ),
@@ -674,7 +674,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         className: "w-24",
         headerClassName: "w-24",
         render: (row) => (
-          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-300">
+          <span className="inline-block text-xs bg-surface-2 border border-border-strong rounded px-2 py-0.5 text-secondary">
             {row.item_count}
           </span>
         ),
@@ -690,7 +690,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             <div className="inline-flex items-center gap-2 justify-end w-full">
               <button
                 onClick={() => startEdit(row)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover"
                 title={`Edit ${row.name}`}
               >
                 <Edit3 size={13} />
@@ -703,7 +703,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 disabled={isDeleting}
                 className={[
                   "inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
-                  "border-neutral-700 text-neutral-300 hover:text-red-300 hover:border-red-500/70",
+                  "border-border-strong text-secondary hover:text-danger-300 hover:border-danger-500/70",
                   isDeleting ? "opacity-60 cursor-not-allowed" : "",
                 ].join(" ")}
                 title={`Delete ${row.name}`}
@@ -765,7 +765,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
         />
       )}
 
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 overflow-hidden" data-tour="locations-sites-section">
+      <section className="rounded-lg border border-border bg-surface/40 overflow-hidden" data-tour="locations-sites-section">
         <div
           data-tour="locations-hierarchy-toggle"
           role="button"
@@ -777,14 +777,14 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               setHierarchyExpanded((current) => !current);
             }
           }}
-          className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-neutral-800 bg-neutral-950/20"
+          className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border bg-canvas/20"
         >
           <ChevronRight
             size={14}
-            className={`text-neutral-400 transition-transform ${hierarchyExpanded ? "rotate-90" : "rotate-0"}`}
+            className={`text-muted transition-transform ${hierarchyExpanded ? "rotate-90" : "rotate-0"}`}
           />
-          <span className="text-sm font-semibold text-neutral-100">Sites &amp; Areas</span>
-          <span className="text-xs text-neutral-500 truncate">{hierarchySummary}</span>
+          <span className="text-sm font-semibold text-heading">Sites &amp; Areas</span>
+          <span className="text-xs text-subtle truncate">{hierarchySummary}</span>
         </div>
 
         {hierarchyExpanded && (
@@ -795,14 +795,14 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               const siteAreas = areasBySiteId.get(site.id) || [];
 
               return (
-                <div key={site.id} className="rounded-md border border-neutral-800 bg-neutral-950/30 px-3 py-2.5">
+                <div key={site.id} className="rounded-md border border-border bg-canvas/30 px-3 py-2.5">
                   {isSiteEditing ? (
                     <div className="flex items-center gap-2">
                       <input
                         autoFocus
                         value={hierarchyDraftName}
                         onChange={(event) => setHierarchyDraftName(event.target.value)}
-                        className="flex-1 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        className="flex-1 bg-canvas border border-border-strong rounded-md px-3 py-1.5 text-sm text-body outline-none focus:border-border-focus"
                         placeholder="Site name"
                       />
                       <button
@@ -823,13 +823,13 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-neutral-100">{site.name}</span>
-                      <span className="text-xs text-neutral-600">{siteAreas.length} {siteAreas.length === 1 ? "area" : "areas"}</span>
+                      <span className="text-sm font-semibold text-heading">{site.name}</span>
+                      <span className="text-xs text-faint">{siteAreas.length} {siteAreas.length === 1 ? "area" : "areas"}</span>
                       <div className="ml-auto inline-flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => beginHierarchyEdit(siteKey, site.name)}
-                          className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/60"
+                          className="inline-flex items-center p-1.5 rounded-md border border-transparent text-subtle hover:text-body hover:bg-surface-2/60"
                           title="Rename site"
                         >
                           <Edit3 size={13} />
@@ -837,7 +837,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                         <button
                           type="button"
                           onClick={() => handleHierarchySiteDelete(site.id)}
-                          className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-red-300 hover:bg-neutral-800/60 transition-colors"
+                          className="inline-flex items-center p-1.5 rounded-md border border-transparent text-subtle hover:text-danger-300 hover:bg-surface-2/60 transition-colors"
                           title="Delete site"
                         >
                           <Trash2 size={13} />
@@ -846,7 +846,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                     </div>
                   )}
 
-                  <div className="mt-2 ml-2 pl-3 border-l border-neutral-800 space-y-1">
+                  <div className="mt-2 ml-2 pl-3 border-l border-border space-y-1">
                     {siteAreas.map((area) => {
                       const areaKey = `area:${area.id}`;
                       const isAreaEditing = hierarchyEditKey === areaKey;
@@ -860,7 +860,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                                 autoFocus
                                 value={hierarchyDraftName}
                                 onChange={(event) => setHierarchyDraftName(event.target.value)}
-                                className="flex-1 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                                className="flex-1 bg-canvas border border-border-strong rounded-md px-3 py-1.5 text-sm text-body outline-none focus:border-border-focus"
                                 placeholder="Area name"
                               />
                               <button
@@ -881,13 +881,13 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-neutral-300 font-medium">{area.name}</span>
-                              <span className="text-xs text-neutral-600">{locationCount} {locationCount === 1 ? "location" : "locations"}</span>
+                              <span className="text-sm text-secondary font-medium">{area.name}</span>
+                              <span className="text-xs text-faint">{locationCount} {locationCount === 1 ? "location" : "locations"}</span>
                               <div className="ml-auto inline-flex items-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() => beginHierarchyEdit(areaKey, area.name)}
-                                  className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/60"
+                                  className="inline-flex items-center p-1.5 rounded-md border border-transparent text-subtle hover:text-body hover:bg-surface-2/60"
                                   title="Rename area"
                                 >
                                   <Edit3 size={12} />
@@ -895,7 +895,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                                 <button
                                   type="button"
                                   onClick={() => handleHierarchyAreaDelete(area.id)}
-                                  className="inline-flex items-center p-1.5 rounded-md border border-transparent text-neutral-500 hover:text-red-300 hover:bg-neutral-800/60 transition-colors"
+                                  className="inline-flex items-center p-1.5 rounded-md border border-transparent text-subtle hover:text-danger-300 hover:bg-surface-2/60 transition-colors"
                                   title="Delete area"
                                 >
                                   <Trash2 size={12} />
@@ -913,7 +913,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                           autoFocus
                           value={hierarchyDraftName}
                           onChange={(event) => setHierarchyDraftName(event.target.value)}
-                          className="flex-1 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                          className="flex-1 bg-canvas border border-border-strong rounded-md px-3 py-1.5 text-sm text-body outline-none focus:border-border-focus"
                           placeholder="New area name"
                         />
                         <button
@@ -937,7 +937,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                         type="button"
                         onClick={() => beginHierarchyEdit(`area:new:${site.id}`, "")}
                         data-tour="locations-add-area"
-                        className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200 py-0.5"
+                        className="inline-flex items-center gap-1 text-xs text-success-300 hover:text-success-200 py-0.5"
                       >
                         <Plus size={12} />
                         Add area
@@ -954,7 +954,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                   autoFocus
                   value={hierarchyDraftName}
                   onChange={(event) => setHierarchyDraftName(event.target.value)}
-                  className="w-full max-w-sm bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="w-full max-w-sm bg-canvas border border-border-strong rounded-md px-3 py-1.5 text-sm text-body outline-none focus:border-border-focus"
                   placeholder="New site name"
                 />
                 <button
@@ -978,7 +978,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 type="button"
                 onClick={() => beginHierarchyEdit("site:new", "")}
                 data-tour="locations-add-site"
-                className="inline-flex items-center gap-1 text-sm text-emerald-300 hover:text-emerald-200 mt-1"
+                className="inline-flex items-center gap-1 text-sm text-success-300 hover:text-success-200 mt-1"
               >
                 <Plus size={13} />
                 Add site
@@ -989,35 +989,35 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       </section>
 
       {addingOpen && (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">New Location</h2>
+        <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-heading">New Location</h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Name</span>
               <input
                 value={newForm.name}
                 onChange={(e) => setNewForm((v) => ({ ...v, name: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Shelf A"
               />
             </label>
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Description</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Description</span>
               <textarea
                 value={newForm.description}
                 onChange={(e) => setNewForm((v) => ({ ...v, description: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 min-h-[96px]"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus min-h-[96px]"
                 placeholder="Where this location is and what it stores"
               />
             </label>
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Area</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Area</span>
               <select
                 data-tour="locations-area-select"
                 value={newForm.area_id}
                 onChange={(e) => setNewForm((v) => ({ ...v, area_id: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               >
                 <option value="">{areas.length > 1 ? "Select area..." : "Default area"}</option>
                 {areas.map((area) => (
@@ -1028,7 +1028,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               </select>
             </label>
             <div className="sm:col-span-2 flex items-center gap-3">
-              <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+              <span className="text-xs uppercase tracking-wide text-subtle shrink-0">Icon</span>
               <IconColorPicker
                 title={newForm.name || "Location"}
                 value={newForm.icon}
@@ -1041,7 +1041,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               <button
                 onClick={() => newPhotoInputRef.current?.click()}
                 disabled={uploadingTarget === "new"}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Upload size={13} />
                 {uploadingTarget === "new" ? "Uploading..." : "Upload Photo"}
@@ -1060,7 +1060,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 }}
               />
               {newForm.photo_path && (
-                <span className="text-xs text-emerald-400">Photo ready to save.</span>
+                <span className="text-xs text-success-400">Photo ready to save.</span>
               )}
             </div>
           </div>
@@ -1069,7 +1069,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             <button
               onClick={() => void createLocation()}
               disabled={isCreating}
-              className="inline-flex h-8 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 rounded-md text-sm leading-none font-medium transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
               {isCreating ? "Saving..." : "Save"}
@@ -1080,7 +1080,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 setNewForm(EMPTY_FORM);
                 setError("");
               }}
-              className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm leading-none font-medium"
+              className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover text-sm leading-none font-medium"
             >
               Cancel
             </button>
@@ -1089,29 +1089,29 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
       )}
 
       {editingLocation && (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">Edit Location</h2>
+        <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-heading">Edit Location</h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Name</span>
               <input
                 value={editForm.name}
                 onChange={(e) => setEditForm((v) => ({ ...v, name: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
             </label>
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Description</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Description</span>
               <textarea
                 value={editForm.description}
                 onChange={(e) => setEditForm((v) => ({ ...v, description: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 min-h-[96px]"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus min-h-[96px]"
               />
             </label>
             {areas.length > 1 && (
               <label className="relative block sm:col-span-2">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Site / Area</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Site / Area</span>
                 <input
                   value={editAreaSearch}
                   onFocus={() => {
@@ -1126,10 +1126,10 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                   }}
                   onBlur={() => window.setTimeout(() => setEditAreaDropdownOpen(false), 150)}
                   placeholder="Search site or area..."
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
                 {editAreaDropdownOpen && (
-                  <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-950 py-1 shadow-lg">
+                  <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border-strong bg-canvas py-1 shadow-lg">
                     {areas
                       .filter((area) => formatAreaLabel(area).toLowerCase().includes(editAreaQuery.trim().toLowerCase()))
                       .map((area) => (
@@ -1143,7 +1143,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                             setEditForm((v) => ({ ...v, area_id: area.id }));
                             setEditAreaDropdownOpen(false);
                           }}
-                          className="block w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"
+                          className="block w-full px-3 py-2 text-left text-sm text-secondary hover:bg-surface-2 hover:text-heading"
                         >
                           {formatAreaLabel(area)}
                         </button>
@@ -1153,7 +1153,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               </label>
             )}
             <div className="sm:col-span-2 flex items-center gap-3">
-              <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+              <span className="text-xs uppercase tracking-wide text-subtle shrink-0">Icon</span>
               <IconColorPicker
                 title={editForm.name || "Location"}
                 value={editForm.icon}
@@ -1166,7 +1166,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               <button
                 onClick={() => editPhotoInputRef.current?.click()}
                 disabled={uploadingTarget === "edit"}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Upload size={13} />
                 {uploadingTarget === "edit"
@@ -1189,13 +1189,13 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                 }}
               />
               {editForm.photo_path && (
-                <span className="text-xs text-emerald-400">New photo ready to save.</span>
+                <span className="text-xs text-success-400">New photo ready to save.</span>
               )}
               {!editForm.photo_path && editingLocation.photo_url && (
                 <img
                   src={editingLocation.photo_url}
                   alt={editingLocation.name}
-                  className="w-10 h-10 object-cover rounded border border-neutral-800"
+                  className="w-10 h-10 object-cover rounded border border-border"
                 />
               )}
             </div>
@@ -1235,7 +1235,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                         setAreaFilterId("");
                       }
                     }}
-                    className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    className="bg-canvas border border-border-strong rounded-md px-3 py-1.5 text-sm text-body outline-none focus:border-border-focus"
                   >
                     <option value="">All sites</option>
                     {sites.map((site) => (
@@ -1248,7 +1248,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
                   data-tour="locations-area-filter"
                   value={areaFilterId}
                   onChange={(event) => setAreaFilterId(event.target.value)}
-                  className="bg-neutral-950 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="bg-canvas border border-border-strong rounded-md px-3 py-1.5 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="">All areas</option>
                   {scopedAreas.map((area) => (
@@ -1278,7 +1278,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             onSort={(key) => handleSort(key as LocationSortKey)}
           />
           {!loadError && (
-            <p className="text-xs text-neutral-600 text-right">
+            <p className="text-xs text-faint text-right">
               {loading ? "Loading…" : `${filtered.length} location${filtered.length !== 1 ? "s" : ""}`}
             </p>
           )}

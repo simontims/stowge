@@ -66,7 +66,7 @@ export function DataTable<T extends object>({
   const resolvedRef = tableRef ?? internalRef;
   const totalColumnCount = columns.length + (actions ? 1 : 0);
   return (
-    <div className="border border-neutral-800 rounded-lg overflow-hidden">
+    <div className="border border-border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table
           ref={resolvedRef}
@@ -74,7 +74,7 @@ export function DataTable<T extends object>({
           style={fixedLayout && minTableWidth ? { minWidth: minTableWidth } : undefined}
         >
           <thead>
-            <tr className="bg-neutral-900 border-b border-neutral-800">
+            <tr className="bg-surface border-b border-border">
               {columns.map((col) => {
                 const isSortable = col.sortable && onSort;
                 const isActive = isSortable && sortKey === col.key;
@@ -88,8 +88,8 @@ export function DataTable<T extends object>({
                     scope="col"
                     style={col.width ? { width: col.width, minWidth: col.width } : undefined}
                     className={clsx(
-                      "px-4 py-2.5 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider select-none whitespace-nowrap",
-                      isSortable && "cursor-pointer hover:text-neutral-300 transition-colors",
+                      "px-4 py-2.5 text-left text-xs font-medium text-subtle uppercase tracking-wider select-none whitespace-nowrap",
+                      isSortable && "cursor-pointer hover:text-secondary transition-colors",
                       col.headerClassName
                     )}
                     onClick={
@@ -104,7 +104,7 @@ export function DataTable<T extends object>({
                     <span className="inline-flex items-center gap-1">
                       {col.header}
                       {isSortable && (
-                        <SortIcon size={13} className={isActive ? "text-neutral-300" : "text-neutral-600"} />
+                        <SortIcon size={13} className={isActive ? "text-secondary" : "text-faint"} />
                       )}
                     </span>
                   </th>
@@ -115,7 +115,7 @@ export function DataTable<T extends object>({
                   scope="col"
                   style={actions.width ? { width: actions.width, minWidth: actions.width } : undefined}
                   className={clsx(
-                    "px-4 py-2.5 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider whitespace-nowrap",
+                    "px-4 py-2.5 text-right text-xs font-medium text-subtle uppercase tracking-wider whitespace-nowrap",
                     actions.headerClassName
                   )}
                 >
@@ -124,12 +124,12 @@ export function DataTable<T extends object>({
               )}
             </tr>
           </thead>
-          <tbody className="bg-neutral-950 divide-y divide-neutral-800/70">
+          <tbody className="bg-canvas divide-y divide-border/70">
             {rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={totalColumnCount}
-                  className="px-4 py-10 text-center text-sm text-neutral-600"
+                  className="px-4 py-10 text-center text-sm text-faint"
                 >
                   {emptyMessage}
                 </td>
@@ -146,8 +146,8 @@ export function DataTable<T extends object>({
                     "transition-colors",
                     onRowClick ? "cursor-pointer" : "",
                     isActive
-                      ? "bg-neutral-800/80"
-                      : "hover:bg-neutral-900/60"
+                      ? "bg-selected"
+                      : "hover:bg-surface/60"
                   )}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
@@ -156,7 +156,7 @@ export function DataTable<T extends object>({
                       key={col.key}
                       style={col.width ? { width: col.width, minWidth: col.width } : undefined}
                       className={clsx(
-                        "px-4 py-2.5 text-neutral-300",
+                        "px-4 py-2.5 text-secondary",
                         col.className
                       )}
                     >
@@ -182,7 +182,7 @@ export function DataTable<T extends object>({
             )}
           </tbody>
           {footer && (
-            <tfoot className="border-t border-neutral-800">
+            <tfoot className="border-t border-border">
               {footer}
             </tfoot>
           )}

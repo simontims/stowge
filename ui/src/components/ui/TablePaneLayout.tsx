@@ -30,9 +30,9 @@ export function TablePaneLayout({
   rightWrapperClassName,
 }: TablePaneLayoutProps) {
   const splitClass = splitClassName || (variant === "aside" ? "lg:flex lg:gap-4" : "grid gap-4 lg:grid-cols-[1.2fr_1fr]");
-  const leftPaneClass = leftPaneClassName || (variant === "aside" ? "min-w-0 flex-1" : "rounded-md border border-neutral-800 p-3");
-  const rightPaneClass = rightPaneClassName || (variant === "aside" ? "flex-1 p-3" : "rounded-md border border-neutral-800 p-3");
-  const rightWrapperClass = rightWrapperClassName || (variant === "aside" ? "hidden lg:flex lg:w-96 lg:border-l border-neutral-800" : "");
+  const leftPaneClass = leftPaneClassName || (variant === "aside" ? "min-w-0 flex-1" : "rounded-md border border-border p-3");
+  const rightPaneClass = rightPaneClassName || (variant === "aside" ? "flex-1 p-3" : "rounded-md border border-border p-3");
+  const rightWrapperClass = rightWrapperClassName || (variant === "aside" ? "hidden lg:flex lg:w-96 lg:border-l border-border" : "");
 
   if (variant === "aside") {
     return (

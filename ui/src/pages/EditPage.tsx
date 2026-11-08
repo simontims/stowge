@@ -141,7 +141,7 @@ function ContentQuantityField({ value, onCommit }: ContentQuantityFieldProps) {
       type="number"
       min={1}
       {...field}
-      className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+      className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body focus:outline-none focus:ring-1 focus:ring-border-hover"
     />
   );
 }
@@ -180,15 +180,15 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
   ];
 
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-950/20 p-4 space-y-4">
+    <div className="rounded-lg border border-warning-500/40 bg-warning-950/20 p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Brain size={15} className="text-amber-400" />
-          <span className="text-sm font-semibold text-amber-300">AI Suggestions</span>
+          <Brain size={15} className="text-warning-400" />
+          <span className="text-sm font-semibold text-warning-300">AI Suggestions</span>
         </div>
         <button
           onClick={onDismiss}
-          className="p-1 rounded text-neutral-500 hover:text-neutral-300"
+          className="p-1 rounded text-subtle hover:text-secondary"
           title="Dismiss"
         >
           <X size={14} />
@@ -205,8 +205,8 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
               className={[
                 "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors",
                 i === selectedIdx
-                  ? "border-amber-500/70 bg-amber-900/40 text-amber-200"
-                  : "border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-neutral-200",
+                  ? "border-warning-500/70 bg-warning-900/40 text-warning-200"
+                  : "border-border-strong bg-surface text-muted hover:text-body",
               ].join(" ")}
             >
               Option {i + 1}
@@ -224,18 +224,18 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
           const changed = f.currentVal.trim() !== f.proposedVal.trim() && f.proposedVal.trim() !== "";
           return (
             <div key={f.label}>
-              <div className="text-xs text-neutral-500 uppercase tracking-wide mb-1">{f.label}</div>
+              <div className="text-xs text-subtle uppercase tracking-wide mb-1">{f.label}</div>
               <div className="grid grid-cols-2 gap-2">
-                <div className={`rounded p-2 text-xs ${changed ? "bg-neutral-900 border border-neutral-700" : "bg-neutral-900/50 border border-neutral-800"}`}>
-                  <div className="text-neutral-500 text-[10px] uppercase tracking-wide mb-1">Current</div>
-                  <div className="text-neutral-300 break-words">{f.currentVal || <span className="italic text-neutral-600">empty</span>}</div>
+                <div className={`rounded p-2 text-xs ${changed ? "bg-surface border border-border-strong" : "bg-surface/50 border border-border"}`}>
+                  <div className="text-subtle text-[10px] uppercase tracking-wide mb-1">Current</div>
+                  <div className="text-secondary break-words">{f.currentVal || <span className="italic text-faint">empty</span>}</div>
                 </div>
-                <div className={`rounded p-2 text-xs ${changed ? "bg-amber-950/40 border border-amber-500/40" : "bg-neutral-900/50 border border-neutral-800"}`}>
+                <div className={`rounded p-2 text-xs ${changed ? "bg-warning-950/40 border border-warning-500/40" : "bg-surface/50 border border-border"}`}>
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="text-neutral-500 text-[10px] uppercase tracking-wide">Proposed</div>
+                    <div className="text-subtle text-[10px] uppercase tracking-wide">Proposed</div>
                     <button
                       onClick={() => setProposed((prev) => ({ ...prev, [f.key]: f.currentVal }))}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-600"
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-border-strong text-muted hover:text-body hover:border-border-hover"
                       title={`Revert ${f.label.toLowerCase()} to current value`}
                     >
                       Revert
@@ -246,7 +246,7 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
                       value={f.proposedVal}
                       onChange={(event) => setProposed((prev) => ({ ...prev, description: event.target.value }))}
                       rows={3}
-                      className={`w-full rounded border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 resize-y ${changed ? "border-amber-500/50 bg-amber-900/20 text-amber-100 focus:ring-amber-600" : "border-neutral-700 bg-neutral-900 text-neutral-300 focus:ring-neutral-600"}`}
+                      className={`w-full rounded border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 resize-y ${changed ? "border-warning-500/50 bg-warning-900/20 text-warning-100 focus:ring-warning-600" : "border-border-strong bg-surface text-secondary focus:ring-border-hover"}`}
                       placeholder="Proposed description"
                     />
                   ) : (
@@ -258,7 +258,7 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
                           [f.key]: event.target.value,
                         }))
                       }
-                      className={`w-full rounded border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 ${changed ? "border-amber-500/50 bg-amber-900/20 text-amber-100 focus:ring-amber-600" : "border-neutral-700 bg-neutral-900 text-neutral-300 focus:ring-neutral-600"}`}
+                      className={`w-full rounded border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 ${changed ? "border-warning-500/50 bg-warning-900/20 text-warning-100 focus:ring-warning-600" : "border-border-strong bg-surface text-secondary focus:ring-border-hover"}`}
                       placeholder={`Proposed ${f.label.toLowerCase()}`}
                     />
                   )}
@@ -269,15 +269,15 @@ function DiffPanel({ current, candidates, selectedIdx, onSelectIdx, onAccept, on
         })}
 
         {candidate.evidence && (
-          <div className="text-xs text-neutral-500 italic border-t border-neutral-800 pt-2">
-            <span className="font-medium text-neutral-600">Evidence: </span>{candidate.evidence}
+          <div className="text-xs text-subtle italic border-t border-border pt-2">
+            <span className="font-medium text-faint">Evidence: </span>{candidate.evidence}
           </div>
         )}
       </div>
 
       <button
         onClick={() => onAccept(proposed)}
-        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-amber-500/70 bg-amber-600/20 text-amber-200 hover:bg-amber-600/30 text-sm font-medium transition-colors"
+        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-warning-500/70 bg-warning-600/20 text-warning-200 hover:bg-warning-600/30 text-sm font-medium transition-colors"
       >
         Apply selected suggestion to form
       </button>
@@ -860,7 +860,7 @@ export function EditPage() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 size={24} className="text-neutral-500 animate-spin" />
+        <Loader2 size={24} className="text-subtle animate-spin" />
       </div>
     );
   }
@@ -868,10 +868,10 @@ export function EditPage() {
   if (loadError || !part) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6">
-        <p className="text-sm text-red-400">{loadError || "Item not found."}</p>
+        <p className="text-sm text-danger-400">{loadError || "Item not found."}</p>
         <button
           onClick={() => navigate(-1)}
-          className="text-sm text-neutral-400 hover:text-neutral-200 underline"
+          className="text-sm text-muted hover:text-body underline"
         >
           Go back
         </button>
@@ -882,19 +882,19 @@ export function EditPage() {
   return (
     <div className="flex flex-col h-full w-full pb-[calc(1rem+env(safe-area-inset-bottom))]">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-neutral-800 flex-none">
+      <div className="flex items-center gap-3 p-4 border-b border-border flex-none">
         <button
           onClick={requestBackNavigation}
-          className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600 flex-shrink-0"
+          className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover flex-shrink-0"
           title="Back"
         >
           <ArrowLeft size={14} />
         </button>
-        <h1 className="text-base font-semibold text-neutral-100 truncate flex-1">Edit Item</h1>
+        <h1 className="text-base font-semibold text-heading truncate flex-1">Edit Item</h1>
         <button
           onClick={() => void handleDelete()}
           disabled={deleting}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-red-400 hover:border-red-500/60 disabled:opacity-40 text-xs transition-colors"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border-strong text-muted hover:text-danger-400 hover:border-danger-500/60 disabled:opacity-40 text-xs transition-colors"
           title="Delete item"
         >
           <Trash2 size={13} />
@@ -908,14 +908,14 @@ export function EditPage() {
 
           {/* ---- Images section ---- */}
           <section className="space-y-3">
-            <h2 className="text-xs text-neutral-500 uppercase tracking-wide font-medium">Images</h2>
+            <h2 className="text-xs text-subtle uppercase tracking-wide font-medium">Images</h2>
 
             {images.length > 0 ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                 {images.map((img, idx) => (
                   <div
                     key={img.id}
-                    className="relative group rounded-md border border-neutral-800 overflow-hidden bg-neutral-900"
+                    className="relative group rounded-md border border-border overflow-hidden bg-surface"
                   >
                     <button
                       onClick={() => {
@@ -934,7 +934,7 @@ export function EditPage() {
                     </button>
 
                     {img.is_primary ? (
-                      <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-amber-500/90 text-white text-xs font-medium pointer-events-none">
+                      <div className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-warning-500/90 text-on-solid text-xs font-medium pointer-events-none">
                         <Star size={12} fill="currentColor" />
                         Primary
                       </div>
@@ -944,7 +944,7 @@ export function EditPage() {
                           if (!settingPrimaryId) void handleSetPrimary(img.id);
                         }}
                         disabled={!!settingPrimaryId}
-                        className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
+                        className="absolute top-1.5 left-1.5 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:opacity-60 transition-colors"
                       >
                         <Star size={12} />
                         {settingPrimaryId === img.id ? "Setting…" : "Make primary"}
@@ -956,7 +956,7 @@ export function EditPage() {
                         if (!deletingImageId) void handleDeleteImage(img.id);
                       }}
                       disabled={!!deletingImageId}
-                      className="absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-red-600/80 disabled:opacity-60 transition-colors opacity-0 group-hover:opacity-100"
+                      className="absolute top-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-danger-600/80 disabled:opacity-60 transition-colors opacity-0 group-hover:opacity-100"
                       title="Remove this image"
                     >
                       <Trash2 size={12} />
@@ -965,7 +965,7 @@ export function EditPage() {
 
                     <button
                       onClick={() => handleRotateImage(img.id)}
-                      className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 transition-colors opacity-0 group-hover:opacity-100"
+                      className="absolute bottom-1.5 right-1.5 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 transition-colors opacity-0 group-hover:opacity-100"
                       title="Rotate 90° clockwise"
                     >
                       <RotateCw size={12} />
@@ -974,12 +974,12 @@ export function EditPage() {
                 ))}
               </div>
             ) : (
-              <div className="h-40 rounded-md border border-dashed border-neutral-700 flex items-center justify-center text-sm text-neutral-500">
+              <div className="h-40 rounded-md border border-dashed border-border-strong flex items-center justify-center text-sm text-subtle">
                 No images
               </div>
             )}
 
-            {imageError && <p className="text-xs text-red-400">{imageError}</p>}
+            {imageError && <p className="text-xs text-danger-400">{imageError}</p>}
 
             {/* Add images + AI rescan */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -1005,14 +1005,14 @@ export function EditPage() {
               <button
                 onClick={() => cameraInputRef.current?.click()}
                 disabled={uploadingImages}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 text-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong bg-surface text-secondary hover:text-heading hover:border-border-hover disabled:opacity-50 text-sm transition-colors"
               >
                 <Camera size={13} /> Take photo
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingImages}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 bg-neutral-900 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-50 text-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong bg-surface text-secondary hover:text-heading hover:border-border-hover disabled:opacity-50 text-sm transition-colors"
               >
                 {uploadingImages ? (
                   <><Loader2 size={13} className="animate-spin" /> Adding…</>
@@ -1036,9 +1036,9 @@ export function EditPage() {
             </div>
 
             {images.length === 0 && (
-              <p className="text-xs text-neutral-600">Add images first to scan.</p>
+              <p className="text-xs text-faint">Add images first to scan.</p>
             )}
-            {rescanError && <p className="text-xs text-red-400">{rescanError}</p>}
+            {rescanError && <p className="text-xs text-danger-400">{rescanError}</p>}
 
             {showDiff && candidates.length > 0 && (
               <DiffPanel
@@ -1054,20 +1054,20 @@ export function EditPage() {
 
           {/* ---- Fields section ---- */}
           <section className="space-y-3">
-            <h2 className="text-xs text-neutral-500 uppercase tracking-wide font-medium">Details</h2>
+            <h2 className="text-xs text-subtle uppercase tracking-wide font-medium">Details</h2>
 
             <label className="space-y-1 block">
-              <span className="text-xs text-neutral-500 uppercase tracking-wide">Name</span>
+              <span className="text-xs text-subtle uppercase tracking-wide">Name</span>
               <input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-border-hover"
                 placeholder="Item name"
               />
             </label>
 
             <div className="space-y-1">
-              <span className="text-xs text-neutral-500 uppercase tracking-wide">Tags</span>
+              <span className="text-xs text-subtle uppercase tracking-wide">Tags</span>
               <TagPicker
                 tags={tagOptions}
                 selectedIds={form.tag_ids}
@@ -1077,11 +1077,11 @@ export function EditPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="space-y-1 block">
-                <span className="text-xs text-neutral-500 uppercase tracking-wide">Location</span>
+                <span className="text-xs text-subtle uppercase tracking-wide">Location</span>
                 <select
                   value={form.location_id}
                   onChange={(e) => setForm((f) => ({ ...f, location_id: e.target.value }))}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                  className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body focus:outline-none focus:ring-1 focus:ring-border-hover"
                 >
                   <option value="">No location</option>
                   {locations.map((l) => (
@@ -1091,11 +1091,11 @@ export function EditPage() {
               </label>
 
               <label className="space-y-1 block">
-                <span className="text-xs text-neutral-500 uppercase tracking-wide">Status</span>
+                <span className="text-xs text-subtle uppercase tracking-wide">Status</span>
                 <select
                   value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value === "confirmed" ? "confirmed" : "draft" }))}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                  className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body focus:outline-none focus:ring-1 focus:ring-border-hover"
                 >
                   <option value="draft">draft</option>
                   <option value="confirmed">confirmed</option>
@@ -1103,34 +1103,34 @@ export function EditPage() {
               </label>
 
               <label className="space-y-1 block">
-                <span className="text-xs text-neutral-500 uppercase tracking-wide">Quantity</span>
+                <span className="text-xs text-subtle uppercase tracking-wide">Quantity</span>
                 <input
                   type="number"
                   min={0}
                   {...formQuantityField}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                  className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body focus:outline-none focus:ring-1 focus:ring-border-hover"
                 />
               </label>
             </div>
 
             <label className="space-y-1 block">
-              <span className="text-xs text-neutral-500 uppercase tracking-wide">Description</span>
+              <span className="text-xs text-subtle uppercase tracking-wide">Description</span>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 rows={4}
-                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-border-hover"
                 placeholder="Optional notes"
               />
             </label>
 
             <div className="space-y-2.5">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-neutral-500 uppercase tracking-wide">Contents</span>
+                <span className="text-xs text-subtle uppercase tracking-wide">Contents</span>
                 <button
                   type="button"
                   onClick={addContentRow}
-                  className="inline-flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-xs text-neutral-300 hover:border-neutral-600 hover:text-neutral-100"
+                  className="inline-flex items-center gap-1 rounded-md border border-border-strong bg-surface px-2 py-1 text-xs text-secondary hover:border-border-hover hover:text-heading"
                 >
                   <Plus size={12} />
                   Add row
@@ -1138,7 +1138,7 @@ export function EditPage() {
               </div>
 
               {form.contents.length === 0 ? (
-                <div className="rounded-md border border-dashed border-neutral-700 bg-neutral-900/40 px-3 py-2 text-xs text-neutral-500">
+                <div className="rounded-md border border-dashed border-border-strong bg-surface/40 px-3 py-2 text-xs text-subtle">
                   No contents yet.
                 </div>
               ) : (
@@ -1146,14 +1146,14 @@ export function EditPage() {
                   {form.contents.map((entry, index) => {
                     const isEditing = editingContentIdx === index;
                     return (
-                      <div key={`${entry.id || "entry"}-${index}`} className="rounded-md border border-neutral-800 bg-neutral-900/70 p-2.5">
+                      <div key={`${entry.id || "entry"}-${index}`} className="rounded-md border border-border bg-surface/70 p-2.5">
                         {isEditing ? (
                           <div className="space-y-2">
                             <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_6rem] gap-2">
                               <input
                                 value={contentDraft.name}
                                 onChange={(e) => setContentDraft((prev) => ({ ...prev, name: e.target.value }))}
-                                className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                                className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body focus:outline-none focus:ring-1 focus:ring-border-hover"
                                 placeholder="Name"
                               />
                               <ContentQuantityField
@@ -1164,14 +1164,14 @@ export function EditPage() {
                             <input
                               value={contentDraft.note}
                               onChange={(e) => setContentDraft((prev) => ({ ...prev, note: e.target.value }))}
-                              className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600"
+                              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-body focus:outline-none focus:ring-1 focus:ring-border-hover"
                               placeholder="Optional note"
                             />
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
                                 onClick={cancelEditContent}
-                                className="inline-flex items-center gap-1 rounded-md border border-neutral-700 px-2.5 py-1.5 text-xs text-neutral-300 hover:border-neutral-600 hover:text-neutral-100"
+                                className="inline-flex items-center gap-1 rounded-md border border-border-strong px-2.5 py-1.5 text-xs text-secondary hover:border-border-hover hover:text-heading"
                               >
                                 Cancel
                               </button>
@@ -1179,7 +1179,7 @@ export function EditPage() {
                                 type="button"
                                 onClick={() => saveContentEdit(index)}
                                 disabled={!contentDraft.name.trim()}
-                                className="inline-flex items-center gap-1 rounded-md border border-emerald-500/70 bg-emerald-950/30 px-2.5 py-1.5 text-xs text-emerald-300 hover:text-emerald-200 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-md border border-success-500/70 bg-success-950/30 px-2.5 py-1.5 text-xs text-success-300 hover:text-success-200 disabled:opacity-50"
                               >
                                 Save
                               </button>
@@ -1189,26 +1189,26 @@ export function EditPage() {
                           <div className="space-y-1.5">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="text-sm font-medium text-neutral-100 break-words">{entry.name}</div>
+                                <div className="text-sm font-medium text-heading break-words">{entry.name}</div>
                                 {entry.note ? (
-                                  <div className="mt-0.5 text-xs text-neutral-400 break-words">{entry.note}</div>
+                                  <div className="mt-0.5 text-xs text-muted break-words">{entry.note}</div>
                                 ) : null}
                               </div>
                               <div className="flex items-center gap-1.5">
-                                <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-300">
+                                <span className="inline-flex items-center rounded border border-border-strong bg-surface px-2 py-0.5 text-xs text-secondary">
                                   qty {Math.max(1, entry.quantity || 1)}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => startEditContent(index)}
-                                  className="rounded-md border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:border-neutral-600 hover:text-neutral-100"
+                                  className="rounded-md border border-border-strong px-2 py-0.5 text-xs text-secondary hover:border-border-hover hover:text-heading"
                                 >
                                   Edit
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => deleteContentRow(index)}
-                                  className="rounded-md border border-red-500/50 px-2 py-0.5 text-xs text-red-300 hover:border-red-400 hover:text-red-200"
+                                  className="rounded-md border border-danger-500/50 px-2 py-0.5 text-xs text-danger-300 hover:border-danger-400 hover:text-danger-200"
                                 >
                                   Delete
                                 </button>
@@ -1223,7 +1223,7 @@ export function EditPage() {
               )}
             </div>
 
-            <div className="text-xs text-neutral-600 space-y-0.5 pt-1">
+            <div className="text-xs text-faint space-y-0.5 pt-1">
               <div>ID: {part.id}</div>
               <div>Created: {new Date(part.created_at).toLocaleString()}</div>
               <div>Updated: {new Date(part.updated_at).toLocaleString()}</div>
@@ -1231,17 +1231,17 @@ export function EditPage() {
           </section>
 
           {saveError && (
-            <p className="text-sm text-red-400 px-1">{saveError}</p>
+            <p className="text-sm text-danger-400 px-1">{saveError}</p>
           )}
         </div>
       </div>
 
       {/* Sticky footer */}
-      <div className="border-t border-neutral-800 p-4 bg-neutral-950 flex-none">
+      <div className="border-t border-border p-4 bg-canvas flex-none">
         <div className="flex items-center gap-2">
           <button
             onClick={requestBackNavigation}
-            className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border border-neutral-700 bg-neutral-800 text-neutral-300 hover:text-neutral-100 hover:bg-neutral-700 text-sm font-medium"
+            className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border border-border-strong bg-surface-2 text-secondary hover:text-heading hover:bg-surface-3 text-sm font-medium"
           >
             Cancel
           </button>
@@ -1252,8 +1252,8 @@ export function EditPage() {
             className={[
               "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:opacity-60 text-sm font-semibold",
               hasDirtyChanges
-                ? "border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-500"
-                : "border-neutral-700 bg-neutral-900 text-neutral-500",
+                ? "border-success-500 bg-success-600 text-on-solid hover:bg-success-500"
+                : "border-border-strong bg-surface text-subtle",
             ].join(" ")}
           >
             <Save size={14} />
@@ -1263,33 +1263,33 @@ export function EditPage() {
       </div>
 
       {unsavedPromptOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
-            <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
-            <p className="text-sm text-neutral-300">
+            <h3 className="text-sm font-semibold text-heading">Unsaved Changes</h3>
+            <p className="text-sm text-secondary">
               You have unsaved changes. Save before leaving this page?
             </p>
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={handleUnsavedCancel}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60 text-sm"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60 text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUnsavedDiscard}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60 text-sm"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-60 text-sm"
               >
                 Discard
               </button>
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={saving}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60 text-sm"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:opacity-60 text-sm"
               >
                 {saving ? "Saving..." : "Save"}
               </button>
@@ -1299,8 +1299,8 @@ export function EditPage() {
       )}
 
       {lightboxOpen && images.length > 0 && images[activeImageIdx] && (
-        <div className="fixed inset-0 z-[80] bg-black/90 p-2 sm:p-4 flex items-center justify-center">
-          <div className="relative w-full h-full max-w-6xl max-h-[92vh] rounded-lg border border-neutral-800 bg-black overflow-hidden group">
+        <div className="fixed inset-0 z-[80] bg-scrim/90 p-2 sm:p-4 flex items-center justify-center">
+          <div className="relative w-full h-full max-w-6xl max-h-[92vh] rounded-lg border border-border bg-scrim overflow-hidden group">
             <img
               src={images[activeImageIdx].display_url || images[activeImageIdx].original_url || images[activeImageIdx].thumb_url}
               alt={`${part.name} full view`}
@@ -1309,7 +1309,7 @@ export function EditPage() {
             />
 
             {images[activeImageIdx].is_primary ? (
-              <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-amber-500/90 text-white text-xs font-medium pointer-events-none">
+              <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-warning-500/90 text-on-solid text-xs font-medium pointer-events-none">
                 <Star size={11} fill="currentColor" />
                 Primary
               </div>
@@ -1320,7 +1320,7 @@ export function EditPage() {
                   if (id && !settingPrimaryId) void handleSetPrimary(id);
                 }}
                 disabled={!!settingPrimaryId}
-                className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 disabled:opacity-60 transition-colors"
+                className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:opacity-60 transition-colors"
               >
                 <Star size={11} />
                 {settingPrimaryId === images[activeImageIdx].id ? "Setting…" : "Make primary"}
@@ -1334,7 +1334,7 @@ export function EditPage() {
                   if (id && !deletingImageId) void handleDeleteImage(id);
                 }}
                 disabled={!!deletingImageId}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-red-600/80 disabled:opacity-60 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-danger-600/80 disabled:opacity-60 transition-colors"
                 title="Remove this image"
               >
                 <Trash2 size={11} />
@@ -1342,7 +1342,7 @@ export function EditPage() {
               </button>
               <button
                 onClick={() => setLightboxOpen(false)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-black/60 text-white text-xs font-medium hover:bg-black/80 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 transition-colors"
                 title="Close"
               >
                 <X size={11} />
@@ -1354,19 +1354,19 @@ export function EditPage() {
               <>
                 <button
                   onClick={goPrevImage}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-scrim/50 text-on-solid transition-colors hover:bg-scrim/70"
                   aria-label="Previous image"
                 >
                   <ChevronLeft size={20} />
                 </button>
                 <button
                   onClick={goNextImage}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-scrim/50 text-on-solid transition-colors hover:bg-scrim/70"
                   aria-label="Next image"
                 >
                   <ChevronRight size={20} />
                 </button>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-black/60 text-white text-xs">
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-scrim/60 text-on-solid text-xs">
                   {activeImageIdx + 1} / {images.length}
                 </div>
               </>

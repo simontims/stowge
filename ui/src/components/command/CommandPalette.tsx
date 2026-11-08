@@ -153,16 +153,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-scrim/60 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-lg bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg bg-surface border border-border-strong rounded-xl shadow-2xl overflow-hidden">
         {/* Search row */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-800">
-          <Search size={15} className="text-neutral-500 shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+          <Search size={15} className="text-subtle shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -170,7 +170,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search actions and pages…"
-            className="flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 outline-none"
+            className="flex-1 bg-transparent text-sm text-heading placeholder:text-subtle outline-none"
             aria-label="Command search"
             aria-autocomplete="list"
             aria-controls="command-list"
@@ -178,7 +178,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               filtered[activeIndex] ? `cmd-${filtered[activeIndex].id}` : undefined
             }
           />
-          <kbd className="text-[10px] text-neutral-600 border border-neutral-700 rounded px-1.5 py-0.5 font-mono shrink-0">
+          <kbd className="text-[10px] text-faint border border-border-strong rounded px-1.5 py-0.5 font-mono shrink-0">
             Esc
           </kbd>
         </div>
@@ -192,7 +192,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           className="max-h-80 overflow-y-auto py-1.5"
         >
           {filtered.length === 0 ? (
-            <li className="px-4 py-8 text-sm text-neutral-500 text-center">
+            <li className="px-4 py-8 text-sm text-subtle text-center">
               No results for &ldquo;{query}&rdquo;
             </li>
           ) : (
@@ -209,21 +209,21 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                   className={clsx(
                     "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors",
                     i === activeIndex
-                      ? "bg-neutral-800 text-neutral-100"
-                      : "text-neutral-400"
+                      ? "bg-surface-2 text-heading"
+                      : "text-muted"
                   )}
                 >
                   <span
                     className={clsx(
                       "shrink-0 transition-colors",
-                      i === activeIndex ? "text-neutral-300" : "text-neutral-600"
+                      i === activeIndex ? "text-secondary" : "text-faint"
                     )}
                   >
                     {cmd.icon}
                   </span>
                   <span className="flex-1 min-w-0 truncate">{cmd.label}</span>
                   {cmd.description && (
-                    <span className="text-xs text-neutral-600 hidden sm:block shrink-0 truncate max-w-[160px]">
+                    <span className="text-xs text-faint hidden sm:block shrink-0 truncate max-w-[160px]">
                       {cmd.description}
                     </span>
                   )}
@@ -231,7 +231,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                     size={12}
                     className={clsx(
                       "shrink-0 transition-colors",
-                      i === activeIndex ? "text-neutral-500" : "text-neutral-800"
+                      i === activeIndex ? "text-subtle" : "text-ghost"
                     )}
                   />
                 </button>
@@ -241,7 +241,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         </ul>
 
         {/* Footer hint */}
-        <div className="border-t border-neutral-800 px-4 py-2 flex items-center gap-4 text-[11px] text-neutral-600">
+        <div className="border-t border-border px-4 py-2 flex items-center gap-4 text-[11px] text-faint">
           <span>
             <kbd className="font-mono">↑↓</kbd> navigate
           </span>

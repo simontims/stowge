@@ -117,10 +117,10 @@ function statusLabel(row: ApiKeyRecord): string {
 }
 
 function statusClasses(label: string): string {
-  if (label === "Revoked") return "border-red-500/40 bg-red-950/30 text-red-300";
-  if (label === "Expired") return "border-amber-500/40 bg-amber-950/30 text-amber-300";
-  if (label === "Expiring Soon") return "border-amber-400/40 bg-amber-950/20 text-amber-200";
-  return "border-emerald-500/40 bg-emerald-950/30 text-emerald-300";
+  if (label === "Revoked") return "border-danger-500/40 bg-danger-950/30 text-danger-300";
+  if (label === "Expired") return "border-warning-500/40 bg-warning-950/30 text-warning-300";
+  if (label === "Expiring Soon") return "border-warning-400/40 bg-warning-950/20 text-warning-200";
+  return "border-success-500/40 bg-success-950/30 text-success-300";
 }
 
 function getEnabledScopes(form: CreateApiKeyForm): string[] {
@@ -321,13 +321,13 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
         key: "name",
         header: "Name",
         sortable: true,
-        render: (row) => <span className="text-neutral-100">{row.name}</span>,
+        render: (row) => <span className="text-heading">{row.name}</span>,
       },
       {
         key: "key_type",
         header: "Type",
         sortable: true,
-        render: (row) => <span className="text-neutral-300">{row.key_type === "system" ? "System" : "User"}</span>,
+        render: (row) => <span className="text-secondary">{row.key_type === "system" ? "System" : "User"}</span>,
       },
       {
         key: "status",
@@ -354,8 +354,8 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
               }}
               className={`inline-flex items-center justify-center rounded border px-1.5 py-0.5 ${
                 selectedStatusCount === STATUS_FILTER_OPTIONS.length
-                  ? "border-neutral-700 text-neutral-500 hover:text-neutral-300"
-                  : "border-emerald-500/70 text-emerald-300"
+                  ? "border-border-strong text-subtle hover:text-secondary"
+                  : "border-success-500/70 text-success-300"
               }`}
             >
               <Filter size={12} />
@@ -376,7 +376,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
         key: "expires_at",
         header: "Validity",
         render: (row) => (
-          <span className="text-neutral-300 whitespace-nowrap">
+          <span className="text-secondary whitespace-nowrap">
             {row.expires_at ? formatDate(row.expires_at) : "Forever"}
           </span>
         ),
@@ -385,7 +385,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
         key: "scopes",
         header: "Scopes",
         render: (row) => (
-          <span className="text-neutral-400 text-xs whitespace-nowrap">
+          <span className="text-muted text-xs whitespace-nowrap">
             {row.scopes.length === 1 ? "1 scope" : `${row.scopes.length} scopes`}
           </span>
         ),
@@ -394,19 +394,19 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
         key: "created_at",
         header: "Created",
         sortable: true,
-        render: (row) => <span className="text-neutral-300">{formatDate(row.created_at)}</span>,
+        render: (row) => <span className="text-secondary">{formatDate(row.created_at)}</span>,
       },
       {
         key: "created_by_email",
         header: "Created By",
         sortable: true,
-        render: (row) => <span className="text-neutral-400">{row.created_by_email || "unknown"}</span>,
+        render: (row) => <span className="text-muted">{row.created_by_email || "unknown"}</span>,
       },
       {
         key: "last_used_at",
         header: "Last Used",
         sortable: true,
-        render: (row) => <span className="text-neutral-400">{formatDate(row.last_used_at)}</span>,
+        render: (row) => <span className="text-muted">{formatDate(row.last_used_at)}</span>,
       },
     ],
     [selectedStatusCount, statusFilterMenuOpen]
@@ -597,21 +597,21 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
       )}
 
       {revealedKey && (
-        <section className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-3">
+        <section className="rounded-lg border border-success-500/30 bg-success-950/20 p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-emerald-200">New Key Created: {revealedName}</h2>
+            <h2 className="text-sm font-semibold text-success-200">New Key Created: {revealedName}</h2>
             <button
               onClick={() => setRevealedKey(null)}
-              className="inline-flex items-center justify-center p-1.5 rounded-md border border-emerald-600/50 text-emerald-300 hover:text-emerald-100"
+              className="inline-flex items-center justify-center p-1.5 rounded-md border border-success-600/50 text-success-300 hover:text-success-100"
               title="Dismiss"
             >
               <X size={13} />
             </button>
           </div>
-          <p className="text-sm text-emerald-100/90">
+          <p className="text-sm text-success-100/90">
             Copy this key now; it will only be available once.
           </p>
-          <div className="rounded-md border border-emerald-700/40 bg-neutral-950/70 px-3 py-2 font-mono text-xs text-emerald-200 break-all">
+          <div className="rounded-md border border-success-700/40 bg-canvas/70 px-3 py-2 font-mono text-xs text-success-200 break-all">
             {revealedKey}
           </div>
           <div className="flex items-center gap-2">
@@ -627,23 +627,23 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
       )}
 
       {addingOpen && (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-neutral-100">Create API Key</h2>
+        <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-heading">Create API Key</h2>
 
           <div className="grid gap-3">
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Name</span>
               <input
                 value={createForm.name}
                 onChange={(e) => setCreateForm((current) => ({ ...current, name: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Key Name"
               />
             </label>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Key Type</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Key Type</span>
                 <select
                   value={createForm.keyType}
                   onChange={(e) => {
@@ -654,7 +654,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
                       userId: next === "system" ? "" : current.userId,
                     }));
                   }}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="system">System (integration identity)</option>
                   <option value="user">User-bound (acts as selected user)</option>
@@ -662,23 +662,23 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Expiry Date (optional)</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Expiry Date (optional)</span>
                 <input
                   type="date"
                   value={createForm.expiresAtLocal}
                   onChange={(e) => setCreateForm((current) => ({ ...current, expiresAtLocal: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </label>
             </div>
 
             {createForm.keyType === "user" && (
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Owner User</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Owner User</span>
                 <select
                   value={createForm.userId}
                   onChange={(e) => setCreateForm((current) => ({ ...current, userId: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="">Select user...</option>
                   {users.map((user) => (
@@ -687,10 +687,10 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-neutral-500 mt-1">User-bound keys represent actions as the owning user account.</p>
+                <p className="text-xs text-subtle mt-1">User-bound keys represent actions as the owning user account.</p>
                 {selectedOwner && (
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Selected owner: <span className="text-neutral-300">{selectedOwner.email}</span> ({selectedOwner.role})
+                  <p className="text-xs text-subtle mt-1">
+                    Selected owner: <span className="text-secondary">{selectedOwner.email}</span> ({selectedOwner.role})
                   </p>
                 )}
               </label>
@@ -698,10 +698,10 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Permissions</span>
-                <span className="text-xs text-neutral-500">{activeScopeCount} selected</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Permissions</span>
+                <span className="text-xs text-subtle">{activeScopeCount} selected</span>
               </div>
-              <p className="text-xs text-neutral-500">These scopes map directly to the external API operations shown in the API docs.</p>
+              <p className="text-xs text-subtle">These scopes map directly to the external API operations shown in the API docs.</p>
               <div className="grid gap-2 md:grid-cols-2">
                 {SCOPE_OPTIONS.map((entry) => {
                   const checked = Boolean(createForm.scopes[entry.key]);
@@ -711,8 +711,8 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
                       key={entry.key}
                       className={`flex items-start gap-2 rounded-md border px-3 py-2 ${
                         disabled
-                          ? "border-neutral-900 bg-neutral-950/30 opacity-70"
-                          : "border-neutral-800 bg-neutral-950/60"
+                          ? "border-border-faint bg-canvas/30 opacity-70"
+                          : "border-border bg-canvas/60"
                       }`}
                     >
                       <input
@@ -720,14 +720,14 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
                         checked={checked}
                         onChange={(e) => updateScope(entry.key, e.target.checked)}
                         disabled={disabled}
-                        className="mt-0.5 h-4 w-4 rounded border-neutral-600 bg-neutral-900 text-emerald-500"
+                        className="mt-0.5 h-4 w-4 rounded border-border-hover bg-surface text-success-500"
                       />
                       <span className="space-y-0.5">
-                        <span className="block text-sm text-neutral-200">
+                        <span className="block text-sm text-body">
                           {entry.label}
-                          {!entry.availableNow && <span className="ml-2 text-xs text-neutral-500">Coming soon</span>}
+                          {!entry.availableNow && <span className="ml-2 text-xs text-subtle">Coming soon</span>}
                         </span>
-                        <span className="block text-xs text-neutral-500">{entry.description}</span>
+                        <span className="block text-xs text-subtle">{entry.description}</span>
                       </span>
                     </label>
                   );
@@ -747,7 +747,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
             </button>
             <button
               onClick={closeCreateForm}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover text-sm font-medium"
             >
               Cancel
             </button>
@@ -775,7 +775,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
               href={EXTERNAL_API_DOCS_PATH}
               target="_blank"
               rel="noreferrer"
-              className="ml-auto inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-100 hover:underline underline-offset-2"
+              className="ml-auto inline-flex items-center gap-1.5 text-sm text-muted hover:text-heading hover:underline underline-offset-2"
             >
               API Docs
               <ExternalLink size={13} />
@@ -787,11 +787,11 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
       {statusFilterMenuOpen && statusFilterMenuPosition && (
         <div
           ref={statusFilterMenuRef}
-          className="fixed z-50 min-w-40 rounded-md border border-neutral-700 bg-neutral-900 shadow-xl normal-case tracking-normal"
+          className="fixed z-50 min-w-40 rounded-md border border-border-strong bg-surface shadow-xl normal-case tracking-normal"
           style={{ top: statusFilterMenuPosition.top, left: statusFilterMenuPosition.left }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-neutral-500 border-b border-neutral-800">
+          <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-subtle border-b border-border">
             Status
           </div>
           {STATUS_FILTER_OPTIONS.map((option) => {
@@ -799,7 +799,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
             return (
               <label
                 key={option.value}
-                className="w-full inline-flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-neutral-300 hover:bg-neutral-800"
+                className="w-full inline-flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-secondary hover:bg-surface-2"
               >
                 <input
                   type="checkbox"
@@ -811,7 +811,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
                       [option.value]: nextChecked,
                     }));
                   }}
-                  className="h-3.5 w-3.5 rounded border-neutral-600 bg-neutral-900 text-emerald-500"
+                  className="h-3.5 w-3.5 rounded border-border-hover bg-surface text-success-500"
                 />
                 <span>{option.label}</span>
               </label>
@@ -881,7 +881,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
         onSort={(key) => handleSort(key as SortKey)}
         footer={sortedKeys.length > 0 && (
           <tr>
-            <td colSpan={9} className="px-4 py-2.5 text-right text-xs text-neutral-600">
+            <td colSpan={9} className="px-4 py-2.5 text-right text-xs text-faint">
               {loading ? "Loading…" : `${sortedKeys.length} key${sortedKeys.length !== 1 ? "s" : ""}`}
             </td>
           </tr>
@@ -889,40 +889,40 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
       />
 
       {revokeModal.target && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-neutral-100">Revoke API Key</h3>
+              <h3 className="text-sm font-semibold text-heading">Revoke API Key</h3>
               <button
                 onClick={revokeModal.close}
-                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover"
                 title="Close"
               >
                 <X size={13} />
               </button>
             </div>
 
-            <p className="text-sm text-neutral-300">
-              Revoke <span className="font-medium text-neutral-100">{revokeModal.target.name}</span>?
+            <p className="text-sm text-secondary">
+              Revoke <span className="font-medium text-heading">{revokeModal.target.name}</span>?
             </p>
-            <p className="text-xs text-neutral-500">This takes effect immediately. The key record is preserved for history.</p>
+            <p className="text-xs text-subtle">This takes effect immediately. The key record is preserved for history.</p>
 
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={revokeModal.close}
                 disabled={revokingId === revokeModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void revokeApiKey(revokeModal.target!)}
                 disabled={revokingId === revokeModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-60"
               >
                 <Trash2 size={13} />
                 {revokingId === revokeModal.target.id ? "Revoking..." : "Confirm Revoke"}
@@ -933,40 +933,40 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
       )}
 
       {deleteModal.target && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-neutral-100">Delete Revoked API Key</h3>
+              <h3 className="text-sm font-semibold text-heading">Delete Revoked API Key</h3>
               <button
                 onClick={deleteModal.close}
-                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover"
                 title="Close"
               >
                 <X size={13} />
               </button>
             </div>
 
-            <p className="text-sm text-neutral-300">
-              Permanently delete <span className="font-medium text-neutral-100">{deleteModal.target.name}</span>?
+            <p className="text-sm text-secondary">
+              Permanently delete <span className="font-medium text-heading">{deleteModal.target.name}</span>?
             </p>
-            <p className="text-xs text-neutral-500">This removes the key record from history and cannot be undone.</p>
+            <p className="text-xs text-subtle">This removes the key record from history and cannot be undone.</p>
 
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={deleteModal.close}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void deleteApiKey(deleteModal.target!)}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-60"
               >
                 <Trash2 size={13} />
                 {deletingId === deleteModal.target.id ? "Deleting..." : "Confirm Delete"}
@@ -977,17 +977,17 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
       )}
 
       {editKeyModal.target && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-lg rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-lg rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-neutral-100">Edit API Key</h3>
+              <h3 className="text-sm font-semibold text-heading">Edit API Key</h3>
               <button
                 onClick={editKeyModal.close}
-                className="inline-flex items-center justify-center p-1.5 rounded-md border border-neutral-700 text-neutral-400 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover"
                 title="Close"
               >
                 <X size={13} />
@@ -996,20 +996,20 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Name</span>
                 <input
                   value={editKeyForm.name}
                   onChange={(e) => setEditKeyForm((current) => ({ ...current, name: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </label>
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Expiry Date (optional)</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Expiry Date (optional)</span>
                 <input
                   type="date"
                   value={editKeyForm.expiresAtLocal}
                   onChange={(e) => setEditKeyForm((current) => ({ ...current, expiresAtLocal: e.target.value }))}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 />
               </label>
             </div>
@@ -1023,8 +1023,8 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
                     key={`edit-${entry.key}`}
                     className={`flex items-start gap-2 rounded-md border px-3 py-2 ${
                       disabled
-                        ? "border-neutral-900 bg-neutral-950/30 opacity-70"
-                        : "border-neutral-800 bg-neutral-950/60"
+                        ? "border-border-faint bg-canvas/30 opacity-70"
+                        : "border-border bg-canvas/60"
                     }`}
                   >
                     <input
@@ -1040,14 +1040,14 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
                         }))
                       }
                       disabled={disabled}
-                      className="mt-0.5 h-4 w-4 rounded border-neutral-600 bg-neutral-900 text-emerald-500"
+                      className="mt-0.5 h-4 w-4 rounded border-border-hover bg-surface text-success-500"
                     />
                     <span className="space-y-0.5">
-                      <span className="block text-sm text-neutral-200">
+                      <span className="block text-sm text-body">
                         {entry.label}
-                        {!entry.availableNow && <span className="ml-2 text-xs text-neutral-500">Coming soon</span>}
+                        {!entry.availableNow && <span className="ml-2 text-xs text-subtle">Coming soon</span>}
                       </span>
-                      <span className="block text-xs text-neutral-500">{entry.description}</span>
+                      <span className="block text-xs text-subtle">{entry.description}</span>
                     </span>
                   </label>
                 );
@@ -1058,7 +1058,7 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
               <button
                 onClick={editKeyModal.close}
                 disabled={savingEditId === editKeyModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-sm font-medium text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-sm font-medium text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60"
               >
                 Cancel
               </button>

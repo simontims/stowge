@@ -587,7 +587,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
         header: "Backup",
         sortable: true,
         render: (row) => (
-          <p className="truncate text-xs font-medium text-neutral-200">{displayBackupName({ backup_name: row.backup_name })}</p>
+          <p className="truncate text-xs font-medium text-body">{displayBackupName({ backup_name: row.backup_name })}</p>
         ),
       },
       {
@@ -597,7 +597,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
         className: "w-56 whitespace-nowrap",
         headerClassName: "w-56",
         render: (row) => (
-          <span className="text-[11px] text-neutral-400">{formatDate(row.created_at)}</span>
+          <span className="text-[11px] text-muted">{formatDate(row.created_at)}</span>
         ),
       },
       {
@@ -607,7 +607,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
         className: "w-20 text-right whitespace-nowrap",
         headerClassName: "w-20 text-right",
         render: (row) => (
-          <span className="text-[11px] tabular-nums text-neutral-500">{formatRelativeAge(row.created_at)}</span>
+          <span className="text-[11px] tabular-nums text-subtle">{formatRelativeAge(row.created_at)}</span>
         ),
       },
       {
@@ -616,7 +616,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
         sortable: true,
         className: "w-28 text-right",
         headerClassName: "w-28 text-right",
-        render: (row) => <span className="text-xs tabular-nums text-neutral-200">{formatBytes(row.size_bytes)}</span>,
+        render: (row) => <span className="text-xs tabular-nums text-body">{formatBytes(row.size_bytes)}</span>,
       },
     ],
     []
@@ -625,11 +625,11 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
   const backupsEmptyState =
     !backupsLoadedOnce || (backupsLoading && backups.length === 0)
       ? (
-        <div className="mx-auto flex max-w-[18rem] items-center justify-center gap-2 text-xs text-neutral-500">
+        <div className="mx-auto flex max-w-[18rem] items-center justify-center gap-2 text-xs text-subtle">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-pulse" />
-            <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-pulse" style={{ animationDelay: "120ms" }} />
-            <span className="h-1.5 w-1.5 rounded-full bg-neutral-600 animate-pulse" style={{ animationDelay: "240ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-surface-4 animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-surface-4 animate-pulse" style={{ animationDelay: "120ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-surface-4 animate-pulse" style={{ animationDelay: "240ms" }} />
           </span>
           <span>Loading backups...</span>
         </div>
@@ -1124,69 +1124,69 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       {!embedded && <PageHeader title="Status" />}
 
       {loadError && !metricsLoading && (
-        <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-lg border border-danger-900/50 bg-danger-950/30 px-4 py-3 text-sm text-danger-200">
           {loadError}
         </div>
       )}
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+        <article className="rounded-xl border border-border bg-surface/40 px-4 py-3">
+          <p className="text-xs text-muted flex items-center gap-1.5">
             <Tag size={14} />
             Items
           </p>
-          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : (metrics?.totals.item_count ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Total</p>
+          <p className="mt-2 text-3xl font-semibold text-heading tabular-nums">{metricsLoading ? "--" : (metrics?.totals.item_count ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-subtle">Total</p>
         </article>
 
-        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+        <article className="rounded-xl border border-border bg-surface/40 px-4 py-3">
+          <p className="text-xs text-muted flex items-center gap-1.5">
             <Image size={14} />
             Assets
           </p>
-          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : (metrics?.totals.asset_count ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Image and other files linked to items</p>
+          <p className="mt-2 text-3xl font-semibold text-heading tabular-nums">{metricsLoading ? "--" : (metrics?.totals.asset_count ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-subtle">Image and other files linked to items</p>
         </article>
 
-        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+        <article className="rounded-xl border border-border bg-surface/40 px-4 py-3">
+          <p className="text-xs text-muted flex items-center gap-1.5">
             <Archive size={14} />
             Backups
           </p>
-          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{backupsLoading ? "--" : backups.length}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">{backupsLoading ? "Loading backup storage" : `${formatBytes(totalBackupBytes)} disk space used`}</p>
+          <p className="mt-2 text-3xl font-semibold text-heading tabular-nums">{backupsLoading ? "--" : backups.length}</p>
+          <p className="mt-1 text-[11px] text-subtle">{backupsLoading ? "Loading backup storage" : `${formatBytes(totalBackupBytes)} disk space used`}</p>
         </article>
 
-        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+        <article className="rounded-xl border border-border bg-surface/40 px-4 py-3">
+          <p className="text-xs text-muted flex items-center gap-1.5">
             <Database size={14} />
             Database size
           </p>
-          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.db_bytes ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Size of the SQLite database file</p>
+          <p className="mt-2 text-3xl font-semibold text-heading tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.db_bytes ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-subtle">Size of the SQLite database file</p>
         </article>
 
-        <article className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-          <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+        <article className="rounded-xl border border-border bg-surface/40 px-4 py-3">
+          <p className="text-xs text-muted flex items-center gap-1.5">
             <HardDrive size={14} />
             Asset storage
           </p>
-          <p className="mt-2 text-3xl font-semibold text-neutral-100 tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.disk_bytes ?? 0)}</p>
-          <p className="mt-1 text-[11px] text-neutral-500">Disk space used by assets</p>
+          <p className="mt-2 text-3xl font-semibold text-heading tabular-nums">{metricsLoading ? "--" : formatBytes(metrics?.totals.disk_bytes ?? 0)}</p>
+          <p className="mt-1 text-[11px] text-subtle">Disk space used by assets</p>
         </article>
       </section>
 
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
+      <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-neutral-100">Maintenance</h2>
+          <h2 className="text-sm font-semibold text-heading">Maintenance</h2>
         </div>
 
         {maintenanceError && (
-          <p className="text-sm text-red-400">{maintenanceError}</p>
+          <p className="text-sm text-danger-400">{maintenanceError}</p>
         )}
 
         {(["vacuum", "orphaned_images_cleanup", "backup"] as MaintenanceTaskKey[]).every((taskKey) => !maintenanceSchedules?.[taskKey]) ? (
-          <div className="rounded-lg border border-neutral-800 bg-neutral-950/35 px-3 py-2 text-xs text-neutral-500">Loading maintenance schedules…</div>
+          <div className="rounded-lg border border-border bg-canvas/35 px-3 py-2 text-xs text-subtle">Loading maintenance schedules…</div>
         ) : (
           <>
             <div className="grid gap-4 lg:grid-cols-3">
@@ -1198,16 +1198,16 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 const meta = MAINTENANCE_TASK_META[taskKey];
 
                 return (
-                  <article key={taskKey} className="rounded-xl border border-neutral-800 bg-neutral-950/35 p-4 space-y-3 h-full flex flex-col">
+                  <article key={taskKey} className="rounded-xl border border-border bg-canvas/35 p-4 space-y-3 h-full flex flex-col">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium text-neutral-200 flex items-center gap-2">
-                          {taskKey === "backup" && <Archive size={15} className="text-emerald-300" />}
-                          {taskKey === "vacuum" && <Database size={15} className="text-sky-300" />}
-                          {taskKey === "orphaned_images_cleanup" && <Image size={15} className="text-amber-300" />}
+                        <p className="text-sm font-medium text-body flex items-center gap-2">
+                          {taskKey === "backup" && <Archive size={15} className="text-success-300" />}
+                          {taskKey === "vacuum" && <Database size={15} className="text-info-300" />}
+                          {taskKey === "orphaned_images_cleanup" && <Image size={15} className="text-warning-300" />}
                           {meta.title}
                         </p>
-                        <p className="mt-1 text-xs text-neutral-500">{meta.description}</p>
+                        <p className="mt-1 text-xs text-subtle">{meta.description}</p>
                       </div>
                       <label className="inline-flex items-center">
                         <span className="relative inline-flex h-6 w-11 shrink-0 items-center">
@@ -1220,13 +1220,13 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                             role="switch"
                             aria-label="Enable schedule"
                           />
-                          <span className="absolute inset-0 rounded-full border border-neutral-700 bg-neutral-800 transition-colors peer-checked:bg-emerald-600/80 peer-checked:border-emerald-500 peer-disabled:opacity-50" />
-                          <span className="absolute left-0.5 h-4.5 w-4.5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                          <span className="absolute inset-0 rounded-full border border-border-strong bg-surface-2 transition-colors peer-checked:bg-success-600/80 peer-checked:border-success-500 peer-disabled:opacity-50" />
+                          <span className="absolute left-0.5 h-4.5 w-4.5 rounded-full bg-on-solid shadow transition-transform peer-checked:translate-x-5" />
                         </span>
                       </label>
                     </div>
 
-                    <div className="rounded-md border border-neutral-800 bg-neutral-900/30 px-3 py-2 text-xs text-neutral-400 space-y-1">
+                    <div className="rounded-md border border-border bg-surface/30 px-3 py-2 text-xs text-muted space-y-1">
                       <p>
                         Schedule: {toHumanCronLocal(schedule.cron_expression)}
                       </p>
@@ -1239,7 +1239,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       )}
                     </div>
 
-                    <div className="space-y-1 text-xs text-neutral-400">
+                    <div className="space-y-1 text-xs text-muted">
                       <p>Last run: {summarizeLastRunCompact(schedule)}</p>
                       <p>Next scheduled: {schedule.enabled ? (schedule.next_run_at ? formatDate(schedule.next_run_at) : "Not scheduled") : "Schedule disabled"}</p>
                     </div>
@@ -1248,7 +1248,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       <button
                         type="button"
                         onClick={() => setScheduleModalTaskKey(taskKey)}
-                        className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium"
+                        className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-focus text-xs font-medium"
                       >
                         Edit schedule
                       </button>
@@ -1264,7 +1264,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                           }
                         }}
                         disabled={running}
-                        className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium disabled:opacity-60"
+                        className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-focus text-xs font-medium disabled:opacity-60"
                       >
                         {running ? "Running…" : meta.runLabel}
                       </button>
@@ -1277,29 +1277,29 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
         )}
       </section>
 
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-4">
+      <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-4">
         <TablePaneLayout
           variant="aside"
           rightVisible={Boolean(selectedBackupFilename)}
           leftPaneClassName="min-w-0 flex-1"
           rightPaneClassName="flex-1 p-3 space-y-3"
-          leftHeader={backupsError ? <p className="text-xs text-red-400 mb-2">{backupsError}</p> : undefined}
+          leftHeader={backupsError ? <p className="text-xs text-danger-400 mb-2">{backupsError}</p> : undefined}
           rightHeader={
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-neutral-200">Backup details</p>
+              <p className="text-sm font-medium text-body">Backup details</p>
               {selectedBackupDetails && (
                 <span
                   className={[
                     "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]",
                     selectedBackupDetails.manifest.backup_verified
-                      ? "border border-emerald-500/50 bg-emerald-950/30 text-emerald-300"
-                      : "border border-neutral-600/60 bg-neutral-900/70 text-neutral-400",
+                      ? "border border-success-500/50 bg-success-950/30 text-success-300"
+                      : "border border-border-hover/60 bg-surface/70 text-muted",
                   ].join(" ")}
                 >
                   <span
                     className={[
                       "h-1.5 w-1.5 rounded-full",
-                      selectedBackupDetails.manifest.backup_verified ? "bg-emerald-300" : "bg-neutral-500",
+                      selectedBackupDetails.manifest.backup_verified ? "bg-success-300" : "bg-surface-5",
                     ].join(" ")}
                   />
                   {selectedBackupDetails.manifest.backup_verified ? "Verified" : "Not verified"}
@@ -1337,7 +1337,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
               </div>
               {backupPageCount > 1 && (
                 <div className="flex items-center gap-2 pt-1">
-                  <span className="shrink-0 whitespace-nowrap text-[11px] text-neutral-500">
+                  <span className="shrink-0 whitespace-nowrap text-[11px] text-subtle">
                     Page {backupPage + 1} of {backupPageCount}
                   </span>
                   <div className="inline-flex items-center">
@@ -1345,7 +1345,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       type="button"
                       onClick={() => setBackupPage((p) => Math.max(0, p - 1))}
                       disabled={backupPage === 0}
-                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-r-none border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 disabled:opacity-40 disabled:hover:text-neutral-400 disabled:hover:border-neutral-700"
+                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-r-none border border-border-strong text-muted hover:text-body hover:border-border-focus disabled:opacity-40 disabled:hover:text-muted disabled:hover:border-border-strong"
                     >
                       ← Prev
                     </button>
@@ -1353,7 +1353,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       type="button"
                       onClick={() => setBackupPage((p) => Math.min(backupPageCount - 1, p + 1))}
                       disabled={backupPage >= backupPageCount - 1}
-                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-l-none -ml-px border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 disabled:opacity-40 disabled:hover:text-neutral-400 disabled:hover:border-neutral-700"
+                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-l-none -ml-px border border-border-strong text-muted hover:text-body hover:border-border-focus disabled:opacity-40 disabled:hover:text-muted disabled:hover:border-border-strong"
                     >
                       Next →
                     </button>
@@ -1364,23 +1364,23 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
           }
           right={
             <>
-              {backupDetailsLoading && <p className="text-xs text-neutral-500">Loading details…</p>}
+              {backupDetailsLoading && <p className="text-xs text-subtle">Loading details…</p>}
               {!backupDetailsLoading && selectedBackupDetails && (
                 <>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-500">Size</p>
-                      <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">{formatBytes(selectedBackupDetails.size_bytes)}</p>
+                    <div className="rounded-md border border-border bg-canvas/35 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-subtle">Size</p>
+                      <p className="mt-1 text-lg font-semibold tabular-nums text-heading">{formatBytes(selectedBackupDetails.size_bytes)}</p>
                     </div>
-                    <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-500">Database</p>
-                      <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
+                    <div className="rounded-md border border-border bg-canvas/35 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-subtle">Database</p>
+                      <p className="mt-1 text-lg font-semibold tabular-nums text-heading">
                         {selectedBackupDetails.manifest.db_bytes ? formatBytes(selectedBackupDetails.manifest.db_bytes) : "--"}
                       </p>
                     </div>
-                    <div className="rounded-md border border-neutral-800 bg-neutral-950/35 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-500">Assets</p>
-                      <p className="mt-1 text-lg font-semibold tabular-nums text-neutral-100">
+                    <div className="rounded-md border border-border bg-canvas/35 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-subtle">Assets</p>
+                      <p className="mt-1 text-lg font-semibold tabular-nums text-heading">
                         {selectedBackupDetails.manifest.includes_assets
                           ? (selectedBackupDetails.manifest.asset_bytes
                             ? formatBytes(selectedBackupDetails.manifest.asset_bytes)
@@ -1389,7 +1389,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       </p>
                     </div>
                   </div>
-                  <div className="space-y-1.5 text-xs text-neutral-400">
+                  <div className="space-y-1.5 text-xs text-muted">
                     <p>Created: {formatDate(selectedBackupDetails.manifest.created_at || selectedBackupDetails.modified_at)}</p>
                     <p>Created by: {selectedBackupDetails.manifest.created_by_user || "unknown"}</p>
                     <p>Includes assets: {selectedBackupDetails.manifest.includes_assets ? "Yes" : "No"}</p>
@@ -1405,12 +1405,12 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     </p>
                   </div>
                   {!selectedBackupDetails.manifest.backup_verified && selectedBackupDetails.manifest.backup_verification_error && (
-                    <p className="text-xs text-amber-300">
+                    <p className="text-xs text-warning-300">
                       Verification note: {selectedBackupDetails.manifest.backup_verification_error}
                     </p>
                   )}
                   {!!selectedBackupDetails.manifest.asset_missing_count && (
-                    <p className="text-xs text-amber-300">
+                    <p className="text-xs text-warning-300">
                       Missing referenced files at backup time: {selectedBackupDetails.manifest.asset_missing_count}
                     </p>
                   )}
@@ -1418,14 +1418,14 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     <button
                       type="button"
                       onClick={() => void downloadBackup(selectedBackupDetails.filename)}
-                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-xs font-medium"
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-focus text-xs font-medium"
                     >
                       Download
                     </button>
                     <button
                       type="button"
                       onClick={openRestoreFlow}
-                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 hover:text-red-200 hover:bg-red-900/30 text-xs font-medium"
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-danger-500/70 bg-danger-950/30 text-danger-300 hover:text-danger-200 hover:bg-danger-900/30 text-xs font-medium"
                     >
                       Restore
                     </button>
@@ -1433,7 +1433,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       type="button"
                       onClick={() => setDeleteBackupTarget(selectedBackupDetails.filename)}
                       disabled={deletingBackup || backupsLoading || !selectedBackupExists}
-                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 text-red-300 hover:text-red-200 text-xs font-medium"
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-danger-500/70 text-danger-300 hover:text-danger-200 text-xs font-medium"
                     >
                       Delete
                     </button>
@@ -1441,7 +1441,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 </>
               )}
               {!backupDetailsLoading && !selectedBackupDetails && selectedBackupFilename && (
-                <p className="text-xs text-neutral-500">Select a backup to view details.</p>
+                <p className="text-xs text-subtle">Select a backup to view details.</p>
               )}
             </>
           }
@@ -1449,7 +1449,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       </section>
 
       {scheduleModalTaskKey && maintenanceSchedules?.[scheduleModalTaskKey] && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
           {(() => {
             const taskKey = scheduleModalTaskKey;
             const schedule = maintenanceSchedules[taskKey];
@@ -1460,10 +1460,10 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
             const controlsDisabled = !schedule.enabled || saving;
 
             return (
-              <div className="w-full max-w-xl rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl p-4 space-y-4">
+              <div className="w-full max-w-xl rounded-xl border border-border bg-canvas shadow-2xl p-4 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-neutral-100">{`Edit ${meta.title.toLowerCase()} schedule`}</h3>
+                    <h3 className="text-sm font-semibold text-heading">{`Edit ${meta.title.toLowerCase()} schedule`}</h3>
                   </div>
                 </div>
 
@@ -1484,7 +1484,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       const cronExpression = buildCronExpression(nextState, cronValue);
                       setScheduleModalCronDraft(cronExpression);
                     }}
-                    className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-200 disabled:opacity-50"
+                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -1503,7 +1503,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       const cronExpression = buildCronExpression(nextState, cronValue);
                       setScheduleModalCronDraft(cronExpression);
                     }}
-                    className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-200 disabled:opacity-50"
+                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
                   >
                     {friendly.frequency === "monthly"
                       ? MONTH_DAY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>Day {opt.label}</option>)
@@ -1518,7 +1518,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       const cronExpression = buildCronExpression(nextState, cronValue);
                       setScheduleModalCronDraft(cronExpression);
                     }}
-                    className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-200 disabled:opacity-50"
+                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
                   />
                 </div>
 
@@ -1526,7 +1526,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                   open={scheduleModalAdvancedOpen}
                   onToggle={(event) => setScheduleModalAdvancedOpen((event.target as HTMLDetailsElement).open)}
                 >
-                  <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-200">Advanced</summary>
+                  <summary className="cursor-pointer text-xs text-muted hover:text-body">Advanced</summary>
                   <div className="mt-2 space-y-2">
                     <input
                       type="text"
@@ -1535,31 +1535,31 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       onChange={(event) => setScheduleModalCronDraft(event.target.value)}
                       onBlur={() => setScheduleModalCronDraft((current) => normalizeCronExpressionInput(current))}
                       placeholder="0 3 * * *"
-                      className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-200 disabled:opacity-50"
+                      className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
                     />
-                    <p className="text-[11px] text-neutral-500">{toHumanCron(cronValue)}</p>
+                    <p className="text-[11px] text-subtle">{toHumanCron(cronValue)}</p>
                   </div>
                 </details>
 
                 {taskKey === "backup" && (
-                  <div className="rounded-md border border-neutral-800 bg-neutral-900/30 p-3 space-y-2">
-                    <label className="inline-flex items-center gap-2 text-xs text-neutral-300">
+                  <div className="rounded-md border border-border bg-surface/30 p-3 space-y-2">
+                    <label className="inline-flex items-center gap-2 text-xs text-secondary">
                       <input
                         type="checkbox"
                         checked={scheduleModalIncludeAssetsDraft}
                         onChange={(event) => setScheduleModalIncludeAssetsDraft(event.target.checked)}
                         disabled={saving}
-                        className="rounded border-neutral-700 bg-neutral-950"
+                        className="rounded border-border-strong bg-canvas"
                       />
                       Include asset files referenced in the database
                     </label>
-                    <label className="inline-flex items-center gap-2 text-xs text-neutral-300">
+                    <label className="inline-flex items-center gap-2 text-xs text-secondary">
                       <input
                         type="checkbox"
                         checked={scheduleModalRetentionEnabledDraft}
                         onChange={(event) => setScheduleModalRetentionEnabledDraft(event.target.checked)}
                         disabled={saving}
-                        className="rounded border-neutral-700 bg-neutral-950"
+                        className="rounded border-border-strong bg-canvas"
                       />
                       Permanently delete automatic backups older than
                     </label>
@@ -1578,17 +1578,17 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                           const days = Math.max(1, Math.min(3650, value));
                           setScheduleModalRetentionDaysDraft(days);
                         }}
-                        className="w-24 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-xs text-neutral-200 disabled:opacity-50"
+                        className="w-24 rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
                       />
-                      <span className="text-xs text-neutral-300">days</span>
+                      <span className="text-xs text-secondary">days</span>
                     </div>
-                    <p className="text-[11px] text-neutral-500">
+                    <p className="text-[11px] text-subtle">
                       Removes automatic backup archives older than the configured age when this task runs.
                     </p>
                   </div>
                 )}
 
-                <div className="grid gap-1 text-xs text-neutral-400 sm:grid-cols-2">
+                <div className="grid gap-1 text-xs text-muted sm:grid-cols-2">
                   <p>Next run: {schedule.enabled ? (schedule.next_run_at ? formatDate(schedule.next_run_at) : "Not scheduled") : "Schedule disabled"}</p>
                   <p>Last run: {summarizeLastRunModal(schedule)}</p>
                 </div>
@@ -1597,7 +1597,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                   <button
                     type="button"
                     onClick={() => setScheduleModalTaskKey(null)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-800 text-neutral-300 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-secondary text-xs"
                   >
                     Cancel
                   </button>
@@ -1605,7 +1605,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     type="button"
                     onClick={() => void saveScheduleModal()}
                     disabled={saving}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-200 text-xs disabled:opacity-60"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs disabled:opacity-60"
                   >
                     Save
                   </button>
@@ -1617,12 +1617,12 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       )}
 
       {backupModalOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-neutral-100">Create a backup</h3>
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-canvas shadow-2xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-heading">Create a backup</h3>
             {!backupOp && (
               <>
-                <label className="flex items-start gap-2 text-sm text-neutral-300">
+                <label className="flex items-start gap-2 text-sm text-secondary">
                   <input
                     type="checkbox"
                     checked={backupIncludeAssets}
@@ -1632,31 +1632,31 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                   <span>Include asset files referenced in the database.</span>
                 </label>
                 <label className="space-y-1.5 block">
-                  <span className="text-xs text-neutral-400">Backup name (optional)</span>
+                  <span className="text-xs text-muted">Backup name (optional)</span>
                   <input
                     type="text"
                     value={backupName}
                     onChange={(event) => setBackupName(event.target.value)}
                     placeholder="Stowge Manual"
                     maxLength={120}
-                    className="w-full rounded-md border border-neutral-700 bg-neutral-900/60 px-2.5 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 focus:border-neutral-500 focus:outline-none"
+                    className="w-full rounded-md border border-border-strong bg-surface/60 px-2.5 py-1.5 text-sm text-body placeholder:text-subtle focus:border-border-focus focus:outline-none"
                   />
                 </label>
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-subtle">
                   Backups are stored in /assets/backups and include a manifest plus SQL snapshot.
                 </p>
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setBackupModalOpen(false)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-800 text-neutral-300 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-secondary text-xs"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={() => void startBackup()}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-200 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs"
                   >
                     Backup Now
                   </button>
@@ -1666,22 +1666,22 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
             {backupOp && (
               <>
-                <p className="text-xs text-neutral-300">{backupOp.message}</p>
-                <div className="h-2 rounded bg-neutral-800 overflow-hidden">
-                  <div className="h-full bg-neutral-300" style={{ width: `${Math.max(2, backupOp.progress)}%` }} />
+                <p className="text-xs text-secondary">{backupOp.message}</p>
+                <div className="h-2 rounded bg-surface-2 overflow-hidden">
+                  <div className="h-full bg-surface-6" style={{ width: `${Math.max(2, backupOp.progress)}%` }} />
                 </div>
                 {backupOp.status === "failed" && (
-                  <p className="text-xs text-red-400">{backupOp.error || "Backup failed"}</p>
+                  <p className="text-xs text-danger-400">{backupOp.error || "Backup failed"}</p>
                 )}
                 {backupOp.status === "completed" && (
-                  <p className="text-xs text-emerald-300">Backup completed successfully.</p>
+                  <p className="text-xs text-success-300">Backup completed successfully.</p>
                 )}
                 <div className="flex justify-end">
                   {backupOp.status === "running" ? (
                     <button
                       type="button"
                       disabled
-                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-800 text-neutral-500 text-xs"
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-subtle text-xs"
                     >
                       Running…
                     </button>
@@ -1689,7 +1689,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     <button
                       type="button"
                       onClick={() => setBackupModalOpen(false)}
-                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-200 text-xs"
+                      className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs"
                     >
                       OK
                     </button>
@@ -1702,28 +1702,28 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       )}
 
       {restoreModalOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-xl rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-neutral-100">Restore backup</h3>
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-xl rounded-xl border border-border bg-canvas shadow-2xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-heading">Restore backup</h3>
 
             {restoreStep === "confirm-test" && (
               <>
-                <p className="text-sm text-neutral-300">Test backup for restore? You will be prompted again before any restore takes place.</p>
-                <p className="text-xs text-neutral-500">
+                <p className="text-sm text-secondary">Test backup for restore? You will be prompted again before any restore takes place.</p>
+                <p className="text-xs text-subtle">
                   Backup name: {displayBackupName(selectedBackupDetails?.manifest)}
                 </p>
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setRestoreModalOpen(false)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-800 text-neutral-300 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-secondary text-xs"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={() => void handleRestoreTest()}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-200 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs"
                   >
                     Proceed
                   </button>
@@ -1733,15 +1733,15 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
             {(restoreStep === "testing" || restoreStep === "restoring" || restoreStep === "cancelling") && (
               <>
-                <p className="text-xs text-neutral-300">
+                <p className="text-xs text-secondary">
                   {restoreStep === "cancelling" ? "Deleting temporary files" : stageLabel(restoreOp)}
                 </p>
-                <div className="h-2 rounded bg-neutral-800 overflow-hidden">
-                  <div className="h-full bg-neutral-300" style={{ width: `${Math.max(2, restoreOp?.progress ?? 2)}%` }} />
+                <div className="h-2 rounded bg-surface-2 overflow-hidden">
+                  <div className="h-full bg-surface-6" style={{ width: `${Math.max(2, restoreOp?.progress ?? 2)}%` }} />
                 </div>
 
                 {restoreStep === "restoring" && (
-                  <div className="rounded-md border border-neutral-800 bg-neutral-900/30 p-2 space-y-1 text-xs">
+                  <div className="rounded-md border border-border bg-surface/30 p-2 space-y-1 text-xs">
                     {[
                       { key: "restore_db", text: "Restore SQL backup over live database" },
                       { key: "restore_assets", text: "Unpack assets to configured location" },
@@ -1755,10 +1755,10 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                           className={[
                             "transition-colors",
                             state === "done"
-                              ? "text-emerald-300"
+                              ? "text-success-300"
                               : state === "active"
-                                ? "text-neutral-200"
-                                : "text-neutral-500",
+                                ? "text-body"
+                                : "text-subtle",
                           ].join(" ")}
                         >
                           {state === "done" ? "[done] " : state === "active" ? "[in progress] " : "[pending] "}
@@ -1777,22 +1777,22 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                   const failure = getPreflightFailure(restoreOp);
                   return (
                     <>
-                      <p className="text-sm text-red-300 font-medium">
+                      <p className="text-sm text-danger-300 font-medium">
                         {preflightTitle(failure?.code || "backup_error")}
                       </p>
-                      <p className="text-sm text-red-400">{failure?.message || restoreOp?.error || "Backup validation failed."}</p>
+                      <p className="text-sm text-danger-400">{failure?.message || restoreOp?.error || "Backup validation failed."}</p>
                       {failure?.code && (
-                        <p className="text-xs text-neutral-500">Validation code: {failure.code}</p>
+                        <p className="text-xs text-subtle">Validation code: {failure.code}</p>
                       )}
                     </>
                   );
                 })()}
-                <p className="text-xs text-neutral-500">Deleting temporary files</p>
+                <p className="text-xs text-subtle">Deleting temporary files</p>
                 <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => setRestoreModalOpen(false)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-200 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs"
                   >
                     OK
                   </button>
@@ -1802,23 +1802,23 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
             {restoreStep === "ready" && (
               <>
-                <div className="rounded-md border border-amber-500/30 bg-amber-950/20 p-3 space-y-2 text-xs">
-                  <p className="text-amber-200 font-semibold">Backup ready to restore</p>
-                  <p className="text-neutral-200">Backup name: {displayBackupName(restoreSummaryManifest)}</p>
-                  <p className="text-neutral-200">Date: {formatDate(restoreSummaryManifest?.created_at)}</p>
-                  <p className="text-neutral-200">
+                <div className="rounded-md border border-warning-500/30 bg-warning-950/20 p-3 space-y-2 text-xs">
+                  <p className="text-warning-200 font-semibold">Backup ready to restore</p>
+                  <p className="text-body">Backup name: {displayBackupName(restoreSummaryManifest)}</p>
+                  <p className="text-body">Date: {formatDate(restoreSummaryManifest?.created_at)}</p>
+                  <p className="text-body">
                     Assets: {restoreSummaryManifest?.includes_assets ? (restoreSummaryManifest?.asset_included_count ?? 0) : "Not included"}
                   </p>
-                  <p className="text-amber-100">Any existing data will be overwritten.</p>
-                  <p className="text-amber-100">Any existing assets will be deleted. Backup assets are restored only if included.</p>
-                  <p className="text-amber-100">You will be logged out when restore completes.</p>
-                  <p className="text-amber-100">If needed, create a new admin or reset password from the console with stowge admin create / stowge reset-password.</p>
+                  <p className="text-warning-100">Any existing data will be overwritten.</p>
+                  <p className="text-warning-100">Any existing assets will be deleted. Backup assets are restored only if included.</p>
+                  <p className="text-warning-100">You will be logged out when restore completes.</p>
+                  <p className="text-warning-100">If needed, create a new admin or reset password from the console with stowge admin create / stowge reset-password.</p>
                 </div>
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => void handleRestoreCancel()}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-800 text-neutral-300 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-secondary text-xs"
                   >
                     Cancel
                   </button>
@@ -1826,7 +1826,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     type="button"
                     ref={restoreApplyButtonRef}
                     onClick={() => void handleRestoreApply()}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-danger-500/70 bg-danger-950/30 text-danger-300 text-xs"
                   >
                     Proceed restore
                   </button>
@@ -1836,7 +1836,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
 
             {restoreStep === "done" && (
               <>
-                <div className="rounded-md border border-emerald-500/30 bg-emerald-950/20 p-3 space-y-2 text-xs text-emerald-200">
+                <div className="rounded-md border border-success-500/30 bg-success-950/20 p-3 space-y-2 text-xs text-success-200">
                   <p className="font-semibold">Restore completed</p>
                   <p>Database restore completed.</p>
                   <p>Assets restored according to backup contents.</p>
@@ -1847,7 +1847,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                   <button
                     type="button"
                     onClick={() => void handleCompleteLogout()}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-700 text-neutral-200 text-xs"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs"
                   >
                     Complete - logout
                   </button>
@@ -1859,16 +1859,16 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
       )}
 
       {deleteBackupTarget && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-950 shadow-2xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-neutral-100">Delete backup</h3>
-            <p className="text-sm text-neutral-300">Delete {deleteBackupTarget} from /assets/backups?</p>
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl border border-border bg-canvas shadow-2xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-heading">Delete backup</h3>
+            <p className="text-sm text-secondary">Delete {deleteBackupTarget} from /assets/backups?</p>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleteBackupTarget(null)}
                 disabled={deletingBackup}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-neutral-800 text-neutral-300 text-xs disabled:opacity-60"
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-secondary text-xs disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -1876,7 +1876,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 type="button"
                 onClick={() => void handleDeleteBackup(deleteBackupTarget)}
                 disabled={deletingBackup}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-red-500/70 bg-red-950/30 text-red-300 text-xs disabled:opacity-60"
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-danger-500/70 bg-danger-950/30 text-danger-300 text-xs disabled:opacity-60"
               >
                 {deletingBackup ? "Deleting…" : "Delete"}
               </button>

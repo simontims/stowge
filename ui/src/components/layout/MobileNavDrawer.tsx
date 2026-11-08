@@ -50,7 +50,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
       {/* Backdrop */}
       <div
         className={clsx(
-          "fixed inset-0 z-40 bg-black/60 md:hidden transition-opacity duration-200",
+          "fixed inset-0 z-40 bg-scrim/60 md:hidden transition-opacity duration-200",
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -60,7 +60,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
       {/* Drawer panel */}
       <div
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-neutral-900 border-r border-neutral-800 flex flex-col md:hidden transition-transform duration-200",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-border flex flex-col md:hidden transition-transform duration-200",
           open ? "translate-x-0" : "-translate-x-full"
         )}
         role="dialog"
@@ -69,21 +69,21 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
         aria-label="Navigation"
       >
         {/* Header */}
-        <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-800 shrink-0">
+        <div className="flex items-center justify-between h-14 px-4 border-b border-border shrink-0">
           <Link
             to="/items"
             aria-label="Stowge, all items"
             onClick={onClose}
-            className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500"
+            className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus"
           >
-            <span className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-600 text-white font-bold text-xs select-none">
+            <span className="flex items-center justify-center w-7 h-7 rounded-md bg-info-600 text-on-solid font-bold text-xs select-none">
               S
             </span>
-            <span className="font-semibold text-sm text-neutral-100">Stowge</span>
+            <span className="font-semibold text-sm text-heading">Stowge</span>
           </Link>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
+            className="p-1.5 rounded-md text-subtle hover:text-body hover:bg-surface-2 transition-colors"
             aria-label="Close navigation"
           >
             <X size={16} />
@@ -110,8 +110,8 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
                       clsx(
                         "flex items-center gap-3 px-3 py-2 min-h-11 mx-2 text-sm rounded-md transition-colors",
                         isNavItemActive(item.route)
-                          ? "bg-neutral-800 text-neutral-100"
-                          : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
+                          ? "bg-surface-2 text-heading"
+                          : "text-muted hover:text-body hover:bg-surface-2/50"
                       )
                     }
                   >

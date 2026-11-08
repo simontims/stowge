@@ -21,14 +21,14 @@ export function UnsavedChangesDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+        className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
       >
-        <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
-        <p className="text-sm text-neutral-300">{message}</p>
+        <h3 className="text-sm font-semibold text-heading">Unsaved Changes</h3>
+        <p className="text-sm text-secondary">{message}</p>
         <div className="pt-1 flex items-center justify-end gap-2">
           <button
             onClick={onCancel}

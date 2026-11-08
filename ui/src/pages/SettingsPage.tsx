@@ -51,7 +51,7 @@ export function SettingsPage() {
     <div className="space-y-5">
       <PageHeader title="Settings" />
 
-      <div className="flex border-b border-neutral-800" role="tablist" aria-label="Settings sections">
+      <div className="flex border-b border-border" role="tablist" aria-label="Settings sections">
         {TABS.map((tab, index) => {
           const isActive = tab.id === activeTab;
           return (
@@ -71,8 +71,8 @@ export function SettingsPage() {
               className={[
                 "inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
                 isActive
-                  ? "border-neutral-100 text-neutral-100"
-                  : "border-transparent text-neutral-500 hover:text-neutral-200 hover:border-neutral-600",
+                  ? "border-border-inverse text-heading"
+                  : "border-transparent text-subtle hover:text-body hover:border-border-hover",
               ].join(" ")}
             >
               {tab.label}

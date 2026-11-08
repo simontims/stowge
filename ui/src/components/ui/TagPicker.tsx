@@ -38,7 +38,7 @@ export function TagPicker({ tags, selectedIds, onChange, disabled = false, label
   return (
     <div className="relative">
       <div
-        className="flex flex-wrap items-center gap-1 rounded-md border border-neutral-700 bg-neutral-950 px-2 py-1.5 focus-within:border-neutral-500"
+        className="flex flex-wrap items-center gap-1 rounded-md border border-border-strong bg-canvas px-2 py-1.5 focus-within:border-border-focus"
       >
         {selected.map((tag) => (
           <TagChip key={tag.id} tag={tag} onRemove={disabled ? undefined : () => remove(tag.id)} />
@@ -68,7 +68,7 @@ export function TagPicker({ tags, selectedIds, onChange, disabled = false, label
               setOpen(false);
             }
           }}
-          className="min-w-[6rem] flex-1 bg-transparent py-0.5 text-sm text-neutral-200 outline-none placeholder:text-neutral-600"
+          className="min-w-[6rem] flex-1 bg-transparent py-0.5 text-sm text-body outline-none placeholder:text-faint"
         />
       </div>
 
@@ -76,10 +76,10 @@ export function TagPicker({ tags, selectedIds, onChange, disabled = false, label
         <ul
           role="listbox"
           aria-label={`${label} suggestions`}
-          className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 py-1 shadow-xl"
+          className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border-strong bg-surface py-1 shadow-xl"
         >
           {matches.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-neutral-500">
+            <li className="px-3 py-2 text-xs text-subtle">
               {tags.length === 0 ? "No tags yet. Make them on the Tags page." : "No matching tags."}
             </li>
           ) : (
@@ -93,7 +93,7 @@ export function TagPicker({ tags, selectedIds, onChange, disabled = false, label
                   event.preventDefault();
                   add(tag);
                 }}
-                className="cursor-pointer px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800"
+                className="cursor-pointer px-3 py-1.5 text-sm text-secondary hover:bg-surface-2"
               >
                 {tag.name}
               </li>

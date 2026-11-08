@@ -83,8 +83,8 @@ describe("Add Item and All items", () => {
     const { user } = api(EMPTY);
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/settings"]);
     const add = screen.getByRole("link", { name: "Add Item" });
-    expect(add.className).toContain("border-emerald-500/70");
-    expect(add.className).not.toContain("bg-emerald-600");
+    expect(add.className).toContain("border-success-500/70");
+    expect(add.className).not.toContain("bg-success-600");
     expect(add.className).toContain("w-full"); // spans the menu like the rows, not just its label
     expect((add.parentElement as HTMLElement).className).toContain("px-2");
     const block = screen.getByTestId("menu-primary-links");
@@ -105,7 +105,7 @@ describe("Add Item and All items", () => {
       await screen.findByRole("link", { name: "Cables" }); // filters and tags have loaded
       const all = screen.getByRole("link", { name: "All items" });
       expect(all.getAttribute("aria-current") === "page").toBe(expected);
-      expect(all.className.includes("bg-neutral-800 text-neutral-100")).toBe(expected);
+      expect(all.className.includes("bg-surface-2 text-heading")).toBe(expected);
       cleanup();
     }
   });
@@ -165,7 +165,7 @@ describe("Add Item and All items", () => {
       renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, [url]);
       const a = screen.getByRole("link", { name: "Add Item" });
       expect(a.getAttribute("aria-current") === "page").toBe(add);
-      expect(a.className.includes("!bg-emerald-900/50")).toBe(add);
+      expect(a.className.includes("!bg-success-900/50")).toBe(add);
       expect(screen.getByRole("link", { name: "All items" }).getAttribute("aria-current") === "page").toBe(all);
       cleanup();
     }
@@ -230,8 +230,8 @@ describe("Sidebar", () => {
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/items?tag=Tools"]);
     await screen.findByRole("list", { name: "Filters" });
     expect(screen.getByRole("link", { name: "Tools" }).getAttribute("href")).toBe("/items?tag=Tools");
-    expect(screen.getByRole("link", { name: "Tools" }).className).toContain("text-neutral-100");
-    expect(screen.getByRole("link", { name: "Cables" }).className).not.toContain("text-neutral-100");
+    expect(screen.getByRole("link", { name: "Tools" }).className).toContain("text-heading");
+    expect(screen.getByRole("link", { name: "Cables" }).className).not.toContain("text-heading");
   });
 
   it("shows the Filters heading with a pointer to Settings, and no items, when nothing is pinned", async () => {

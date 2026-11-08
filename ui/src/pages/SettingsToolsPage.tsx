@@ -230,14 +230,14 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
   return (
     <div className="space-y-8">
       {!embedded && (
-        <h1 className="text-2xl font-semibold text-neutral-100">Tools</h1>
+        <h1 className="text-2xl font-semibold text-heading">Tools</h1>
       )}
 
       {/* Export Section */}
       <section className="space-y-5">
         <div>
-          <h2 className="text-lg font-medium text-neutral-100">Export to CSV</h2>
-          <p className="mt-1 text-sm text-neutral-400">
+          <h2 className="text-lg font-medium text-heading">Export to CSV</h2>
+          <p className="mt-1 text-sm text-muted">
             Download your inventory as a CSV file. Includes item name, description, tags,
             location, status, quantity, contents, and timestamps.
           </p>
@@ -246,11 +246,11 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Scope */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-1.5">Scope</label>
+            <label className="block text-sm font-medium text-secondary mb-1.5">Scope</label>
             <select
               value={scope}
               onChange={(e) => setScope(e.target.value as "active" | "deleted" | "all")}
-              className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              className="w-full rounded-md border border-border-strong bg-surface-2 px-3 py-2 text-sm text-heading focus:border-border-focus focus:outline-none focus:ring-1 focus:ring-border-focus"
             >
               {scopeOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -262,13 +262,13 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
           {/* Tag Filter */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-1.5">
-              Tag <span className="text-neutral-500 font-normal">(optional)</span>
+            <label className="block text-sm font-medium text-secondary mb-1.5">
+              Tag <span className="text-subtle font-normal">(optional)</span>
             </label>
             <select
               value={tag}
               onChange={(e) => setTag(e.target.value)}
-              className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              className="w-full rounded-md border border-border-strong bg-surface-2 px-3 py-2 text-sm text-heading focus:border-border-focus focus:outline-none focus:ring-1 focus:ring-border-focus"
             >
               <option value="">All tags</option>
               {tags.map((c) => (
@@ -281,13 +281,13 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
           {/* Location Filter */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-1.5">
-              Location <span className="text-neutral-500 font-normal">(optional)</span>
+            <label className="block text-sm font-medium text-secondary mb-1.5">
+              Location <span className="text-subtle font-normal">(optional)</span>
             </label>
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-neutral-100 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              className="w-full rounded-md border border-border-strong bg-surface-2 px-3 py-2 text-sm text-heading focus:border-border-focus focus:outline-none focus:ring-1 focus:ring-border-focus"
             >
               <option value="">All locations</option>
               {locations.map((l) => (
@@ -300,7 +300,7 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
         </div>
 
         {error && (
-          <p className="text-sm text-red-400">{error}</p>
+          <p className="text-sm text-danger-400">{error}</p>
         )}
 
         <button
@@ -315,37 +315,37 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
       </section>
 
       {/* Import Section */}
-      <section className="space-y-5 border-t border-neutral-800 pt-8">
+      <section className="space-y-5 border-t border-border pt-8">
         <div>
-          <h2 className="text-lg font-medium text-neutral-100">Import from CSV</h2>
-          <p className="mt-1 text-sm text-neutral-400">
+          <h2 className="text-lg font-medium text-heading">Import from CSV</h2>
+          <p className="mt-1 text-sm text-muted">
             Import items from a CSV file. The file should include columns for{" "}
-            <span className="text-neutral-300">name</span> (required),{" "}
-            <span className="text-neutral-300">description</span>,{" "}
-            <span className="text-neutral-300">tags</span> (separate several with <span className="text-neutral-300">;</span>),{" "}
-            <span className="text-neutral-300">location</span>,{" "}
-            <span className="text-neutral-300">status</span> (draft or confirmed), and{" "}
-            <span className="text-neutral-300">quantity</span>.
+            <span className="text-secondary">name</span> (required),{" "}
+            <span className="text-secondary">description</span>,{" "}
+            <span className="text-secondary">tags</span> (separate several with <span className="text-secondary">;</span>),{" "}
+            <span className="text-secondary">location</span>,{" "}
+            <span className="text-secondary">status</span> (draft or confirmed), and{" "}
+            <span className="text-secondary">quantity</span>.
           </p>
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-subtle">
             Tags and locations are matched by name (case-insensitive). If any don't exist yet,
             you'll be asked whether to create them before the import proceeds.
           </p>
           {/* Legacy CSV note: the one place the old name still appears */}
-          <p className="mt-2 text-sm text-neutral-500">
-            Older files with a <span className="text-neutral-300">collection</span> column still import: that value becomes one tag.
+          <p className="mt-2 text-sm text-subtle">
+            Older files with a <span className="text-secondary">collection</span> column still import: that value becomes one tag.
           </p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-1.5">CSV File</label>
+            <label className="block text-sm font-medium text-secondary mb-1.5">CSV File</label>
             <input
               ref={fileInputRef}
               type="file"
               accept=".csv"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-neutral-400 file:mr-3 file:rounded-md file:border file:border-neutral-700 file:bg-neutral-800 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-neutral-300 file:cursor-pointer hover:file:bg-neutral-700 file:transition-colors"
+              className="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border file:border-border-strong file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary file:cursor-pointer hover:file:bg-surface-3 file:transition-colors"
             />
           </div>
 
@@ -362,19 +362,19 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
           )}
 
           {preview && (
-            <div className="rounded-md border border-neutral-700 bg-neutral-800/50 p-4 space-y-3">
-              <p className="text-sm text-neutral-200">
-                Found <span className="font-medium text-neutral-100">{preview.item_count}</span>{" "}
+            <div className="rounded-md border border-border-strong bg-surface-2/50 p-4 space-y-3">
+              <p className="text-sm text-body">
+                Found <span className="font-medium text-heading">{preview.item_count}</span>{" "}
                 item{preview.item_count !== 1 ? "s" : ""} to import.
               </p>
 
               {preview.parse_errors.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-400 flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-warning-400 flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Warnings ({preview.parse_errors.length})
                   </p>
-                  <ul className="text-xs text-neutral-400 list-disc list-inside max-h-32 overflow-y-auto">
+                  <ul className="text-xs text-muted list-disc list-inside max-h-32 overflow-y-auto">
                     {preview.parse_errors.map((err, i) => (
                       <li key={i}>{err}</li>
                     ))}
@@ -384,10 +384,10 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
               {preview.missing_tags.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-400">
+                  <p className="text-sm font-medium text-warning-400">
                     Missing tags ({preview.missing_tags.length})
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-muted">
                     {preview.missing_tags.join(", ")}
                   </p>
                 </div>
@@ -395,10 +395,10 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
               {preview.missing_locations.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-400">
+                  <p className="text-sm font-medium text-warning-400">
                     Missing locations ({preview.missing_locations.length})
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-muted">
                     {preview.missing_locations.join(", ")}
                   </p>
                 </div>
@@ -406,10 +406,10 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
               {preview.missing_sites.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-400">
+                  <p className="text-sm font-medium text-warning-400">
                     Missing sites ({preview.missing_sites.length})
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-muted">
                     {preview.missing_sites.join(", ")}
                   </p>
                 </div>
@@ -417,32 +417,32 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
 
               {preview.missing_areas.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-400">
+                  <p className="text-sm font-medium text-warning-400">
                     Missing areas ({preview.missing_areas.length})
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-muted">
                     {preview.missing_areas.join(", ")}
                   </p>
                 </div>
               )}
 
               {invalidTags.length > 0 && (
-                <div className="space-y-1 rounded-md border border-red-800 bg-red-950/30 p-3" role="alert">
-                  <p className="text-sm font-medium text-red-400 flex items-center gap-1.5">
+                <div className="space-y-1 rounded-md border border-danger-800 bg-danger-950/30 p-3" role="alert">
+                  <p className="text-sm font-medium text-danger-400 flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Invalid tag names ({invalidTags.length})
                   </p>
-                  <p className="text-xs text-neutral-300">
+                  <p className="text-xs text-secondary">
                     These tag names cannot be used (too short or containing ;): {invalidTags.join(", ")}
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-muted">
                     Edit the tag names in your CSV file, then choose it again to import.
                   </p>
                 </div>
               )}
 
               {(preview.missing_tags.length > 0 || preview.missing_sites.length > 0 || preview.missing_areas.length > 0 || preview.missing_locations.length > 0) && (
-                <p className="text-sm text-neutral-400">
+                <p className="text-sm text-muted">
                   These will be created automatically when you confirm the import.
                 </p>
               )}
@@ -475,11 +475,11 @@ export function SettingsToolsPage({ embedded, onDirtyChange: _onDirtyChange, sav
           )}
 
           {importError && (
-            <p className="text-sm text-red-400">{importError}</p>
+            <p className="text-sm text-danger-400">{importError}</p>
           )}
 
           {importNotice && (
-            <p className="text-sm text-emerald-400 flex items-center gap-1.5">
+            <p className="text-sm text-success-400 flex items-center gap-1.5">
               <CheckCircle className="h-4 w-4" />
               {importNotice}
             </p>

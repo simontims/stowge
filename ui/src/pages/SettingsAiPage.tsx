@@ -310,7 +310,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           <div className="inline-flex items-center gap-2">
             <span>{row.name}</span>
             {row.is_default && (
-              <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-emerald-600 text-emerald-700 bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:bg-emerald-950/40">
+              <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-success-600 text-success-700 bg-success-50 dark:border-success-500 dark:text-success-300 dark:bg-success-950/40">
                 <Star size={11} />
                 Default
               </span>
@@ -322,13 +322,13 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
         key: "provider",
         header: "Provider",
         sortable: true,
-        render: (row) => <span className="text-neutral-300">{row.provider}</span>,
+        render: (row) => <span className="text-secondary">{row.provider}</span>,
       },
       {
         key: "model",
         header: "Model",
         sortable: true,
-        render: (row) => <span className="text-neutral-300">{row.model}</span>,
+        render: (row) => <span className="text-secondary">{row.model}</span>,
       },
       {
         key: "is_validated",
@@ -336,9 +336,9 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
         sortable: true,
         render: (row) =>
           row.is_validated ? (
-            <CheckCircle2 size={16} className="text-emerald-400" aria-label="Validated" />
+            <CheckCircle2 size={16} className="text-success-400" aria-label="Validated" />
           ) : (
-            <Circle size={16} className="text-neutral-500" aria-label="Not validated" />
+            <Circle size={16} className="text-subtle" aria-label="Not validated" />
           ),
       },
     ],
@@ -629,7 +629,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             <button
               type="button"
               onClick={() => void copyToClipboard(detailsText)}
-              className="inline-flex items-center justify-center rounded border border-red-500/50 bg-red-950/40 p-1 text-red-200 hover:text-red-100"
+              className="inline-flex items-center justify-center rounded border border-danger-500/50 bg-danger-950/40 p-1 text-danger-200 hover:text-danger-100"
               aria-label="Copy validation error"
               title="Copy validation error"
             >
@@ -647,7 +647,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   <button
                     type="button"
                     onClick={() => void copyToClipboard(detailsText)}
-                    className="inline-flex items-center justify-center rounded border border-slate-500/50 bg-slate-900/40 p-1 text-slate-200 hover:text-slate-100"
+                    className="inline-flex items-center justify-center rounded border border-border-strong bg-surface-2 p-1 text-body hover:text-heading"
                     aria-label="Copy validation details"
                     title="Copy validation details"
                   >
@@ -809,32 +809,32 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       )}
 
       {addingOpen && (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">Add AI Model</h2>
+        <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-heading">Add AI Model</h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-neutral-300">
+            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-secondary">
               <input
                 type="checkbox"
                 checked={form.is_default}
                 onChange={(e) => setForm((v) => ({ ...v, is_default: e.target.checked }))}
-                className="rounded border-neutral-700 bg-neutral-950"
+                className="rounded border-border-strong bg-canvas"
               />
               Set as default model
             </label>
 
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Display Name</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Display Name</span>
               <input
                 value={form.name}
                 onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Primary LLM"
               />
             </label>
 
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Provider</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Provider</span>
               <select
                 value={form.provider}
                 disabled={providerOptions.length === 0}
@@ -852,7 +852,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   setAddDiscoverySignature(null);
                   setAddManualModel(nextProvider.value === "azure");
                 }}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               >
                 {providerOptions.length === 0 && <option value="">No providers available</option>}
                 {providerOptions.map((p) => (
@@ -864,7 +864,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">API Base</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">API Base</span>
               <input
                 value={form.api_base}
                 onChange={(e) => {
@@ -872,12 +872,12 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   setAddDiscovery(null);
                   setAddDiscoverySignature(null);
                 }}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">API Key</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">API Key</span>
               <input
                 type="password"
                 value={form.api_key}
@@ -886,7 +886,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   setAddDiscovery(null);
                   setAddDiscoverySignature(null);
                 }}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder="Enter provider API key"
               />
             </label>
@@ -896,7 +896,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 type="button"
                 onClick={() => void discoverModels("add")}
                 disabled={discoveringContext === "add" || !form.api_key.trim() || !form.api_base.trim()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 px-3 text-sm font-medium text-blue-300 hover:bg-blue-900/30 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-info-500/70 bg-info-950/30 px-3 text-sm font-medium text-info-300 hover:bg-info-900/30 hover:text-info-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {discoveringContext === "add" ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
                 {discoveringContext === "add" ? "Checking..." : "Check key and find models"}
@@ -904,7 +904,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </div>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Model</span>
               <div className="mt-1 flex items-center gap-3">
                 <select
                   value={addManualModel ? MANUAL_MODEL_VALUE : form.model}
@@ -917,7 +917,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                     setAddManualModel(false);
                     setForm((v) => ({ ...v, model: e.target.value }));
                   }}
-                  className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value={MANUAL_MODEL_VALUE}>Set model manually</option>
                   {(currentAddDiscovery?.recommended_models || addModelOptions.recommended).length > 0 && (
@@ -939,24 +939,24 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   <input
                     value={form.model}
                     onChange={(e) => setForm((v) => ({ ...v, model: e.target.value }))}
-                    className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                     placeholder={form.provider === "azure" ? "azure/YOUR_DEPLOYMENT_NAME" : `${form.provider}/model-id`}
                   />
                 )}
               </div>
               {currentAddDiscovery && (
-                <p className="mt-1 text-xs text-neutral-600">
+                <p className="mt-1 text-xs text-faint">
                   {currentAddDiscovery.models.length} models discovered for this key. Validate after saving to confirm inference access.
                 </p>
               )}
             </label>
 
             {/* Advanced */}
-            <div className="sm:col-span-2 border-t border-neutral-800 pt-3">
+            <div className="sm:col-span-2 border-t border-border pt-3">
               <button
                 type="button"
                 onClick={() => setAdvancedAddOpen((v) => !v)}
-                className="text-xs text-neutral-500 hover:text-neutral-300 flex items-center gap-1"
+                className="text-xs text-subtle hover:text-secondary flex items-center gap-1"
               >
                 <span className={`transition-transform ${advancedAddOpen ? "rotate-90" : ""}`}>▶</span>
                 Advanced
@@ -964,48 +964,48 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               {advancedAddOpen && (
                 <div className="mt-3 space-y-3">
                   <label className="block">
-                    <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
+                    <span className="inline-flex items-center gap-2 text-sm text-secondary">
                       <input
                         type="checkbox"
                         checked={form.evidence_enabled}
                         onChange={(e) => setForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
-                        className="rounded border-neutral-700 bg-neutral-950"
+                        className="rounded border-border-strong bg-canvas"
                       />
                       Include identification evidence
                     </span>
-                    <p className="mt-1 text-xs text-neutral-500">
+                    <p className="mt-1 text-xs text-subtle">
                       Report AI reasoning alongside item suggestions. Increases token usage and cost.
                     </p>
                   </label>
 
-                  <div className="border-t border-neutral-800/70" />
+                  <div className="border-t border-border/70" />
 
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-subtle">
                     These settings control how photos are resized before they are sent to the AI for identification. The defaults (1600px and quality 85) usually give the best balance of detail, speed, and token cost.
                   </p>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image max edge (px)</span>
+                      <span className="text-xs uppercase tracking-wide text-subtle">AI image max edge (px)</span>
                       <input
                         type="number"
                         min={64}
                         max={4096}
                         {...newMaxEdgeField}
-                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       />
-                      <p className="mt-1 text-xs text-neutral-600">Max pixel edge sent to AI. Recommended: 1600.</p>
+                      <p className="mt-1 text-xs text-faint">Max pixel edge sent to AI. Recommended: 1600.</p>
                     </label>
                     <label className="block">
-                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image quality</span>
+                      <span className="text-xs uppercase tracking-wide text-subtle">AI image quality</span>
                       <input
                         type="number"
                         min={1}
                         max={100}
                         {...newQualityField}
-                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       />
-                      <p className="mt-1 text-xs text-neutral-600">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>
+                      <p className="mt-1 text-xs text-faint">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>
                     </label>
                   </div>
                 </div>
@@ -1017,7 +1017,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             <button
               onClick={() => void createConfig()}
               disabled={creating}
-              className="inline-flex h-8 items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 rounded-md text-sm leading-none font-medium transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
               {creating ? "Validating..." : "Save"}
@@ -1031,7 +1031,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 setAddManualModel(false);
                 setError("");
               }}
-              className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 text-sm leading-none font-medium"
+              className="inline-flex h-8 items-center gap-1.5 px-3 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover text-sm leading-none font-medium"
             >
               Cancel
             </button>
@@ -1095,7 +1095,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           onSort={(key) => handleSort(key as AiSortKey)}
           footer={sortedFilteredConfigs.length > 0 && (
             <tr>
-              <td colSpan={5} className="px-4 py-2.5 text-right text-xs text-neutral-600">
+              <td colSpan={5} className="px-4 py-2.5 text-right text-xs text-faint">
                 {loading ? "Loading…" : `${filteredConfigs.length} model${filteredConfigs.length !== 1 ? "s" : ""}`}
               </td>
             </tr>
@@ -1104,10 +1104,10 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       )}
 
       {editingConfig && (
-        <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-3">
-          <div className="rounded-lg border border-neutral-800/80 bg-neutral-950/50 p-4 flex items-center justify-between gap-4">
+        <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-3">
+          <div className="rounded-lg border border-border/80 bg-canvas/50 p-4 flex items-center justify-between gap-4">
             <div className="min-w-0 flex items-center gap-3">
-              <div className="h-11 w-11 shrink-0 rounded-md border border-neutral-800 bg-neutral-900 flex items-center justify-center text-neutral-300">
+              <div className="h-11 w-11 shrink-0 rounded-md border border-border bg-surface flex items-center justify-center text-secondary">
                 {editingProviderLogoUrl && !providerLogoFailedByProvider[editingProviderKey] ? (
                   <img
                     src={editingProviderLogoUrl}
@@ -1122,27 +1122,27 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 )}
               </div>
               <div className="min-w-0">
-                <div className="text-xs uppercase tracking-wider text-neutral-500">Edit Provider</div>
-                <div className="text-2xl leading-tight font-semibold text-neutral-100 truncate">{editingProviderLabel}</div>
+                <div className="text-xs uppercase tracking-wider text-subtle">Edit Provider</div>
+                <div className="text-2xl leading-tight font-semibold text-heading truncate">{editingProviderLabel}</div>
               </div>
             </div>
 
             <div className="shrink-0 flex items-center gap-3 text-sm">
               {validatingId === editingConfig.id ? (
-                <span className="inline-flex items-center gap-1.5 text-blue-300">
+                <span className="inline-flex items-center gap-1.5 text-info-300">
                   <Loader2 size={14} className="animate-spin" />
                   Validating...
                 </span>
               ) : isValidationCurrent && validatedAtDraft ? (
-                <span className="text-neutral-300">Last validated: {formatRelativeTime(validatedAtDraft)}</span>
+                <span className="text-secondary">Last validated: {formatRelativeTime(validatedAtDraft)}</span>
               ) : (
-                <span className="text-neutral-400">Not validated</span>
+                <span className="text-muted">Not validated</span>
               )}
               <button
                 type="button"
                 onClick={() => void validateConfig(editingConfig.id)}
                 disabled={validatingId === editingConfig.id || savingEdit}
-                className="text-blue-300 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="text-info-300 hover:text-info-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Re-validate
               </button>
@@ -1150,27 +1150,27 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-neutral-300">
+            <label className="inline-flex items-center gap-2 sm:col-span-2 text-sm text-secondary">
               <input
                 type="checkbox"
                 checked={editForm.is_default}
                 onChange={(e) => setEditForm((v) => ({ ...v, is_default: e.target.checked }))}
-                className="rounded border-neutral-700 bg-neutral-950"
+                className="rounded border-border-strong bg-canvas"
               />
               Set as default model
             </label>
 
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Display Name</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Display Name</span>
               <input
                 value={editForm.name}
                 onChange={(e) => setEditForm((v) => ({ ...v, name: e.target.value }))}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
             </label>
 
             <label className="block">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Provider</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Provider</span>
               <select
                 value={editForm.provider}
                 disabled={providerOptions.length === 0}
@@ -1188,7 +1188,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   setEditDiscoverySignature(null);
                   setEditManualModel(nextProvider.value === "azure");
                 }}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               >
                 {providerOptions.length === 0 && <option value="">No providers available</option>}
                 {providerOptions.map((p) => (
@@ -1200,7 +1200,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">API Base</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">API Base</span>
               <input
                 value={editForm.api_base}
                 onChange={(e) => {
@@ -1208,12 +1208,12 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   setEditDiscovery(null);
                   setEditDiscoverySignature(null);
                 }}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">API Key</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">API Key</span>
               <input
                 type="password"
                 value={editForm.api_key}
@@ -1222,7 +1222,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   setEditDiscovery(null);
                   setEditDiscoverySignature(null);
                 }}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 placeholder={formatApiKeyPlaceholder(editingConfig.api_key_masked)}
               />
             </label>
@@ -1232,7 +1232,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 type="button"
                 onClick={() => void discoverModels("edit")}
                 disabled={discoveringContext === "edit" || !editForm.api_key.trim() || !editForm.api_base.trim()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-500/70 bg-blue-950/30 px-3 text-sm font-medium text-blue-300 hover:bg-blue-900/30 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-info-500/70 bg-info-950/30 px-3 text-sm font-medium text-info-300 hover:bg-info-900/30 hover:text-info-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {discoveringContext === "edit" ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
                 {discoveringContext === "edit" ? "Checking..." : "Check key and find models"}
@@ -1240,7 +1240,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </div>
 
             <label className="block sm:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-neutral-500">Model</span>
+              <span className="text-xs uppercase tracking-wide text-subtle">Model</span>
               <div className="mt-1 flex items-center gap-3">
                 <select
                   value={editManualModel ? MANUAL_MODEL_VALUE : editForm.model}
@@ -1253,7 +1253,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                     setEditManualModel(false);
                     setEditForm((v) => ({ ...v, model: e.target.value }));
                   }}
-                  className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value={MANUAL_MODEL_VALUE}>Set model manually</option>
                   {(currentEditDiscovery?.recommended_models || editModelOptions.recommended).length > 0 && (
@@ -1275,12 +1275,12 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                   <input
                     value={editForm.model}
                     onChange={(e) => setEditForm((v) => ({ ...v, model: e.target.value }))}
-                    className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    className="min-w-0 w-[calc(50%-0.375rem)] shrink-0 bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                     placeholder={editForm.provider === "azure" ? "azure/YOUR_DEPLOYMENT_NAME" : `${editForm.provider}/model-id`}
                   />
                 )}
               </div>
-              <p className="mt-1 text-xs text-neutral-600">
+              <p className="mt-1 text-xs text-faint">
                 {currentEditDiscovery
                   ? `${currentEditDiscovery.models.length} models discovered for this key.`
                   : "The current model remains available without refreshing discovery."}
@@ -1288,11 +1288,11 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             </label>
 
             {/* Advanced */}
-            <div className="sm:col-span-2 border-t border-neutral-800 pt-3">
+            <div className="sm:col-span-2 border-t border-border pt-3">
               <button
                 type="button"
                 onClick={() => setAdvancedEditOpen((v) => !v)}
-                className="text-xs text-neutral-500 hover:text-neutral-300 flex items-center gap-1"
+                className="text-xs text-subtle hover:text-secondary flex items-center gap-1"
               >
                 <span className={`transition-transform ${advancedEditOpen ? "rotate-90" : ""}`}>▶</span>
                 Advanced
@@ -1300,48 +1300,48 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               {advancedEditOpen && (
                 <div className="mt-3 space-y-3">
                   <label className="block">
-                    <span className="inline-flex items-center gap-2 text-sm text-neutral-300">
+                    <span className="inline-flex items-center gap-2 text-sm text-secondary">
                       <input
                         type="checkbox"
                         checked={editForm.evidence_enabled}
                         onChange={(e) => setEditForm((v) => ({ ...v, evidence_enabled: e.target.checked }))}
-                        className="rounded border-neutral-700 bg-neutral-950"
+                        className="rounded border-border-strong bg-canvas"
                       />
                       Include identification evidence
                     </span>
-                    <p className="mt-1 text-xs text-neutral-500">
+                    <p className="mt-1 text-xs text-subtle">
                       Report AI reasoning alongside item suggestions. Increases token usage and cost.
                     </p>
                   </label>
 
-                  <div className="border-t border-neutral-800/70" />
+                  <div className="border-t border-border/70" />
 
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-subtle">
                     These settings control how photos are resized before they are sent to the AI for identification. The defaults (1600px and quality 85) usually give the best balance of detail, speed, and token cost.
                   </p>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image max edge (px)</span>
+                      <span className="text-xs uppercase tracking-wide text-subtle">AI image max edge (px)</span>
                       <input
                         type="number"
                         min={64}
                         max={4096}
                         {...editMaxEdgeField}
-                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       />
-                      <p className="mt-1 text-xs text-neutral-600">Max pixel edge sent to AI. Recommended: 1600.</p>
+                      <p className="mt-1 text-xs text-faint">Max pixel edge sent to AI. Recommended: 1600.</p>
                     </label>
                     <label className="block">
-                      <span className="text-xs uppercase tracking-wide text-neutral-500">AI image quality</span>
+                      <span className="text-xs uppercase tracking-wide text-subtle">AI image quality</span>
                       <input
                         type="number"
                         min={1}
                         max={100}
                         {...editQualityField}
-                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       />
-                      <p className="mt-1 text-xs text-neutral-600">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>
+                      <p className="mt-1 text-xs text-faint">JPEG quality (1–100) for AI uploads. Recommended: 85.</p>
                     </label>
                   </div>
                 </div>
@@ -1362,24 +1362,24 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       )}
 
       {confirmDeleteConfig && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
-            <h3 className="text-sm font-semibold text-neutral-100">Delete AI Model</h3>
-            <p className="text-sm text-neutral-300">
-              Permanently delete <span className="font-medium text-neutral-100">{confirmDeleteConfig.name}</span>? This cannot be undone.
+            <h3 className="text-sm font-semibold text-heading">Delete AI Model</h3>
+            <p className="text-sm text-secondary">
+              Permanently delete <span className="font-medium text-heading">{confirmDeleteConfig.name}</span>? This cannot be undone.
             </p>
             {confirmDeleteConfig.id === defaultId && (
-              <label className="block text-sm text-neutral-300">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">New default model</span>
+              <label className="block text-sm text-secondary">
+                <span className="text-xs uppercase tracking-wide text-subtle">New default model</span>
                 {configs.filter((config) => config.id !== confirmDeleteConfig.id).length > 0 ? (
                   <select
                     value={replacementDefaultId}
                     onChange={(event) => setReplacementDefaultId(event.target.value)}
-                    className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                   >
                     {configs
                       .filter((config) => config.id !== confirmDeleteConfig.id)
@@ -1388,7 +1388,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                       ))}
                   </select>
                 ) : (
-                  <span className="mt-1 block text-xs text-amber-300">
+                  <span className="mt-1 block text-xs text-warning-300">
                     Add another AI model before deleting the default.
                   </span>
                 )}
@@ -1398,7 +1398,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <button
                 onClick={() => setConfirmDeleteConfig(null)}
                 disabled={deletingId === confirmDeleteConfig.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -1426,7 +1426,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                     configs.some((config) => config.id !== confirmDeleteConfig.id) &&
                     !replacementDefaultId)
                 }
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-60"
               >
                 <Trash2 size={14} />
                 {deletingId === confirmDeleteConfig.id ? "Deleting..." : "Delete"}
@@ -1437,33 +1437,33 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
       )}
 
       {unsavedPromptOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
-            <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
-            <p className="text-sm text-neutral-300">
+            <h3 className="text-sm font-semibold text-heading">Unsaved Changes</h3>
+            <p className="text-sm text-secondary">
               You have unsaved changes. Do you want to save before leaving this model?
             </p>
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={() => setUnsavedPromptOpen(false)}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUnsavedDiscard}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30"
               >
                 Discard
               </button>
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={savingEdit}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:opacity-60"
               >
                 <Save size={14} />
                 Save

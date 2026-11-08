@@ -45,35 +45,35 @@ export function WhatsNewPage() {
         description="What changed in each version of Stowge, newest first."
       />
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {!notes && !error && <p className="text-sm text-neutral-500">Loading...</p>}
+      {error && <p className="text-sm text-danger-400">{error}</p>}
+      {!notes && !error && <p className="text-sm text-subtle">Loading...</p>}
 
       {notes && notes.length === 0 && (
-        <div className="flex items-center justify-center rounded-lg border border-dashed border-neutral-800 py-16 text-sm text-neutral-600">
+        <div className="flex items-center justify-center rounded-lg border border-dashed border-border py-16 text-sm text-faint">
           No release notes yet.
         </div>
       )}
 
       {groupByVersion(notes ?? []).map((group) => (
         <section key={group.version} aria-labelledby={`version-${group.version}`}>
-          <h2 id={`version-${group.version}`} className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+          <h2 id={`version-${group.version}`} className="mb-1 text-xs font-semibold uppercase tracking-wider text-subtle">
             Version {group.version}
           </h2>
-          <ul className="divide-y divide-neutral-800 border-y border-neutral-800">
+          <ul className="divide-y divide-border border-y border-border">
             {group.notes.map((note) => (
               <li key={note.id} id={note.id} className="flex items-baseline gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-neutral-100">
+                  <p className="text-sm text-heading">
                     <span className="font-medium">{note.title}</span>
                     {note.unread && (
-                      <span className="ml-2 rounded bg-emerald-600/20 px-1.5 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-emerald-300">
+                      <span className="ml-2 rounded bg-success-600/20 px-1.5 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-success-300">
                         New
                       </span>
                     )}
                   </p>
-                  {note.summary && <p className="mt-0.5 text-sm text-neutral-400">{note.summary}</p>}
+                  {note.summary && <p className="mt-0.5 text-sm text-muted">{note.summary}</p>}
                 </div>
-                {note.date && <span className="shrink-0 text-xs text-neutral-600">{note.date}</span>}
+                {note.date && <span className="shrink-0 text-xs text-faint">{note.date}</span>}
               </li>
             ))}
           </ul>

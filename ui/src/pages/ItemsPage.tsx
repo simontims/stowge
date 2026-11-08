@@ -111,7 +111,7 @@ function renderHighlightedText(value: string, query: string, keyPrefix: string):
         segment.matched ? (
           <mark
             key={`${keyPrefix}-${index}`}
-            className="rounded-sm bg-amber-300/15 px-0.5 text-amber-100"
+            className="rounded-sm bg-warning-300/15 px-0.5 text-warning-100"
           >
             {segment.text}
           </mark>
@@ -134,12 +134,12 @@ function renderItemNameContent(
   const contentsCount = row.contents_count || 0;
   const nameLine = (
     <div className="flex items-center gap-1.5 min-w-0">
-      <span className="break-words font-medium text-neutral-200 min-w-0">
+      <span className="break-words font-medium text-body min-w-0">
         {renderHighlightedText(row.name, query, `${keyPrefix}-name`)}
       </span>
       {showContentsBadge && contentsCount > 0 ? (
         <span
-          className="inline-flex shrink-0 items-center gap-1 rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-400"
+          className="inline-flex shrink-0 items-center gap-1 rounded border border-border-strong bg-surface px-2 py-0.5 text-[11px] text-muted"
           title={`${contentsCount} contents entries`}
         >
           <Package size={10} />
@@ -161,7 +161,7 @@ function renderItemNameContent(
     <div className="min-w-0 space-y-1">
       {nameLine}
       {descriptionExcerpt ? (
-        <div className="break-words text-xs leading-5 text-neutral-500">
+        <div className="break-words text-xs leading-5 text-subtle">
           {renderHighlightedText(descriptionExcerpt, query, `${keyPrefix}-description`)}
         </div>
       ) : null}
@@ -823,10 +823,10 @@ export function ItemsPage() {
             <img
               src={row.thumb}
               alt={row.name}
-              className="w-10 h-10 object-cover rounded border border-neutral-800"
+              className="w-10 h-10 object-cover rounded border border-border"
             />
           ) : (
-            <span className="text-xs text-neutral-600">none</span>
+            <span className="text-xs text-faint">none</span>
           ),
       },
       {
@@ -849,7 +849,7 @@ export function ItemsPage() {
         width: "10rem",
         render: (row) => (
           <span
-            className="inline-block max-w-full truncate align-middle text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400"
+            className="inline-block max-w-full truncate align-middle text-xs bg-surface-2 border border-border-strong rounded px-2 py-0.5 text-muted"
             title={row.location || undefined}
           >
             {row.location || "-"}
@@ -862,7 +862,7 @@ export function ItemsPage() {
         sortable: true,
         width: "8rem",
         render: (row) => (
-          <span className="inline-block text-xs bg-neutral-800 border border-neutral-700 rounded px-2 py-0.5 text-neutral-400">
+          <span className="inline-block text-xs bg-surface-2 border border-border-strong rounded px-2 py-0.5 text-muted">
             {row.status}
           </span>
         ),
@@ -872,7 +872,7 @@ export function ItemsPage() {
         header: "Qty",
         width: "4.5rem",
         render: (row) => (
-          <span className="text-sm text-neutral-300">{row.quantity}</span>
+          <span className="text-sm text-secondary">{row.quantity}</span>
         ),
       },
     ],
@@ -937,7 +937,7 @@ export function ItemsPage() {
                         aria-label="Filter by tag"
                         value={tagFilter}
                         onChange={(event) => changeTagFilter(event.target.value)}
-                        className="bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-sm text-neutral-200 outline-none focus:border-neutral-500 max-w-[10rem]"
+                        className="bg-canvas border border-border-strong rounded-md px-2 py-1.5 text-sm text-body outline-none focus:border-border-focus max-w-[10rem]"
                       >
                         <option value="">Any tag</option>
                         <option value={UNTAGGED}>Untagged</option>
@@ -968,13 +968,13 @@ export function ItemsPage() {
                   }
                 />
 
-                {deleteError && <p className="text-sm text-red-400">{deleteError}</p>}
+                {deleteError && <p className="text-sm text-danger-400">{deleteError}</p>}
 
                 <div className={`flex-1 min-h-0 ${isMobile ? "overflow-y-auto" : ""}`}>
                   {isMobile ? (
                     <div className="pr-1">
                       {parts.length === 0 ? (
-                        <div className="border border-neutral-800 rounded-lg p-6 text-sm text-neutral-500 text-center">
+                        <div className="border border-border rounded-lg p-6 text-sm text-subtle text-center">
                           {emptyMessage}
                         </div>
                       ) : (
@@ -984,7 +984,7 @@ export function ItemsPage() {
                             return (
                               <article
                                 key={row.id}
-                                className="rounded-lg border border-neutral-800 bg-neutral-950 p-2.5"
+                                className="rounded-lg border border-border bg-canvas p-2.5"
                               >
                                 <div className="flex items-start gap-2.5">
                                   <button
@@ -999,26 +999,26 @@ export function ItemsPage() {
                                       <img
                                         src={row.thumb}
                                         alt={row.name}
-                                        className="h-14 w-14 shrink-0 rounded border border-neutral-800 object-cover"
+                                        className="h-14 w-14 shrink-0 rounded border border-border object-cover"
                                       />
                                     ) : (
-                                      <div className="h-14 w-14 shrink-0 rounded border border-neutral-800 bg-neutral-900 text-[10px] text-neutral-500 flex items-center justify-center">
+                                      <div className="h-14 w-14 shrink-0 rounded border border-border bg-surface text-[10px] text-subtle flex items-center justify-center">
                                         no image
                                       </div>
                                     )}
                                     <div className="min-w-0 flex-1">
                                       <div className="min-w-0">
-                                        <div className="text-sm font-semibold text-neutral-100">
+                                        <div className="text-sm font-semibold text-heading">
                                           {renderItemNameContent(row, activeResultQuery, mobileDescriptionExcerptLength, `mobile-${row.id}`, true)}
                                         </div>
                                       </div>
                                       <div className="mt-1 flex flex-wrap gap-1.5">
                                         <TagChips tags={row.tags} emptyLabel="No tags" small />
-                                        <span className="inline-flex items-center rounded border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
+                                        <span className="inline-flex items-center rounded border border-border-strong bg-surface px-2 py-0.5 text-[11px] text-secondary">
                                           {row.location || "No location"}
                                         </span>
                                       </div>
-                                      <p className="mt-1 text-[11px] text-neutral-500">Status: {row.status}</p>
+                                      <p className="mt-1 text-[11px] text-subtle">Status: {row.status}</p>
                                     </div>
                                   </button>
                                 </div>
@@ -1029,7 +1029,7 @@ export function ItemsPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="min-h-0 h-full overflow-y-auto [scrollbar-gutter:stable] lg:border-r lg:border-neutral-800 lg:pr-4">
+                    <div className="min-h-0 h-full overflow-y-auto [scrollbar-gutter:stable] lg:border-r lg:border-border lg:pr-4">
                       <DataTable
                         fixedLayout
                         minTableWidth="52rem"
@@ -1047,7 +1047,7 @@ export function ItemsPage() {
                           void openPartModal(row.id);
                         }}
                       />
-                      <p className="text-xs text-neutral-600 text-right pt-1">
+                      <p className="text-xs text-faint text-right pt-1">
                         {loading ? "Loading…" : `${parts.length} item${parts.length !== 1 ? "s" : ""}`}
                       </p>
                     </div>
@@ -1086,33 +1086,33 @@ export function ItemsPage() {
 
       {/* Unsaved changes dialog */}
       {unsavedPromptOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-3"
           >
-            <h3 className="text-sm font-semibold text-neutral-100">Unsaved Changes</h3>
-            <p className="text-sm text-neutral-300">
+            <h3 className="text-sm font-semibold text-heading">Unsaved Changes</h3>
+            <p className="text-sm text-secondary">
               You have unsaved changes. Do you want to save before leaving this item?
             </p>
             <div className="pt-1 flex items-center justify-end gap-2">
               <button
                 onClick={handleUnsavedCancel}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUnsavedDiscard}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-red-500/70 text-red-300 bg-red-950/30 hover:text-red-200 hover:bg-red-900/30"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30"
               >
                 Discard
               </button>
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={savingDetail}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-500/70 bg-emerald-950/30 text-emerald-300 hover:text-emerald-200 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:opacity-60"
               >
                 Save
               </button>
