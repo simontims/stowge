@@ -3,7 +3,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
 import { ItemsPage } from "../src/pages/ItemsPage";
-import { makeTag, makeUser, mockApi, renderWithUser } from "./testUtils";
+import { makeFilter, makeTag, makeUser, mockApi, renderWithUser } from "./testUtils";
 
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 
@@ -227,5 +227,38 @@ describe("Items table columns keep their widths whatever the list holds", () => 
     renderWithUser(<ItemsPage />, makeUser(), ["/items"]);
     const pill = await screen.findByTitle("Garage shelf number twelve, left side");
     expect(pill.className).toContain("truncate");
+  });
+});
+
+
+describe("page title for a pinned filter", () => {
+  function setupTitle(entry: string) {
+    const filters = [
+      makeFilter("f1", "USB devices", { query: "usb", area_id: "a1", pinned: true }),
+      makeFilter("f2", "Cable bits", { tag_id: "t1", pinned: true }),
+    ];
+    mockApi({
+      "GET /api/items": ITEMS,
+      "GET /api/locations": [],
+      "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")],
+      "GET /api/me": makeUser({ shortcut_filters: filters as never }),
+    });
+    renderWithUser(<ItemsPage />, makeUser({ shortcut_filters: filters as never }), [entry]);
+  }
+
+  it("shows the filter's name for a filter that has no tag", async () => {
+    setupTitle("/items?q=usb&area_id=a1");
+    expect(await screen.findByRole("heading", { level: 1, name: "USB devices" })).toBeTruthy();
+  });
+
+  it("shows the filter's name for a tag filter, and plain Items / the tag name once the view differs", async () => {
+    setupTitle("/items?tag=Cables");
+    expect(await screen.findByRole("heading", { level: 1, name: "Cable bits" })).toBeTruthy();
+    cleanup();
+    setupTitle("/items?tag=Tools");
+    expect(await screen.findByRole("heading", { level: 1, name: "Tools" })).toBeTruthy();
+    cleanup();
+    setupTitle("/items?q=usb");
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Items"));
   });
 });

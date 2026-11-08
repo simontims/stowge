@@ -15,6 +15,8 @@ import { buildCenteredExcerpt, splitMatchSegments } from "../lib/itemSearch";
 import { useBeforeUnload } from "../lib/useBeforeUnload";
 import { type ItemTag, type LocationOption, type Tag } from "../lib/types";
 import { UNTAGGED, listTags } from "../lib/tags";
+import { usePinnedFilters } from "../lib/usePinnedFilters";
+import { buildShortcutFilterSearch, isShortcutFilterActive } from "../lib/shortcutFilters";
 import { TagChips } from "../components/ui/TagChips";
 import { imageStateSignature } from "../lib/format";
 
@@ -260,6 +262,16 @@ export function ItemsPage() {
   const quantityMaxFilter = searchParams.get("quantity_max")?.trim() || "";
   const isUntaggedFilter = tagFilter === UNTAGGED;
   const tagLabel = isUntaggedFilter ? "No tag" : tagFilter;
+  // When the view is exactly a pinned filter, the page is titled with that filter's name (a
+  // filter built from search, area or location has no tag name to show).
+  const { pinned: pinnedFilters, tags: filterTags } = usePinnedFilters();
+  const activeFilterName = useMemo(
+    () =>
+      pinnedFilters.find(
+        (row) => buildShortcutFilterSearch(row, filterTags) !== "" && isShortcutFilterActive(row, searchParams.toString(), filterTags),
+      )?.name ?? "",
+    [pinnedFilters, filterTags, searchParams],
+  );
   const activeTagOption = useMemo(
     () => tagOptions.find((option) => option.name.toLowerCase() === tagFilter.toLowerCase()) ?? null,
     [tagFilter, tagOptions]
@@ -901,7 +913,7 @@ export function ItemsPage() {
   return (
     <div className="space-y-5 h-full flex flex-col">
       <PageHeader
-        title={tagLabel || "Items"}
+        title={activeFilterName || tagLabel || "Items"}
       />
 
       <TablePaneLayout
