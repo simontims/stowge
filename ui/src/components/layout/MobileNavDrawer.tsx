@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import clsx from "clsx";
 import { navItems } from "../../config/nav";
 import { useCurrentUser } from "../../lib/UserContext";
 import { usePinnedFilters } from "../../lib/usePinnedFilters";
 import { PinnedFilterList } from "./PinnedFilterList";
+import { MenuPrimaryLinks } from "./MenuPrimaryLinks";
 
 interface MobileNavDrawerProps {
   open: boolean;
@@ -68,12 +69,12 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-800 shrink-0">
-          <div className="flex items-center gap-2">
+          <Link to="/items" aria-label="Stowge, all items" className="flex items-center gap-2 rounded-md">
             <span className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-600 text-white font-bold text-xs select-none">
               S
             </span>
             <span className="font-semibold text-sm text-neutral-100">Stowge</span>
-          </div>
+          </Link>
           <button
             onClick={onClose}
             className="p-1.5 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
@@ -84,9 +85,11 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
         </div>
 
         {/* Nav groups */}
-        <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
+        <nav className="flex-1 min-h-0 flex flex-col" aria-label="Main navigation">
+          <MenuPrimaryLinks filters={pinned} tags={tags} touch />
+          <div className="flex-1 min-h-0 overflow-y-auto py-3">
           <div className="mb-4">
-            <PinnedFilterList filters={pinned} tags={tags} />
+            <PinnedFilterList filters={pinned} tags={tags} touch />
           </div>
 
           <div className="mb-4">
@@ -99,7 +102,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
                     end={item.route === "/system"}
                     className={() =>
                       clsx(
-                        "flex items-center gap-3 px-3 py-2 mx-2 text-sm rounded-md transition-colors",
+                        "flex items-center gap-3 px-3 py-2 min-h-11 mx-2 text-sm rounded-md transition-colors",
                         isNavItemActive(item.route)
                           ? "bg-neutral-800 text-neutral-100"
                           : "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50"
@@ -112,6 +115,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
                 </div>
               );
             })}
+          </div>
           </div>
         </nav>
       </div>

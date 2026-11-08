@@ -22,11 +22,13 @@ interface PinnedFilterListProps {
   /** data-tour value for the Filters heading. Only one list on the page may pass it (the desktop
    *  sidebar), so a tour never sees two elements with the same target. */
   headingTourId?: string;
+  /** Rows at least 44px tall, for the mobile drawer. */
+  touch?: boolean;
 }
 
 /** The "Filters" section of the menu: the user's pinned filters as one ordered list under a heading
  *  (the heading is not a link; filters, tags and AI hints are managed in Settings). */
-export function PinnedFilterList({ filters, tags, draggable = false, onReorder, firstItemTourId, headingTourId }: PinnedFilterListProps) {
+export function PinnedFilterList({ filters, tags, draggable = false, onReorder, firstItemTourId, headingTourId, touch = false }: PinnedFilterListProps) {
   const location = useLocation();
   const headingId = useId();
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -39,12 +41,12 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
 
   return (
     <>
-    <h2 id={headingId} data-tour={headingTourId} className="flex items-center gap-3 px-3 py-2 mx-2 text-sm font-normal text-neutral-400">
+    <h2 id={headingId} data-tour={headingTourId} className={clsx("flex items-center gap-3 px-3 py-2 mx-2 text-sm font-normal text-neutral-400", touch && "min-h-11")}>
       <Filter size={16} className="shrink-0" />
       <span>Filters</span>
     </h2>
     {filters.length === 0 && (
-      <Link to="/settings" className="mx-2 mt-1 block rounded-md px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300">
+      <Link to="/settings" className={clsx("mx-2 mt-1 block rounded-md px-3 py-1.5 text-xs text-neutral-500 hover:text-neutral-300", touch && "flex min-h-11 items-center")}>
         No filters yet. Add one in Settings.
       </Link>
     )}
@@ -104,6 +106,7 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
               data-tour={index === 0 ? firstItemTourId : undefined}
               className={clsx(
                 "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                touch && "min-h-11",
                 isActive
                   ? "bg-neutral-800/80 text-neutral-100"
                   : "text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-300",

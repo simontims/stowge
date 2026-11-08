@@ -1,11 +1,12 @@
 import { useMemo } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import { navItems } from "../../config/nav";
 import { useCurrentUser } from "../../lib/UserContext";
 import { usePinnedFilters } from "../../lib/usePinnedFilters";
 import { PinnedFilterList } from "./PinnedFilterList";
+import { MenuPrimaryLinks } from "./MenuPrimaryLinks";
 import { FIRST_PINNED_TOUR_TARGET } from "../onboarding/whatsNew/tagsAndHintsSteps";
 
 interface SidebarProps {
@@ -43,20 +44,28 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           collapsed ? "justify-center px-0" : "px-4 gap-2"
         )}
       >
-        <img
-          src="/stowgeLogoOptimized.webp"
-          alt="Stowge"
-          className="w-[46px] h-[46px] rounded-md object-cover shrink-0"
-        />
-        {!collapsed && (
-          <span className="font-semibold text-sm text-neutral-100 tracking-wide -translate-y-[2px]">
-            Stowge
-          </span>
-        )}
+        <Link
+          to="/items"
+          aria-label="Stowge, all items"
+          className={clsx("flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500", collapsed && "justify-center")}
+        >
+          <img
+            src="/stowgeLogoOptimized.webp"
+            alt=""
+            className="w-[46px] h-[46px] rounded-md object-cover shrink-0"
+          />
+          {!collapsed && (
+            <span className="font-semibold text-sm text-neutral-100 tracking-wide -translate-y-[2px]">
+              Stowge
+            </span>
+          )}
+        </Link>
       </div>
 
       {/* Nav groups */}
-      <nav className="flex-1 overflow-y-auto py-3" aria-label="Main navigation">
+      <nav className="flex-1 min-h-0 flex flex-col" aria-label="Main navigation">
+        <MenuPrimaryLinks filters={pinned} tags={tags} collapsed={collapsed} />
+        <div className="flex-1 min-h-0 overflow-y-auto py-3">
         {!collapsed && (
           <div className="mb-4">
             <PinnedFilterList filters={pinned} tags={tags} headingTourId="menu-filters" firstItemTourId={FIRST_PINNED_TOUR_TARGET} draggable onReorder={(src, target, pos) => void reorder(src, target, pos)} />
@@ -94,6 +103,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               </div>
             );
           })}
+        </div>
         </div>
       </nav>
 

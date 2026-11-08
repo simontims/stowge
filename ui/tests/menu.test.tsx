@@ -51,6 +51,96 @@ function dragWithY(type: "dragOver" | "drop", el: Element, dt: unknown, clientY:
   fireEvent(el, event);
 }
 
+describe("Add Item and All items", () => {
+  const EMPTY = [makeFilter("f3", "Hidden", { pinned: false })];
+
+  it("shows both above the Filters heading on a blank install, in the sidebar and the drawer", async () => {
+    for (const ui of [
+      <Sidebar collapsed={false} onToggleCollapse={() => {}} />,
+      <MobileNavDrawer open onClose={() => {}} />,
+    ]) {
+      const { user } = api(EMPTY);
+      renderWithUser(ui, user, ["/settings"]);
+      const add = screen.getByRole("link", { name: "Add Item" });
+      const all = screen.getByRole("link", { name: "All items" });
+      expect(add.getAttribute("href")).toBe("/add");
+      expect(all.getAttribute("href")).toBe("/items");
+      const heading = screen.getByText("Filters");
+      expect(add.compareDocumentPosition(all) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(all.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it("shows them to a non-admin too", () => {
+    const { user } = api(EMPTY);
+    renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, { ...user, role: "user" } as never, ["/settings"]);
+    expect(screen.getByRole("link", { name: "Add Item" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "All items" })).toBeTruthy();
+  });
+
+  it("is outlined, not a solid button, and sits outside the scrolling area", () => {
+    const { user } = api(EMPTY);
+    renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/settings"]);
+    const add = screen.getByRole("link", { name: "Add Item" });
+    expect(add.className).toContain("border-emerald-500/70");
+    expect(add.className).not.toContain("bg-emerald-600");
+    const block = screen.getByTestId("menu-primary-links");
+    expect(block.className).toContain("shrink-0");
+    expect(block.closest(".overflow-y-auto")).toBeNull();
+    expect(screen.getByText("Filters").closest(".overflow-y-auto")).toBeTruthy();
+  });
+
+  it("All items is active on /items and on an unmatched search, but not when a pinned filter is the view", async () => {
+    for (const [url, expected] of [
+      ["/items", true],
+      ["/items?q=drill", true],
+      ["/items?tag=Tools", false],
+      ["/settings", false],
+    ] as const) {
+      const { user } = api();
+      renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, [url]);
+      await screen.findByRole("link", { name: "Cables" }); // filters and tags have loaded
+      const all = screen.getByRole("link", { name: "All items" });
+      expect(all.getAttribute("aria-current") === "page").toBe(expected);
+      expect(all.className.includes("bg-neutral-800 text-neutral-100")).toBe(expected);
+      cleanup();
+    }
+  });
+
+  it("collapsed rail: icon-only with names and titles; the label text is gone", () => {
+    const { user } = api(EMPTY);
+    renderWithUser(<Sidebar collapsed onToggleCollapse={() => {}} />, user, ["/items"]);
+    const add = screen.getByRole("link", { name: "Add Item" });
+    expect(add.getAttribute("title")).toBe("Add Item");
+    expect(add.textContent).toBe("");
+    const all = screen.getByRole("link", { name: "All items" });
+    expect(all.getAttribute("title")).toBe("All items");
+    expect(all.textContent).toBe("");
+  });
+
+  it("drawer rows are at least 44px (min-h-11), including the filters and the empty hint", async () => {
+    const { user } = api();
+    renderWithUser(<MobileNavDrawer open onClose={() => {}} />, user, ["/settings"]);
+    await screen.findByRole("link", { name: "Cables" });
+    for (const name of ["Add Item", "All items", "Cables", "Settings"]) {
+      expect(screen.getByRole("link", { name }).className).toContain("min-h-11");
+    }
+  });
+
+  it("the logo links to the item list", () => {
+    const { user } = api(EMPTY);
+    renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/settings"]);
+    expect(screen.getByRole("link", { name: "Stowge, all items" }).getAttribute("href")).toBe("/items");
+  });
+
+  it("the empty-state hint is a full sentence ending in a full stop", async () => {
+    const { user } = api(EMPTY);
+    renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/settings"]);
+    expect(screen.getByRole("link", { name: "No filters yet. Add one in Settings." })).toBeTruthy();
+  });
+});
+
 describe("menu entries", () => {
   it("has no Tags or Collections entry: tags are managed in Settings", () => {
     expect(navItems.map((i) => i.label)).toEqual(["Settings", "System"]);

@@ -30,10 +30,10 @@ export function buildTagsAndHintsSteps(converted: number, hasPinnedFilter: boole
       target: "[data-tour='menu-filters']",
       placement: "right",
       skipBeacon: true,
-      title: "Your menu looks the same",
+      title: "Your pinned filters",
       content: (
         <p className="text-sm leading-6">
-          Your old collections are pinned filters under <strong>Filters</strong>, so they sit where they always did.
+          Your old collections are pinned filters under <strong>Filters</strong>, in the order you had them. <strong>Add Item</strong> and <strong>All items</strong> now sit above them.
         </p>
       ),
     },
