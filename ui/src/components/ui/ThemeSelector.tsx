@@ -47,7 +47,7 @@ export function ThemeSelector({ idPrefix, showHint = false }: ThemeSelectorProps
           </label>
         ))}
       </div>
-      {showHint && <p className="mt-2 text-xs text-subtle">You can change this later with the sun or moon button in the top bar.</p>}
+      {showHint && <p className="mt-2 text-xs text-subtle">You can change this later from your user menu, under Appearance.</p>}
     </fieldset>
   );
 }

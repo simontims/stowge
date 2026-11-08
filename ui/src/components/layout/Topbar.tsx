@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, Menu, Moon, Sparkles, Sun, User } from "lucide-react";
+import { Compass, Menu, Sparkles, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { chooseTheme, setTheme, useTheme } from "../../lib/theme";
+import { setTheme } from "../../lib/theme";
 import { ThemeSelector } from "../ui/ThemeSelector";
 import { useCurrentUser } from "../../lib/UserContext";
 import { UnreadDot } from "../ui/UnreadDot";
@@ -17,7 +17,6 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
   const navigate = useNavigate();
   const hasUnseenNotes = (currentUser.whats_new?.unseen.length ?? 0) > 0;
   const [menuOpen, setMenuOpen] = useState(false);
-  const themeMode = useTheme();
   const [version, setVersion] = useState<string>("");
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -101,14 +100,6 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
         </button>
 
         <div className="flex-1" />
-
-        <button
-          onClick={() => chooseTheme(themeMode === "dark" ? "light" : "dark")}
-          className="shrink-0 p-1.5 rounded-md text-muted hover:text-heading hover:bg-surface-2 transition-colors"
-          aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
 
         <div className="relative shrink-0" ref={menuRef}>
           <button

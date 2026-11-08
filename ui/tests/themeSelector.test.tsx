@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import userEvent from "@testing-library/user-event";
 import { WelcomeModal } from "../src/components/onboarding/welcome/WelcomeModal";
 import { ThemeSelector } from "../src/components/ui/ThemeSelector";
+import { Topbar } from "../src/components/layout/Topbar";
+import { renderWithUser } from "./testUtils";
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -49,10 +51,10 @@ describe("ThemeSelector", () => {
 });
 
 describe("WelcomeModal appearance choice", () => {
-  it("offers Light and Dark between the text and the buttons, with a hint about the top bar", () => {
+  it("offers Light and Dark between the text and the buttons, with a hint pointing at the user menu", () => {
     render(<WelcomeModal onTakeTour={() => {}} onClose={() => {}} />);
     expect(screen.getByRole("radio", { name: "Light" })).toBeTruthy();
-    expect(screen.getByText(/sun or moon button in the top bar/)).toBeTruthy();
+    expect(screen.getByText(/user menu, under Appearance/)).toBeTruthy();
   });
 
   it("choosing a theme in the modal switches the page behind it immediately", async () => {
@@ -98,5 +100,16 @@ describe("WelcomeModal appearance choice", () => {
     dark.focus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(screen.getByText("Take the tour"));
+  });
+});
+
+
+describe("Topbar appearance control", () => {
+  it("has no separate sun/moon button; Light / Dark lives only in the user menu", async () => {
+    renderWithUser(<Topbar onMenuClick={() => {}} onLogout={() => {}} />);
+    expect(screen.queryByRole("button", { name: /Switch to (light|dark) mode/ })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Light" })).toBeNull(); // menu closed
+    await userEvent.click(screen.getByRole("button", { name: /Guest|@|\w/, expanded: false }));
+    expect(screen.getAllByRole("radio", { name: "Light" })).toHaveLength(1);
   });
 });
