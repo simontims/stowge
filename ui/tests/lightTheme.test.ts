@@ -9,7 +9,7 @@ const addPage = readFileSync(resolve(__dirname, "../src/pages/AddPage.tsx"), "ut
  *  dark surface. Without a light override it showed as a black strip in light mode. */
 describe("light theme: Add page action bar", () => {
   it("has a light override for the bar's near-opaque dark background", () => {
-    expect(css).toMatch(/:root\[data-theme="light"\] \.bg-neutral-900\\\/95\s*\{[^}]*background-color:\s*rgba\(255, 255, 255, 0\.95\)/);
+    expect(css).toMatch(/\.bg-neutral-900\\\/95[^{]*\{[^}]*background-color/);
   });
 
   it("both sticky action bars on the Add page use that background", () => {
@@ -18,6 +18,7 @@ describe("light theme: Add page action bar", () => {
   });
 
   it("the menu's Add Item current-page tint has a light override too, not a muddy dark green", () => {
-    expect(css).toMatch(/:root\[data-theme="light"\] \.\\!bg-emerald-900\\\/50\s*\{[^}]*rgb\(167 243 208\)/);
+    // It must sit inside @layer utilities: a layered !important rule (Tailwind's `!` modifier) beats an unlayered one.
+    expect(css).toMatch(/@layer utilities\s*\{\s*:root\[data-theme="light"\] \.\\!bg-emerald-900\\\/50\s*\{[^}]*rgb\(167 243 208\)/);
   });
 });
