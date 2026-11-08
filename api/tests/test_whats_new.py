@@ -80,6 +80,16 @@ class TestShippedNotes:
         assert _ids(me) == ["welcome-tour", "filter-icons", "tags-and-hints", "add-item-menu"]
         assert me["whats_new"]["unseen_interrupt_count"] == 1
 
+    def test_a_0_12_0_user_sees_exactly_one_new_dot_note_and_no_interrupt(self, monkeypatch):
+        monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
+        cookies = auth_cookies("wn_shipped_at_0_12_0@example.com")
+        r = client.post("/api/me/whats-new/seen", json={"seq": 3}, cookies=cookies)  # saw everything up to 0.12.0
+        assert r.status_code == 200
+        me = _me(cookies)
+        assert _ids(me) == ["add-item-menu"]
+        assert me["whats_new"]["unseen_interrupt_count"] == 0
+        assert me["whats_new"]["unseen"][0]["severity"] == "dot"
+
     def test_new_account_starts_at_the_latest_note(self, monkeypatch):
         monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
         admin = auth_cookies("wn_shipped_admin@example.com", role="admin")

@@ -216,4 +216,16 @@ describe("Items table columns keep their widths whatever the list holds", () => 
     expect(w[1]).toBe(""); // Name: no width of its own
     for (const i of [0, 2, 3, 4, 5]) expect(w[i]).not.toBe("");
   });
+
+  it("a long location is cut with an ellipsis and keeps its full text as a title", async () => {
+    mockApi({
+      "GET /api/items": LONG,
+      "GET /api/locations": [],
+      "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")],
+      "PATCH /api/me": makeUser(),
+    });
+    renderWithUser(<ItemsPage />, makeUser(), ["/items"]);
+    const pill = await screen.findByTitle("Garage shelf number twelve, left side");
+    expect(pill.className).toContain("truncate");
+  });
 });

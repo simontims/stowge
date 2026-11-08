@@ -129,6 +129,60 @@ describe("Add Item and All items", () => {
     for (const name of ["Add Item", "All items", "Cables", "Settings"]) {
       expect(screen.getByRole("link", { name }).className).toContain("min-h-11");
     }
+    expect((screen.getByText("Filters").closest("h2") as HTMLElement).className).toContain("min-h-11");
+    cleanup();
+    renderWithUser(<MobileNavDrawer open onClose={() => {}} />, api(EMPTY).user, ["/settings"]);
+    expect(screen.getByRole("link", { name: "No filters yet. Add one in Settings." }).className).toContain("min-h-11");
+  });
+
+  it("the drawer closes when All items, Add Item or the logo is chosen, even if the URL does not change", () => {
+    const onClose = vi.fn();
+    const { user } = api(EMPTY);
+    renderWithUser(<MobileNavDrawer open onClose={onClose} />, user, ["/items"]);
+    onClose.mockClear(); // the route-change effect fires once on mount
+    for (const name of ["All items", "Add Item", "Stowge, all items"]) {
+      fireEvent.click(screen.getByRole("link", { name }));
+    }
+    expect(onClose.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("a closed drawer is inert, so its links are not in the tab order", () => {
+    const { user } = api(EMPTY);
+    const { container } = renderWithUser(<MobileNavDrawer open={false} onClose={() => {}} />, user, ["/items"]);
+    expect((container.querySelector("[role='dialog']") as HTMLElement).hasAttribute("inert")).toBe(true);
+  });
+
+  it("Add Item is current on /add, /items/new and /parts/new, with a visible tint; All items is current on /parts", () => {
+    for (const [url, add, all] of [
+      ["/add", true, false],
+      ["/items/new", true, false],
+      ["/parts/new", true, false],
+      ["/parts", false, true],
+      ["/items?sort=name&page=2", false, true],
+      ["/items?tag=__none", false, true],
+    ] as const) {
+      const { user } = api(EMPTY);
+      renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, [url]);
+      const a = screen.getByRole("link", { name: "Add Item" });
+      expect(a.getAttribute("aria-current") === "page").toBe(add);
+      expect(a.className.includes("!bg-emerald-900/50")).toBe(add);
+      expect(screen.getByRole("link", { name: "All items" }).getAttribute("aria-current") === "page").toBe(all);
+      cleanup();
+    }
+  });
+
+  it("a pinned filter with no criteria does not take the highlight from All items", () => {
+    const { user } = api([makeFilter("f9", "Everything", {})]);
+    renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/items"]);
+    expect(screen.getByRole("link", { name: "All items" }).getAttribute("aria-current")).toBe("page");
+  });
+
+  it("the drawer's logo is a link to the item list with a focus ring", () => {
+    const { user } = api(EMPTY);
+    renderWithUser(<MobileNavDrawer open onClose={() => {}} />, user, ["/settings"]);
+    const logo = screen.getByRole("link", { name: "Stowge, all items" });
+    expect(logo.getAttribute("href")).toBe("/items");
+    expect(logo.className).toContain("focus-visible:ring-2");
   });
 
   it("the logo links to the item list", () => {

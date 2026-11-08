@@ -65,11 +65,17 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
         )}
         role="dialog"
         aria-modal="true"
+        inert={!open}
         aria-label="Navigation"
       >
         {/* Header */}
         <div className="flex items-center justify-between h-14 px-4 border-b border-neutral-800 shrink-0">
-          <Link to="/items" aria-label="Stowge, all items" className="flex items-center gap-2 rounded-md">
+          <Link
+            to="/items"
+            aria-label="Stowge, all items"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500"
+          >
             <span className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-600 text-white font-bold text-xs select-none">
               S
             </span>
@@ -86,7 +92,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
 
         {/* Nav groups */}
         <nav className="flex-1 min-h-0 flex flex-col" aria-label="Main navigation">
-          <MenuPrimaryLinks filters={pinned} tags={tags} touch />
+          <MenuPrimaryLinks filters={pinned} tags={tags} touch onNavigate={onClose} />
           <div className="flex-1 min-h-0 overflow-y-auto py-3">
           <div className="mb-4">
             <PinnedFilterList filters={pinned} tags={tags} touch />
