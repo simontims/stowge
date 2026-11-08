@@ -1220,7 +1220,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                             role="switch"
                             aria-label="Enable schedule"
                           />
-                          <span className="absolute inset-0 rounded-full border border-border-strong bg-surface-2 transition-colors peer-checked:bg-success-600/80 peer-checked:border-success-500 peer-disabled:opacity-50" />
+                          <span className="absolute inset-0 rounded-full border border-border-strong bg-surface-2 transition-colors peer-checked:bg-success-600/80 peer-checked:border-success-500 peer-disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border" />
                           <span className="absolute left-0.5 h-4.5 w-4.5 rounded-full bg-on-solid shadow transition-transform peer-checked:translate-x-5" />
                         </span>
                       </label>
@@ -1264,7 +1264,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                           }
                         }}
                         disabled={running}
-                        className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-focus text-xs font-medium disabled:opacity-60"
+                        className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-focus text-xs font-medium disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
                       >
                         {running ? "Running…" : meta.runLabel}
                       </button>
@@ -1345,7 +1345,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       type="button"
                       onClick={() => setBackupPage((p) => Math.max(0, p - 1))}
                       disabled={backupPage === 0}
-                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-r-none border border-border-strong text-muted hover:text-body hover:border-border-focus disabled:opacity-40 disabled:hover:text-muted disabled:hover:border-border-strong"
+                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-r-none border border-border-strong text-muted hover:text-body hover:border-border-focus disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:hover:text-muted disabled:hover:border-border-strong"
                     >
                       ← Prev
                     </button>
@@ -1353,7 +1353,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       type="button"
                       onClick={() => setBackupPage((p) => Math.min(backupPageCount - 1, p + 1))}
                       disabled={backupPage >= backupPageCount - 1}
-                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-l-none -ml-px border border-border-strong text-muted hover:text-body hover:border-border-focus disabled:opacity-40 disabled:hover:text-muted disabled:hover:border-border-strong"
+                      className="inline-flex items-center px-2.5 py-1 text-xs rounded-md rounded-l-none -ml-px border border-border-strong text-muted hover:text-body hover:border-border-focus disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:hover:text-muted disabled:hover:border-border-strong"
                     >
                       Next →
                     </button>
@@ -1484,7 +1484,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       const cronExpression = buildCronExpression(nextState, cronValue);
                       setScheduleModalCronDraft(cronExpression);
                     }}
-                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
+                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -1503,7 +1503,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       const cronExpression = buildCronExpression(nextState, cronValue);
                       setScheduleModalCronDraft(cronExpression);
                     }}
-                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
+                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                   >
                     {friendly.frequency === "monthly"
                       ? MONTH_DAY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>Day {opt.label}</option>)
@@ -1518,7 +1518,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       const cronExpression = buildCronExpression(nextState, cronValue);
                       setScheduleModalCronDraft(cronExpression);
                     }}
-                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
+                    className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                   />
                 </div>
 
@@ -1535,7 +1535,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                       onChange={(event) => setScheduleModalCronDraft(event.target.value)}
                       onBlur={() => setScheduleModalCronDraft((current) => normalizeCronExpressionInput(current))}
                       placeholder="0 3 * * *"
-                      className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
+                      className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                     />
                     <p className="text-[11px] text-subtle">{toHumanCron(cronValue)}</p>
                   </div>
@@ -1578,7 +1578,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                           const days = Math.max(1, Math.min(3650, value));
                           setScheduleModalRetentionDaysDraft(days);
                         }}
-                        className="w-24 rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:opacity-50"
+                        className="w-24 rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-body disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                       />
                       <span className="text-xs text-secondary">days</span>
                     </div>
@@ -1605,7 +1605,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                     type="button"
                     onClick={() => void saveScheduleModal()}
                     disabled={saving}
-                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs disabled:opacity-60"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md border border-border-strong text-body text-xs disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
                   >
                     Save
                   </button>
@@ -1868,7 +1868,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 type="button"
                 onClick={() => setDeleteBackupTarget(null)}
                 disabled={deletingBackup}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-secondary text-xs disabled:opacity-60"
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-border text-secondary text-xs disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 Cancel
               </button>
@@ -1876,7 +1876,7 @@ export function DashboardPage({ embedded = false }: DashboardPageProps) {
                 type="button"
                 onClick={() => void handleDeleteBackup(deleteBackupTarget)}
                 disabled={deletingBackup}
-                className="inline-flex items-center px-3 py-1.5 rounded-md border border-danger-500/70 bg-danger-950/30 text-danger-300 text-xs disabled:opacity-60"
+                className="inline-flex items-center px-3 py-1.5 rounded-md border border-danger-500/70 bg-danger-950/30 text-danger-300 text-xs disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 {deletingBackup ? "Deleting…" : "Delete"}
               </button>

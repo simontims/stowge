@@ -135,4 +135,37 @@ describe("light theme contrast (WCAG AA)", () => {
       if (light.has(`${tone}-500`) && light.has(`${tone}-600`)) expect(get(`${tone}-500`)).not.toBe(get(`${tone}-600`));
     }
   });
+
+  it("disabled controls are readable: disabled-fg is at least 4.5:1 on disabled-bg (light and dark)", () => {
+    expect(contrast(get("disabled-fg"), get("disabled-bg"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(get("disabled-fg"), get("surface"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("non-text roles (ghost, surface-5, surface-6) are at least 3:1 on the light surfaces", () => {
+    for (const role of ["ghost", "surface-5", "surface-6"]) {
+      for (const ground of ["surface", "canvas"]) expect(contrast(get(role), get(ground))).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
+describe("disabled controls use the disabled roles, not opacity", () => {
+  it("no disabled:opacity-* in ui/src", () => {
+    const hits: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+        if (/disabled:opacity-\d+/.test(line)) hits.push(`${relative(SRC, file)}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
+
+  it("ghost, surface-5 and surface-6 are never used as a text colour", () => {
+    const hits: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+        if (/(?<![\w-])text-(?:surface-5|surface-6)(?![\w-])/.test(line)) hits.push(`${relative(SRC, file)}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
 });

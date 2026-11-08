@@ -32,7 +32,7 @@ export function PhotoCapture({
           <button
             onClick={onTakePicture}
             disabled={disabled || atMax}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-border-strong rounded-md text-sm text-body hover:text-heading hover:border-border-focus disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 border border-border-strong rounded-md text-sm text-body hover:text-heading hover:border-border-focus disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors"
           >
             <Camera size={16} />
             Take photo
@@ -40,7 +40,7 @@ export function PhotoCapture({
           <button
             onClick={onPickPhotos}
             disabled={disabled || atMax}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-3 border border-border-strong rounded-md text-sm text-muted hover:text-body hover:border-border-focus disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-3 border border-border-strong rounded-md text-sm text-muted hover:text-body hover:border-border-focus disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors"
             aria-label="Upload photos"
           >
             <Upload size={16} />
@@ -59,7 +59,7 @@ export function PhotoCapture({
                 <button
                   onClick={() => onRemovePhoto(idx)}
                   disabled={disabled}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:opacity-60"
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                   aria-label={`Remove photo ${idx + 1}`}
                 >
                   <X size={8} />
@@ -69,7 +69,7 @@ export function PhotoCapture({
                 <button
                   onClick={() => onRotatePhoto(idx)}
                   disabled={disabled}
-                  className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:opacity-60"
+                  className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-scrim/70 text-on-solid flex items-center justify-center hover:bg-scrim/90 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                   aria-label={`Rotate photo ${idx + 1}`}
                 >
                   <RotateCw size={8} />

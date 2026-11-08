@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "../../lib/theme";
 import { EVENTS, Joyride, STATUS, type EventData, type Step } from "react-joyride";
 
 /** Size of an element as the browser lays it out. Injected in tests, since jsdom has no layout. */
@@ -41,17 +42,6 @@ interface GuidedTourProps {
 
 /** A guided tour (react-joyride) with the app's settings. The X ends the tour (there is no Skip),
  *  Escape ends it, and every run starts at step 1. Shared by the welcome tour and What's New tours. */
-/** Changes whenever the page's data-theme attribute does, so colours read from CSS variables stay current. */
-function useThemeKey(): string {
-  const [key, setKey] = useState(() => document.documentElement.dataset.theme ?? "dark");
-  useEffect(() => {
-    const observer = new MutationObserver(() => setKey(document.documentElement.dataset.theme ?? "dark"));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => observer.disconnect();
-  }, []);
-  return key;
-}
-
 export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
   // Joyride keeps its step position after the tour is stopped from outside (Escape, the X, the
   // menu item), so the next run would resume part-way. Give every run a fresh instance instead,
@@ -98,7 +88,7 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
   }
 
   // The tour's colours come from the same roles as the rest of the UI, so it follows the theme.
-  const themeKey = useThemeKey();
+  const themeKey = useTheme();
   const role = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
   // Recomputed only when the theme changes (themeKey), not on every render.
   const colours = useMemo(() => ({

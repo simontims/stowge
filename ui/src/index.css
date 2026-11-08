@@ -32,6 +32,9 @@
   --subtle: var(--color-neutral-500);
   --faint: var(--color-neutral-600);
   --ghost: var(--color-neutral-800);
+  --disabled-bg: var(--color-neutral-800);
+  --disabled-fg: var(--color-neutral-400);
+  --disabled-border: var(--color-neutral-700);
   --selected: color-mix(in oklab, var(--color-neutral-800) 80%, transparent);
   --accent-muted: var(--color-neutral-400);
   --on-solid: #ffffff;
@@ -81,7 +84,7 @@
   --surface-2: #f1f5f9;
   --surface-3: #e2e8f0;
   --surface-4: #cbd5e1;
-  --surface-5: #94a3b8;
+  --surface-5: #738298;
   --surface-6: #64748b;
   --border: #cbd5e1;
   --border-strong: #7a8ba3;
@@ -96,7 +99,10 @@
   --muted: #475569;
   --subtle: #4f5b6d;
   --faint: #566478;
-  --ghost: #94a3b8;
+  --ghost: #738298;
+  --disabled-bg: #e2e8f0;
+  --disabled-fg: #566478;
+  --disabled-border: #cbd5e1;
   --selected: #dbeafe;
   --accent-muted: #475569;
   --on-solid: #ffffff;
@@ -161,6 +167,9 @@
   --color-subtle: var(--subtle);
   --color-faint: var(--faint);
   --color-ghost: var(--ghost);
+  --color-disabled-bg: var(--disabled-bg);
+  --color-disabled-fg: var(--disabled-fg);
+  --color-disabled-border: var(--disabled-border);
   --color-selected: var(--selected);
   --color-accent-muted: var(--accent-muted);
   --color-on-solid: var(--on-solid);

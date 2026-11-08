@@ -617,7 +617,7 @@ export function AddPage() {
               <button
                 onClick={startManualReview}
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-1.5 px-3 py-2 border border-border-strong rounded-md text-sm text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-border-strong rounded-md text-sm text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors"
               >
                 Continue manually
               </button>
@@ -730,7 +730,7 @@ export function AddPage() {
               <button
                 onClick={savePart}
                 disabled={isSaving}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-4 py-2 rounded-md text-sm font-semibold transition-colors"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-on-solid px-4 py-2 rounded-md text-sm font-semibold transition-colors"
               >
                 {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 Save

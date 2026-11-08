@@ -896,7 +896,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 type="button"
                 onClick={() => void discoverModels("add")}
                 disabled={discoveringContext === "add" || !form.api_key.trim() || !form.api_base.trim()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-info-500/70 bg-info-950/30 px-3 text-sm font-medium text-info-300 hover:bg-info-900/30 hover:text-info-200 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-info-500/70 bg-info-950/30 px-3 text-sm font-medium text-info-300 hover:bg-info-900/30 hover:text-info-200 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 {discoveringContext === "add" ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
                 {discoveringContext === "add" ? "Checking..." : "Check key and find models"}
@@ -1017,7 +1017,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
             <button
               onClick={() => void createConfig()}
               disabled={creating}
-              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
               {creating ? "Validating..." : "Save"}
@@ -1142,7 +1142,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 type="button"
                 onClick={() => void validateConfig(editingConfig.id)}
                 disabled={validatingId === editingConfig.id || savingEdit}
-                className="text-info-300 hover:text-info-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="text-info-300 hover:text-info-200 disabled:cursor-not-allowed disabled:text-disabled-fg"
               >
                 Re-validate
               </button>
@@ -1232,7 +1232,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                 type="button"
                 onClick={() => void discoverModels("edit")}
                 disabled={discoveringContext === "edit" || !editForm.api_key.trim() || !editForm.api_base.trim()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-info-500/70 bg-info-950/30 px-3 text-sm font-medium text-info-300 hover:bg-info-900/30 hover:text-info-200 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-info-500/70 bg-info-950/30 px-3 text-sm font-medium text-info-300 hover:bg-info-900/30 hover:text-info-200 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 {discoveringContext === "edit" ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
                 {discoveringContext === "edit" ? "Checking..." : "Check key and find models"}
@@ -1398,7 +1398,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <button
                 onClick={() => setConfirmDeleteConfig(null)}
                 disabled={deletingId === confirmDeleteConfig.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 Cancel
               </button>
@@ -1426,7 +1426,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
                     configs.some((config) => config.id !== confirmDeleteConfig.id) &&
                     !replacementDefaultId)
                 }
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 <Trash2 size={14} />
                 {deletingId === confirmDeleteConfig.id ? "Deleting..." : "Delete"}
@@ -1463,7 +1463,7 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={savingEdit}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 <Save size={14} />
                 Save

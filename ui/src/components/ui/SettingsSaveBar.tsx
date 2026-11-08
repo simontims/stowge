@@ -52,7 +52,7 @@ export function SettingsSaveBar({
           onClick={onSave}
           disabled={!isDirty || saving}
           className={[
-            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed",
             isDirty
               ? outlinedActionButtonClasses("positive")
               : "border-border-strong text-subtle",

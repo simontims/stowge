@@ -3,7 +3,7 @@ export type OutlinedActionTone = "neutral" | "positive" | "danger" | "danger-hov
 export type TableActionTone = "neutral" | "danger-hover";
 
 const SOLID_ACTION_BASE =
-  "inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed";
 
 const SOLID_ACTION_TONE: Record<SolidActionTone, string> = {
   positive: "bg-success-600 hover:bg-success-500 active:bg-success-700 text-on-solid",
@@ -11,7 +11,7 @@ const SOLID_ACTION_TONE: Record<SolidActionTone, string> = {
 };
 
 const OUTLINED_ACTION_BASE =
-  "inline-flex items-center rounded-md border transition-colors disabled:opacity-60 disabled:cursor-not-allowed";
+  "inline-flex items-center rounded-md border transition-colors disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed";
 
 const TABLE_ACTION_BASE = "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border";
 
@@ -31,5 +31,5 @@ export function outlinedActionButtonClasses(tone: OutlinedActionTone): string {
 }
 
 export function tableActionButtonClasses(tone: TableActionTone): string {
-  return `${TABLE_ACTION_BASE} ${OUTLINED_ACTION_TONE[tone]} disabled:opacity-60 disabled:cursor-not-allowed`;
+  return `${TABLE_ACTION_BASE} ${OUTLINED_ACTION_TONE[tone]} disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed`;
 }

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Compass, Menu, Moon, Sparkles, Sun, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getStoredTheme, setTheme, type ThemeMode } from "../../lib/theme";
-import { apiRequest } from "../../lib/api";
+import { chooseTheme, setTheme, useTheme, type ThemeMode } from "../../lib/theme";
+import { ThemeSelector } from "../ui/ThemeSelector";
 import { useCurrentUser } from "../../lib/UserContext";
 import { UnreadDot } from "../ui/UnreadDot";
 import { START_WELCOME_TOUR_EVENT } from "../../lib/onboarding";
@@ -17,7 +17,7 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
   const navigate = useNavigate();
   const hasUnseenNotes = (currentUser.whats_new?.unseen.length ?? 0) > 0;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => getStoredTheme());
+  const themeMode = useTheme();
   const [version, setVersion] = useState<string>("");
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -34,10 +34,7 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
     const serverTheme = currentUser.theme === "light" || currentUser.theme === "dark"
       ? currentUser.theme
       : null;
-    if (serverTheme) {
-      setThemeMode(serverTheme);
-      setTheme(serverTheme);
-    }
+    if (serverTheme) setTheme(serverTheme);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -92,14 +89,7 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
   }
 
   function handleThemeChange(nextTheme: ThemeMode) {
-    setThemeMode(nextTheme);
-    setTheme(nextTheme);
-    void apiRequest("/api/me", {
-      method: "PATCH",
-      body: JSON.stringify({ theme: nextTheme }),
-    }).catch(() => {
-      // Best-effort.
-    });
+    chooseTheme(nextTheme);
   }
 
   return (
@@ -142,7 +132,7 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-44 rounded-md border border-border-strong bg-surface shadow-lg z-20 overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-56 rounded-md border border-border-strong bg-surface shadow-lg z-20 overflow-hidden">
               <button
                 onClick={() => {
                   setMenuOpen(false);
@@ -169,6 +159,9 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
                   </>
                 )}
               </button>
+              <div className="border-t border-border px-3 py-3">
+                <ThemeSelector idPrefix="menu" />
+              </div>
               <button
                 onClick={logout}
                 className="w-full border-t border-border text-left px-3 py-2 text-sm text-danger-300 hover:bg-surface-2 transition-colors"

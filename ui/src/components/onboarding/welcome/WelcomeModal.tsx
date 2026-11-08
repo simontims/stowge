@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { Sparkles } from "lucide-react";
+import { ThemeSelector } from "../../ui/ThemeSelector";
 
 interface WelcomeModalProps {
   onTakeTour: () => void;
@@ -7,9 +9,40 @@ interface WelcomeModalProps {
 
 /** First-login interrupt: a few lines about Stowge, then take the tour or get on with it. */
 export function WelcomeModal({ onTakeTour, onClose }: WelcomeModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Read the welcome text first, keep Tab inside the dialog, and let Escape close it.
+  useEffect(() => {
+    headingRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = dialogRef.current?.querySelectorAll<HTMLElement>("button, input:not(:disabled), [href]");
+      if (!items || items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === headingRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-[1900] flex items-center justify-center bg-scrim/70 p-4" role="presentation">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-heading"
@@ -17,7 +50,7 @@ export function WelcomeModal({ onTakeTour, onClose }: WelcomeModalProps) {
       >
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-success-400" />
-          <h2 id="welcome-heading" className="text-base font-semibold text-heading">
+          <h2 id="welcome-heading" ref={headingRef} tabIndex={-1} className="text-base font-semibold text-heading outline-none">
             Welcome to Stowge
           </h2>
         </div>
@@ -25,6 +58,9 @@ export function WelcomeModal({ onTakeTour, onClose }: WelcomeModalProps) {
           <p>Stowge keeps track of what you own and where it lives.</p>
           <p>Add items with a photo and let AI suggest the details, tag them so an item can sit in several groups, and find them again with search and pinned filters.</p>
           <p>The tour takes about a minute. You can replay it any time from your user menu.</p>
+        </div>
+        <div className="mt-4 border-t border-border pt-4">
+          <ThemeSelector idPrefix="welcome" showHint />
         </div>
         <div className="mt-6 flex justify-end gap-2">
           <button

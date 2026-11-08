@@ -99,7 +99,7 @@ export function ItemDetailPanel({
             <button
               onClick={() => navigate(`/items/${selectedPart.id}/edit`)}
               disabled={savingDetail || deletingPartFromModal}
-              className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors flex-shrink-0"
               title="Open full-page edit"
             >
               <Pencil size={14} />
@@ -109,7 +109,7 @@ export function ItemDetailPanel({
             <button
               onClick={onConfirmDelete}
               disabled={savingDetail || deletingPartFromModal}
-              className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-danger-400 hover:border-danger-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              className="inline-flex items-center justify-center p-1.5 rounded-md border border-border-strong text-muted hover:text-danger-400 hover:border-danger-500/60 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed transition-colors flex-shrink-0"
               title="Delete item"
             >
               <Trash2 size={14} />
@@ -172,7 +172,7 @@ export function ItemDetailPanel({
                           }
                         }}
                         disabled={settingPrimary}
-                        className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:opacity-60 transition-colors"
+                        className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-scrim/60 text-on-solid text-xs font-medium hover:bg-scrim/80 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border transition-colors"
                       >
                         <Star size={10} />
                         {settingPrimary ? "Setting…" : "Make primary"}
@@ -321,7 +321,7 @@ export function ItemDetailPanel({
                 onClick={onSave}
                 disabled={!hasDirtyChanges || savingDetail}
                 className={[
-                  "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:opacity-60 text-sm font-semibold",
+                  "flex-1 inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-md border transition-colors disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border text-sm font-semibold",
                   hasDirtyChanges
                     ? "border-success-500 bg-success-600 text-on-solid hover:bg-success-500"
                     : "border-border-strong bg-surface text-subtle",

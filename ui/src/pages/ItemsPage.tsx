@@ -1112,7 +1112,7 @@ export function ItemsPage() {
               <button
                 onClick={() => void handleUnsavedSave()}
                 disabled={savingDetail}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 Save
               </button>

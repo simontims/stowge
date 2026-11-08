@@ -348,7 +348,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
             <button
               onClick={() => void createUser()}
               disabled={isCreating}
-              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
               {isCreating ? "Saving..." : "Save"}
@@ -410,7 +410,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
                 value={editForm.role}
                 onChange={(e) => setEditForm((v) => ({ ...v, role: e.target.value as "admin" | "user" }))}
                 disabled={editingId === currentUserId && editForm.role === "admin"}
-                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus disabled:opacity-60 disabled:cursor-not-allowed"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed"
                 title={editingId === currentUserId && editForm.role === "admin" ? "You cannot demote your own admin role" : ""}
               >
                 <option value="admin">Admin</option>
@@ -432,7 +432,7 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
               onClick={() => void saveEdit()}
               disabled={!isEditDirty || isSavingEdit}
               className={[
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed",
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors text-sm font-medium disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed",
                 isEditDirty
                   ? "border-success-500/70 bg-success-950/30 text-success-300 hover:text-success-200"
                   : "border-border-strong text-subtle",
@@ -551,14 +551,14 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
               <button
                 onClick={deleteModal.close}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void deleteUser(deleteModal.target!)}
                 disabled={deletingId === deleteModal.target.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border"
               >
                 <Trash2 size={13} />
                 {deletingId === deleteModal.target.id ? "Deleting..." : "Confirm Delete"}

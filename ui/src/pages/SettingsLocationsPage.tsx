@@ -1041,7 +1041,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               <button
                 onClick={() => newPhotoInputRef.current?.click()}
                 disabled={uploadingTarget === "new"}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed"
               >
                 <Upload size={13} />
                 {uploadingTarget === "new" ? "Uploading..." : "Upload Photo"}
@@ -1069,7 +1069,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
             <button
               onClick={() => void createLocation()}
               disabled={isCreating}
-              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:opacity-60 disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 bg-success-600 hover:bg-success-500 disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-on-solid px-3 rounded-md text-sm leading-none font-medium transition-colors"
             >
               <Save size={14} />
               {isCreating ? "Saving..." : "Save"}
@@ -1166,7 +1166,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
               <button
                 onClick={() => editPhotoInputRef.current?.click()}
                 disabled={uploadingTarget === "edit"}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-secondary hover:text-heading hover:border-border-hover disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed"
               >
                 <Upload size={13} />
                 {uploadingTarget === "edit"

@@ -376,7 +376,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
               <button
                 onClick={() => setEmptyBinOpen(true)}
                 disabled={deletedItems.length === 0}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-danger-500/70 text-danger-300 bg-danger-950/30 hover:text-danger-200 hover:bg-danger-900/30 disabled:bg-transparent disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed text-xs"
               >
                 Empty
               </button>

@@ -202,7 +202,7 @@ export function SettingsHintsPage() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 disabled={Boolean(editing?.is_default)}
-                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus disabled:opacity-60"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border"
                 placeholder="Electronic parts"
               />
               {editing?.is_default && <span className="mt-1 block text-xs text-faint">The Default hint cannot be renamed or deleted.</span>}
