@@ -29,6 +29,10 @@
   background-color: rgba(241, 245, 249, 0.86) !important;
 }
 
+:root[data-theme="light"] .bg-neutral-900\/95 {
+  background-color: rgba(255, 255, 255, 0.95) !important; /* sticky action bars: keep the blur, drop the black */
+}
+
 :root[data-theme="light"] .bg-neutral-800 {
   background-color: rgb(219 234 254) !important; /* blue-100 */
 }
