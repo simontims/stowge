@@ -220,6 +220,13 @@
   }
 }
 
+/* The app shell fills the screen and scrolls inside <main>; the page itself must never scroll or
+   rubber-band, or on a phone the top bar (and its menu button) slides out of view. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 /* Remove browser-default search input clear button */
 input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;

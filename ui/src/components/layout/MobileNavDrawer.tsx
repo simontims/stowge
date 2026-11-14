@@ -60,7 +60,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
       {/* Drawer panel */}
       <div
         className={clsx(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-border flex flex-col md:hidden transition-transform duration-200",
+          "fixed inset-y-0 left-0 z-50 h-dvh w-64 overscroll-contain bg-surface border-r border-border flex flex-col md:hidden transition-transform duration-200",
           open ? "translate-x-0" : "-translate-x-full"
         )}
         role="dialog"
@@ -93,7 +93,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
         {/* Nav groups */}
         <nav className="flex-1 min-h-0 flex flex-col" aria-label="Main navigation">
           <MenuPrimaryLinks filters={pinned} tags={tags} touch onNavigate={onClose} />
-          <div className="flex-1 min-h-0 overflow-y-auto py-3">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-3">
           <div className="mb-4">
             <PinnedFilterList filters={pinned} tags={tags} touch />
           </div>

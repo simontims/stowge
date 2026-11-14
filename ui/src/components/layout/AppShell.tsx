@@ -13,7 +13,7 @@ export function AppShell({ children, onLogout }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-canvas text-heading overflow-hidden">
+    <div className="flex h-dvh overscroll-none bg-canvas text-heading overflow-hidden">
       {/* Desktop sidebar */}
       <Sidebar
         collapsed={collapsed}
@@ -32,7 +32,7 @@ export function AppShell({ children, onLogout }: AppShellProps) {
           onMenuClick={() => setDrawerOpen(true)}
           onLogout={onLogout}
         />
-        <main className="flex-1 overflow-y-auto p-6 focus:outline-none" tabIndex={-1}>
+        <main className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 focus:outline-none" tabIndex={-1}>
           {children}
         </main>
       </div>

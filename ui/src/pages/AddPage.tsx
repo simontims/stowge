@@ -557,7 +557,7 @@ export function AddPage() {
   }
 
   return (
-    <div className="flex flex-col pb-[calc(1rem+env(safe-area-inset-bottom))]">
+    <div className="-mb-4 flex min-h-[calc(100%+1rem)] flex-col md:-mb-6 md:min-h-[calc(100%+1.5rem)]">
       <PageHeader title="Add item" action={null} />
 
       {/* ── SESSION STRIP ─────────────────────────────────────────────────── */}
@@ -599,7 +599,7 @@ export function AddPage() {
 
       {/* ── MODE: INPUT ───────────────────────────────────────────────────── */}
       {mode === "input" && (
-        <div className="space-y-4">
+        <div className="flex flex-1 flex-col gap-4">
           <PhotoCapture
             previewUrls={previewUrls}
             photoCount={photos.length}
@@ -612,7 +612,7 @@ export function AddPage() {
           />
 
           {/* Sticky action bar */}
-          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-border bg-surface/95 backdrop-blur">
+          <div className="sticky -bottom-4 md:-bottom-6 mt-auto -mx-4 px-4 md:-mx-6 md:px-6 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-border bg-surface/95 backdrop-blur">
             <div className="flex items-center gap-2">
               <button
                 onClick={startManualReview}
@@ -639,7 +639,7 @@ export function AddPage() {
 
       {/* ── MODE: REVIEW ──────────────────────────────────────────────────── */}
       {mode === "review" && (
-        <div className="space-y-4">
+        <div className="flex flex-1 flex-col gap-4">
           {/* Same thumbnail strip as input mode — no layout jump */}
           <PhotoCapture
             previewUrls={previewUrls}
@@ -713,7 +713,7 @@ export function AddPage() {
           </div>
 
           {/* Sticky review footer */}
-          <div className="sticky bottom-0 -mx-4 px-4 py-3 border-t border-border bg-surface/95 backdrop-blur">
+          <div className="sticky -bottom-4 md:-bottom-6 mt-auto -mx-4 px-4 md:-mx-6 md:px-6 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-border bg-surface/95 backdrop-blur">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setMode("input"); clearSession(); }}
