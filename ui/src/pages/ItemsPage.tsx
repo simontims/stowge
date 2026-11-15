@@ -949,7 +949,7 @@ export function ItemsPage() {
                         aria-label="Filter by tag"
                         value={tagFilter}
                         onChange={(event) => changeTagFilter(event.target.value)}
-                        className="bg-canvas border border-border-strong rounded-md px-2 py-1.5 text-sm text-body outline-none focus:border-border-focus max-w-[10rem]"
+                        className="bg-canvas border border-border-strong rounded-md px-2 py-1.5 text-sm text-body outline-none focus:border-border-focus min-w-0 flex-1 sm:flex-none max-w-[10rem] sm:max-w-[10rem]"
                       >
                         <option value="">Any tag</option>
                         <option value={UNTAGGED}>Untagged</option>

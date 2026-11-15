@@ -21,12 +21,12 @@ export function ListToolbar({
   action,
 }: ListToolbarProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <SearchInput
         placeholder={placeholder}
         value={search}
         onChange={onSearchChange}
-        className="flex-1 max-w-sm"
+        className="w-full sm:w-auto sm:flex-1 sm:max-w-sm"
       />
       {action}
       <span className="text-xs text-faint ml-auto">

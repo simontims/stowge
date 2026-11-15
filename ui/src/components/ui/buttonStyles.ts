@@ -3,7 +3,7 @@ export type OutlinedActionTone = "neutral" | "positive" | "danger" | "danger-hov
 export type TableActionTone = "neutral" | "danger-hover";
 
 const SOLID_ACTION_BASE =
-  "inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed";
+  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:bg-disabled-bg disabled:text-disabled-fg disabled:border-disabled-border disabled:cursor-not-allowed";
 
 const SOLID_ACTION_TONE: Record<SolidActionTone, string> = {
   positive: "bg-success-600 hover:bg-success-500 active:bg-success-700 text-on-solid",
