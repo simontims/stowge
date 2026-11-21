@@ -15,6 +15,7 @@ import { useTableSort } from "../hooks/useTableSort";
 import { useResourceList } from "../hooks/useResourceList";
 import { useDirtyState } from "../hooks/useDirtyState";
 import { apiRequest } from "../lib/api";
+import { countLabel, emptyListMessage } from "../lib/listState";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 
 interface LocationRecord {
@@ -722,18 +723,13 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
     [areaById, deletingId, formatLocationBreadcrumb, siteById]
   );
 
-  const emptyMessage = useMemo(() => {
-    if (loading) {
-      return "Loading locations...";
-    }
-    if (loadError) {
-      return loadError;
-    }
-    if (search.trim()) {
-      return "No locations match your search.";
-    }
-    return "No locations found. Add your first one above.";
-  }, [loadError, loading, search]);
+  const emptyMessage = emptyListMessage({
+    loading,
+    error: loadError,
+    search,
+    noun: "locations",
+    none: "No locations found. Add your first one above.",
+  });
 
   const scopedAreas = useMemo(
     () => areas.filter((area) => !siteFilterId || area.site_id === siteFilterId),
@@ -1283,7 +1279,7 @@ export function SettingsLocationsPage({ embedded, onDirtyChange, saveFnRef }: Lo
           />
           {!loadError && (
             <p className="text-xs text-faint text-right">
-              {loading ? "Loading…" : `${filtered.length} location${filtered.length !== 1 ? "s" : ""}`}
+              {countLabel(loading, filtered.length, "location")}
             </p>
           )}
         </>

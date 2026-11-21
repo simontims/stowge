@@ -12,6 +12,8 @@ import type { CurrentUser, Tag } from "./types";
 export function usePinnedFilters() {
   const [filters, setFilters] = useState<ShortcutFilter[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  // False until the first load has answered: the menu must not say "No filters yet" before then.
+  const [loaded, setLoaded] = useState(false);
   const currentUser = useCurrentUser();
   const setCurrentUser = useSetCurrentUser();
   // Always the latest list, so a save never sends a list captured earlier.
@@ -33,6 +35,8 @@ export function usePinnedFilters() {
         if (!active) return;
         setTags([]);
         setFilters([]);
+      } finally {
+        if (active) setLoaded(true);
       }
     }
 
@@ -77,5 +81,5 @@ export function usePinnedFilters() {
     (row) => row.pinned && (!row.tag_id || row.tag_id === UNTAGGED || tags.some((tag) => tag.id === row.tag_id)),
   );
 
-  return { filters, pinned, tags, reorder };
+  return { filters, pinned, tags, loaded, reorder };
 }

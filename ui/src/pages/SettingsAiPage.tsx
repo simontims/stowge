@@ -9,6 +9,7 @@ import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { solidActionButtonClasses, tableActionButtonClasses } from "../components/ui/buttonStyles";
 import { useTableSort } from "../hooks/useTableSort";
 import { apiRequest } from "../lib/api";
+import { countLabel, emptyListMessage } from "../lib/listState";
 import { useNumericField } from "../hooks/useNumericField";
 
 interface AiConfig {
@@ -177,7 +178,7 @@ interface AiSectionProps {
 }
 
 export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSectionProps = {}) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // the page loads on mount: until that answers, the list is unknown, not empty
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -1089,14 +1090,14 @@ export function SettingsAiPage({ embedded, onDirtyChange, saveFnRef }: AiSection
           }}
           rows={sortedFilteredConfigs}
           keyField="id"
-          emptyMessage={error || (loading ? "Loading AI models..." : "No AI models configured yet.")}
+          emptyMessage={emptyListMessage({ loading, error, search, noun: "AI models", none: "No AI models configured yet." })}
           sortKey={sortKey}
           sortDirection={sortDirection}
           onSort={(key) => handleSort(key as AiSortKey)}
           footer={sortedFilteredConfigs.length > 0 && (
             <tr>
               <td colSpan={5} className="px-4 py-2.5 text-right text-xs text-faint">
-                {loading ? "Loading…" : `${filteredConfigs.length} model${filteredConfigs.length !== 1 ? "s" : ""}`}
+                {countLabel(loading, filteredConfigs.length, "model")}
               </td>
             </tr>
           )}

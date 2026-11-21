@@ -17,7 +17,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const location = useLocation();
   const currentUser = useCurrentUser();
-  const { pinned, tags, reorder } = usePinnedFilters();
+  const { pinned, tags, loaded, reorder } = usePinnedFilters();
 
   // Filter nav items based on user role
   const visibleNavItems = useMemo(
@@ -68,7 +68,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         <div className="flex-1 min-h-0 overflow-y-auto py-3">
         {!collapsed && (
           <div className="mb-4">
-            <PinnedFilterList filters={pinned} tags={tags} headingTourId="menu-filters" firstItemTourId={FIRST_PINNED_TOUR_TARGET} draggable onReorder={(src, target, pos) => void reorder(src, target, pos)} />
+            <PinnedFilterList filters={pinned} tags={tags} loading={!loaded} headingTourId="menu-filters" firstItemTourId={FIRST_PINNED_TOUR_TARGET} draggable onReorder={(src, target, pos) => void reorder(src, target, pos)} />
           </div>
         )}
 

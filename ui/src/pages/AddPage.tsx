@@ -564,7 +564,7 @@ export function AddPage() {
       <div className="space-y-2 mb-4">
         <div>
           <label className="block text-xs uppercase tracking-wide text-subtle mb-1">Tags</label>
-          <TagPicker tags={tags} selectedIds={sessionTagIds} onChange={handleSessionTagsChange} />
+          <TagPicker tags={tags} selectedIds={sessionTagIds} onChange={handleSessionTagsChange} loading={!aiSettingsLoaded} />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>

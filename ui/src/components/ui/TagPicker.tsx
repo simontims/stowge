@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { TagChip } from "./TagChips";
+import { emptyListMessage } from "../../lib/listState";
 import type { Tag } from "../../lib/types";
 
 interface TagPickerProps {
@@ -9,10 +10,12 @@ interface TagPickerProps {
   onChange: (ids: string[]) => void;
   disabled?: boolean;
   label?: string;
+  /** True until the tag list has loaded: the dropdown says Loading, not "No tags yet". */
+  loading?: boolean;
 }
 
 /** Multi-select tag chips with a type-ahead search. Picking adds a chip; the x on a chip removes it. */
-export function TagPicker({ tags, selectedIds, onChange, disabled = false, label = "Tags" }: TagPickerProps) {
+export function TagPicker({ tags, selectedIds, onChange, disabled = false, label = "Tags", loading = false }: TagPickerProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -80,7 +83,13 @@ export function TagPicker({ tags, selectedIds, onChange, disabled = false, label
         >
           {matches.length === 0 ? (
             <li className="px-3 py-2 text-xs text-subtle">
-              {tags.length === 0 ? "No tags yet. Make them on the Tags page." : "No matching tags."}
+              {emptyListMessage({
+                loading,
+                search: tags.length === 0 ? "" : query, // with no tags at all, a typed query is not "no match"
+                noun: "tags",
+                none: "No tags yet. Make them on the Tags page.",
+                noMatch: "No matching tags.",
+              })}
             </li>
           ) : (
             matches.map((tag) => (

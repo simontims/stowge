@@ -4,6 +4,7 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { StatusMessage } from "../components/ui/StatusMessage";
 import { SettingsSaveBar } from "../components/ui/SettingsSaveBar";
 import { apiRequest } from "../lib/api";
+import { LOADING_TEXT } from "../lib/listState";
 import { toast } from "sonner";
 
 interface ImageSettingsData {
@@ -48,7 +49,7 @@ interface ImagesSectionProps {
 }
 
 export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: ImagesSectionProps = {}) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // the page loads on mount: until that answers, the list is unknown, not empty
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -137,7 +138,7 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
     { min: 0, max: 100, fallback: 1 },
   );
 
-  if (loading) return <p className="text-sm text-subtle">Loading…</p>;
+  if (loading) return <p className="text-sm text-subtle">{LOADING_TEXT}</p>;
 
   return (
     <div className="space-y-5">

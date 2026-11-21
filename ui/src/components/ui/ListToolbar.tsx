@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { SearchInput } from "./SearchInput";
+import { LOADING_TEXT } from "../../lib/listState";
 
 interface ListToolbarProps {
   search: string;
@@ -30,7 +31,7 @@ export function ListToolbar({
       />
       {action}
       <span className="text-xs text-faint ml-auto">
-        {loading ? "Loading..." : count !== undefined ? `${count} ${countLabel}` : null}
+        {loading ? LOADING_TEXT : count !== undefined ? `${count} ${countLabel}` : null}
       </span>
     </div>
   );

@@ -7,6 +7,7 @@ import { DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { StatusMessage } from "../components/ui/StatusMessage";
 import { TagChips } from "../components/ui/TagChips";
 import { apiRequest } from "../lib/api";
+import { emptyListMessage } from "../lib/listState";
 import type { ItemTag } from "../lib/types";
 
 interface DeletedItemRow {
@@ -126,7 +127,13 @@ export function RecycleBinPage() {
           columns={columns}
           rows={rows}
           keyField="id"
-          emptyMessage={loading ? "Loading..." : search.trim() ? "No deleted items match your search." : "Recycle bin is empty."}
+          emptyMessage={emptyListMessage({
+            loading,
+            search,
+            noun: "deleted items",
+            none: "Recycle bin is empty.",
+            noMatch: "No deleted items match your search.",
+          })}
         />
       )}
 

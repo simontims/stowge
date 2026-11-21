@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { apiRequest } from "../lib/api";
+import { LOADING_TEXT } from "../lib/listState";
 import { useCurrentUser, useSetCurrentUser } from "../lib/UserContext";
 import { groupByVersion } from "../lib/whatsNew";
 import type { CurrentUser, WhatsNewHistoryNote } from "../lib/types";
@@ -46,7 +47,7 @@ export function WhatsNewPage() {
       />
 
       {error && <p className="text-sm text-danger-400">{error}</p>}
-      {!notes && !error && <p className="text-sm text-subtle">Loading...</p>}
+      {!notes && !error && <p className="text-sm text-subtle">{LOADING_TEXT}</p>}
 
       {notes && notes.length === 0 && (
         <div className="flex items-center justify-center rounded-lg border border-dashed border-border py-16 text-sm text-faint">

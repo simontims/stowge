@@ -9,6 +9,7 @@ import { useResourceList } from "../hooks/useResourceList";
 import { useTableSort } from "../hooks/useTableSort";
 import { useModalState } from "../hooks/useModalState";
 import { apiRequest } from "../lib/api";
+import { countLabel, emptyListMessage } from "../lib/listState";
 
 interface ApiKeyRecord {
   id: string;
@@ -875,14 +876,14 @@ export function SettingsApiKeysPage({ embedded, onDirtyChange, saveFnRef }: ApiK
         }}
         rows={sortedKeys}
         keyField="id"
-        emptyMessage={error || (loading ? "Loading API keys..." : "No API keys found.")}
+        emptyMessage={emptyListMessage({ loading, error, search, noun: "API keys", none: "No API keys found." })}
         sortKey={sortKey}
         sortDirection={sortDirection}
         onSort={(key) => handleSort(key as SortKey)}
         footer={sortedKeys.length > 0 && (
           <tr>
             <td colSpan={9} className="px-4 py-2.5 text-right text-xs text-faint">
-              {loading ? "Loading…" : `${sortedKeys.length} key${sortedKeys.length !== 1 ? "s" : ""}`}
+              {countLabel(loading, sortedKeys.length, "key")}
             </td>
           </tr>
         )}

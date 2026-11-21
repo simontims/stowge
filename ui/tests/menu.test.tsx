@@ -132,7 +132,7 @@ describe("Add Item and All items", () => {
     expect((screen.getByText("Filters").closest("h2") as HTMLElement).className).toContain("min-h-11");
     cleanup();
     renderWithUser(<MobileNavDrawer open onClose={() => {}} />, api(EMPTY).user, ["/settings"]);
-    expect(screen.getByRole("link", { name: "No filters yet. Add one in Settings." }).className).toContain("min-h-11");
+    expect((await screen.findByRole("link", { name: "No filters yet. Add one in Settings." })).className).toContain("min-h-11");
   });
 
   it("the drawer closes when All items, Add Item or the logo is chosen, even if the URL does not change", () => {
@@ -194,7 +194,7 @@ describe("Add Item and All items", () => {
   it("the empty-state hint is a full sentence ending in a full stop", async () => {
     const { user } = api(EMPTY);
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user, ["/settings"]);
-    expect(screen.getByRole("link", { name: "No filters yet. Add one in Settings." })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "No filters yet. Add one in Settings." })).toBeTruthy();
   });
 });
 

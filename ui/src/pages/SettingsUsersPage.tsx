@@ -12,6 +12,7 @@ import { useResourceList } from "../hooks/useResourceList";
 import { useModalState } from "../hooks/useModalState";
 import { useDirtyState } from "../hooks/useDirtyState";
 import { apiRequest } from "../lib/api";
+import { countLabel, emptyListMessage } from "../lib/listState";
 import { useCurrentUser } from "../lib/UserContext";
 
 interface UserRecord {
@@ -501,14 +502,14 @@ export function SettingsUsersPage({ embedded, onDirtyChange, saveFnRef }: UsersS
             }}
             rows={sortedFilteredUsers}
             keyField="id"
-            emptyMessage={error || (loading ? "Loading users..." : "No users found.")}
+            emptyMessage={emptyListMessage({ loading, error, search, noun: "users", none: "No users found." })}
             sortKey={sortKey}
             sortDirection={sortDirection}
             onSort={(key) => handleSort(key as UserSortKey)}
             footer={sortedFilteredUsers.length > 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-2.5 text-right text-xs text-faint">
-                  {loading ? "Loading…" : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""}`}
+                  {countLabel(loading, filteredUsers.length, "user")}
                 </td>
               </tr>
             )}

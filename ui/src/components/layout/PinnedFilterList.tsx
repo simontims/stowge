@@ -14,6 +14,8 @@ import {
 interface PinnedFilterListProps {
   filters: ShortcutFilter[];
   tags: TagRef[];
+  /** True until the filters have been loaded; the "No filters yet" note waits for that. */
+  loading?: boolean;
   /** Drag to reorder. Off in the mobile drawer, where HTML drag and drop does not work. */
   draggable?: boolean;
   onReorder?: (sourceId: string, targetId: string, position: "before" | "after") => void;
@@ -28,7 +30,7 @@ interface PinnedFilterListProps {
 
 /** The "Filters" section of the menu: the user's pinned filters as one ordered list under a heading
  *  (the heading is not a link; filters, tags and AI hints are managed in Settings). */
-export function PinnedFilterList({ filters, tags, draggable = false, onReorder, firstItemTourId, headingTourId, touch = false }: PinnedFilterListProps) {
+export function PinnedFilterList({ filters, tags, loading = false, draggable = false, onReorder, firstItemTourId, headingTourId, touch = false }: PinnedFilterListProps) {
   const location = useLocation();
   const headingId = useId();
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function PinnedFilterList({ filters, tags, draggable = false, onReorder, 
       <Filter size={16} className="shrink-0" />
       <span>Filters</span>
     </h2>
-    {filters.length === 0 && (
+    {!loading && filters.length === 0 && (
       <Link to="/settings" className={clsx("mx-2 mt-1 block rounded-md px-3 py-1.5 text-xs text-subtle hover:text-secondary", touch && "flex min-h-11 items-center")}>
         No filters yet. Add one in Settings.
       </Link>

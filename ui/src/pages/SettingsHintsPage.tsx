@@ -5,7 +5,9 @@ import { ListToolbar } from "../components/ui/ListToolbar";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { DeleteActionButton, DeleteConfirmDialog } from "../components/ui/DeleteControls";
 import { outlinedActionButtonClasses, solidActionButtonClasses, tableActionButtonClasses } from "../components/ui/buttonStyles";
+import { useResourceList } from "../hooks/useResourceList";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
+import { emptyListMessage } from "../lib/listState";
 import { createHint, deleteHint, listHints, updateHint } from "../lib/tags";
 import type { AiHint } from "../lib/types";
 
@@ -20,9 +22,10 @@ const EMPTY_FORM: HintForm = { name: "", text: "" };
 
 /** AI hints: named text sent to the AI with each photo. Pick one on the Add screen. */
 export function SettingsHintsPage() {
-  const [hints, setHints] = useState<HintRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
+  const { items: hints, loading, error: loadError, load } = useResourceList<HintRow>({
+    fetcher: listHints,
+    onError: "Unable to load AI hints right now.",
+  });
   const [search, setSearch] = useState("");
 
   const [formOpen, setFormOpen] = useState(false);
@@ -38,18 +41,6 @@ export function SettingsHintsPage() {
     void load();
   }, []);
 
-  async function load() {
-    setLoading(true);
-    setLoadError("");
-    try {
-      setHints(await listHints());
-    } catch (err) {
-      setHints([]);
-      setLoadError((err as Error).message || "Unable to load AI hints right now.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function openAdd() {
     setEditing(null);
@@ -148,7 +139,14 @@ export function SettingsHintsPage() {
     [],
   );
 
-  const emptyMessage = loading ? "Loading AI hints..." : loadError || (search.trim() ? "No hints match your search." : "No hints yet.");
+  const emptyMessage = emptyListMessage({
+    loading,
+    error: loadError,
+    search,
+    noun: "AI hints",
+    none: "No hints yet.",
+    noMatch: "No hints match your search.",
+  });
 
   return (
     <div className="space-y-5">

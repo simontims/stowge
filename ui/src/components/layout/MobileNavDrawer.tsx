@@ -16,7 +16,7 @@ interface MobileNavDrawerProps {
 export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
   const location = useLocation();
   const currentUser = useCurrentUser();
-  const { pinned, tags } = usePinnedFilters();
+  const { pinned, tags, loaded } = usePinnedFilters();
 
   // Filter nav items based on user role
   const visibleNavItems = useMemo(
@@ -95,7 +95,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
           <MenuPrimaryLinks filters={pinned} tags={tags} touch onNavigate={onClose} />
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-3">
           <div className="mb-4">
-            <PinnedFilterList filters={pinned} tags={tags} touch />
+            <PinnedFilterList filters={pinned} tags={tags} loading={!loaded} touch />
           </div>
 
           <div className="mb-4">

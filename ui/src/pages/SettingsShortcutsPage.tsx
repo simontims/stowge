@@ -11,6 +11,7 @@ import { solidActionButtonClasses, tableActionButtonClasses } from "../component
 import { USER_NAV_PREFERENCES_UPDATED_EVENT } from "../config/nav";
 import { useTableSort } from "../hooks/useTableSort";
 import { apiRequest } from "../lib/api";
+import { emptyListMessage } from "../lib/listState";
 import type { AreaOption, CurrentUser, LocationOption, SiteOption, Tag } from "../lib/types";
 import { UNTAGGED, normalizeShortcutFilter, type ShortcutFilter } from "../lib/shortcutFilters";
 
@@ -184,7 +185,7 @@ function quantitySummary(row: ShortcutFilter): string {
 }
 
 export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean } = {}) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // the page loads on mount: until that answers, the list is unknown, not empty
   const [modalSaving, setModalSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
@@ -569,15 +570,12 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
     [siteById, areaById, locationById]
   );
 
-  const emptyMessage = useMemo(() => {
-    if (loading) {
-      return "Loading filters...";
-    }
-    if (search.trim()) {
-      return "No filters match your search.";
-    }
-    return "No filters yet. Add your first filter.";
-  }, [loading, search]);
+  const emptyMessage = emptyListMessage({
+    loading,
+    search,
+    noun: "filters",
+    none: "No filters yet. Add your first filter.",
+  });
 
   const modalOpen = addingOpen || Boolean(editingId);
   const modalTitle = editingId ? "Edit Filter" : "Add Filter";

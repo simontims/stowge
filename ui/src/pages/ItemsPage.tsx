@@ -1,5 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "../hooks/useDebounce";
+import { useLatestRequest } from "../hooks/useLatestRequest";
+import { countLabel, emptyListMessage } from "../lib/listState";
 import { Package, Plus } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -201,6 +203,33 @@ function compareParts(a: Part, b: Part, sortKey?: ItemSortKey, sortDir?: "asc" |
   return left.localeCompare(right) * dir;
 }
 
+/** Identity of an item-list query: the same fields loadParts sends, so a result can be matched to the screen. */
+function itemsQueryKey(params: {
+  q?: string;
+  tag?: string;
+  status?: string;
+  siteId?: string;
+  areaId?: string;
+  locationId?: string;
+  quantityMin?: string;
+  quantityMax?: string;
+  sortKey?: string;
+  sortDir?: string;
+}): string {
+  return JSON.stringify([
+    params.q?.trim() ?? "",
+    params.tag ?? "",
+    params.status ?? "",
+    params.siteId ?? "",
+    params.areaId ?? "",
+    params.locationId ?? "",
+    params.quantityMin ?? "",
+    params.quantityMax ?? "",
+    params.sortKey ?? "",
+    params.sortDir ?? "",
+  ]);
+}
+
 export function ItemsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -211,7 +240,11 @@ export function ItemsPage() {
   const qParam = searchParams.get("q") ?? "";
   useEffect(() => { setSearch(qParam); }, [qParam]);
   const [parts, setParts] = useState<Part[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // loads on mount: until that answers, the list is unknown, not empty
+  // The query (search, filters, sort) that `parts` is the successful answer to. "No items" may only
+  // be shown when this equals the query on screen: until then the list is unknown, not empty.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const beginRequest = useLatestRequest();
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -468,6 +501,8 @@ export function ItemsPage() {
     background?: boolean;
   }) {
     const background = params?.background ?? false;
+    const isLatest = beginRequest();
+    const key = itemsQueryKey(params ?? {});
 
     if (!background) {
       setLoading(true);
@@ -487,12 +522,19 @@ export function ItemsPage() {
       if (params?.sortDir) qs.set("sort_dir", params.sortDir);
       const url = `/api/items${qs.size ? `?${qs.toString()}` : ""}`;
       const data = await apiRequest<Part[]>(url);
-      setParts(data);
+      // A slower, older answer must not replace the answer to the query now on screen.
+      if (isLatest()) {
+        setParts(data);
+        setLoadedKey(key);
+      }
     } catch (err) {
-      setError((err as Error).message || "Failed to load parts.");
-      setParts([]);
+      if (isLatest()) {
+        setError((err as Error).message || "Failed to load parts.");
+        setParts([]);
+        setLoadedKey(null);
+      }
     } finally {
-      if (!background) {
+      if (isLatest()) {
         setLoading(false);
       }
     }
@@ -895,24 +937,36 @@ export function ItemsPage() {
     [activeResultQuery, desktopDescriptionExcerptLength]
   );
 
-  const emptyMessage = useMemo(() => {
-    if (loading) {
-      return "Loading items...";
-    }
-    if (error) {
-      return error;
-    }
-    if (tagFilter && search.trim()) {
-      return `No items tagged ${tagLabel} match your search.`;
-    }
-    if (tagFilter) {
-      return isUntaggedFilter ? "No untagged items." : `No items tagged ${tagLabel}.`;
-    }
-    if (search.trim()) {
-      return "No items match your search.";
-    }
-    return "No items yet. Add your first one above.";
-  }, [error, isUntaggedFilter, loading, search, tagFilter, tagLabel]);
+  // The list on screen answers the query on screen (search is compared undebounced, so the wait
+  // for the debounce counts as loading too).
+  const currentKey = itemsQueryKey({
+    q: search,
+    tag: tagFilter,
+    status: statusFilter,
+    siteId: siteIdFilter,
+    areaId: areaIdFilter,
+    locationId: locationIdFilter,
+    quantityMin: quantityMinFilter,
+    quantityMax: quantityMaxFilter,
+    sortKey,
+    sortDir: sortDirection,
+  });
+  const resultsCurrent = loadedKey === currentKey;
+
+  // Loading until the answer to the query on screen has arrived; a failed load shows its error.
+  const showLoading = loading || (!resultsCurrent && !error);
+  const emptyMessage = emptyListMessage({
+    loading: showLoading,
+    error,
+    search,
+    noun: "items",
+    none: tagFilter
+      ? isUntaggedFilter
+        ? "No untagged items."
+        : `No items tagged ${tagLabel}.`
+      : "No items yet. Add your first one above.",
+    noMatch: tagFilter ? `No items tagged ${tagLabel} match your search.` : "No items match your search.",
+  });
 
   return (
     <div className="space-y-5 h-full flex flex-col">
@@ -1068,7 +1122,7 @@ export function ItemsPage() {
                         }}
                       />
                       <p className="text-xs text-faint text-right pt-1">
-                        {loading ? "Loading…" : `${parts.length} item${parts.length !== 1 ? "s" : ""}`}
+                        {countLabel(showLoading, parts.length, "item")}
                       </p>
                     </div>
                   )}

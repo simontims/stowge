@@ -11,7 +11,9 @@ import { StatusMessage } from "../components/ui/StatusMessage";
 import { TablerIcon } from "../components/ui/TablerIcon";
 import { outlinedActionButtonClasses, solidActionButtonClasses, tableActionButtonClasses } from "../components/ui/buttonStyles";
 import { TAGS_NAV_UPDATED_EVENT, USER_NAV_PREFERENCES_UPDATED_EVENT } from "../config/nav";
+import { useResourceList } from "../hooks/useResourceList";
 import { useTableSort } from "../hooks/useTableSort";
+import { countLabel, emptyListMessage } from "../lib/listState";
 import { MIN_NAME_LENGTH, minimumLengthMessage } from "../lib/constraints";
 import { createTag, deleteTag, listTags, pinTagToMenu, updateTag } from "../lib/tags";
 import type { Tag } from "../lib/types";
@@ -37,9 +39,10 @@ export function tagDeleteSummary(itemCount: number): string {
 
 export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
-  const [tags, setTags] = useState<TagRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
+  const { items: tags, loading, error: loadError, load: loadAll } = useResourceList<TagRow>({
+    fetcher: listTags,
+    onError: "Unable to load tags right now.",
+  });
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const { sortKey, sortDirection, handleSort } = useTableSort<TagSortKey>("name");
@@ -55,19 +58,6 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
   useEffect(() => {
     void loadAll();
   }, []);
-
-  async function loadAll() {
-    setLoading(true);
-    setLoadError("");
-    try {
-      setTags(await listTags());
-    } catch (err) {
-      setTags([]);
-      setLoadError((err as Error).message || "Unable to load tags right now.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function tagsChanged() {
     window.dispatchEvent(new Event(TAGS_NAV_UPDATED_EVENT));
@@ -205,9 +195,13 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
     [],
   );
 
-  const emptyMessage = loading
-    ? "Loading tags..."
-    : loadError || (search.trim() ? "No tags match your search." : "No tags yet. Add your first one above.");
+  const emptyMessage = emptyListMessage({
+    loading,
+    error: loadError,
+    search,
+    noun: "tags",
+    none: "No tags yet. Add your first one above.",
+  });
 
   return (
     <div className="space-y-5">
@@ -261,7 +255,7 @@ export function TagsPage({ embedded = false }: { embedded?: boolean } = {}) {
       />
       {!loadError && (
         <p className="text-xs text-faint text-right">
-          {loading ? "Loading…" : `${rows.length} tag${rows.length !== 1 ? "s" : ""}`}
+          {countLabel(loading, rows.length, "tag")}
         </p>
       )}
 

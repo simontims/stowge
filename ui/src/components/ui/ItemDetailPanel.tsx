@@ -6,6 +6,7 @@ import { buildLocationDisplayLabel } from "../../lib/locationHierarchy";
 import type { PartDetail, PartEditForm } from "../../pages/ItemsPage";
 import type { LocationOption } from "../../lib/types";
 import { TagChips } from "./TagChips";
+import { LOADING_TEXT } from "../../lib/listState";
 
 interface ItemDetailPanelProps {
   selectedPart: PartDetail | null;
@@ -131,7 +132,7 @@ export function ItemDetailPanel({
       <div className="flex-1 overflow-y-auto">
         {detailLoading && (
         <div className="flex items-center justify-center py-8">
-          <p className="text-sm text-muted">Loading part details...</p>
+          <p className="text-sm text-muted">{LOADING_TEXT}</p>
         </div>
       )}
 
