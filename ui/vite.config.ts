@@ -1,12 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { tablerShards } from "./vite.tabler-shards.ts";
 
 // https://vitejs.dev/config/
 // Build output goes to ./dist, served by the FastAPI backend.
 // Run `npm run build` to update the production build.
 // For local development with hot-reload: `npm run dev` (proxies API to :18090)
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tablerShards()],
   build: {
     outDir: "./dist",
     emptyOutDir: true,

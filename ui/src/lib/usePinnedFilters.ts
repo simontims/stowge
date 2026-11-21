@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { TAGS_NAV_UPDATED_EVENT, USER_NAV_PREFERENCES_UPDATED_EVENT } from "../config/nav";
-import { apiRequest } from "./api";
+import { apiGetShared, apiRequest } from "./api";
 import { UNTAGGED, reorderPinnedFilters, normalizeShortcutFilter, type ShortcutFilter } from "./shortcutFilters";
 import { useCurrentUser, useSetCurrentUser } from "./UserContext";
 import type { CurrentUser, Tag } from "./types";
@@ -25,7 +25,7 @@ export function usePinnedFilters() {
 
     async function load() {
       try {
-        const [tagList, me] = await Promise.all([apiRequest<Tag[]>("/api/tags"), apiRequest<CurrentUser>("/api/me")]);
+        const [tagList, me] = await Promise.all([apiGetShared<Tag[]>("/api/tags"), apiGetShared<CurrentUser>("/api/me")]);
         if (!active) return;
         setTags(tagList || []);
         setFilters(Array.isArray(me.shortcut_filters) ? me.shortcut_filters.map((row) => normalizeShortcutFilter(row)) : []);

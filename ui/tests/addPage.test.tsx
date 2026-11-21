@@ -167,3 +167,16 @@ describe("Add page identify and save", () => {
     expect(screen.getAllByTestId("tag-chip")).toHaveLength(1);
   });
 });
+
+describe("Add page on a phone", () => {
+  it("fills the screen height (including main's bottom padding) and pins its action bar to the bottom edge, full width (no floating inset panel)", async () => {
+    api();
+    renderWithUser(<AddPage />);
+    const bar = (await screen.findByText("Continue manually")).closest("div.sticky") as HTMLElement;
+    expect(bar.className).toContain("-bottom-4"); // sticky offsets stop at main's padding, so go past it to reach the edge
+    expect(bar.className).toContain("mt-auto"); // sits at the bottom even when the page is short
+    expect(bar.className).toContain("-mx-4"); // main has 16px padding on a phone, so this reaches both edges
+    expect(bar.parentElement!.className).toContain("flex-1");
+    expect(bar.parentElement!.parentElement!.className).toContain("min-h-[calc(100%+1rem)]");
+  });
+});

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "../../lib/theme";
 import { EVENTS, Joyride, STATUS, type EventData, type Step } from "react-joyride";
 
 /** Size of an element as the browser lays it out. Injected in tests, since jsdom has no layout. */
@@ -86,6 +87,17 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) onFinish();
   }
 
+  // The tour's colours come from the same roles as the rest of the UI, so it follows the theme.
+  const themeKey = useTheme();
+  const role = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+  // Recomputed only when the theme changes (themeKey), not on every render.
+  const colours = useMemo(() => ({
+    tooltipBg: role("surface-2"), accent: role("info-600"), heading: role("heading"), secondary: role("secondary"),
+    borderStrong: role("border-strong"), onSolid: role("on-solid"),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [themeKey]);
+  const { tooltipBg, accent } = colours;
+
   return (
     <Joyride
       key={instance}
@@ -95,11 +107,11 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
       onEvent={handleEvent}
       options={{
         zIndex: 2000,
-        arrowColor: "#262626",
-        backgroundColor: "#262626",
+        arrowColor: tooltipBg,
+        backgroundColor: tooltipBg,
         overlayColor: "rgba(0,0,0,0.55)",
-        primaryColor: "#2563eb",
-        textColor: "#f5f5f5",
+        primaryColor: accent,
+        textColor: colours.heading,
         // One control ends the tour: the X. (Joyride's default X advances a step, which is confusing.)
         closeButtonAction: "skip",
         dismissKeyAction: false,
@@ -109,11 +121,11 @@ export function GuidedTour({ run, steps, onFinish }: GuidedTourProps) {
       }}
       locale={{ back: "Back", close: "Close tour", last: "Done", next: "Next" }}
       styles={{
-        tooltip: { border: "1px solid #404040", borderRadius: 10, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)" },
+        tooltip: { border: `1px solid ${colours.borderStrong}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)" },
         floater: { transition: "none" },
         tooltipTitle: { fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.4rem" },
-        buttonBack: { color: "#d4d4d4" },
-        buttonPrimary: { backgroundColor: "#2563eb", color: "#ffffff", fontWeight: 600 },
+        buttonBack: { color: colours.secondary },
+        buttonPrimary: { backgroundColor: accent, color: colours.onSolid, fontWeight: 600 },
       }}
     />
   );

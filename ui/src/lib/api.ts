@@ -28,6 +28,19 @@ function isNetworkFailure(err: unknown): boolean {
 /** Fetch wrapper that uses HTTP-only session cookies (credentials: include) and
  *  handles 401 globally by dispatching UNAUTHORIZED_EVENT. */
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const isMutation = (init.method ?? "GET").toUpperCase() !== "GET";
+  if (!isMutation) return sendRequest<T>(path, init);
+  // A GET started after a mutation must never join a GET that began before it (it could return
+  // pre-mutation data), so forget in-flight GETs both before sending and once the mutation settles.
+  inFlightGets.clear();
+  try {
+    return await sendRequest<T>(path, init);
+  } finally {
+    inFlightGets.clear();
+  }
+}
+
+async function sendRequest<T>(path: string, init: RequestInit): Promise<T> {
   const headers = new Headers((init.headers as HeadersInit | undefined) ?? {});
   if (!(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -78,4 +91,22 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   }
 
   return payload as T;
+}
+
+const inFlightGets = new Map<string, Promise<unknown>>();
+
+/** GET that shares one in-flight request between callers asking for the same path at the same
+ *  time (e.g. the sidebar, the mobile drawer and the Items page all wanting `/api/tags` on mount).
+ *  Nothing is cached once the request settles, so a later call always fetches fresh data. Each
+ *  caller gets its own copy, so one caller changing the result cannot affect another. */
+export function apiGetShared<T>(path: string): Promise<T> {
+  let pending = inFlightGets.get(path) as Promise<T> | undefined;
+  if (!pending) {
+    const request: Promise<T> = apiRequest<T>(path).finally(() => {
+      if (inFlightGets.get(path) === request) inFlightGets.delete(path);
+    });
+    pending = request;
+    inFlightGets.set(path, request);
+  }
+  return pending.then((value) => (value !== null && typeof value === "object" ? structuredClone(value) : value));
 }

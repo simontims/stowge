@@ -3,7 +3,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
 import { ItemsPage } from "../src/pages/ItemsPage";
-import { makeTag, makeUser, mockApi, renderWithUser } from "./testUtils";
+import { makeFilter, makeTag, makeUser, mockApi, renderWithUser } from "./testUtils";
 
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 
@@ -179,5 +179,86 @@ describe("Items page layout is the same however the list is filtered", () => {
     expect(searched).toEqual(tagged);
     expect(plain).toEqual(tagged);
     expect(tagged.paneClass).not.toMatch(/\bp-4\b/);
+  });
+});
+
+describe("Items table columns keep their widths whatever the list holds", () => {
+  const LONG = [
+    { ...item("i1", "A very long item name that goes on and on and on for a while", [CABLES, TOOLS, { id: "t3", name: "Seasonal decorations", icon: null, color: null }]), location: "Garage shelf number twelve, left side" },
+    item("i2", "Hammer", []),
+  ];
+  const SHORT = [item("i3", "Drill", [])];
+
+  function widths(rows: unknown[]) {
+    mockApi({
+      "GET /api/items": rows,
+      "GET /api/locations": [],
+      "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")],
+      "PATCH /api/me": makeUser(),
+    });
+    renderWithUser(<ItemsPage />, makeUser(), ["/items"]);
+    return screen.findAllByRole("columnheader").then((hs) => ({
+      widths: hs.map((h) => (h as HTMLElement).style.width),
+      table: (hs[0].closest("table") as HTMLElement).className,
+    }));
+  }
+
+  it("column widths do not depend on the longest name, tags or location on the page", async () => {
+    const many = await widths(LONG);
+    cleanup();
+    const one = await widths(SHORT);
+    expect(one.widths).toEqual(many.widths);
+  });
+
+  it("uses a fixed table layout, with Name taking the remaining width", async () => {
+    const { widths: w, table } = await widths(SHORT);
+    expect(table).toContain("table-fixed");
+    expect(w[1]).toBe(""); // Name: no width of its own
+    for (const i of [0, 2, 3, 4, 5]) expect(w[i]).not.toBe("");
+  });
+
+  it("a long location is cut with an ellipsis and keeps its full text as a title", async () => {
+    mockApi({
+      "GET /api/items": LONG,
+      "GET /api/locations": [],
+      "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")],
+      "PATCH /api/me": makeUser(),
+    });
+    renderWithUser(<ItemsPage />, makeUser(), ["/items"]);
+    const pill = await screen.findByTitle("Garage shelf number twelve, left side");
+    expect(pill.className).toContain("truncate");
+  });
+});
+
+
+describe("page title for a pinned filter", () => {
+  function setupTitle(entry: string) {
+    const filters = [
+      makeFilter("f1", "USB devices", { query: "usb", area_id: "a1", pinned: true }),
+      makeFilter("f2", "Cable bits", { tag_id: "t1", pinned: true }),
+    ];
+    mockApi({
+      "GET /api/items": ITEMS,
+      "GET /api/locations": [],
+      "GET /api/tags": [makeTag("t1", "Cables"), makeTag("t2", "Tools")],
+      "GET /api/me": makeUser({ shortcut_filters: filters as never }),
+    });
+    renderWithUser(<ItemsPage />, makeUser({ shortcut_filters: filters as never }), [entry]);
+  }
+
+  it("shows the filter's name for a filter that has no tag", async () => {
+    setupTitle("/items?q=usb&area_id=a1");
+    expect(await screen.findByRole("heading", { level: 1, name: "USB devices" })).toBeTruthy();
+  });
+
+  it("shows the filter's name for a tag filter, and plain Items / the tag name once the view differs", async () => {
+    setupTitle("/items?tag=Cables");
+    expect(await screen.findByRole("heading", { level: 1, name: "Cable bits" })).toBeTruthy();
+    cleanup();
+    setupTitle("/items?tag=Tools");
+    expect(await screen.findByRole("heading", { level: 1, name: "Tools" })).toBeTruthy();
+    cleanup();
+    setupTitle("/items?q=usb");
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Items"));
   });
 });

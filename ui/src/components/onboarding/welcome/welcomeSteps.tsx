@@ -19,7 +19,7 @@ export function buildWelcomeSteps(isAdmin: boolean): Step[] {
       title: "Add items fast",
       content: (
         <p className="text-sm leading-6">
-          On the Items page choose <strong>Add Item</strong> and start with a photo. If an AI provider is set up,
+          Choose <strong>Add Item</strong> at the top of the menu and start with a photo. If an AI provider is set up,
           Stowge suggests a name and description; otherwise fill the details in yourself. The Add screen also has
           an <strong>AI hint</strong> picker, so you can tell the AI what kind of thing you are adding.
         </p>

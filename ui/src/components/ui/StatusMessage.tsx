@@ -12,8 +12,8 @@ export function StatusMessage({ error, notice, className = "" }: StatusMessagePr
   if (!error && !notice) return null;
   return (
     <div className={className}>
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {notice && <p className="text-sm text-emerald-400">{notice}</p>}
+      {error && <p className="text-sm text-danger-400">{error}</p>}
+      {notice && <p className="text-sm text-success-400">{notice}</p>}
     </div>
   );
 }

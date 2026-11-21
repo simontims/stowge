@@ -137,7 +137,7 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
     { min: 0, max: 100, fallback: 1 },
   );
 
-  if (loading) return <p className="text-sm text-neutral-500">Loading…</p>;
+  if (loading) return <p className="text-sm text-subtle">Loading…</p>;
 
   return (
     <div className="space-y-5">
@@ -146,10 +146,10 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
       <StatusMessage error={error} notice={notice} />
 
       {/* ── Image Storage Settings ── */}
-      <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 space-y-6">
+      <section className="rounded-lg border border-border bg-surface/40 p-4 space-y-6">
         <div>
-          <h2 className="text-sm font-semibold text-neutral-100">Image Storage</h2>
-          <p className="mt-1 text-xs text-neutral-500">
+          <h2 className="text-sm font-semibold text-heading">Image Storage</h2>
+          <p className="mt-1 text-xs text-subtle">
             Controls how images are encoded and stored when uploaded. Changes apply to future uploads only.
           </p>
         </div>
@@ -157,7 +157,7 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
         {/* Format row */}
         <div className="flex items-start gap-6 flex-wrap">
           <div className="flex-1 min-w-[160px]">
-            <p className="text-xs uppercase tracking-wide text-neutral-500 mb-2">Format</p>
+            <p className="text-xs uppercase tracking-wide text-subtle mb-2">Format</p>
             <div className="flex gap-4">
               {(["webp", "jpg"] as const).map((fmt) => (
                 <label key={fmt} className="flex items-center gap-2 cursor-pointer">
@@ -172,13 +172,13 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
                       display_quality: recommendedQuality(fmt),
                       thumb_quality: recommendedQuality(fmt),
                     }))}
-                    className="accent-neutral-400"
+                    className="accent-muted"
                   />
-                  <span className="text-sm text-neutral-300">{fmt === "jpg" ? "JPG" : "WebP"}</span>
+                  <span className="text-sm text-secondary">{fmt === "jpg" ? "JPG" : "WebP"}</span>
                 </label>
               ))}
             </div>
-            <p className="mt-1 text-xs text-neutral-600">WebP produces smaller files; JPG has broader compatibility.</p>
+            <p className="mt-1 text-xs text-faint">WebP produces smaller files; JPG has broader compatibility.</p>
           </div>
 
           <label className="flex items-start gap-3 cursor-pointer flex-1 min-w-[200px]">
@@ -186,11 +186,11 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
               type="checkbox"
               checked={form.store_original}
               onChange={(e) => field("store_original", e.target.checked)}
-              className="accent-neutral-400 w-4 h-4 mt-0.5 shrink-0"
+              className="accent-muted w-4 h-4 mt-0.5 shrink-0"
             />
-            <span className="text-sm text-neutral-300">
+            <span className="text-sm text-secondary">
               Keep full-resolution copy
-              <span className="block mt-0.5 text-xs text-neutral-500">
+              <span className="block mt-0.5 text-xs text-subtle">
                 Stores an extra full-size variant alongside the processed versions. Uses significantly more disk space.
               </span>
             </span>
@@ -198,72 +198,72 @@ export function SettingsImagesPage({ embedded, onDirtyChange, saveFnRef }: Image
         </div>
 
         {/* Divider */}
-        <div className="border-t border-neutral-800" />
+        <div className="border-t border-border" />
 
         {/* Size & quality — side-by-side for image vs thumbnail */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
           {/* Image variant */}
           <div className="space-y-4">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">Image</p>
+            <p className="text-xs uppercase tracking-wide text-subtle">Image</p>
 
             <label className="block">
-              <span className="text-xs text-neutral-400">Max dimension (px)</span>
+              <span className="text-xs text-muted">Max dimension (px)</span>
               <input
                 type="number"
                 min={256}
                 max={8192}
                 step={1}
                 {...displayMaxEdgeField}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
-              <p className="mt-1 text-xs text-neutral-600">Longest edge, 256–8192 px.</p>
+              <p className="mt-1 text-xs text-faint">Longest edge, 256–8192 px.</p>
             </label>
 
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-neutral-400">Quality</span>
+                <span className="text-xs text-muted">Quality</span>
               </div>
               <input
                 type="number"
                 min={0}
                 max={100}
                 {...displayQualityField}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
-              <p className="mt-1 text-xs text-neutral-600">{qualityTip(form.output_format)}</p>
+              <p className="mt-1 text-xs text-faint">{qualityTip(form.output_format)}</p>
             </div>
           </div>
 
           {/* Thumbnail variant */}
           <div className="space-y-4">
-            <p className="text-xs uppercase tracking-wide text-neutral-500">Thumbnail</p>
+            <p className="text-xs uppercase tracking-wide text-subtle">Thumbnail</p>
 
             <label className="block">
-              <span className="text-xs text-neutral-400">Max dimension (px)</span>
+              <span className="text-xs text-muted">Max dimension (px)</span>
               <input
                 type="number"
                 min={64}
                 max={1024}
                 step={1}
                 {...thumbMaxEdgeField}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
-              <p className="mt-1 text-xs text-neutral-600">Longest edge, 64–1024 px.</p>
+              <p className="mt-1 text-xs text-faint">Longest edge, 64–1024 px.</p>
             </label>
 
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-neutral-400">Quality</span>
+                <span className="text-xs text-muted">Quality</span>
               </div>
               <input
                 type="number"
                 min={0}
                 max={100}
                 {...thumbQualityField}
-                className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
               />
-              <p className="mt-1 text-xs text-neutral-600">{qualityTip(form.output_format)}</p>
+              <p className="mt-1 text-xs text-faint">{qualityTip(form.output_format)}</p>
             </div>
           </div>
 

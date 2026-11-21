@@ -6,9 +6,10 @@ import { WelcomeTour } from "../src/components/onboarding/welcome/WelcomeTour";
 afterEach(cleanup);
 
 describe("WelcomeTour", () => {
-  it("ends when Escape is pressed while running", () => {
+  it("ends when Escape is pressed while running", async () => {
     const onFinish = vi.fn();
     render(<WelcomeTour run isAdmin={false} onFinish={onFinish} />);
+    await screen.findByText("Add items fast"); // the tour code is loaded on demand
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onFinish).toHaveBeenCalledTimes(1);
   });

@@ -11,7 +11,7 @@ interface LoginPageProps {
 type Mode = "checking" | "setup" | "login";
 
 const INPUT_CLS =
-  "w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500 transition-colors";
+  "w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus transition-colors";
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [mode, setMode] = useState<Mode>("checking");
@@ -79,27 +79,27 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
   if (mode === "checking") {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <Loader2 size={24} className="text-neutral-500 animate-spin" />
+      <div className="min-h-screen bg-canvas flex items-center justify-center">
+        <Loader2 size={24} className="text-subtle animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-8">
           <img src="/stowgeLogoOptimized.webp" alt="Stowge" className="w-36 h-36 select-none" />
-          <h1 className="text-lg font-semibold text-neutral-100">Stowge</h1>
+          <h1 className="text-lg font-semibold text-heading">Stowge</h1>
         </div>
 
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6">
-          <h2 className="text-sm font-semibold text-neutral-100 mb-1">
+        <div className="rounded-xl border border-border bg-surface p-6">
+          <h2 className="text-sm font-semibold text-heading mb-1">
             {mode === "setup" ? "Welcome to Stowge" : "Sign in"}
           </h2>
           {mode === "setup" && (
-          <p className="text-xs text-neutral-500 mb-5">
+          <p className="text-xs text-subtle mb-5">
             <>
               Create your first user.<br />
               You&apos;ll have full access. Roles can be changed later.
@@ -114,7 +114,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             {mode === "setup" && (
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="block text-xs text-neutral-500 mb-1">
+                  <span className="block text-xs text-subtle mb-1">
                     Firstname
                   </span>
                   <input
@@ -126,7 +126,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   />
                 </label>
                 <label className="block">
-                  <span className="block text-xs text-neutral-500 mb-1">
+                  <span className="block text-xs text-subtle mb-1">
                     Lastname
                   </span>
                   <input
@@ -140,7 +140,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             )}
 
             <label className="block">
-              <span className="block text-xs text-neutral-500 mb-1">Email</span>
+              <span className="block text-xs text-subtle mb-1">Email</span>
               <input
                 ref={mode === "login" ? firstInputRef : undefined}
                 type="email"
@@ -154,7 +154,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </label>
 
             <label className="block">
-              <span className="block text-xs text-neutral-500 mb-1">
+              <span className="block text-xs text-subtle mb-1">
                 Password
               </span>
               <input
@@ -171,7 +171,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
             {mode === "setup" && (
               <label className="block">
-                <span className="block text-xs text-neutral-500 mb-1">
+                <span className="block text-xs text-subtle mb-1">
                   Confirm Password
                 </span>
                 <input
@@ -185,7 +185,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               </label>
             )}
 
-            {error && <p className="text-xs text-red-400 pt-1">{error}</p>}
+            {error && <p className="text-xs text-danger-400 pt-1">{error}</p>}
 
             <button
               type="submit"

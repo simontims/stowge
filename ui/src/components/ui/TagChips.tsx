@@ -15,7 +15,7 @@ export function TagChip({ tag, small = false, onRemove }: TagChipProps) {
     <span
       data-testid="tag-chip"
       className={clsx(
-        "inline-flex max-w-full items-center gap-1 rounded border border-neutral-700 bg-neutral-800 text-neutral-300",
+        "inline-flex max-w-full items-center gap-1 rounded border border-border-strong bg-surface-2 text-secondary",
         small ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-0.5 text-xs",
       )}
     >
@@ -26,7 +26,7 @@ export function TagChip({ tag, small = false, onRemove }: TagChipProps) {
           type="button"
           onClick={onRemove}
           aria-label={`Remove tag ${tag.name}`}
-          className="-mr-0.5 ml-0.5 rounded px-0.5 text-neutral-500 hover:text-neutral-100"
+          className="-mr-0.5 ml-0.5 rounded px-0.5 text-subtle hover:text-heading"
         >
           ×
         </button>
@@ -45,7 +45,7 @@ interface TagChipsProps {
 /** Read-only list of an item's tags. */
 export function TagChips({ tags, emptyLabel = "No tags", small = false }: TagChipsProps) {
   if (!tags || tags.length === 0) {
-    return <span className="text-xs text-neutral-600">{emptyLabel}</span>;
+    return <span className="text-xs text-faint">{emptyLabel}</span>;
   }
   return (
     <span className="flex flex-wrap gap-1">

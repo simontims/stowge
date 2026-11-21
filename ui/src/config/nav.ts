@@ -1,6 +1,7 @@
 import {
   SlidersHorizontal,
   Settings,
+  Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -12,6 +13,7 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
+  { label: "Recycle Bin", route: "/recycle-bin", icon: Trash2 },
   { label: "Settings", route: "/settings", icon: SlidersHorizontal },
   { label: "System", route: "/system", icon: Settings, requiresAdmin: true },
 ];

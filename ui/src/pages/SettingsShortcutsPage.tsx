@@ -512,7 +512,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
         header: "Name",
         sortable: true,
         render: (row) => (
-          <span className="inline-flex items-center gap-2 font-medium text-neutral-200">
+          <span className="inline-flex items-center gap-2 font-medium text-body">
             <ShortcutIcon filter={row} size={15} />
             {row.name}
           </span>
@@ -522,7 +522,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
         key: "query",
         header: "Query",
         sortable: true,
-        render: (row) => <span className="text-neutral-400">{row.query || "-"}</span>,
+        render: (row) => <span className="text-muted">{row.query || "-"}</span>,
       },
       {
         key: "tag_id",
@@ -535,7 +535,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
           const location = row.location_id ? locationById.get(row.location_id)?.name || "Location" : "Any location";
 
           return (
-            <span className="text-neutral-400 text-xs leading-5">
+            <span className="text-muted text-xs leading-5">
               {tag} · {status} · {site} / {area} / {location}
             </span>
           );
@@ -544,7 +544,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
       {
         key: "id",
         header: "Quantity",
-        render: (row) => <span className="text-neutral-400">{quantitySummary(row)}</span>,
+        render: (row) => <span className="text-muted">{quantitySummary(row)}</span>,
       },
       {
         key: "pinned",
@@ -557,8 +557,8 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
             className={[
               "inline-flex items-center rounded border px-2 py-0.5 text-xs",
               row.pinned
-                ? "border-emerald-600/40 bg-emerald-900/20 text-emerald-300"
-                : "border-neutral-700 bg-neutral-900 text-neutral-500",
+                ? "border-success-600/40 bg-success-900/20 text-success-300"
+                : "border-border-strong bg-surface text-subtle",
             ].join(" ")}
           >
             {row.pinned ? "Yes" : "No"}
@@ -591,7 +591,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
         />
       )}
 
-      {embedded && <p className="text-sm text-neutral-500">Saved searches you can pin to the menu</p>}
+      {embedded && <p className="text-sm text-subtle">Saved searches you can pin to the menu</p>}
 
       <ListToolbar
         search={search}
@@ -637,7 +637,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
         onSort={(key) => handleSort(key as ShortcutSortKey)}
         footer={sortedRows.length > 0 && (
           <tr>
-            <td colSpan={6} className="px-4 py-2.5 text-right text-xs text-neutral-600">
+            <td colSpan={6} className="px-4 py-2.5 text-right text-xs text-faint">
               {sortedRows.length} filter{sortedRows.length === 1 ? "" : "s"} · {sortedRows.filter((row) => row.pinned).length} pinned
             </td>
           </tr>
@@ -645,39 +645,39 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
       />
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim/70 flex items-center justify-center p-4">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-3xl rounded-xl border border-neutral-800 bg-neutral-900 shadow-2xl p-4 space-y-4"
+            className="w-full max-w-3xl rounded-xl border border-border bg-surface shadow-2xl p-4 space-y-4"
           >
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-neutral-100">{modalTitle}</h3>
+              <h3 className="text-sm font-semibold text-heading">{modalTitle}</h3>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Name</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Name</span>
                 <input
                   value={form.name}
                   onChange={(event) => updateForm("name", event.target.value)}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                   placeholder="Low stock drills"
                 />
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Search Query</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Search Query</span>
                 <input
                   value={form.query}
                   onChange={(event) => updateForm("query", event.target.value)}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                   placeholder="e.g. m6 screw"
                 />
               </label>
 
               <div className="flex items-center gap-3 md:col-span-2">
-                <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">Icon</span>
+                <span className="text-xs uppercase tracking-wide text-subtle shrink-0">Icon</span>
                 <IconColorPicker
                   title={form.name || "Filter"}
                   value={form.icon}
@@ -688,11 +688,11 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
               </div>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Tag</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Tag</span>
                 <select
                   value={form.tag_id}
                   onChange={(event) => updateForm("tag_id", event.target.value)}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="">Any</option>
                   <option value={UNTAGGED}>Untagged</option>
@@ -703,7 +703,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Status</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Status</span>
                 <div className="mt-1 relative">
                   <button
                     ref={statusMenuButtonRef}
@@ -711,10 +711,10 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
                     aria-haspopup="listbox"
                     aria-expanded={statusMenuOpen}
                     onClick={() => setStatusMenuOpen((current) => !current)}
-                    className="w-full inline-flex items-center justify-between gap-2 bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 hover:border-neutral-600"
+                    className="w-full inline-flex items-center justify-between gap-2 bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body hover:border-border-hover"
                   >
                     <span className="truncate">{statusSummary}</span>
-                    <span className="text-neutral-500">{statusMenuOpen ? "▲" : "▼"}</span>
+                    <span className="text-subtle">{statusMenuOpen ? "▲" : "▼"}</span>
                   </button>
 
                   {statusMenuOpen && (
@@ -722,7 +722,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
                       ref={statusMenuRef}
                       role="listbox"
                       aria-multiselectable="true"
-                      className="absolute z-30 mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 shadow-xl overflow-hidden"
+                      className="absolute z-30 mt-1 w-full rounded-md border border-border-strong bg-surface shadow-xl overflow-hidden"
                     >
                       <div className="max-h-56 overflow-y-auto">
                         {(statusOptions.length ? statusOptions : ["draft", "confirmed"]).map((statusValue) => {
@@ -730,31 +730,31 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
                           return (
                             <label
                               key={statusValue}
-                              className="w-full inline-flex items-center gap-2 px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-800"
+                              className="w-full inline-flex items-center gap-2 px-3 py-2 text-sm text-secondary hover:bg-surface-2"
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={(event) => toggleStatusSelection(statusValue, event.target.checked)}
-                                className="h-4 w-4 rounded border-neutral-600 bg-neutral-900"
+                                className="h-4 w-4 rounded border-border-hover bg-surface"
                               />
                               <span className="truncate">{statusValue}</span>
                             </label>
                           );
                         })}
                       </div>
-                      <div className="border-t border-neutral-800 p-2 flex items-center justify-between">
+                      <div className="border-t border-border p-2 flex items-center justify-between">
                         <button
                           type="button"
                           onClick={() => updateForm("statuses", [])}
-                          className="text-xs text-neutral-400 hover:text-neutral-200"
+                          className="text-xs text-muted hover:text-body"
                         >
                           Clear
                         </button>
                         <button
                           type="button"
                           onClick={() => setStatusMenuOpen(false)}
-                          className="text-xs text-neutral-300 hover:text-neutral-100"
+                          className="text-xs text-secondary hover:text-heading"
                         >
                           Done
                         </button>
@@ -762,15 +762,15 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
                     </div>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-neutral-500">Leave empty for any status.</p>
+                <p className="mt-1 text-xs text-subtle">Leave empty for any status.</p>
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Site</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Site</span>
                 <select
                   value={form.site_id}
                   onChange={(event) => updateSite(event.target.value)}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="">Any site</option>
                   {sites.map((site) => (
@@ -780,11 +780,11 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Area</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Area</span>
                 <select
                   value={form.area_id}
                   onChange={(event) => updateArea(event.target.value)}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="">Any area</option>
                   {scopedAreas.map((area) => (
@@ -794,11 +794,11 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
               </label>
 
               <label className="block">
-                <span className="text-xs uppercase tracking-wide text-neutral-500">Location</span>
+                <span className="text-xs uppercase tracking-wide text-subtle">Location</span>
                 <select
                   value={form.location_id}
                   onChange={(event) => updateForm("location_id", event.target.value)}
-                  className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                  className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                 >
                   <option value="">Any location</option>
                   {scopedLocations.map((location) => (
@@ -809,11 +809,11 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
 
               <div className="grid gap-3">
                 <label className="block">
-                  <span className="text-xs uppercase tracking-wide text-neutral-500">Quantity Filter</span>
+                  <span className="text-xs uppercase tracking-wide text-subtle">Quantity Filter</span>
                   <select
                     value={form.quantityMode}
                     onChange={(event) => updateForm("quantityMode", event.target.value as ShortcutFormState["quantityMode"])}
-                    className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                    className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                   >
                     <option value="any">Any quantity</option>
                     <option value="exact">Exact quantity</option>
@@ -825,14 +825,14 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
 
                 {form.quantityMode === "exact" && (
                   <label className="block">
-                    <span className="text-xs uppercase tracking-wide text-neutral-500">Exact Quantity</span>
+                    <span className="text-xs uppercase tracking-wide text-subtle">Exact Quantity</span>
                     <input
                       type="number"
                       min={0}
                       step={1}
                       value={form.quantityExact}
                       onChange={(event) => updateForm("quantityExact", event.target.value)}
-                      className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       placeholder="0"
                     />
                   </label>
@@ -840,14 +840,14 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
 
                 {form.quantityMode === "min" && (
                   <label className="block">
-                    <span className="text-xs uppercase tracking-wide text-neutral-500">Minimum Quantity</span>
+                    <span className="text-xs uppercase tracking-wide text-subtle">Minimum Quantity</span>
                     <input
                       type="number"
                       min={0}
                       step={1}
                       value={form.quantityMin}
                       onChange={(event) => updateForm("quantityMin", event.target.value)}
-                      className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       placeholder="0"
                     />
                   </label>
@@ -855,14 +855,14 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
 
                 {form.quantityMode === "max" && (
                   <label className="block">
-                    <span className="text-xs uppercase tracking-wide text-neutral-500">Maximum Quantity</span>
+                    <span className="text-xs uppercase tracking-wide text-subtle">Maximum Quantity</span>
                     <input
                       type="number"
                       min={0}
                       step={1}
                       value={form.quantityMax}
                       onChange={(event) => updateForm("quantityMax", event.target.value)}
-                      className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                      className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                       placeholder="0"
                     />
                   </label>
@@ -871,26 +871,26 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
                 {form.quantityMode === "range" && (
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block">
-                      <span className="text-xs uppercase tracking-wide text-neutral-500">Min</span>
+                      <span className="text-xs uppercase tracking-wide text-subtle">Min</span>
                       <input
                         type="number"
                         min={0}
                         step={1}
                         value={form.quantityMin}
                         onChange={(event) => updateForm("quantityMin", event.target.value)}
-                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                         placeholder="0"
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs uppercase tracking-wide text-neutral-500">Max</span>
+                      <span className="text-xs uppercase tracking-wide text-subtle">Max</span>
                       <input
                         type="number"
                         min={0}
                         step={1}
                         value={form.quantityMax}
                         onChange={(event) => updateForm("quantityMax", event.target.value)}
-                        className="mt-1 w-full bg-neutral-950 border border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-200 outline-none focus:border-neutral-500"
+                        className="mt-1 w-full bg-canvas border border-border-strong rounded-md px-3 py-2 text-sm text-body outline-none focus:border-border-focus"
                         placeholder="0"
                       />
                     </label>
@@ -898,14 +898,14 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
                 )}
               </div>
 
-              <label className="md:col-span-2 inline-flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2">
+              <label className="md:col-span-2 inline-flex items-center gap-2 rounded-md border border-border-strong bg-canvas px-3 py-2">
                 <input
                   type="checkbox"
                   checked={form.pinned}
                   onChange={(event) => updateForm("pinned", event.target.checked)}
-                  className="h-4 w-4 rounded border-neutral-600 bg-neutral-900"
+                  className="h-4 w-4 rounded border-border-hover bg-surface"
                 />
-                <span className="text-sm text-neutral-300">Pin this filter in the left navigation</span>
+                <span className="text-sm text-secondary">Pin this filter in the left navigation</span>
               </label>
             </div>
 
@@ -914,7 +914,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
                 type="button"
                 onClick={closeFormModal}
                 disabled={modalSaving}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-neutral-700 text-sm font-medium text-neutral-300 hover:text-neutral-100 hover:border-neutral-600"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border-strong text-sm font-medium text-secondary hover:text-heading hover:border-border-hover"
               >
                 Cancel
               </button>
@@ -937,7 +937,7 @@ export function SettingsShortcutsPage({ embedded = false }: { embedded?: boolean
         title="Delete Filter"
         message={
           <>
-            Delete shortcut filter <span className="font-medium text-neutral-100">{deleteTarget?.name || ""}</span>?
+            Delete shortcut filter <span className="font-medium text-heading">{deleteTarget?.name || ""}</span>?
           </>
         }
         onCancel={() => setDeleteTarget(null)}

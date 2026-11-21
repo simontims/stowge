@@ -1,17 +1,14 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AppShell } from "./components/layout/AppShell";
 import { ItemsPage } from "./pages/ItemsPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
-import { AddPage } from "./pages/AddPage";
-import { EditPage } from "./pages/EditPage";
-import { SystemPage } from "./pages/SystemPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { WhatsNewPage } from "./pages/WhatsNewPage";
 import { LoginPage } from "./pages/LoginPage";
 import { UNAUTHORIZED_EVENT, OFFLINE_EVENT, apiRequest } from "./lib/api";
+import { useTheme } from "./lib/theme";
 import { type CurrentUser } from "./lib/types";
 import { UserContext } from "./lib/UserContext";
 import { ConnectionLostOverlay } from "./components/layout/ConnectionLostOverlay";
@@ -20,6 +17,23 @@ import { WelcomeTour } from "./components/onboarding/welcome/WelcomeTour";
 import { WhatsNewHost } from "./components/onboarding/whatsNew/WhatsNewHost";
 import { START_WELCOME_TOUR_EVENT } from "./lib/onboarding";
 import { upgradeLegacyCollectionLink } from "./lib/legacyLinks";
+
+// Everything except the landing Items page and the login screen is split into route chunks, so
+// the first paint only downloads what it needs.
+const AddPage = lazy(() => import("./pages/AddPage").then((m) => ({ default: m.AddPage })));
+const EditPage = lazy(() => import("./pages/EditPage").then((m) => ({ default: m.EditPage })));
+const SystemPage = lazy(() => import("./pages/SystemPage").then((m) => ({ default: m.SystemPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const RecycleBinPage = lazy(() => import("./pages/RecycleBinPage").then((m) => ({ default: m.RecycleBinPage })));
+const WhatsNewPage = lazy(() => import("./pages/WhatsNewPage").then((m) => ({ default: m.WhatsNewPage })));
+
+function RouteFallback() {
+  return (
+    <div className="flex justify-center py-12" role="status" aria-label="Loading">
+      <Loader2 size={24} className="text-subtle animate-spin" />
+    </div>
+  );
+}
 
 /** The welcome flow is tracked on the user (not per browser), so it doesn't repeat on a new
  *  browser or address. */
@@ -45,15 +59,19 @@ export function resolvePostLoginRoute(user: CurrentUser): string {
   return "/items";
 }
 
+/** Keeps one failed page from blanking the app, and tries again when the user navigates elsewhere. */
+function RouteBoundary({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>;
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [tourRunning, setTourRunning] = useState(false);
-  const [toastTheme, setToastTheme] = useState<"light" | "dark">(
-    () => (document.documentElement.dataset.theme === "light" ? "light" : "dark")
-  );
+  const toastTheme = useTheme();
   const [isMobileToastViewport, setIsMobileToastViewport] = useState<boolean>(
     () => (typeof window !== "undefined" ? window.innerWidth < 768 : false)
   );
@@ -65,22 +83,6 @@ export default function App() {
     }
     setShowWelcome(true);
   }
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const syncToastTheme = () => {
-      setToastTheme(root.dataset.theme === "light" ? "light" : "dark");
-    };
-
-    syncToastTheme();
-
-    const observer = new MutationObserver(syncToastTheme);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     const onResize = () => {
@@ -235,8 +237,8 @@ export default function App() {
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <Loader2 size={24} className="text-neutral-500 animate-spin" />
+      <div className="min-h-screen bg-canvas flex items-center justify-center">
+        <Loader2 size={24} className="text-subtle animate-spin" />
       </div>
     );
   }
@@ -250,6 +252,8 @@ export default function App() {
       <BrowserRouter>
         <AppShell onLogout={handleLogout}>
         <LegacyLinkUpgrade>
+        <RouteBoundary>
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/"           element={<Navigate to={resolvePostLoginRoute(currentUser)} replace />} />
           <Route path="/items"      element={<ItemsPage />} />
@@ -261,6 +265,7 @@ export default function App() {
           <Route path="/tags" element={<Navigate to="/settings?tab=tags" replace />} />
           <Route path="/collections" element={<Navigate to="/settings?tab=tags" replace />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/recycle-bin" element={<RecycleBinPage />} />
           <Route path="/release-notes" element={<WhatsNewPage />} />
           <Route path="/whats-new" element={<Navigate to="/release-notes" replace />} />
           <Route path="/add"        element={<AddPage />} />
@@ -269,6 +274,8 @@ export default function App() {
           <Route path="/locations"  element={currentUser.role === "admin" ? <Navigate to="/system?tab=locations" replace /> : <Navigate to="/items" replace />} />
           <Route path="*"           element={<PlaceholderPage title="Not found"  description="This page does not exist" />} />
         </Routes>
+        </Suspense>
+        </RouteBoundary>
         </LegacyLinkUpgrade>
       </AppShell>
       <Toaster

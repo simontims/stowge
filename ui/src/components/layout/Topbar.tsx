@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, Menu, Moon, Sparkles, Sun, User } from "lucide-react";
+import { Compass, Menu, Sparkles, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getStoredTheme, setTheme, type ThemeMode } from "../../lib/theme";
-import { apiRequest } from "../../lib/api";
+import { setTheme } from "../../lib/theme";
+import { ThemeSelector } from "../ui/ThemeSelector";
 import { useCurrentUser } from "../../lib/UserContext";
 import { UnreadDot } from "../ui/UnreadDot";
 import { START_WELCOME_TOUR_EVENT } from "../../lib/onboarding";
@@ -17,7 +17,6 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
   const navigate = useNavigate();
   const hasUnseenNotes = (currentUser.whats_new?.unseen.length ?? 0) > 0;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => getStoredTheme());
   const [version, setVersion] = useState<string>("");
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -34,10 +33,7 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
     const serverTheme = currentUser.theme === "light" || currentUser.theme === "dark"
       ? currentUser.theme
       : null;
-    if (serverTheme) {
-      setThemeMode(serverTheme);
-      setTheme(serverTheme);
-    }
+    if (serverTheme) setTheme(serverTheme);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -91,24 +87,13 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
     onLogout();
   }
 
-  function handleThemeChange(nextTheme: ThemeMode) {
-    setThemeMode(nextTheme);
-    setTheme(nextTheme);
-    void apiRequest("/api/me", {
-      method: "PATCH",
-      body: JSON.stringify({ theme: nextTheme }),
-    }).catch(() => {
-      // Best-effort.
-    });
-  }
-
   return (
     <>
-      <header className="h-14 border-b border-neutral-800 bg-neutral-900 flex items-center gap-3 px-4 shrink-0">
+      <header className="h-14 border-b border-border bg-surface flex items-center gap-3 px-4 shrink-0">
         {/* Mobile menu button — visible only on small screens */}
         <button
           onClick={onMenuClick}
-          className="md:hidden p-1.5 rounded-md text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition-colors"
+          className="md:hidden p-1.5 rounded-md text-muted hover:text-heading hover:bg-surface-2 transition-colors"
           aria-label="Open navigation menu"
         >
           <Menu size={18} />
@@ -116,18 +101,10 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
 
         <div className="flex-1" />
 
-        <button
-          onClick={() => handleThemeChange(themeMode === "dark" ? "light" : "dark")}
-          className="shrink-0 p-1.5 rounded-md text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition-colors"
-          aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
-
         <div className="relative shrink-0" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((open) => !open)}
-            className="inline-flex items-center gap-2 h-8 px-2.5 rounded-full bg-neutral-700 text-neutral-300 hover:bg-neutral-600 hover:text-neutral-100 transition-colors"
+            className="inline-flex items-center gap-2 h-8 px-2.5 rounded-full bg-surface-3 text-secondary hover:bg-surface-4 hover:text-heading transition-colors"
             aria-label="User menu"
             data-tour="user-menu"
             aria-expanded={menuOpen}
@@ -142,15 +119,15 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-44 rounded-md border border-neutral-700 bg-neutral-900 shadow-lg z-20 overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-56 rounded-md border border-border-strong bg-surface shadow-lg z-20 overflow-hidden">
               <button
                 onClick={() => {
                   setMenuOpen(false);
                   window.dispatchEvent(new Event(START_WELCOME_TOUR_EVENT));
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 transition-colors"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-body hover:bg-surface-2 transition-colors"
               >
-                <Compass size={14} className="shrink-0 text-neutral-400" />
+                <Compass size={14} className="shrink-0 text-muted" />
                 Welcome tour
               </button>
               <button
@@ -158,9 +135,9 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
                   setMenuOpen(false);
                   navigate("/release-notes");
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 transition-colors"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-body hover:bg-surface-2 transition-colors"
               >
-                <Sparkles size={14} className="shrink-0 text-neutral-400" />
+                <Sparkles size={14} className="shrink-0 text-muted" />
                 Release notes
                 {hasUnseenNotes && (
                   <>
@@ -169,13 +146,16 @@ export function Topbar({ onMenuClick, onLogout }: TopbarProps) {
                   </>
                 )}
               </button>
+              <div className="border-t border-border px-3 py-3">
+                <ThemeSelector idPrefix="menu" />
+              </div>
               <button
                 onClick={logout}
-                className="w-full border-t border-neutral-800 text-left px-3 py-2 text-sm text-red-300 hover:bg-neutral-800 transition-colors"
+                className="w-full border-t border-border text-left px-3 py-2 text-sm text-danger-300 hover:bg-surface-2 transition-colors"
               >
                 Logout
               </button>
-              <div className="border-t border-neutral-800 px-3 py-2 text-xs text-neutral-500">
+              <div className="border-t border-border px-3 py-2 text-xs text-subtle">
                 Version {version || "-"}
               </div>
             </div>

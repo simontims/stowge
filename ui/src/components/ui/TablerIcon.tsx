@@ -1,20 +1,36 @@
 import { useEffect, useState } from "react";
 import { Tag } from "lucide-react";
-import type { TablerEntry } from "../../lib/tablerIconCatalogue";
+import type { TablerIconComponent } from "../../lib/tablerIconCatalogue";
 
-// Module-level cache: lazy-load once, reuse for the full session.
-let catalogue: TablerEntry[] | null = null;
-let cataloguePromise: Promise<TablerEntry[]> | null = null;
+// Module-level cache: each icon is lazy-loaded once (as its own small chunk) and reused for the
+// whole session. `null` records a confirmed unknown name so it is not looked up again; a failed
+// load (network error, deleted chunk) is not cached, so a later render can try again.
+const icons = new Map<string, TablerIconComponent | null>();
+const pending = new Map<string, Promise<TablerIconComponent | null>>();
 
-function loadCatalogue(): Promise<TablerEntry[]> {
-  if (catalogue) return Promise.resolve(catalogue);
-  if (!cataloguePromise) {
-    cataloguePromise = import("../../lib/tablerIconCatalogue").then((m) => {
-      catalogue = m.TABLER_CATALOGUE;
-      return catalogue;
-    });
+/** Load the shard (icons sharing the first two characters of their name) that holds `name`. */
+export async function loadTablerIcon(name: string): Promise<TablerIconComponent | null> {
+  const { default: shards } = await import("virtual:tabler-shards");
+  const shard = shards[name.slice(0, 2)];
+  if (!shard) return null;
+  return (await shard()).default[name] ?? null;
+}
+
+function loadIcon(name: string): Promise<TablerIconComponent | null> {
+  let promise = pending.get(name);
+  if (!promise) {
+    promise = loadTablerIcon(name)
+      .then((component) => {
+        icons.set(name, component);
+        return component;
+      })
+      .catch(() => null)
+      .finally(() => {
+        pending.delete(name);
+      });
+    pending.set(name, promise);
   }
-  return cataloguePromise;
+  return promise;
 }
 
 interface TablerIconProps {
@@ -24,27 +40,21 @@ interface TablerIconProps {
 }
 
 export function TablerIcon({ name, size = 15, color }: TablerIconProps) {
-  const [entry, setEntry] = useState<TablerEntry | null>(() =>
-    name && catalogue ? (catalogue.find((e) => e.name === name) ?? null) : null
-  );
+  const [, setLoaded] = useState(0);
+  const component = name ? icons.get(name) : undefined;
 
   useEffect(() => {
-    if (!name) return;
-    if (catalogue) {
-      setEntry(catalogue.find((e) => e.name === name) ?? null);
-      return;
-    }
-
+    if (!name || icons.has(name)) return;
     let cancelled = false;
-    loadCatalogue().then((cat) => {
-      if (!cancelled) setEntry(cat.find((e) => e.name === name) ?? null);
+    void loadIcon(name).then(() => {
+      if (!cancelled) setLoaded((n) => n + 1);
     });
     return () => {
       cancelled = true;
     };
   }, [name]);
 
-  if (!name || !entry) return <Tag size={size} />;
-  const C = entry.component;
+  if (!name || !component) return <Tag size={size} />;
+  const C = component;
   return <C size={size} stroke={1.5} color={color || undefined} />;
 }

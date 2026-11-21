@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiGetShared, apiRequest } from "./api";
 import { UNTAGGED, normalizeShortcutFilter, type ShortcutFilter } from "./shortcutFilters";
 import type { AiHint, CurrentUser, ItemTag, Tag } from "./types";
 
@@ -12,7 +12,7 @@ export interface TagInput {
 }
 
 export function listTags(): Promise<Tag[]> {
-  return apiRequest<Tag[]>("/api/tags");
+  return apiGetShared<Tag[]>("/api/tags");
 }
 
 export function createTag(input: TagInput): Promise<Tag> {
