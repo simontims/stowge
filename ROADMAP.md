@@ -7,14 +7,12 @@ Easy inventory with a simple user experience and optional AI assistance
 
 ## 🔜 Next
 
-- Replace homegrown datatables with an opensource library
-- API key generation per user
-- API
-- Basic Home Assistant integration (read-only)
-- Image recognition improvements (retry + suggestions)
-- User role expaction to Collection access
-- AI helper assist (scan collections and suggest AI helper improvements)
-- AI Setup Wizard (collections + locations bootstrap)
+- Replace homegrown datatables with an opensource library (one shared table component exists now, still our own)
+- Basic Home Assistant integration (read-only), built on the new API
+- Image recognition improvements: retry (suggestions and an AI rescan on the Edit page exist now)
+- User role expansion to tag access
+- AI hint assist (scan tags and suggest AI hint improvements)
+- AI Setup Wizard (tags + locations bootstrap)
 
 ---
 
@@ -30,5 +28,5 @@ Easy inventory with a simple user experience and optional AI assistance
 ---
 
 ## 🧪 Ideas
-- 'Auto-collection' from photos
+- 'Auto-tag' from photos
 - Barcode scanning
