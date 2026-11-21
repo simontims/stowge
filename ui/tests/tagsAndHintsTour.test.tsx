@@ -45,8 +45,8 @@ function userWithMigration(converted: number, extra: Partial<CurrentUser> = {}):
 }
 
 describe("tour registration", () => {
-  it("registers a tour for the tags-and-hints note, so the card offers Show me", () => {
-    expect(Object.keys(WHATS_NEW_TOURS)).toEqual(["tags-and-hints"]);
+  it("registers a tour for each tour note, so the card offers Show me", () => {
+    expect(Object.keys(WHATS_NEW_TOURS)).toEqual(["tags-and-hints", "items-menu"]);
     expect(WHATS_NEW_TOURS["tags-and-hints"]).toBe(TagsAndHintsTour);
   });
 

@@ -32,7 +32,8 @@ export function buildWelcomeSteps(isAdmin: boolean): Step[] {
       title: "Filters",
       content: (
         <p className="text-sm leading-6">
-          Filters you pin sit here, one click from any page. Drag them to put the ones you use most at the top.
+          Under <strong>ITEMS</strong>, with <strong>All items</strong> and the <strong>Recycle Bin</strong>, sit the
+          filters you pin, one click from any page. Drag them to put the ones you use most at the top.
         </p>
       ),
     },

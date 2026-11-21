@@ -1,4 +1,5 @@
 import type { WhatsNewTour } from "../../../lib/whatsNew";
+import { ItemsMenuTour } from "./ItemsMenuTour";
 import { TagsAndHintsTour } from "./TagsAndHintsTour";
 
 /** Guided tours by What's New note id. A note without an entry here is read in the release notes
@@ -7,4 +8,5 @@ import { TagsAndHintsTour } from "./TagsAndHintsTour";
  *  keyed by the same id (see GuidedTour for the react-joyride pattern). */
 export const WHATS_NEW_TOURS: Record<string, WhatsNewTour> = {
   "tags-and-hints": TagsAndHintsTour,
+  "items-menu": ItemsMenuTour,
 };

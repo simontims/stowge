@@ -102,6 +102,18 @@ NOTES: tuple[Note, ...] = (
         title="Add Item and All items in the menu",
         summary="The menu now starts with Add Item and All items, so you can always get to your list and add an item.",
     ),
+    Note(
+        id="items-menu",
+        seq=5,
+        severity=SEVERITY_INTERRUPT,
+        version="0.12.1",
+        date="2026-11-21",
+        title="Your items menu has a new layout",
+        summary=(
+            "All items, your Filters and the Recycle Bin now sit together under ITEMS. "
+            "Settings and System stay at the bottom, and the collapsed menu keeps your filters as icons."
+        ),
+    ),
 )
 
 # Test/preview seam: a JSON list of extra notes, appended after NOTES with the next seq numbers.

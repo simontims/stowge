@@ -26,11 +26,13 @@ interface PinnedFilterListProps {
   headingTourId?: string;
   /** Rows at least 44px tall, for the mobile drawer. */
   touch?: boolean;
+  /** Icon-only layout for the collapsed sidebar: the name moves to title and aria-label. */
+  collapsed?: boolean;
 }
 
 /** The "Filters" section of the menu: the user's pinned filters as one ordered list under a heading
  *  (the heading is not a link; filters, tags and AI hints are managed in Settings). */
-export function PinnedFilterList({ filters, tags, loading = false, draggable = false, onReorder, firstItemTourId, headingTourId, touch = false }: PinnedFilterListProps) {
+export function PinnedFilterList({ filters, tags, loading = false, draggable = false, onReorder, firstItemTourId, headingTourId, touch = false, collapsed = false }: PinnedFilterListProps) {
   const location = useLocation();
   const headingId = useId();
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -43,11 +45,21 @@ export function PinnedFilterList({ filters, tags, loading = false, draggable = f
 
   return (
     <>
-    <h2 id={headingId} data-tour={headingTourId} className={clsx("flex items-center gap-3 px-3 py-2 mx-2 text-sm font-normal text-muted", touch && "min-h-11")}>
+    <h2
+      id={headingId}
+      data-tour={headingTourId}
+      title={collapsed ? "Filters" : undefined}
+      aria-label={collapsed ? "Filters" : undefined}
+      className={clsx(
+        "sticky top-0 z-10 flex items-center py-2 mx-2 text-sm font-normal text-muted bg-surface",
+        collapsed ? "justify-center px-0" : "gap-3 px-3",
+        touch && "min-h-11",
+      )}
+    >
       <Filter size={16} className="shrink-0" />
-      <span>Filters</span>
+      {!collapsed && <span>Filters</span>}
     </h2>
-    {!loading && filters.length === 0 && (
+    {!collapsed && !loading && filters.length === 0 && (
       <Link to="/settings" className={clsx("mx-2 mt-1 block rounded-md px-3 py-1.5 text-xs text-subtle hover:text-secondary", touch && "flex min-h-11 items-center")}>
         No filters yet. Add one in Settings.
       </Link>
@@ -98,7 +110,7 @@ export function PinnedFilterList({ filters, tags, loading = false, draggable = f
                   }
                 : undefined
             }
-            className={clsx("relative ml-5 rounded-md", draggingId === shortcut.id ? "opacity-60" : "opacity-100")}
+            className={clsx("relative rounded-md", !collapsed && "ml-5", draggingId === shortcut.id ? "opacity-60" : "opacity-100")}
           >
             {dropIndicator?.targetId === shortcut.id && dropIndicator.position === "before" && (
               <div data-testid="drop-indicator" className="absolute -top-0.5 left-0 right-0 h-0.5 rounded bg-info-400" />
@@ -106,16 +118,19 @@ export function PinnedFilterList({ filters, tags, loading = false, draggable = f
             <NavLink
               to={{ pathname: "/items", search: buildShortcutFilterSearch(shortcut, tags) }}
               data-tour={index === 0 ? firstItemTourId : undefined}
+              title={collapsed ? shortcut.name : undefined}
+              aria-label={collapsed ? shortcut.name : undefined}
               className={clsx(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                "flex items-center rounded-md text-sm transition-colors",
+                collapsed ? "justify-center px-0 py-2" : "gap-2 px-3 py-1.5",
                 touch && "min-h-11",
                 isActive
                   ? "bg-selected text-heading"
                   : "text-subtle hover:bg-surface-2/40 hover:text-secondary",
               )}
             >
-              <ShortcutIcon filter={shortcut} size={14} />
-              <span className="truncate">{shortcut.name}</span>
+              <ShortcutIcon filter={shortcut} size={collapsed ? 16 : 14} />
+              {!collapsed && <span className="truncate">{shortcut.name}</span>}
             </NavLink>
             {dropIndicator?.targetId === shortcut.id && dropIndicator.position === "after" && (
               <div data-testid="drop-indicator" className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded bg-info-400" />

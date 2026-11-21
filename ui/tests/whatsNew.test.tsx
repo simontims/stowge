@@ -84,7 +84,7 @@ describe("groupByVersion", () => {
 
 describe("tours registry", () => {
   it("only notes with a registered tour get a Show me; release 2 registers tags-and-hints", () => {
-    expect(Object.keys(WHATS_NEW_TOURS)).toEqual(["tags-and-hints"]);
+    expect(Object.keys(WHATS_NEW_TOURS)).toEqual(["tags-and-hints", "items-menu"]);
   });
 });
 

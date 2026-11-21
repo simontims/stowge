@@ -83,10 +83,11 @@ describe("one menu-filters target", () => {
     expect(document.querySelectorAll("[data-tour='menu-filters']")).toHaveLength(0);
   });
 
-  it("the collapsed sidebar renders none, the expanded one exactly one", async () => {
+  it("the collapsed and the expanded sidebar each render exactly one (the collapsed rail keeps its filters)", async () => {
     const user = setup();
     const { unmount } = renderWithUser(<Sidebar collapsed onToggleCollapse={() => {}} />, user);
-    expect(document.querySelectorAll("[data-tour='menu-filters']")).toHaveLength(0);
+    await screen.findByRole("link", { name: "Cables" });
+    expect(document.querySelectorAll("[data-tour='menu-filters']")).toHaveLength(1);
     unmount();
     renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, user);
     await screen.findByRole("list", { name: "Filters" });

@@ -1,12 +1,8 @@
-import { useEffect, useMemo } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import clsx from "clsx";
-import { navItems } from "../../config/nav";
-import { useCurrentUser } from "../../lib/UserContext";
-import { usePinnedFilters } from "../../lib/usePinnedFilters";
-import { PinnedFilterList } from "./PinnedFilterList";
-import { MenuPrimaryLinks } from "./MenuPrimaryLinks";
+import { MenuNav } from "./MenuNav";
 
 interface MobileNavDrawerProps {
   open: boolean;
@@ -15,19 +11,6 @@ interface MobileNavDrawerProps {
 
 export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
   const location = useLocation();
-  const currentUser = useCurrentUser();
-  const { pinned, tags, loaded } = usePinnedFilters();
-
-  // Filter nav items based on user role
-  const visibleNavItems = useMemo(
-    () => navItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
-    [currentUser.role]
-  );
-
-  function isNavItemActive(route: string): boolean {
-    const [path] = route.split("?");
-    return location.pathname === path;
-  }
 
   // Close on route change
   useEffect(() => {
@@ -90,40 +73,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
           </button>
         </div>
 
-        {/* Nav groups */}
-        <nav className="flex-1 min-h-0 flex flex-col" aria-label="Main navigation">
-          <MenuPrimaryLinks filters={pinned} tags={tags} touch onNavigate={onClose} />
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-3">
-          <div className="mb-4">
-            <PinnedFilterList filters={pinned} tags={tags} loading={!loaded} touch />
-          </div>
-
-          <div className="mb-4">
-            {visibleNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.route}>
-                  <NavLink
-                    to={item.route}
-                    end={item.route === "/system"}
-                    className={() =>
-                      clsx(
-                        "flex items-center gap-3 px-3 py-2 min-h-11 mx-2 text-sm rounded-md transition-colors",
-                        isNavItemActive(item.route)
-                          ? "bg-surface-2 text-heading"
-                          : "text-muted hover:text-body hover:bg-surface-2/50"
-                      )
-                    }
-                  >
-                    <Icon size={16} className="shrink-0" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                </div>
-              );
-            })}
-          </div>
-          </div>
-        </nav>
+        <MenuNav variant="drawer" onNavigate={onClose} />
       </div>
     </>
   );

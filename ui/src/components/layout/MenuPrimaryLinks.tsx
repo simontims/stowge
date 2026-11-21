@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { List, Plus } from "lucide-react";
 import clsx from "clsx";
 import { outlinedActionButtonClasses } from "../ui/buttonStyles";
+import { ItemsSectionLabel, MenuRow } from "./MenuRow";
 import { buildShortcutFilterSearch, isShortcutFilterActive, type ShortcutFilter, type TagRef } from "../../lib/shortcutFilters";
 
 interface MenuPrimaryLinksProps {
@@ -13,12 +14,15 @@ interface MenuPrimaryLinksProps {
   touch?: boolean;
   /** Called when a link is chosen, so the mobile drawer closes even when the URL does not change. */
   onNavigate?: () => void;
+  /** data-tour value for the ITEMS label, so a tour can point at it (desktop sidebar only). */
+  itemsTourId?: string;
 }
 
-/** The two links that sit above the Filters list and never scroll away: Add Item (an action, so it is
- *  drawn as an outlined button) and All items (a destination, so it is drawn as a normal menu row).
+/** The links that sit above the Filters list and never scroll away: Add Item (an action, so it is
+ *  drawn as an outlined button), the ITEMS section label, and All items (a destination, so it is drawn
+ *  as a normal menu row).
  *  Without them a user with no pinned filters had no way from the menu to the item list or to Add. */
-export function MenuPrimaryLinks({ filters, tags, collapsed = false, touch = false, onNavigate }: MenuPrimaryLinksProps) {
+export function MenuPrimaryLinks({ filters, tags, collapsed = false, touch = false, onNavigate, itemsTourId }: MenuPrimaryLinksProps) {
   const location = useLocation();
 
   // All items is the Items page itself. It is highlighted unless one of the pinned filters is the
@@ -30,8 +34,6 @@ export function MenuPrimaryLinks({ filters, tags, collapsed = false, touch = fal
   );
   const allItemsActive = onItems && !filterActive;
   const addActive = ["/add", "/items/new", "/parts/new"].includes(location.pathname);
-
-  const rowHeight = touch ? "min-h-11" : "";
 
   return (
     <div className="shrink-0 pt-3 pb-1" data-testid="menu-primary-links">
@@ -54,24 +56,8 @@ export function MenuPrimaryLinks({ filters, tags, collapsed = false, touch = fal
         </Link>
       </div>
 
-      <Link
-        to="/items"
-        title={collapsed ? "All items" : undefined}
-        aria-label={collapsed ? "All items" : undefined}
-        aria-current={allItemsActive ? "page" : undefined}
-        onClick={onNavigate}
-        className={clsx(
-          "mt-1 flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus",
-          rowHeight,
-          collapsed ? "justify-center px-0" : "px-3",
-          allItemsActive
-            ? "bg-surface-2 text-heading"
-            : "text-muted hover:text-body hover:bg-surface-2/50",
-        )}
-      >
-        <List size={16} className="shrink-0" aria-hidden="true" />
-        {!collapsed && <span>All items</span>}
-      </Link>
+      <ItemsSectionLabel collapsed={collapsed} tourId={itemsTourId} />
+      <MenuRow to="/items" icon={List} label="All items" active={allItemsActive} collapsed={collapsed} touch={touch} onNavigate={onNavigate} />
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WelcomeModal } from "../src/components/onboarding/welcome/WelcomeModal";
 import { WELCOME_TOUR_TARGETS, buildWelcomeSteps } from "../src/components/onboarding/welcome/welcomeSteps";
+import { Sidebar } from "../src/components/layout/Sidebar";
+import { makeUser, mockApi, renderWithUser } from "./testUtils";
 
 afterEach(cleanup);
 
@@ -61,19 +63,20 @@ describe("welcome tour steps", () => {
     expect(text).not.toMatch(/ollection/);
   });
 
-  it("every element the tour points at still exists in the layout source (stops the tour going stale)", () => {
-    const layout = ["Sidebar.tsx", "Topbar.tsx", "PinnedFilterList.tsx"]
-      .map((file) => readFileSync(resolve(__dirname, "../src/components/layout", file), "utf8"))
-      .join("\n");
+  it("every element the tour points at still exists in the menu and top bar (stops the tour going stale)", async () => {
+    // The menu is rendered for real: its data-tour attributes are built by shared components, so
+    // matching source text would say nothing about what the user sees.
+    mockApi({ "GET /api/tags": [], "GET /api/me": makeUser({ role: "admin" }) });
+    const { container } = renderWithUser(<Sidebar collapsed={false} onToggleCollapse={() => {}} />, makeUser({ role: "admin" }), ["/items"]);
+    await screen.findByText("Filters");
     const nav = readFileSync(resolve(__dirname, "../src/config/nav.ts"), "utf8");
+    const topbar = readFileSync(resolve(__dirname, "../src/components/layout/Topbar.tsx"), "utf8");
     for (const name of WELCOME_TOUR_TARGETS) {
-      if (name.startsWith("nav-")) {
-        // Sidebar builds data-tour from the route: nav-<route without the slash>.
-        expect(layout).toContain("data-tour={`nav-${item.route.replace(\"/\", \"\")}`}");
-        expect(nav).toContain(`route: "/${name.slice(4)}"`);
+      if (name === "user-menu") {
+        expect(topbar.includes(`data-tour="${name}"`)).toBe(true);
       } else {
-        // A literal data-tour, or a TourId prop the sidebar passes to the shared PinnedFilterList.
-        expect(layout.includes(`data-tour="${name}"`) || layout.includes(`TourId="${name}"`)).toBe(true);
+        expect(container.querySelector(`[data-tour='${name}']`), name).toBeTruthy();
+        if (name.startsWith("nav-")) expect(nav).toContain(`route: "/${name.slice(4)}"`);
       }
     }
     const used = buildWelcomeSteps(true).map((s) => String(s.target));

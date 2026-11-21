@@ -1,13 +1,7 @@
-import { useMemo } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
-import { navItems } from "../../config/nav";
-import { useCurrentUser } from "../../lib/UserContext";
-import { usePinnedFilters } from "../../lib/usePinnedFilters";
-import { PinnedFilterList } from "./PinnedFilterList";
-import { MenuPrimaryLinks } from "./MenuPrimaryLinks";
-import { FIRST_PINNED_TOUR_TARGET } from "../onboarding/whatsNew/tagsAndHintsSteps";
+import { MenuNav } from "./MenuNav";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -15,21 +9,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
-  const location = useLocation();
-  const currentUser = useCurrentUser();
-  const { pinned, tags, loaded, reorder } = usePinnedFilters();
-
-  // Filter nav items based on user role
-  const visibleNavItems = useMemo(
-    () => navItems.filter((item) => !item.requiresAdmin || currentUser.role === "admin"),
-    [currentUser.role]
-  );
-
-  function isNavItemActive(route: string): boolean {
-    const [path] = route.split("?");
-    return location.pathname === path;
-  }
-
   return (
     <aside
       className={clsx(
@@ -62,55 +41,13 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
         </Link>
       </div>
 
-      {/* Nav groups */}
-      <nav className="flex-1 min-h-0 flex flex-col" aria-label="Main navigation">
-        <MenuPrimaryLinks filters={pinned} tags={tags} collapsed={collapsed} />
-        <div className="flex-1 min-h-0 overflow-y-auto py-3">
-        {!collapsed && (
-          <div className="mb-4">
-            <PinnedFilterList filters={pinned} tags={tags} loading={!loaded} headingTourId="menu-filters" firstItemTourId={FIRST_PINNED_TOUR_TARGET} draggable onReorder={(src, target, pos) => void reorder(src, target, pos)} />
-          </div>
-        )}
-
-        <div className="mb-4">
-          {collapsed && (
-            <div className="border-t border-border/60 mx-2 mb-1 mt-1" />
-          )}
-          {visibleNavItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.route}>
-                <NavLink
-                  to={item.route}
-                    data-tour={`nav-${item.route.replace("/", "")}`}
-                  end={item.route === "/system"}
-                  title={collapsed ? item.label : undefined}
-                  className={() =>
-                    clsx(
-                      "flex items-center gap-3 text-sm py-2 rounded-md mx-2 transition-colors",
-                      collapsed ? "justify-center px-0" : "px-3",
-                      isNavItemActive(item.route)
-                        ? "bg-surface-2 text-heading"
-                        : "text-muted hover:text-body hover:bg-surface-2/50"
-                    )
-                  }
-                  aria-label={collapsed ? item.label : undefined}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </NavLink>
-
-              </div>
-            );
-          })}
-        </div>
-        </div>
-      </nav>
+      <MenuNav variant="sidebar" collapsed={collapsed} />
 
       {/* Collapse toggle */}
       <div className="border-t border-border p-2 flex justify-end shrink-0">
         <button
           onClick={onToggleCollapse}
+          data-tour="menu-collapse"
           className="p-1.5 rounded-md text-faint hover:text-secondary hover:bg-surface-2 transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
