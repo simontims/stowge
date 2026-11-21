@@ -42,10 +42,10 @@ class Part(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    collection = Column(String, nullable=True, index=True)  # legacy: unread and unwritten since the tags release
+    collection = Column(String, nullable=True)  # legacy (no index: nothing reads it): unread and unwritten since the tags release
     status = Column(String, nullable=False, default="draft")  # draft|confirmed
     quantity = Column(Integer, nullable=False, default=1)
-    location_id = Column(String, ForeignKey("locations.id"), nullable=True, index=True)
+    location_id = Column(String, ForeignKey("locations.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=now_utc)
 
@@ -54,6 +54,12 @@ class Part(Base):
     ai_chosen_index = Column(Integer, nullable=True)
 
     is_deleted = Column(Integer, nullable=False, default=0)  # 0|1 soft-delete flag
+
+    __table_args__ = (
+        # Covers "items in location X", "active items per location" (index-only) and the
+        # location-in-use checks; supersedes the old single-column ix_parts_location_id.
+        Index("ix_parts_location_deleted_id", "location_id", "is_deleted", "id"),
+    )
 
     images = relationship("PartImage", back_populates="part", cascade="all, delete-orphan")
     tag_links = relationship("ItemTag", back_populates="part", cascade="all, delete-orphan")

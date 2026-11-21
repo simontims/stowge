@@ -53,8 +53,9 @@ class TestShippedNotes:
             (1, "welcome-tour", "dot", "0.11.0", "2026-11-02"),
             (2, "filter-icons", "dot", "0.11.0", "2026-11-02"),
             (3, "tags-and-hints", "interrupt", "0.12.0", "2026-11-02"),
+            (4, "add-item-menu", "dot", "0.12.1", "2026-11-08"),
         ]
-        assert whats_new.latest_seq() == 3
+        assert whats_new.latest_seq() == 4
 
     def test_note_copy(self, monkeypatch):
         monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
@@ -66,14 +67,28 @@ class TestShippedNotes:
         assert by_id["tags-and-hints"].title == "Collections are now tags"
         assert by_id["tags-and-hints"].summary == (
             "Your collections became tags, and an item can have several. "
-            "AI hints are now a separate list. Your menu looks the same."
+            "AI hints are now a separate list. Your old collections are pinned filters in the menu."
+        )
+        assert by_id["add-item-menu"].title == "Add Item and All items in the menu"
+        assert by_id["add-item-menu"].summary == (
+            "The menu now starts with Add Item and All items, so you can always get to your list and add an item."
         )
 
     def test_existing_account_sees_all_three_and_one_interrupt(self, monkeypatch):
         monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
         me = _me(auth_cookies("wn_shipped_existing@example.com"))  # cursor 0
-        assert _ids(me) == ["welcome-tour", "filter-icons", "tags-and-hints"]
+        assert _ids(me) == ["welcome-tour", "filter-icons", "tags-and-hints", "add-item-menu"]
         assert me["whats_new"]["unseen_interrupt_count"] == 1
+
+    def test_a_0_12_0_user_sees_exactly_one_new_dot_note_and_no_interrupt(self, monkeypatch):
+        monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)
+        cookies = auth_cookies("wn_shipped_at_0_12_0@example.com")
+        r = client.post("/api/me/whats-new/seen", json={"seq": 3}, cookies=cookies)  # saw everything up to 0.12.0
+        assert r.status_code == 200
+        me = _me(cookies)
+        assert _ids(me) == ["add-item-menu"]
+        assert me["whats_new"]["unseen_interrupt_count"] == 0
+        assert me["whats_new"]["unseen"][0]["severity"] == "dot"
 
     def test_new_account_starts_at_the_latest_note(self, monkeypatch):
         monkeypatch.delenv(whats_new.PREVIEW_NOTES_ENV, raising=False)

@@ -187,7 +187,7 @@ def run_vacuum_once() -> dict:
     if not db_file or not db_file.endswith(".db"):
         raise RuntimeError("VACUUM is only supported for SQLite databases")
     size_before = os.path.getsize(db_file) if os.path.isfile(db_file) else 0
-    raw = _sqlite3.connect(db_file)
+    raw = _sqlite3.connect(db_file, timeout=30)
     try:
         raw.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         raw.execute("VACUUM")

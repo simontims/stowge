@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, defer, selectinload
 
 from ..auth import require_admin
 from ..db import get_db
@@ -16,6 +16,8 @@ from ..models import Area, ItemContentsEntry, Location, Part, Site, User
 from .items import apply_tag_filter
 
 router = APIRouter()
+
+_CSV_CHUNK_BYTES = 64 * 1024
 
 CSV_COLUMNS = [
     "name",
@@ -88,9 +90,14 @@ def _generate_csv(
             item.updated_at.isoformat() if item.updated_at else "",
         ]
         writer.writerow(row)
+        # Flush in ~64 KiB chunks: Starlette hops to a worker thread per yielded chunk of a
+        # sync generator, so per-row yields dominated export time on large inventories.
+        if buf.tell() >= _CSV_CHUNK_BYTES:
+            yield buf.getvalue()
+            buf.seek(0)
+            buf.truncate(0)
+    if buf.tell():
         yield buf.getvalue()
-        buf.seek(0)
-        buf.truncate(0)
 
 
 @router.get("/api/export/csv")
@@ -104,7 +111,8 @@ def export_csv(
     query = (
         db.query(Part)
         .outerjoin(Location, Part.location_id == Location.id)
-        .options(joinedload(Part.contents))
+        # selectin (not joined) keeps the parts query narrow; AI blobs are not exported.
+        .options(selectinload(Part.contents), defer(Part.ai_primary), defer(Part.ai_alternatives))
     )
 
     # Scope filter

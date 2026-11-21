@@ -254,6 +254,8 @@ class TestGetMe:
             raise StaleDataError("stale session row")
 
         monkeypatch.setattr("stowge.auth.Session.commit", _raise_stale)
+        # last_seen_at writes are throttled; force one so the stale-row path is exercised.
+        monkeypatch.setattr("stowge.auth.SESSION_TOUCH_INTERVAL_SECONDS", 0)
 
         r = client.get("/api/me", cookies={SESSION_COOKIE_NAME: token})
         assert r.status_code == 401

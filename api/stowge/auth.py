@@ -13,6 +13,8 @@ from .models import User, UserSession
 
 SESSION_COOKIE_NAME = "stowge_session"
 SESSION_LIFETIME_MINUTES = int(os.getenv("SESSION_LIFETIME_MINUTES", "1440"))
+# Minimum seconds between UserSession.last_seen_at writes (0 = write on every request).
+SESSION_TOUCH_INTERVAL_SECONDS = int(os.getenv("SESSION_TOUCH_INTERVAL_SECONDS", "60"))
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
 
@@ -83,30 +85,38 @@ def current_user(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     now = datetime.now(timezone.utc)
-    sess = (
-        db.query(UserSession)
+    # One round trip for session + owner (was two SELECTs).
+    row = (
+        db.query(UserSession, User)
+        .join(User, User.id == UserSession.user_id)
         .filter(
             UserSession.id == session_id,
             UserSession.expires_at > now,
         )
         .first()
     )
-    if not sess:
+    if row is None:
+        # Distinguish "no live session" from "session without a user" (kept for identical 401 details).
+        if db.query(UserSession.id).filter(UserSession.id == session_id, UserSession.expires_at > now).first():
+            raise HTTPException(status_code=401, detail="User not found")
         raise HTTPException(status_code=401, detail="Session expired or invalid")
+    sess, user = row
 
-    user = db.query(User).filter(User.id == sess.user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    # Refresh last_seen_at to track session activity.
-    sess.last_seen_at = now
-    try:
-        db.commit()
-    except StaleDataError:
-        # Session row can be concurrently deleted (for example during restore apply
-        # global logout). Treat this as an expired/invalid session instead of 500.
-        db.rollback()
-        raise HTTPException(status_code=401, detail="Session expired or invalid")
+    # Refresh last_seen_at to track session activity. Throttled: a write + commit on every
+    # request (page load fires several) costs a WAL transaction each; minute resolution is
+    # plenty for "last seen".
+    last_seen = sess.last_seen_at
+    if last_seen is not None and last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+    if last_seen is None or (now - last_seen).total_seconds() >= SESSION_TOUCH_INTERVAL_SECONDS:
+        sess.last_seen_at = now
+        try:
+            db.commit()
+        except StaleDataError:
+            # Session row can be concurrently deleted (for example during restore apply
+            # global logout). Treat this as an expired/invalid session instead of 500.
+            db.rollback()
+            raise HTTPException(status_code=401, detail="Session expired or invalid")
 
     return user
 

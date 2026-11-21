@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import exists as sql_exists
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer, load_only, selectinload
 
 from ..ai_hints import resolve_hint_context
 from ..auth import current_user
@@ -80,6 +80,16 @@ def apply_tag_filter(db: Session, query, tag_values: list[str] | None):
             return query.filter(Part.id.is_(None))
         query = query.filter(sql_exists().where(ItemTag.item_id == Part.id, ItemTag.tag_id == tag_id))
     return query
+
+
+def _list_row_options():
+    """Loader options for list payloads: batch-load images (one query, not one per item) and
+    skip the AI JSON blobs the list serializer never reads."""
+    return (
+        selectinload(Part.images).options(load_only(PartImage.id, PartImage.is_primary)),
+        defer(Part.ai_primary),
+        defer(Part.ai_alternatives),
+    )
 
 
 def _serialize_part_rows(db: Session, parts: list[Part]) -> list[dict]:
@@ -246,7 +256,7 @@ def list_parts(
     else:
         query = query.order_by(sort_col.desc() if descending else sort_col.asc())
 
-    parts = query.limit(200).all()
+    parts = query.options(*_list_row_options()).limit(200).all()
     return _serialize_part_rows(db, parts)
 
 
@@ -270,7 +280,7 @@ def list_deleted_items(
             )
         )
 
-    parts = query.order_by(Part.updated_at.desc()).limit(500).all()
+    parts = query.options(*_list_row_options()).order_by(Part.updated_at.desc()).limit(500).all()
     return _serialize_part_rows(db, parts)
 
 

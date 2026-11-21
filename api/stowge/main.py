@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from .db import Base, engine
 from .helpers.ai_providers import default_api_base_for_provider
+from .helpers.http_middleware import SecurityHeadersMiddleware
 from .helpers.maintenance import (MAINTENANCE_TASK_KEYS,
                                   start_maintenance_scheduler_if_needed,
                                   stop_maintenance_scheduler)
@@ -25,6 +27,7 @@ from .models import (AppMeta, Area, LLMConfig, Location, MaintenanceSchedule,
                      Site, User)
 from .rate_limit import limiter
 from .tags_migration import run_tags_migration
+from .schema_upgrades import refresh_statistics, upgrade_indexes
 from .whats_new import WELCOME_VERSION
 
 # ---------------------------------------------------------------------------
@@ -479,6 +482,8 @@ def _run_startup_migrations():
 def init_db():
     Base.metadata.create_all(bind=engine)
     _run_startup_migrations()
+    upgrade_indexes(engine)
+    refresh_statistics(engine)
 
 init_db()
 
@@ -516,14 +521,10 @@ if CORS_ORIGINS:
     )
 
 
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(self)"
-    return response
+app.add_middleware(SecurityHeadersMiddleware)
+# Outermost: compress JSON/CSV/HTML/JS/CSS (images, zips and SSE are excluded by Starlette's
+# defaults). Level 5 is ~3x faster than the default 9 for a few percent larger output.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 
 # ---------------------------------------------------------------------------

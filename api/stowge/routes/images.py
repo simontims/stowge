@@ -10,7 +10,9 @@ from typing import List, Literal, Optional
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Query, Request,
                      UploadFile)
-from fastapi.responses import FileResponse
+from email.utils import parsedate
+
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from ..auth import current_user, require_admin
@@ -357,6 +359,19 @@ def get_signed_image_url(
     return {"url": signed_image_url(image_id, variant)}
 
 
+def _not_modified(response_headers, request_headers) -> bool:
+    """RFC 9110 conditional GET check (If-None-Match wins over If-Modified-Since)."""
+    if_none_match = request_headers.get("if-none-match")
+    if if_none_match:
+        if if_none_match.strip() == "*":
+            return True
+        etag = response_headers.get("etag")
+        return bool(etag) and etag in [tag.strip().removeprefix("W/") for tag in if_none_match.split(",")]
+    since = parsedate(request_headers.get("if-modified-since", ""))
+    modified = parsedate(response_headers.get("last-modified", ""))
+    return since is not None and modified is not None and since >= modified
+
+
 @router.get("/api/images/{image_id}")
 def get_image(
     request: Request,
@@ -368,7 +383,7 @@ def get_image(
 ):
     auth = request.headers.get("authorization")
     if auth:
-        _ = current_user(Authorization=auth, db=db)
+        _ = current_user(request=request, db=db)
     else:
         if exp is None or sig is None or not verify_image(image_id, variant, exp, sig):
             raise HTTPException(status_code=401, detail="Missing bearer token")
@@ -380,4 +395,12 @@ def get_image(
     rel = variant_rel(img, variant)
     abs_path = resolve_path(rel)
     headers = {"Cache-Control": "public, max-age=604800, immutable"}
-    return FileResponse(abs_path, media_type=img.mime, headers=headers)
+    response = FileResponse(abs_path, media_type=img.mime, headers=headers, stat_result=os.stat(abs_path))
+    # Starlette's FileResponse emits ETag/Last-Modified but never answers conditional requests
+    # (only StaticFiles does); do it here so revalidations skip the body.
+    if _not_modified(response.headers, request.headers):
+        return Response(
+            status_code=304,
+            headers={k: response.headers[k] for k in ("etag", "last-modified", "cache-control") if k in response.headers},
+        )
+    return response

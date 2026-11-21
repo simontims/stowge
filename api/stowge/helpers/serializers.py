@@ -173,13 +173,23 @@ def serialize_user(user: User) -> dict:
     }
 
 
-def serialize_location(location: Location, db: Session, item_count: int | None = None) -> dict:
+def serialize_location(
+    location: Location,
+    db: Session,
+    item_count: int | None = None,
+    hierarchy: dict[str, tuple[str, str | None, str | None]] | None = None,
+) -> dict:
+    """``hierarchy`` optionally maps area_id -> (area_name, site_id, site_name) so list callers
+    avoid two lookups per location."""
     if item_count is None:
         item_count = db.query(Part).filter(Part.location_id == location.id, Part.is_deleted == 0).count()
     area_name: str | None = None
     site_id: str | None = None
     site_name: str | None = None
-    if location.area_id:
+    if location.area_id and hierarchy is not None:
+        if location.area_id in hierarchy:
+            area_name, site_id, site_name = hierarchy[location.area_id]
+    elif location.area_id:
         area = db.query(Area).filter(Area.id == location.area_id).first()
         if area:
             area_name = area.name
@@ -270,20 +280,32 @@ def tags_by_item_id(db: Session, item_ids: list[str]) -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {}
     if not item_ids:
         return out
+    # Two cheap queries instead of a per-chunk ItemTag JOIN Tag: SQLite's planner scanned the
+    # whole tags table once per chunk for the join (4.8s for 20k items); item_tags rows come from
+    # the (item_id, tag_id) primary-key index and the tag table is read once.
+    tag_rows = {
+        tag_id: (name, icon, color)
+        for tag_id, name, icon, color in db.query(Tag.id, Tag.name, Tag.icon, Tag.color).all()
+    }
     # Chunked to stay clear of SQLite's bound-parameter limit.
     for start in range(0, len(item_ids), 500):
         chunk = item_ids[start:start + 500]
-        rows = (
-            db.query(ItemTag.item_id, Tag.id, Tag.name, Tag.icon, Tag.color)
-            .join(Tag, Tag.id == ItemTag.tag_id)
-            .filter(ItemTag.item_id.in_(chunk))
-            .all()
-        )
-        for item_id, tag_id, name, icon, color in rows:
+        rows = db.query(ItemTag.item_id, ItemTag.tag_id).filter(ItemTag.item_id.in_(chunk)).all()
+        for item_id, tag_id in rows:
+            tag = tag_rows.get(tag_id)
+            if tag is None:  # dangling link: the old inner join skipped these too
+                continue
+            name, icon, color = tag
             out.setdefault(str(item_id), []).append({"id": tag_id, "name": name, "icon": icon, "color": color})
     for tags in out.values():
         tags.sort(key=lambda t: (str(t["name"]).lower(), str(t["name"])))
     return out
+
+
+def area_hierarchy_by_id(db: Session) -> dict[str, tuple[str, str | None, str | None]]:
+    """``{area_id: (area_name, site_id, site_name)}`` in a single query."""
+    rows = db.query(Area.id, Area.name, Area.site_id, Site.name).outerjoin(Site, Site.id == Area.site_id).all()
+    return {area_id: (area_name, site_id, (site_name if site_id else None)) for area_id, area_name, site_id, site_name in rows}
 
 
 def list_locations_payload(db: Session) -> list[dict]:
@@ -297,7 +319,8 @@ def list_locations_payload(db: Session) -> list[dict]:
         .group_by(Part.location_id)
         .all()
     )
-    return [serialize_location(loc, db, item_count=int(counts.get(loc.id, 0))) for loc in locations]
+    hierarchy = area_hierarchy_by_id(db)
+    return [serialize_location(loc, db, item_count=int(counts.get(loc.id, 0)), hierarchy=hierarchy) for loc in locations]
 
 
 def list_sites_payload(db: Session) -> list[dict]:

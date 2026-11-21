@@ -90,8 +90,17 @@ NOTES: tuple[Note, ...] = (
         title="Collections are now tags",
         summary=(
             "Your collections became tags, and an item can have several. "
-            "AI hints are now a separate list. Your menu looks the same."
+            "AI hints are now a separate list. Your old collections are pinned filters in the menu."
         ),
+    ),
+    Note(
+        id="add-item-menu",
+        seq=4,
+        severity=SEVERITY_DOT,
+        version="0.12.1",
+        date="2026-11-08",
+        title="Add Item and All items in the menu",
+        summary="The menu now starts with Add Item and All items, so you can always get to your list and add an item.",
     ),
 )
 

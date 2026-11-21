@@ -9,6 +9,29 @@ here first. Unreleased changes sit under "Unreleased" until a release is tagged.
 
 ## Unreleased
 
+Performance release. No endpoint, field or status code changes (response bodies of 14 endpoints were compared
+byte for byte with the previous version). The changes below are visible to HTTP clients.
+
+### Changed
+
+- JSON, CSV, HTML, JavaScript and CSS responses are gzip-compressed when the client sends
+  `Accept-Encoding: gzip`, and carry `Vary: Accept-Encoding`. Images, zip downloads and the live-update
+  stream (`/api/events/*`) are never compressed. Clients that do not ask for gzip get the same bytes as before.
+- The image endpoint answers `If-None-Match` and `If-Modified-Since` with HTTP 304 (no body), after the
+  signature and session checks, so an unauthorised request never gets a 304.
+- `/assets/*` (the web UI's hashed files) is sent with `Cache-Control: public, max-age=31536000, immutable`.
+  `index.html` stays `no-store`.
+- The CSV export is streamed in chunks. The file content is unchanged.
+- A session's `last_seen_at` is now updated at most once per 60 seconds (set `SESSION_TOUCH_INTERVAL_SECONDS=0`
+  to update on every request as before). Session expiry is unaffected.
+
+### Fixed
+
+- A request for an image with an `Authorization` header returned HTTP 500. It now returns 200 with a valid
+  session cookie and 401 without one.
+
+## 0.12.0
+
 Release 0.12.0 replaces collections with tags. This is a **breaking change** with no alias: scripts and
 integrations that use collections must move to tags. See
 [MIGRATING-collections-to-tags.md](MIGRATING-collections-to-tags.md) for the old to new mapping.
